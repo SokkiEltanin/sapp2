@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Sapp2",
+    "slug": "sapp2",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "scheme": "sapp2",
+    "splash": {
+      "backgroundColor": "#0B0E14"
+    },
+    "android": {
+      "backgroundColor": "#0B0E14",
+      "package": "com.sokki.sapp2",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.INTERNET"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26,
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35
+          }
+        }
+      ]
+    ]
+  }
+}

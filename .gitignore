@@ -1,0 +1,37 @@
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native (generowane przez `expo prebuild`/EAS — nie commitujemy, tak jak w sapp)
+/ios
+/android
+*.keystore
+*.jks
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+
+# Sekrety lokalne — PRAWDZIWY apiKey Firebase ląduje TYLKO tu, nigdy w repo
+# (patrz INFRA.md — ta sama konwencja co w sapp, GitHub Secret przy CI).
+.env
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# Build artifacts
+*.apk
+*.aab
