@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "237061417548",
+    "project_id": "sapp2-a2354",
+    "storage_bucket": "sapp2-a2354.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:237061417548:android:9cefe8e0c7a36fca0162e9",
+        "android_client_info": {
+          "package_name": "com.sokki.sapp2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmgNu8nAJ0oEUqrN5gXADwUatiyrXcGWM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
