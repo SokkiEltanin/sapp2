@@ -12,7 +12,20 @@
           "package_name": "com.sokki.sapp2"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "237061417548-912ehc89de7em0riql1aduihpka70k42.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sokki.sapp2",
+            "certificate_hash": "2d375fe540a867a3e34677961512f2c262c9d051"
+          }
+        },
+        {
+          "client_id": "237061417548-pent1blbeebj8kov67f8f5focr98usgr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCmgNu8nAJ0oEUqrN5gXADwUatiyrXcGWM"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "237061417548-pent1blbeebj8kov67f8f5focr98usgr.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

@@ -26,11 +26,10 @@ w konsolach, jak będziemy scaffoldować właściwy projekt Expo.
   `app/settings.tsx` → `GoogleSignin.configure`).
 - **Web Client ID** (do `webClientId` w `GoogleSignin.configure`):
   `237061417548-pent1blbeebj8kov67f8f5focr98usgr.apps.googleusercontent.com`
-- **Android OAuth client — TERAZ MOŻLIWE** (keystore już istnieje, patrz niżej).
-  Google Cloud Console → Dane logowania → Utwórz dane logowania → Android → package
-  `com.sokki.sapp2` + SHA-1: `2D:37:5F:E5:40:A8:67:A3:E3:46:77:96:15:12:F2:C2:62:C9:D0:51`.
-  Po tym trzeba będzie na nowo pobrać `google-services.json` (obecny ma pusty
-  `oauth_client: []`) i podmienić w repo.
+- **Android OAuth client — ZROBIONE.** Package `com.sokki.sapp2`, SHA-1:
+  `2D:37:5F:E5:40:A8:67:A3:E3:46:77:96:15:12:F2:C2:62:C9:D0:51`, client_id
+  `237061417548-912ehc89de7em0riql1aduihpka70k42.apps.googleusercontent.com`.
+  Świeży `google-services.json` (z oboma oauth_client — Android + Web) już w repo.
 
 ## OCR paragonów
 - ŚWIADOMIE pominięte — user zostaje przy parserze tekstu (share-intent SELECT ALL →
