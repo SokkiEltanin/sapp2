@@ -1,0 +1,141 @@
+name: Build APK
+
+# Na razie bez OTA (odłożone, patrz rozmowa w sesji) — każda zmiana i tak wymaga pełnego
+# builda, więc trigger leci na KAŻDY push do main, nie tylko pliki natywne (to zawężenie
+# ma sens dopiero gdy obok istnieje szybsza ścieżka EAS Update, jak w sapp). `workflow_dispatch`
+# zostaje jako ręczny "zrób mi nowy APK teraz" przycisk niezależnie od tego.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Expo prebuild
+        run: npx expo prebuild --platform android --no-install
+        env:
+          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+
+      - name: Copy google-services.json to Android project
+        run: cp google-services.json android/app/google-services.json
+
+      - name: Setup signing keystore
+        env:
+          MYAPP_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/sapp2-release.keystore
+          printf '\n' >> android/gradle.properties
+          {
+            echo "MYAPP_UPLOAD_STORE_FILE=sapp2-release.keystore"
+            echo "MYAPP_UPLOAD_STORE_PASSWORD=${MYAPP_UPLOAD_STORE_PASSWORD}"
+            echo "MYAPP_UPLOAD_KEY_ALIAS=sapp2"
+            echo "MYAPP_UPLOAD_KEY_PASSWORD=${MYAPP_UPLOAD_STORE_PASSWORD}"
+            echo "kotlin.jvm.target.validation.mode=warning"
+          } >> android/gradle.properties
+
+      - name: Inject signing config into build.gradle
+        run: |
+          python3 << 'PYEOF'
+          import re, sys
+          with open('android/app/build.gradle', 'r') as f:
+              content = f.read()
+          PROPS = '\n            storeFile file(project.MYAPP_UPLOAD_STORE_FILE)\n            storePassword project.MYAPP_UPLOAD_STORE_PASSWORD\n            keyAlias project.MYAPP_UPLOAD_KEY_ALIAS\n            keyPassword project.MYAPP_UPLOAD_KEY_PASSWORD'
+          if 'MYAPP_UPLOAD_STORE_FILE' not in content:
+              rel_cfg = '\n        release {' + PROPS + '\n        }'
+              if 'signingConfigs' in content:
+                  content = re.sub(r'(signingConfigs\s*\{[^}]*\})', r'\1' + rel_cfg, content, count=1)
+              else:
+                  blk = '\n    signingConfigs {' + rel_cfg + '\n    }\n'
+                  content = re.sub(r'(\n\s+buildTypes\s*\{)', blk + r'\1', content, count=1)
+          if 'signingConfig signingConfigs.release' not in content:
+              updated = re.sub(r'(buildTypes\s*\{.*?\brelease\s*\{[^}]*?)(signingConfig\s+\S+)', r'\1signingConfig signingConfigs.release', content, count=1, flags=re.DOTALL)
+              if updated == content:
+                  content = re.sub(r'(buildTypes\s*\{.*?)(\brelease\s*\{)', r'\1\2\n            signingConfig signingConfigs.release', content, count=1, flags=re.DOTALL)
+              else:
+                  content = updated
+          with open('android/app/build.gradle', 'w') as f:
+              f.write(content)
+          if 'signingConfig signingConfigs.release' not in content or 'MYAPP_UPLOAD_STORE_FILE' not in content:
+              print('ERROR: injection incomplete!')
+              sys.exit(1)
+          print('Signing config OK.')
+          PYEOF
+
+      - name: Verify signing config in build.gradle
+        run: |
+          grep -q "signingConfig signingConfigs.release" android/app/build.gradle \
+            && echo "OK: release buildType will use production keystore" \
+            || (echo "FAIL: signingConfig.release missing" && exit 1)
+
+      # Pre-install NDK explicitly z retry — Gradle's auto-install nie ma retry, jeden zły
+      # download (ZipException) wywala cały build (ten sam fix co w sapp).
+      - name: Install Android NDK 27.1.12297006
+        continue-on-error: true
+        run: |
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          SM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SM" ] || SM="$(command -v sdkmanager || true)"
+          if [ -z "$SM" ] || [ ! -x "$SM" ]; then
+            echo "sdkmanager not found — leaving NDK to Gradle's own installer"; exit 0
+          fi
+          for i in 1 2 3; do
+            (yes || true) | "$SM" --sdk_root="$SDK" --install "ndk;27.1.12297006" && break
+            rm -rf "$SDK/ndk/27.1.12297006" || true
+            sleep 10
+          done
+
+      - name: Build release APK
+        run: cd android && ./gradlew assembleRelease --no-daemon -x lint -x lintVitalAnalyzeRelease -x lintVitalRelease
+        env:
+          GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=512m -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g"
+          EXPO_PUBLIC_BUILD_NUMBER: ${{ github.run_number }}
+          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+
+      - name: Rename APK
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          cp android/app/build/outputs/apk/release/app-release.apk \
+            "sapp2-build${{ github.run_number }}-v${VERSION}-${SHORT_SHA}.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sapp2-build${{ github.run_number }}
+          path: sapp2-build*.apk
+          retention-days: 30
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: "Build #${{ github.run_number }}"
+          body: |
+            **Build #${{ github.run_number }}**
+            Commit: ${{ github.sha }}
+            Message: ${{ github.event.head_commit.message }}
+          files: sapp2-build*.apk
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
