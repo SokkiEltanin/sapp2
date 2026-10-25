@@ -4,16 +4,23 @@
     "slug": "sapp2",
     "version": "0.1.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "scheme": "sapp2",
     "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
       "backgroundColor": "#0B0E14"
     },
     "android": {
       "backgroundColor": "#0B0E14",
       "package": "com.sokki.sapp2",
       "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0B0E14"
+      },
       "permissions": [
         "android.permission.INTERNET"
       ]
