@@ -3,6 +3,10 @@
 Zasady ustalane na bieżąco w trakcie budowy od zera. Dopisuj tu, gdy coś nowego
 zostanie przesądzone — to jedyne miejsce, które się o tym pamięta między sesjami.
 
+**[`NEXT_STEPS.md`](./NEXT_STEPS.md) = aktualna lista "co dalej"** — zdecydowane,
+jeszcze niezbudowane rzeczy, pomysły do rozważenia, otwarte pytania. Aktualizuj po
+skończeniu/odkryciu czegoś nowego.
+
 ## Zasady, których nie łamać
 
 1. **Tylko ciemny motyw, na zawsze.** Nie ma trybu jasnego, nie projektujemy pod
