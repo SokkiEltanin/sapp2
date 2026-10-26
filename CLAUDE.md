@@ -3,6 +3,10 @@
 Zasady ustalane na bieżąco w trakcie budowy od zera. Dopisuj tu, gdy coś nowego
 zostanie przesądzone — to jedyne miejsce, które się o tym pamięta między sesjami.
 
+**[`ARCHITECTURE.md`](./ARCHITECTURE.md) = mapa ekranów i połączeń** (GE/PE/PPE,
+co prowadzi dokąd). Czytaj przed dodaniem nowego ekranu/przejścia, aktualizuj przy
+każdej decyzji o strukturze.
+
 **[`NEXT_STEPS.md`](./NEXT_STEPS.md) = aktualna lista "co dalej"** — zdecydowane,
 jeszcze niezbudowane rzeczy, pomysły do rozważenia, otwarte pytania. Aktualizuj po
 skończeniu/odkryciu czegoś nowego.

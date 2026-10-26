@@ -24,6 +24,8 @@ zostaje, ale inna mechanika:
   waluta/mechanika).
 - Rezygnacja z bossów, mapy kampanii, walk — to wszystko zostaje tylko jako
   historia/inspiracja w `sapp`, nie jest kopiowane 1:1.
+- **Tryb focus (2026-10-26):** aktywne pomodoro do zadania → roślinka rośnie szybciej.
+  Do przemyślenia razem z systemem powiadomień (patrz "Do zrobienia" niżej).
 
 Status: pomysł zgłoszony, NIE zdecydowany ostatecznie ("nie wiem do pomyślenia").
 Wracamy do tego jak dojdziemy do budowania Pupila konkretnie — nie blokuje obecnej
@@ -45,7 +47,27 @@ pracy nad nawigacją/stylem.
   Firebase (`Create database`, projekt `sapp2-a2354`) — bez tego test Firestore
   nie przejdzie niezależnie od fixu transportu w kodzie.
 - Satelickie ekrany z `sapp` (produkty, pojazdy, nawyki) — nierozstrzygnięte czy
-  zostają jako osobne ekrany czy wtapiają się w kontekst innych ekranów.
+  zostają jako osobne ekrany czy wtapiają się w kontekst innych ekranów. User
+  (2026-10-26): pomysł żeby żyły pod customowym przyciskiem w lewym dolnym rogu,
+  PER EKRAN Finanse — **koliduje z tym że ten róg jest teraz stałym, globalnym
+  miejscem Ustawień** (patrz sekcja Navbar niżej). Do rozstrzygnięcia: albo Ustawienia
+  przenoszą się gdzie indziej, albo kontekstowy przycisk Finanse dostaje inne miejsce.
+- **Lista zadań w `ZADANIA`** — do zaprojektowania od nowa (user: "możesz zaproponować
+  jak inne aplikacje to pullują"). Rekomendacja z rozmowy 2026-10-26: `sapp` już ma
+  sprawdzony, dopracowany model sekcji TERAZ / bezterminowe / terminowe (zadanie #42 w
+  historii `sapp`) — naturalny punkt startowy zamiast wymyślania od zera. Zewnętrzna
+  referencja: TickTick łączy pasek kalendarza u góry z listą zadań pod spodem dokładnie
+  w stylu który user opisał (tydzień zwinięty → miesiąc po kliknięciu).
+- **Powiadomienia full-screen** (user chce coś jak budzik — blokuje ekran, nie da się
+  nic zrobić dopóki nie odhaczysz). Android to wspiera (full-screen intent, ten sam
+  mechanizm co budziki/połączenia), ale goły `expo-notifications` ma tu ograniczone/
+  kruche wsparcie — realna ścieżka to prawdopodobnie biblioteka `notifee` (dojrzalsza
+  w tym temacie, działa z Expo przez config plugin) albo custom native code. Nie
+  trywialne w managed workflow — do przetestowania osobno zanim obiecamy to w UI.
+- **Wibracje — zakres toggle'a.** Rekomendacja: jeden globalny przełącznik w
+  Ustawieniach, NIE per-ekran (mniej złożoności UI; jeśli jakiś ekran okaże się zbyt
+  "wibrujący", wyciszamy to punktowo w kodzie tego ekranu zamiast dodawać kolejny
+  przełącznik).
 
 ## Dashboard — pierwsze 4 rzędy zbudowane (2026-10-26), otwarte przybliżenia
 
@@ -78,10 +100,11 @@ tylko na skrajnych krawędziach rzędu, wymiary 649×460 (2×308+33) dla kafli "
 `TabBar.tsx` przebudowany: klaster 5 zakładek ściśnięty do prawej krawędzi (nie pełna
 szerokość), kolejność `Dashboard → Daily → Finanse → Zadania → Pupil` (Pupil skrajnie
 prawy = najczęstszy = najbliżej kciuka). "Notatki" z wcześniejszej notatki zastąpione
-realnie istniejącym "Zadania" — **do potwierdzenia przez usera czy to poprawne
-podstawienie, czy "Notatki" miało być osobnym, jeszcze niezbudowanym ekranem**. Ikona
-Ustawień przeniesiona z pływającego przycisku na Dashboardzie (nachodził na kafelek
-pogody) na stałe miejsce w lewym dolnym rogu paska, osobno od klastra 5 zakładek.
+realnie istniejącym "Zadania" — **potwierdzone przez usera (2026-10-26), zostaje tak**.
+Ikona Ustawień przeniesiona z pływającego przycisku na Dashboardzie (nachodził na
+kafelek pogody) na stałe miejsce w lewym dolnym rogu paska, osobno od klastra 5
+zakładek — patrz wyżej (satelickie ekrany Finansów) o kolizji tego miejsca z nowym
+pomysłem na kontekstowy przycisk per-ekran.
 
 ## Fix: tekst ucinany w kaflach Dashboardu (2026-10-26)
 
