@@ -67,7 +67,14 @@ export default function TaskListTile({
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
-  tile: { flex: 3, height: TILE_ROW_HEIGHT, backgroundColor: c.bg.card, overflow: 'hidden' },
+  // `padding` tutaj (2026-10-26, user: brakowało odstępu od krawędzi) — bez niego
+  // pierwszy wiersz siedział tak blisko dużego zaokrąglenia zewnętrznego rogu kafla, że
+  // ten róg "odgryzał" kawałek chipa taga (stąd "UR" ucięte do "U"). Padding daje
+  // odstęp i jednocześnie rozwiązuje to niechciane przycinanie.
+  tile: {
+    flex: 3, height: TILE_ROW_HEIGHT, backgroundColor: c.bg.card, overflow: 'hidden',
+    padding: 6,
+  },
   // Każdy wiersz to osobny, lekko zaokrąglony segment z odstępem do następnego (nie
   // ciągły blok z cienkimi liniami-dzielnikami jak w pierwszej wersji) — tak jak w
   // mockupie usera. Zewnętrzny `tile` (overflow: hidden + zaokrąglenie skrajnych

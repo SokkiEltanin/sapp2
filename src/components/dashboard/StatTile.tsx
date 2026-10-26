@@ -98,24 +98,24 @@ const makeS = themedStyles((c) => StyleSheet.create({
   },
   value: {
     fontFamily: 'Inter_900Black',
-    fontSize: 30,
+    fontSize: 34,
     textAlign: 'center',
   },
   unit: {
     fontFamily: 'Inter_200ExtraLight',
-    fontSize: 13,
+    fontSize: 15,
     color: c.text.primary,
     textAlign: 'center',
     marginTop: -4,
   },
   label: {
     fontFamily: 'Inter_900Black',
-    fontSize: 14,
+    fontSize: 16,
     textAlign: 'center',
   },
   detail: {
     fontFamily: 'Inter_500Medium',
-    fontSize: 11,
+    fontSize: 13,
     textAlign: 'left',
     lineHeight: 14,
   },

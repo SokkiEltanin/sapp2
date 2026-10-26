@@ -32,9 +32,12 @@ export const colors = {
     woda: '#5AAFFA',
     slodycze: '#C43A3D',
     event: '#D9A646',
-    pogoda: '#D6D6D6',
     sen: '#8476F2',
     finanse: '#50B09B',
+    // Zastąpiło kafelek pogody (2026-10-26, user: "wywalamy pogodę i tam zrob streak
+    // taki sam kafelek tylko pod ćwiczenia") — kolor nienazwany w mockupie, wybrany
+    // (zielony, skojarzenie z aktywnością/zdrowiem), do ew. korekty na życzenie.
+    cwiczenia: '#5BC24F',
   },
   // Stany "nieaktywne"/tło w wykresach (np. słupki per-miesiąc w kaflu Finanse) —
   // osobne od `stat`, bo to nie kolor kategorii tylko stan "nie aktywny teraz".

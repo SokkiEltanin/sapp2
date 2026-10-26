@@ -5,7 +5,11 @@ import PatternTileBackground from './PatternTileBackground';
 import type { StatTilePosition } from './tilePosition';
 
 // "Sen" (2026-10-26) — user: "godzina snu ma rozmiar 48, napis SNU 40" (na jego
-// referencyjnym ekranie 1440px) — przeliczone proporcjonalnie, nie 1:1.
+// referencyjnym ekranie 1440px) — przeliczone proporcjonalnie, nie 1:1. Ikona + czas
+// snu + etykieta SNU grupowane w JEDNO dziecko (`topGroup`), żeby `space-between` z
+// `PatternTileBackground` rozciągał tylko DWIE rzeczy (grupę u góry i zakres godzin na
+// dole) zamiast trzech — inaczej czas snu lądował wizualnie na środku kafla zamiast
+// zaraz pod ikoną w lewym górnym rogu (user to poprawił 2026-10-26).
 export default function SleepTile({
   position,
   accent,
@@ -20,11 +24,11 @@ export default function SleepTile({
   const s = makeS();
   return (
     <PatternTileBackground position={position} accent={accent}>
-      <View style={s.topRow}>
-        <View />
-        <Moon size={18} color={accent} />
-      </View>
-      <View>
+      <View style={s.topGroup}>
+        <View style={s.topRow}>
+          <View />
+          <Moon size={18} color={accent} />
+        </View>
         <Text style={[s.value, { color: accent }]}>{duration}</Text>
         <Text style={s.label}>SNU</Text>
       </View>
@@ -34,8 +38,9 @@ export default function SleepTile({
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
+  topGroup: {},
   topRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  value: { fontFamily: 'Inter_900Black', fontSize: 20 },
+  value: { fontFamily: 'Inter_900Black', fontSize: 22, marginTop: 4 },
   label: { fontFamily: 'Inter_200ExtraLight', fontSize: 15, color: c.text.primary, marginTop: -2 },
   window: { fontFamily: 'Inter_700Bold', fontSize: 14 },
 }));

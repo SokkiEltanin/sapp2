@@ -92,8 +92,11 @@ tylko na skrajnych krawędziach rzędu, wymiary 649×460 (2×308+33) dla kafli "
   tekstowy "LVL 27" bez ilustracji (powiązane z pomysłem rośliny wyżej).
 - Wysokości słupków w kaflu Finanse — zrobione proporcjonalnie do wartości (sensowny
   domyślny wybór), nie 1:1 skopiowane z mockupu (tam wyglądały na orientacyjne/ręczne).
-- Kafelek pogody — brak pełnej specyfikacji typografii jak reszta, duża ikona
-  CloudSun zamiast dolnej etykiety to przybliżenie.
+- **Kafelek pogody wywalony (2026-10-26)** — zastąpiony streakiem ĆWICZENIA (ten sam
+  wzorzec co WODA/SŁODYCZE). Kolor `colors.stat.cwiczenia` (`#5BC24F`, zielony) wybrany
+  przeze mnie, nienazwany w mockupie — do ew. korekty. `StatTile`'owy wariant `weather`
+  zostaje w komponencie (nieużywany teraz, ale gotowy gdyby pogoda wróciła gdzie indziej
+  — np. `DAILY` w `ARCHITECTURE.md`).
 
 ## Navbar + Ustawienia — zbudowane (2026-10-26)
 
@@ -119,3 +122,22 @@ długości liczb/etykiet). Poprawione: StatTile, FoodBarsTile, TaskListTile.
 Dodatkowo: wiersze w Zadaniach miały cienkie linie-dzielniki zamiast osobnych
 segmentów z odstępem jak w mockupie — poprawione na realne odstępy (`marginBottom`)
 między zaokrąglonymi wierszami.
+
+## Runda poprawek 2 (2026-10-26, po pierwszym teście na urządzeniu)
+
+- **Padding w kaflu Zadań** — brak paddingu powodował, że pierwszy wiersz siedział tak
+  blisko dużego zaokrąglenia zewnętrznego rogu, że róg "odgryzał" kawałek chipa taga
+  ("UR"→"U"). Dodany `padding: 6` na zewnętrznym `tile` naprawia oba zgłoszenia
+  (brakujący odstęp od krawędzi + ucięty tekst chipa) jednym fixem.
+- **Fonty w StatTile powiększone** — value 30→34, unit 13→15, label 14→16, detail
+  11→13. Poprzednia runda zmniejszyła je żeby naprawić clipping, ale clipping
+  naprawiał w rzeczywistości fix `alignItems: 'stretch'`, nie mniejszy rozmiar — więc
+  bezpiecznie wracamy w górę, `adjustsFontSizeToFit` i tak jest siatką bezpieczeństwa.
+- **FactTile (Ciekawostka)** — usunięta kropka karuzeli (była zapowiedzią przyszłego
+  swipe'a między wieloma ciekawostkami — jeśli karuzela wróci, potrzebny będzie inny
+  wskaźnik stron). Tekst wycentrowany w całym kaflu (pion + poziom), ikona globu
+  przypięta osobno w rogu (`position: absolute`), nie bierze już udziału w centrowaniu.
+- **SleepTile (Sen)** — czas snu ("7h 50m") przeniesiony z wizualnego środka kafla na
+  górę, zgrupowany z ikoną księżyca i etykietą "SNU" w jedno dziecko, żeby
+  `justifyContent: 'space-between'` z `PatternTileBackground` rozciągał tylko DWIE
+  rzeczy (górną grupę i zakres godzin na dole), nie trzy.

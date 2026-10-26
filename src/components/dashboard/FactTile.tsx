@@ -4,8 +4,10 @@ import { themedStyles } from '@/theme';
 import PatternTileBackground from './PatternTileBackground';
 import type { StatTilePosition } from './tilePosition';
 
-// "Ciekawostka" (2026-10-26) — kropka na dole to zapowiedź karuzeli wielu ciekawostek
-// (swipe), NA RAZIE statyczna, nieinteraktywna — patrz NEXT_STEPS.md.
+// "Ciekawostka" (2026-10-26) — user usunął kropkę karuzeli (było zapowiedzią przyszłego
+// swipe'a między wieloma ciekawostkami, teraz nieużywane — jeśli karuzela wróci,
+// potrzebny będzie inny wskaźnik stron). Tekst wycentrowany w całym kaflu, ikona
+// przypięta osobno w rogu (position: absolute), żeby nie brała udziału w centrowaniu.
 export default function FactTile({
   position,
   accent,
@@ -18,17 +20,23 @@ export default function FactTile({
   const s = makeS();
   return (
     <PatternTileBackground position={position} accent={accent}>
-      <Globe size={18} color={accent} />
-      <Text style={[s.title, { color: accent }]}>{text}</Text>
-      <View style={s.dots}>
-        <View style={[s.dot, { backgroundColor: accent }]} />
+      <View style={s.wrap}>
+        <Globe size={18} color={accent} style={s.icon} />
+        <Text
+          style={[s.title, { color: accent }]}
+          numberOfLines={4}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+        >
+          {text}
+        </Text>
       </View>
     </PatternTileBackground>
   );
 }
 
 const makeS = themedStyles(() => StyleSheet.create({
-  title: { fontFamily: 'Inter_700Bold', fontSize: 13, lineHeight: 18 },
-  dots: { flexDirection: 'row', justifyContent: 'center' },
-  dot: { width: 5, height: 5, borderRadius: 999 },
+  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  icon: { position: 'absolute', top: 0, left: 0 },
+  title: { fontFamily: 'Inter_700Bold', fontSize: 14, lineHeight: 19, textAlign: 'center' },
 }));

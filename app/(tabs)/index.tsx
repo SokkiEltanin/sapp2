@@ -1,6 +1,5 @@
 import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CloudSun } from 'lucide-react-native';
 import StatTile, { getTilePosition } from '@/components/dashboard/StatTile';
 import FactTile from '@/components/dashboard/FactTile';
 import SleepTile from '@/components/dashboard/SleepTile';
@@ -11,8 +10,9 @@ import { colors } from '@/theme/colors';
 import { spacing, themedStyles } from '@/theme';
 
 // Pierwsze cztery rzędy prawdziwego Dashboardu (2026-10-26) wg mockupów usera:
-// rząd 1 — STREAK WODA > STREAK SŁODYCZE > INCOMING EVENT > POGODA (kafle statystyk,
-// gradient pionowy); rząd 2 — CIEKAWOSTKA > SEN (kafle z dodatkowym wzorem koncentrycznym
+// rząd 1 — STREAK WODA > STREAK SŁODYCZE > INCOMING EVENT > STREAK ĆWICZENIA (kafle
+// statystyk, gradient pionowy — pogoda wywalona, zastąpiona streakiem ćwiczeń, ten sam
+// kafelek co WODA/SŁODYCZE); rząd 2 — CIEKAWOSTKA > SEN (kafle z dodatkowym wzorem koncentrycznym
 // w tle + gradient po skosie); rząd 3 — ZADANIA (3/4 szerokości) > PUPIL/LVL (1/4,
 // placeholder, nieustalone jeszcze); rząd 4 — FINANSE (1/4, kafel statystyk) > wykres
 // wydatków na jedzenie per miesiąc (3/4). Dane na sztywno (mock) — jeszcze nie podpięte
@@ -61,10 +61,10 @@ export default function DashboardScreen() {
         />
         <StatTile
           position={getTilePosition(3, 4)}
-          accent={colors.stat.pogoda}
-          value="12°"
-          variant="weather"
-          icon={<CloudSun size={36} color={colors.stat.pogoda} />}
+          accent={colors.stat.cwiczenia}
+          value="12"
+          unit="DNI"
+          label="ĆWICZENIA"
         />
       </View>
 
