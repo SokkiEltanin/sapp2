@@ -6,8 +6,11 @@ import { cornersForPosition, TILE_ROW_HEIGHT, type StatTilePosition } from './ti
 
 // Kafelek "Zadania" (2026-10-26) — lista do 4 pozycji, każda z własnym tagiem po lewej
 // (kolor taga = kolor gradientu tła tego wiersza, fade do 0% w prawo — user: "gradient
-// od niebieskiego do 0 transparent"). Tylko kolor taga UR (#1B36AF) był podany wprost w
-// mockupie; kolory dla "..." i dzwonka to przybliżenie z istniejącej palety (NEXT_STEPS.md).
+// od niebieskiego do 0 transparent"). Cała warstwa gradientu na 20% opacity — ten sam
+// wzorzec co StatTile/PatternTileBackground (user poprawił 2026-10-26: pierwsza wersja
+// miała gradient na pełnej sile, niespójnie z resztą kafli). Tylko kolor taga UR
+// (#1B36AF) był podany wprost w mockupie; kolory dla "..." i dzwonka to przybliżenie
+// z istniejącej palety (NEXT_STEPS.md).
 export type TaskTag =
   | { kind: 'label'; text: string; color: string }
   | { kind: 'dots'; color: string }
@@ -34,7 +37,7 @@ function TaskRow({ task, isLast }: { task: Task; isLast: boolean }) {
         colors={[task.tag.color, 'transparent']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={StyleSheet.absoluteFillObject}
+        style={s.gradient}
       />
       <View style={s.rowContent}>
         <TagChip tag={task.tag} />
@@ -71,6 +74,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   // krawędzi) przycina pierwszy/ostatni wiersz do właściwego kształtu automatycznie.
   row: { flex: 1, borderRadius: 10, overflow: 'hidden' },
   rowGap: { marginBottom: 3 },
+  gradient: { ...StyleSheet.absoluteFillObject, opacity: 0.2 },
   rowContent: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing[2],
     paddingHorizontal: spacing[2],
