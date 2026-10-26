@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LayoutDashboard, Flame, CheckSquare, Wallet, PawPrint } from 'lucide-react-native';
+import { LayoutDashboard, Flame, Wallet, CheckSquare, PawPrint, Settings } from 'lucide-react-native';
 import { spacing, radius, themedStyles } from '@/theme';
 
 // Pasek zakładek — WŁASNY komponent (nie domyślny `Tabs` UI) dla pełnej kontroli nad
@@ -9,29 +9,51 @@ import { spacing, radius, themedStyles } from '@/theme';
 // sapp udokumentowanym źródłem bugów/szarpania, bo wszystkie ciężkie ekrany zostają
 // zamontowane naraz i muszą się przeliczać w trakcie animacji). Jak appka okaże się
 // solidna/szybka, tani fade można dorzucić później jako polish — nie teraz.
+//
+// Kolejność i pozycja (2026-10-26, NEXT_STEPS.md) — klaster ściśnięty do PRAWEJ
+// krawędzi, nie pełna szerokość: prawy skraj = najbliżej kciuka = najkrótszy ruch, więc
+// najczęściej używany ekran (Pupil) jest skrajnie po prawej, najrzadziej używany
+// (Dashboard — i tak zawsze pierwszy po starcie appki) najdalej. "Notatki" z pierwotnej
+// notatki w NEXT_STEPS.md zastąpione realnie istniejącym "Zadania" (ten sam slot w
+// kolejności częstości). Ustawienia NIE są jedną z 5 głównych zakładek — osobny, mały
+// przycisk w lewym dolnym rogu, z dala od klastra (wcześniej pływający na Dashboardzie,
+// nachodził na kafelek pogody — przeniesiony tutaj na stałe).
 export const TABS = [
   { key: 'index', label: 'Dashboard', icon: LayoutDashboard, accent: '#6C9EFF' },
   { key: 'daily', label: 'Daily', icon: Flame, accent: '#FB923C' },
-  { key: 'tasks', label: 'Zadania', icon: CheckSquare, accent: '#6C9EFF' },
   { key: 'finances', label: 'Finanse', icon: Wallet, accent: '#2AC68F' },
+  { key: 'tasks', label: 'Zadania', icon: CheckSquare, accent: '#6C9EFF' },
   { key: 'pupil', label: 'Pupil', icon: PawPrint, accent: '#EF4444' },
 ] as const;
 
-export default function TabBar({ active, onPress }: { active: string; onPress: (key: string) => void }) {
+export default function TabBar({
+  active,
+  onPress,
+  onSettingsPress,
+}: {
+  active: string;
+  onPress: (key: string) => void;
+  onSettingsPress: () => void;
+}) {
   const insets = useSafeAreaInsets();
   const { styles: s, inactiveColor } = makeS();
   return (
     <View style={[s.wrap, { paddingBottom: insets.bottom + spacing[2] }]}>
-      {TABS.map((t) => {
-        const isActive = t.key === active;
-        const Icon = t.icon;
-        return (
-          <TouchableOpacity key={t.key} onPress={() => onPress(t.key)} style={s.item} activeOpacity={0.7}>
-            <Icon size={22} color={isActive ? t.accent : inactiveColor} />
-            <Text style={[s.label, { color: isActive ? t.accent : inactiveColor }]}>{t.label}</Text>
-          </TouchableOpacity>
-        );
-      })}
+      <TouchableOpacity onPress={onSettingsPress} style={s.settingsBtn} activeOpacity={0.7}>
+        <Settings size={18} color={inactiveColor} />
+      </TouchableOpacity>
+      <View style={s.cluster}>
+        {TABS.map((t) => {
+          const isActive = t.key === active;
+          const Icon = t.icon;
+          return (
+            <TouchableOpacity key={t.key} onPress={() => onPress(t.key)} style={s.item} activeOpacity={0.7}>
+              <Icon size={22} color={isActive ? t.accent : inactiveColor} />
+              <Text style={[s.label, { color: isActive ? t.accent : inactiveColor }]}>{t.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -42,10 +64,19 @@ export default function TabBar({ active, onPress }: { active: string; onPress: (
 const makeS = themedStyles((c) => ({
   styles: StyleSheet.create({
     wrap: {
-      flexDirection: 'row', backgroundColor: c.bg.elevated, borderTopWidth: 1, borderTopColor: c.border.default,
+      flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between',
+      backgroundColor: c.bg.elevated, borderTopWidth: 1, borderTopColor: c.border.default,
       paddingTop: spacing[2], paddingHorizontal: spacing[2],
     },
-    item: { flex: 1, alignItems: 'center', gap: 3, paddingVertical: spacing[1], borderRadius: radius.md },
+    settingsBtn: {
+      width: 40, height: 40, borderRadius: radius.full,
+      alignItems: 'center', justifyContent: 'center', marginBottom: 2,
+    },
+    cluster: { flexDirection: 'row', gap: spacing[1] },
+    item: {
+      alignItems: 'center', gap: 3, minWidth: 56,
+      paddingVertical: spacing[1], paddingHorizontal: spacing[1], borderRadius: radius.md,
+    },
     label: { fontSize: 10.5, fontWeight: '700' },
   }),
   inactiveColor: c.text.muted,

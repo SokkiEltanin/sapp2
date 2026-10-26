@@ -49,18 +49,24 @@ export default function StatTile(props: StatTileProps) {
         style={s.gradient}
       />
       <View style={s.content}>
-        <Text style={[s.value, { color: accent }]} numberOfLines={1} adjustsFontSizeToFit>
+        <Text style={[s.value, { color: accent }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
           {value}
         </Text>
         {props.variant === 'weather' ? (
           <View style={s.weatherIconWrap}>{props.icon}</View>
         ) : (
           <>
-            <Text style={s.unit} numberOfLines={1}>{props.unit}</Text>
+            <Text style={s.unit} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+              {props.unit}
+            </Text>
             {props.variant === 'event' ? (
-              <Text style={[s.detail, { color: accent }]}>{props.detail}</Text>
+              <Text style={[s.detail, { color: accent }]} numberOfLines={3} adjustsFontSizeToFit minimumFontScale={0.7}>
+                {props.detail}
+              </Text>
             ) : (
-              <Text style={[s.label, { color: accent }]} numberOfLines={2}>{props.label}</Text>
+              <Text style={[s.label, { color: accent }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>
+                {props.label}
+              </Text>
             )}
           </>
         )}
@@ -82,31 +88,35 @@ const makeS = themedStyles((c) => StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    // UWAGA: `alignItems: 'stretch'` (domyślne), NIE 'center' — Text potrzebuje realnej
+    // szerokości żeby `adjustsFontSizeToFit` miało względem czego się kurczyć. Z 'center'
+    // tekst dostawał tylko tyle miejsca ile sam chciał i po prostu wystawał poza
+    // `overflow: hidden` kafla (stąd "DNI"→"DN", "SŁODYCZE"→"ŁODYCZI" ucięte, 2026-10-26).
     justifyContent: 'space-between',
   },
   value: {
     fontFamily: 'Inter_900Black',
-    fontSize: 32,
+    fontSize: 30,
+    textAlign: 'center',
   },
   unit: {
     fontFamily: 'Inter_200ExtraLight',
-    fontSize: 12,
+    fontSize: 13,
     color: c.text.primary,
-    marginTop: -6,
+    textAlign: 'center',
+    marginTop: -4,
   },
   label: {
     fontFamily: 'Inter_900Black',
-    fontSize: 13,
+    fontSize: 14,
     textAlign: 'center',
   },
   detail: {
     fontFamily: 'Inter_500Medium',
     fontSize: 11,
     textAlign: 'left',
-    alignSelf: 'stretch',
     lineHeight: 14,
   },
   weatherIconWrap: {

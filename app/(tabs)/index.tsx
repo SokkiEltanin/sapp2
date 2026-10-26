@@ -1,7 +1,6 @@
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Settings, CloudSun } from 'lucide-react-native';
+import { CloudSun } from 'lucide-react-native';
 import StatTile, { getTilePosition } from '@/components/dashboard/StatTile';
 import FactTile from '@/components/dashboard/FactTile';
 import SleepTile from '@/components/dashboard/SleepTile';
@@ -9,12 +8,8 @@ import TaskListTile, { type Task } from '@/components/dashboard/TaskListTile';
 import LevelTile from '@/components/dashboard/LevelTile';
 import FoodBarsTile, { type BarColumn } from '@/components/dashboard/FoodBarsTile';
 import { colors } from '@/theme/colors';
-import { spacing, radius, themedStyles } from '@/theme';
+import { spacing, themedStyles } from '@/theme';
 
-// Tymczasowa ikonka Ustawień (prawy górny róg) — Settings docelowo nie będzie osobną
-// zakładką, ale na razie to jedyne wejście żeby przetestować logowanie Google/Firebase/
-// Calendar. Zniknie/przeniesie się jak zaprojektujemy prawdziwy dashboard.
-//
 // Pierwsze cztery rzędy prawdziwego Dashboardu (2026-10-26) wg mockupów usera:
 // rząd 1 — STREAK WODA > STREAK SŁODYCZE > INCOMING EVENT > POGODA (kafle statystyk,
 // gradient pionowy); rząd 2 — CIEKAWOSTKA > SEN (kafle z dodatkowym wzorem koncentrycznym
@@ -106,13 +101,6 @@ export default function DashboardScreen() {
           columns={MOCK_FOOD_COLUMNS}
         />
       </View>
-
-      <TouchableOpacity
-        onPress={() => router.push('/settings' as any)}
-        style={[s.gear, { top: insets.top + spacing[2] }]}
-      >
-        <Settings size={18} color="#A7ADBD" />
-      </TouchableOpacity>
     </View>
   );
 }
@@ -121,10 +109,4 @@ const makeS = themedStyles((c) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.bg.primary, paddingHorizontal: spacing[3] },
   row: { flexDirection: 'row', gap: spacing[1] },
   rowGap: { marginTop: spacing[1] },
-
-  gear: {
-    position: 'absolute', right: spacing[3], width: 38, height: 38, borderRadius: radius.full,
-    backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.border.default,
-    alignItems: 'center', justifyContent: 'center',
-  },
 }));

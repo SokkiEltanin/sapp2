@@ -5,16 +5,9 @@ aktualizuj po skończeniu/odkryciu czegoś nowego (patrz `CLAUDE.md`).
 
 ## Zdecydowane, jeszcze niezbudowane
 
-- **Nawigacja: pozioma belka 5 ekranów, ściśnięta do prawej krawędzi** (nie pełna
-  szerokość, nie D-pad z okręgiem na środku — rozważany, odrzucony na rzecz mniejszego
-  zasłaniania treści i prostszej budowy). Kolejność od lewej do prawej wg częstości
-  użycia (najrzadszy → najczęstszy, bo prawy skraj = najbliżej kciuka = najkrótszy
-  ruch):
-  `Dashboard → Daily → Finanse → Notatki(+Kal) → Pupil`
-  Dashboard na lewym (najdalszym) końcu celowo — to i tak zawsze pierwszy ekran po
-  starcie appki, więc rzadko trzeba go kliknąć ręcznie.
 - **Domyślna ręka: prawa**, z możliwością przełączenia na lewą w ustawieniach
   (wtedy belka pewnie lustrzanie do lewej krawędzi — do dopracowania przy budowie).
+  Navbar sam (prawa belka + Ustawienia w lewym dolnym rogu) już zbudowany, patrz niżej.
 
 ## Pomysł do rozważenia: redesign Pupila (roślinka zamiast bossów)
 
@@ -79,3 +72,27 @@ tylko na skrajnych krawędziach rzędu, wymiary 649×460 (2×308+33) dla kafli "
   domyślny wybór), nie 1:1 skopiowane z mockupu (tam wyglądały na orientacyjne/ręczne).
 - Kafelek pogody — brak pełnej specyfikacji typografii jak reszta, duża ikona
   CloudSun zamiast dolnej etykiety to przybliżenie.
+
+## Navbar + Ustawienia — zbudowane (2026-10-26)
+
+`TabBar.tsx` przebudowany: klaster 5 zakładek ściśnięty do prawej krawędzi (nie pełna
+szerokość), kolejność `Dashboard → Daily → Finanse → Zadania → Pupil` (Pupil skrajnie
+prawy = najczęstszy = najbliżej kciuka). "Notatki" z wcześniejszej notatki zastąpione
+realnie istniejącym "Zadania" — **do potwierdzenia przez usera czy to poprawne
+podstawienie, czy "Notatki" miało być osobnym, jeszcze niezbudowanym ekranem**. Ikona
+Ustawień przeniesiona z pływającego przycisku na Dashboardzie (nachodził na kafelek
+pogody) na stałe miejsce w lewym dolnym rogu paska, osobno od klastra 5 zakładek.
+
+## Fix: tekst ucinany w kaflach Dashboardu (2026-10-26)
+
+Przyczyna: kontener treści kafla miał `alignItems: 'center'`, więc Text dostawał tylko
+tyle miejsca ile sam chciał (shrink-to-content), a nie realną szerokość kafla —
+`adjustsFontSizeToFit` nie miało więc względem czego się kurczyć i długi tekst po prostu
+wystawał poza `overflow: hidden` ("DNI"→"DN", "SŁODYCZE"→"ŁODYCZI", "22,4"→"22,").
+Fix: `alignItems: 'stretch'` (domyślne) + `textAlign: 'center'` na tekście, żeby była
+realna szerokość do skurczenia + `adjustsFontSizeToFit`/`minimumFontScale` jako siatka
+bezpieczeństwa na przyszłość, gdy wartości będą pochodzić z prawdziwych danych (różne
+długości liczb/etykiet). Poprawione: StatTile, FoodBarsTile, TaskListTile.
+Dodatkowo: wiersze w Zadaniach miały cienkie linie-dzielniki zamiast osobnych
+segmentów z odstępem jak w mockupie — poprawione na realne odstępy (`marginBottom`)
+między zaokrąglonymi wierszami.

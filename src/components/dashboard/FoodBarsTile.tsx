@@ -28,14 +28,19 @@ export default function FoodBarsTile({
 
   return (
     <View style={[s.tile, cornersForPosition(position)]}>
-      <Text style={s.title} numberOfLines={1}>{title}</Text>
+      <Text style={s.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{title}</Text>
       <View style={s.columns}>
         {columns.map((col) => {
           const active = col.kind === 'highlight';
           const tint = active || col.kind === 'average' ? colors.stat.finanse : colors.chart.muted;
           return (
             <View key={col.label} style={s.column}>
-              <Text style={[s.value, { color: tint }, active && s.valueActive]} numberOfLines={1}>
+              <Text
+                style={[s.value, { color: tint }, active && s.valueActive]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.6}
+              >
                 {col.display}
               </Text>
               <View style={s.barTrack}>
@@ -51,7 +56,12 @@ export default function FoodBarsTile({
                   />
                 )}
               </View>
-              <Text style={[s.label, { color: tint }, active && s.labelActive]} numberOfLines={1}>
+              <Text
+                style={[s.label, { color: tint }, active && s.labelActive]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >
                 {col.label}
               </Text>
             </View>
@@ -69,12 +79,14 @@ const makeS = themedStyles((c) => StyleSheet.create({
   },
   title: { fontFamily: 'Inter_700Bold', fontSize: 11, color: colors.stat.finanse, marginBottom: 4 },
   columns: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
-  column: { flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' },
-  value: { fontFamily: 'Inter_700Bold', fontSize: 11 },
+  // `alignItems: 'stretch'` (domyślne) — Text potrzebuje realnej szerokości kolumny żeby
+  // `adjustsFontSizeToFit` miało względem czego się kurczyć (ten sam fix co StatTile).
+  column: { flex: 1, height: '100%', justifyContent: 'flex-end' },
+  value: { fontFamily: 'Inter_700Bold', fontSize: 11, textAlign: 'center' },
   valueActive: { fontFamily: 'Inter_900Black' },
-  barTrack: { flex: 1, width: '72%', justifyContent: 'flex-end', marginVertical: 3 },
+  barTrack: { flex: 1, width: '72%', alignSelf: 'center', justifyContent: 'flex-end', marginVertical: 3 },
   bar: { width: '100%', borderRadius: 3 },
   avgLine: { width: '100%', height: 2, borderRadius: 999, marginBottom: 2 },
-  label: { fontFamily: 'Inter_700Bold', fontSize: 9 },
+  label: { fontFamily: 'Inter_700Bold', fontSize: 9, textAlign: 'center' },
   labelActive: { fontFamily: 'Inter_900Black' },
 }));

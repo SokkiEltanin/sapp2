@@ -28,7 +28,11 @@ export default function TabsLayout() {
           sceneStyle: { backgroundColor: colors.bg.primary },
         }}
       />
-      <TabBar active={active} onPress={(key) => router.navigate(ROUTES[key] as any)} />
+      <TabBar
+        active={active}
+        onPress={(key) => router.navigate(ROUTES[key] as any)}
+        onSettingsPress={() => router.push('/settings' as any)}
+      />
     </View>
   );
 }

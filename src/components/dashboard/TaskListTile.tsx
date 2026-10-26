@@ -29,7 +29,7 @@ function TagChip({ tag }: { tag: TaskTag }) {
 function TaskRow({ task, isLast }: { task: Task; isLast: boolean }) {
   const s = makeS();
   return (
-    <View style={[s.row, !isLast && s.rowDivider]}>
+    <View style={[s.row, !isLast && s.rowGap]}>
       <LinearGradient
         colors={[task.tag.color, 'transparent']}
         start={{ x: 0, y: 0 }}
@@ -38,7 +38,9 @@ function TaskRow({ task, isLast }: { task: Task; isLast: boolean }) {
       />
       <View style={s.rowContent}>
         <TagChip tag={task.tag} />
-        <Text style={s.title} numberOfLines={1}>{task.title}</Text>
+        <Text style={s.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
+          {task.title}
+        </Text>
       </View>
     </View>
   );
@@ -63,8 +65,12 @@ export default function TaskListTile({
 
 const makeS = themedStyles((c) => StyleSheet.create({
   tile: { flex: 3, height: TILE_ROW_HEIGHT, backgroundColor: c.bg.card, overflow: 'hidden' },
-  row: { flex: 1 },
-  rowDivider: { borderBottomWidth: 1, borderBottomColor: c.border.subtle },
+  // Każdy wiersz to osobny, lekko zaokrąglony segment z odstępem do następnego (nie
+  // ciągły blok z cienkimi liniami-dzielnikami jak w pierwszej wersji) — tak jak w
+  // mockupie usera. Zewnętrzny `tile` (overflow: hidden + zaokrąglenie skrajnych
+  // krawędzi) przycina pierwszy/ostatni wiersz do właściwego kształtu automatycznie.
+  row: { flex: 1, borderRadius: 10, overflow: 'hidden' },
+  rowGap: { marginBottom: 3 },
   rowContent: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing[2],
     paddingHorizontal: spacing[2],
