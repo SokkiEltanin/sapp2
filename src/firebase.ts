@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, type Firestore } from 'firebase/firestore';
 
 // Wszystko tu poza `apiKey` to publiczna konfiguracja klienta (projekt sapp2-a2354,
 // patrz INFRA.md) — bezpieczna do commitowania, tak jak google-services.json. `apiKey`
@@ -15,4 +15,36 @@ const firebaseConfig = {
 };
 
 export const firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
-export const db = getFirestore(firebaseApp);
+
+// `experimentalForceLongPolling` — bez tego pierwszy test Firestore na realnym Androidzie
+// zawiesił się w nieskończoność (ani sukces, ani błąd): domyślny transport Firestore
+// (WebChannel/gRPC-web auto-detect) potrafi nie otworzyć się poprawnie w RN/Hermes, a bez
+// strumienia zapisy/odczyty po prostu czekają bez końca zamiast zwrócić błąd. Long polling
+// to standardowy, udokumentowany fix na ten dokładnie objaw. `ignoreUndefinedProperties` —
+// ta sama konwencja co w sapp (src/services/firebase.ts) — żeby `undefined` w zagnieżdżonym
+// polu nie wywalało zapisu.
+let _db: Firestore;
+try {
+  _db = initializeFirestore(firebaseApp, {
+    experimentalForceLongPolling: true,
+    ignoreUndefinedProperties: true,
+  });
+} catch {
+  _db = getFirestore(firebaseApp);
+}
+export const db: Firestore = _db;
+
+// sapp (src/services/firebase.ts) złapał ten sam objaw: zapis bez persystencji nie
+// resolve'uje ANI nie rejectuje na słabym/zablokowanym połączeniu — wisi tak długo, aż
+// realne połączenie z serwerem się uda. `withTimeout` daje twardy sufit, więc UI zawsze
+// dostaje jakiś wynik zamiast wiecznej klepsydry.
+export function withTimeout<T>(
+  promise: Promise<T>,
+  ms = 10000,
+  message = 'Operacja trwa zbyt długo — sprawdź połączenie z internetem i spróbuj ponownie.',
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(message)), ms)),
+  ]);
+}

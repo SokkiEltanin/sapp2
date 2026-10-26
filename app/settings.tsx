@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChevronLeft, LogIn, Database, CalendarDays } from 'lucide-react-native';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { db } from '@/firebase';
+import { db, withTimeout } from '@/firebase';
 import { spacing, radius, themedStyles } from '@/theme';
 
 // Ekran-tymczasowy (patrz dashboard) — WYŁĄCZNIE do sprawdzenia czy Firebase/Google
@@ -48,8 +48,8 @@ export default function SettingsScreen() {
     append('⏳ Firestore…');
     try {
       const ref = doc(db, '_test', 'ping');
-      await setDoc(ref, { at: new Date().toISOString() });
-      const snap = await getDoc(ref);
+      await withTimeout(setDoc(ref, { at: new Date().toISOString() }));
+      const snap = await withTimeout(getDoc(ref));
       append(`✅ Firestore ok, zapisano/odczytano: ${snap.data()?.at}`);
     } catch (e: any) {
       append(`❌ Błąd Firestore: ${String(e?.message ?? e)}`);
