@@ -1,0 +1,80 @@
+import { View, Text, StyleSheet } from 'react-native';
+import { colors } from '@/theme/colors';
+import { spacing, themedStyles } from '@/theme';
+import { cornersForPosition, TILE_ROW_HEIGHT, type StatTilePosition } from './tilePosition';
+
+// Mini wykres słupkowy w kaflu Finanse (2026-10-26) — user: "ogarniesz już po stylu".
+// Wysokość słupka proporcjonalna do wartości względem max w zestawie (sensowny domyślny
+// wybór, niezależnie od dokładnych, prawdopodobnie orientacyjnych wysokości w mockupie).
+// Kolumna "average" (np. "~ŚR") nie ma słupka, tylko kreskę pod liczbą.
+export type BarColumn = {
+  label: string;
+  value: number;
+  display: string; // sformatowana wartość do pokazania nad słupkiem, np. "843"
+  kind: 'average' | 'bar' | 'highlight';
+};
+
+export default function FoodBarsTile({
+  position,
+  title,
+  columns,
+}: {
+  position: StatTilePosition;
+  title: string;
+  columns: BarColumn[];
+}) {
+  const s = makeS();
+  const maxValue = Math.max(...columns.map((c) => c.value));
+
+  return (
+    <View style={[s.tile, cornersForPosition(position)]}>
+      <Text style={s.title} numberOfLines={1}>{title}</Text>
+      <View style={s.columns}>
+        {columns.map((col) => {
+          const active = col.kind === 'highlight';
+          const tint = active || col.kind === 'average' ? colors.stat.finanse : colors.chart.muted;
+          return (
+            <View key={col.label} style={s.column}>
+              <Text style={[s.value, { color: tint }, active && s.valueActive]} numberOfLines={1}>
+                {col.display}
+              </Text>
+              <View style={s.barTrack}>
+                {col.kind === 'average' ? (
+                  <View style={[s.avgLine, { backgroundColor: colors.stat.finanse }]} />
+                ) : (
+                  <View
+                    style={[
+                      s.bar,
+                      { height: `${Math.max(12, (col.value / maxValue) * 100)}%` },
+                      { backgroundColor: active ? colors.stat.finanse : colors.chart.barBg },
+                    ]}
+                  />
+                )}
+              </View>
+              <Text style={[s.label, { color: tint }, active && s.labelActive]} numberOfLines={1}>
+                {col.label}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const makeS = themedStyles((c) => StyleSheet.create({
+  tile: {
+    flex: 3, height: TILE_ROW_HEIGHT, backgroundColor: c.bg.card, overflow: 'hidden',
+    padding: spacing[2],
+  },
+  title: { fontFamily: 'Inter_700Bold', fontSize: 11, color: colors.stat.finanse, marginBottom: 4 },
+  columns: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
+  column: { flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' },
+  value: { fontFamily: 'Inter_700Bold', fontSize: 11 },
+  valueActive: { fontFamily: 'Inter_900Black' },
+  barTrack: { flex: 1, width: '72%', justifyContent: 'flex-end', marginVertical: 3 },
+  bar: { width: '100%', borderRadius: 3 },
+  avgLine: { width: '100%', height: 2, borderRadius: 999, marginBottom: 2 },
+  label: { fontFamily: 'Inter_700Bold', fontSize: 9 },
+  labelActive: { fontFamily: 'Inter_900Black' },
+}));

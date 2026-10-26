@@ -48,10 +48,34 @@ pracy nad nawigacją/stylem.
 - Realny branding (ikona/splash) — obecne `assets/icon.png`, `splash.png`,
   `adaptive-icon.png` to tymczasowy placeholder (ciemne tło + "S2"), wygenerowany
   tylko żeby build przeszedł. Podmienić jak user pokaże/zrobi docelową grafikę.
-- Styl wizualny (kolory/typografia/spacing/komponenty) — user ma pokazać wzorce,
-  wtedy domykamy punkt 3 z `CLAUDE.md` i przestajemy improwizować.
 - Android OAuth + Firestore: sprawdzić czy user utworzył bazę Firestore w konsoli
   Firebase (`Create database`, projekt `sapp2-a2354`) — bez tego test Firestore
   nie przejdzie niezależnie od fixu transportu w kodzie.
 - Satelickie ekrany z `sapp` (produkty, pojazdy, nawyki) — nierozstrzygnięte czy
   zostają jako osobne ekrany czy wtapiają się w kontekst innych ekranów.
+
+## Dashboard — pierwsze 4 rzędy zbudowane (2026-10-26), otwarte przybliżenia
+
+Zbudowane wg mockupów usera: `src/components/dashboard/` (StatTile, PatternTileBackground,
+FactTile, SleepTile, TaskListTile, LevelTile, FoodBarsTile) + `tilePosition.ts` (wspólna
+reguła zaokrąglania skrajnych krawędzi rzędu + stała wysokość `TILE_ROW_HEIGHT`
+wszystkich rzędów). Paleta: `theme/colors.ts` → `colors.stat.*` (kolor kategorii = tekst
++ gradient tła), `colors.chart.*` (stany nieaktywne w wykresach). Font: Inter przez
+`@expo-google-fonts/inter` (ExtraLight/Regular/Medium/Bold/Black), załadowany
+nieblokująco w `app/_layout.tsx`.
+
+**Dokładnie z mockupów:** wszystkie kolory kategorii (woda/słodycze/event/pogoda/sen/
+finanse), wszystkie rozmiary i wagi fontów podane wprost, reguła zaokrąglania 50px
+tylko na skrajnych krawędziach rzędu, wymiary 649×460 (2×308+33) dla kafli "pattern".
+
+**Przybliżone, do weryfikacji na urządzeniu:**
+- Wzór koncentrycznych pierścieni w tle Ciekawostki/Snu — dokładne parametry (liczba,
+  odstępy) nie były podane, tylko "Concentric pattern 20%" w Figmie.
+- Kolory tagów "..." (grey) i dzwonka (amber) w Zadaniach — podany wprost był tylko
+  niebieski `#1B36AF` dla tagu UR, reszta to przybliżenie z istniejącej palety.
+- Kafelek Pupil/LVL (prawy w rzędzie Zadań) — zupełnie nieustalony, czysty placeholder
+  tekstowy "LVL 27" bez ilustracji (powiązane z pomysłem rośliny wyżej).
+- Wysokości słupków w kaflu Finanse — zrobione proporcjonalnie do wartości (sensowny
+  domyślny wybór), nie 1:1 skopiowane z mockupu (tam wyglądały na orientacyjne/ręczne).
+- Kafelek pogody — brak pełnej specyfikacji typografii jak reszta, duża ikona
+  CloudSun zamiast dolnej etykiety to przybliżenie.
