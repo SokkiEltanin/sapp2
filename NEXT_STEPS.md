@@ -36,6 +36,13 @@ Status: pomysł zgłoszony, NIE zdecydowany ostatecznie ("nie wiem do pomyśleni
 Wracamy do tego jak dojdziemy do budowania Pupila konkretnie — nie blokuje obecnej
 pracy nad nawigacją/stylem.
 
+## Referencje designu
+
+- User-owy telefon: **1440×3088 px** (Samsung Ultra-klasa, ~9:19.3). Punkt odniesienia
+  przy tłumaczeniu stylu/wymiarów z jego opisów/screenów — liczby podawane przez usera
+  traktować jako proporcję względem tej szerokości (1440), nie dosłowny px w kodzie RN
+  (który liczy się w dp).
+
 ## Do zrobienia / sprawdzenia
 
 - Realny branding (ikona/splash) — obecne `assets/icon.png`, `splash.png`,
