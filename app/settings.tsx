@@ -5,7 +5,15 @@ import { router } from 'expo-router';
 import { ChevronLeft, LogIn, Database, CalendarDays, AlertTriangle } from 'lucide-react-native';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db, withTimeout } from '@/firebase';
+import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
+
+const TEST_ITEMS = [
+  { key: 'google', label: 'Zaloguj przez Google', icon: LogIn, accent: colors.stat.woda },
+  { key: 'firestore', label: 'Test Firestore', icon: Database, accent: colors.stat.finanse },
+  { key: 'calendar', label: 'Test Kalendarza Google', icon: CalendarDays, accent: colors.stat.event },
+  { key: 'alert', label: 'Test alertu (max priorytet)', icon: AlertTriangle, accent: colors.accent.red },
+] as const;
 
 // Ekran-tymczasowy (patrz dashboard) — WYŁĄCZNIE do sprawdzenia czy Firebase/Google
 // Sign-in/Calendar są dobrze poustawiane po stronie Google Cloud/Firebase Console, zanim
@@ -88,6 +96,18 @@ export default function SettingsScreen() {
     append('⏳ Alert (max priorytet)…');
     try {
       const Notifications = await import('expo-notifications');
+      // BEZ TEGO appka w ogóle nie pokazuje powiadomienia gdy jest na pierwszym planie
+      // (domyślne zachowanie Expo od kilku SDK) — to najpewniej prawdziwa przyczyna
+      // "nic się nie dzieje" (2026-10-27): `scheduleNotificationAsync` mógł się udać
+      // (✅ w logu), ale bez handlera system nie wiedział że ma cokolwiek wyświetlić.
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+        }),
+      });
       await Notifications.setNotificationChannelAsync('alerts-max', {
         name: 'Alerty (test)',
         importance: Notifications.AndroidImportance.MAX,
@@ -130,28 +150,29 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}><ChevronLeft size={22} color="#F5F6FA" /></TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}><ChevronLeft size={22} color={colors.text.primary} /></TouchableOpacity>
         <Text style={s.title}>Ustawienia (test infra)</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={s.scroll}>
-        <TouchableOpacity style={s.btn} onPress={testGoogleSignIn}>
-          <LogIn size={16} color="#6C9EFF" />
-          <Text style={s.btnTxt}>Zaloguj przez Google</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.btn} onPress={testFirestore}>
-          <Database size={16} color="#2AC68F" />
-          <Text style={s.btnTxt}>Test Firestore</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.btn} onPress={testCalendar}>
-          <CalendarDays size={16} color="#FB923C" />
-          <Text style={s.btnTxt}>Test Kalendarza Google</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.btn} onPress={testFullScreenAlert}>
-          <AlertTriangle size={16} color="#EF4444" />
-          <Text style={s.btnTxt}>Test alertu (max priorytet)</Text>
-        </TouchableOpacity>
+        {TEST_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const onPress = {
+            google: testGoogleSignIn,
+            firestore: testFirestore,
+            calendar: testCalendar,
+            alert: testFullScreenAlert,
+          }[item.key];
+          return (
+            <TouchableOpacity key={item.key} style={s.btn} onPress={onPress} activeOpacity={0.7}>
+              <View style={[s.btnIcon, { backgroundColor: `${item.accent}33` }]}>
+                <Icon size={16} color={item.accent} />
+              </View>
+              <Text style={s.btnTxt}>{item.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
 
         <View style={s.logBox}>
           {log.length === 0 && <Text style={s.logEmpty}>Wyniki testów pojawią się tutaj.</Text>}
@@ -166,16 +187,19 @@ const makeS = themedStyles((c) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.bg.primary },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[3], paddingVertical: spacing[2] },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  title: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '800', color: c.text.primary },
-  scroll: { padding: spacing[4], gap: spacing[3] },
+  title: { flex: 1, textAlign: 'center', fontSize: 15, fontFamily: 'Inter_900Black', color: c.text.primary },
+  scroll: { padding: spacing[4], gap: spacing[2] },
 
   btn: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing[2], backgroundColor: c.bg.card,
+    flexDirection: 'row', alignItems: 'center', gap: spacing[3], backgroundColor: c.bg.card,
     borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default, padding: spacing[3],
   },
-  btnTxt: { fontSize: 13.5, fontWeight: '700', color: c.text.primary },
+  btnIcon: {
+    width: 32, height: 32, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
+  },
+  btnTxt: { flex: 1, fontSize: 13.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
 
   logBox: { backgroundColor: c.bg.elevated, borderRadius: radius.lg, padding: spacing[3], gap: 6, marginTop: spacing[2] },
-  logEmpty: { fontSize: 12, color: c.text.muted },
+  logEmpty: { fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.muted },
   logLine: { fontSize: 11.5, color: c.text.secondary, fontFamily: 'monospace' },
 }));

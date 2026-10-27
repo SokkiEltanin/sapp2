@@ -39,9 +39,16 @@ export default function TabBar({
   const { styles: s, inactiveColor } = makeS();
   return (
     <View style={[s.wrap, { paddingBottom: insets.bottom + spacing[2] }]}>
-      <TouchableOpacity onPress={onSettingsPress} style={s.settingsBtn} activeOpacity={0.7}>
-        <Settings size={18} color={inactiveColor} />
-      </TouchableOpacity>
+      {/* Ustawienia + kreska-separator jako JEDNA grupa, żeby `justifyContent:
+          'space-between'` na `wrap` rozdzielał tylko DWIE rzeczy (tę grupę i klaster
+          zakładek), nie trzy — kreska wizualnie czyta się jako "to osobny przycisk,
+          nie szósta zakładka", ale nadal żyje w tym samym pasku (user, 2026-10-27). */}
+      <View style={s.settingsGroup}>
+        <TouchableOpacity onPress={onSettingsPress} style={s.settingsBtn} activeOpacity={0.7}>
+          <Settings size={17} color={inactiveColor} />
+        </TouchableOpacity>
+        <View style={s.divider} />
+      </View>
       <View style={s.cluster}>
         {TABS.map((t) => {
           const isActive = t.key === active;
@@ -68,16 +75,22 @@ const makeS = themedStyles((c) => ({
       backgroundColor: c.bg.elevated, borderTopWidth: 1, borderTopColor: c.border.default,
       paddingTop: spacing[2], paddingHorizontal: spacing[2],
     },
+    settingsGroup: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+    // Tło + obramowanie jak karty/przyciski gdzie indziej w appce (np. Ustawienia same
+    // w sobie) — żeby Ustawienia czytały się jako samodzielny przycisk, nie 6. zakładka
+    // bez tła wtopiona w resztę klastra.
     settingsBtn: {
-      width: 40, height: 40, borderRadius: radius.full,
-      alignItems: 'center', justifyContent: 'center', marginBottom: 2,
+      width: 38, height: 38, borderRadius: radius.full,
+      backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default,
+      alignItems: 'center', justifyContent: 'center',
     },
+    divider: { width: 1, height: 24, backgroundColor: c.border.default, marginLeft: spacing[2] },
     cluster: { flexDirection: 'row', gap: spacing[1] },
     item: {
       alignItems: 'center', gap: 3, minWidth: 56,
       paddingVertical: spacing[1], paddingHorizontal: spacing[1], borderRadius: radius.md,
     },
-    label: { fontSize: 10.5, fontWeight: '700' },
+    label: { fontSize: 10.5, fontFamily: 'Inter_700Bold' },
   }),
   inactiveColor: c.text.muted,
 }));

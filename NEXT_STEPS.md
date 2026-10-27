@@ -180,3 +180,18 @@ między zaokrąglonymi wierszami.
 - **FoodBarsTile — kreska średniej** pozycjonowana na wysokości % wartości względem
   max (jak słupek), nie przyklejona do dołu — user: "miała pokazywać tę średnią
   wysokością względem innych kafelków". Zachowanie/interakcja — osobno, później.
+
+## Runda poprawek 4 (2026-10-27)
+
+- **Fix realnej przyczyny "nic się nie dzieje" w teście alertu**: brakowało
+  `Notifications.setNotificationHandler(...)`. Bez tego Expo (od kilku SDK) domyślnie
+  NIE pokazuje powiadomienia gdy appka jest na pierwszym planie — `scheduleNotificationAsync`
+  mógł się udać (stąd ewentualne ✅ w logu), ale system nie wiedział że ma cokolwiek
+  wyświetlić. Dodany handler (`shouldShowBanner/shouldShowList/shouldPlaySound: true`).
+  User ma spróbować ponownie.
+- **Ustawienia (`app/settings.tsx`) restylowane** pod nasz system: Inter zamiast
+  domyślnego fontu, przyciski jako karty z kolorową ikoną w odznace (kolor per
+  funkcja z `colors.stat`/`colors.accent`), nie gołe linie tekstu.
+- **TabBar: Ustawienia wizualnie oddzielone od klastra 5 zakładek** (user: "żeby było
+  że to przycisk nie część navbaru, ale nadal to navbar") — tło+obramowanie jak karta
+  (zamiast gołej ikony bez tła) + pionowa kreska-separator między nimi a klastrem.
