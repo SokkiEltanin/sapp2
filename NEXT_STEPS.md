@@ -215,4 +215,8 @@ między zaokrąglonymi wierszami.
   jaśniejszej karcie z wąskimi szczelinami. Każdy wiersz ma już własny
   `borderRadius: 10` na wszystkich rogach (to się nie zmieniło) — zmieniło się tylko
   to co widać W TLE między nimi.
+- **FoodBarsTile (#JedzeniePerMiesiąc) — brakujący gradient dodany**: jedyny kafelek bez
+  warstwy gradientu czarny→akcent na 20% opacity (user to zauważył porównując z resztą
+  dashboardu) — teraz ten sam wzorzec co StatTile/PatternTileBackground/TaskListTile
+  (`colors.stat.finanse`, pionowy, pod contentem).
 - Niezweryfikowane na urządzeniu — czeka na build i test usera.

@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '@/theme/colors';
 import { spacing, themedStyles } from '@/theme';
 import { cornersForPosition, TILE_ROW_HEIGHT, type StatTilePosition } from './tilePosition';
@@ -28,6 +29,12 @@ export default function FoodBarsTile({
 
   return (
     <View style={[s.tile, cornersForPosition(position)]}>
+      <LinearGradient
+        colors={['#000000', colors.stat.finanse]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={s.gradient}
+      />
       <Text style={s.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{title}</Text>
       <View style={s.columns}>
         {columns.map((col) => {
@@ -87,6 +94,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
     flex: 3, height: TILE_ROW_HEIGHT, backgroundColor: c.bg.card, overflow: 'hidden',
     padding: spacing[2],
   },
+  gradient: { ...StyleSheet.absoluteFillObject, opacity: 0.2 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 11, color: colors.stat.finanse, marginBottom: 4 },
   columns: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
   // `alignItems: 'stretch'` (domyślne) — Text potrzebuje realnej szerokości kolumny żeby
