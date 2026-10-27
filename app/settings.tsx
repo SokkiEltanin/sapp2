@@ -1,32 +1,54 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useMemo, useState } from 'react';
+import type { ComponentType } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChevronLeft, LogIn, Database, CalendarDays, AlertTriangle } from 'lucide-react-native';
+import { ChevronLeft, Search, X, LogIn, Database, CalendarDays, AlertTriangle } from 'lucide-react-native';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db, withTimeout } from '@/firebase';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 
-const TEST_ITEMS = [
-  { key: 'google', label: 'Zaloguj przez Google', icon: LogIn, accent: colors.stat.woda },
-  { key: 'firestore', label: 'Test Firestore', icon: Database, accent: colors.stat.finanse },
-  { key: 'calendar', label: 'Test Kalendarza Google', icon: CalendarDays, accent: colors.stat.event },
-  { key: 'alert', label: 'Test alertu (max priorytet)', icon: AlertTriangle, accent: colors.accent.red },
-] as const;
+type SettingsItem = {
+  key: string;
+  label: string;
+  description: string; // nie pokazywana — tylko do dopasowania wyszukiwarki
+  icon: ComponentType<{ size?: number; color?: string }>;
+  accent: string;
+};
 
-// Ekran-tymczasowy (patrz dashboard) — WYŁĄCZNIE do sprawdzenia czy Firebase/Google
-// Sign-in/Calendar są dobrze poustawiane po stronie Google Cloud/Firebase Console, zanim
-// zaczniemy projektować prawdziwe Ustawienia (patrz nasze ustalone "Ustawienia — wersja
-// robocza" z rozmowy). `@react-native-google-signin` importowany DYNAMICZNIE (`await
-// import(...)`) w środku handlerów, nie na górze pliku — to natywny moduł, którego nie ma
-// w Expo Go; statyczny import na starcie appki wywaliłby cały ekran (a przez eagerowy
-// routing expo-routera, być może i całą appkę) zanim user zdążyłby cokolwiek kliknąć.
-// Błąd stąd ("Native module... cannot be null" / podobny) = normalne, oczekiwane w Expo
-// Go, wyjaśnione userowi wprost w UI zamiast suchego stack trace'u.
+type SettingsSection = { title: string; items: SettingsItem[] };
+
+// Jedna sekcja na razie — "Diagnostyka" (dawne TEST_ITEMS) — to WCIĄŻ tylko
+// infrastruktura testowa (patrz komentarz przy handlerach niżej), nie prawdziwe
+// Ustawienia z ARCHITECTURE.md. Struktura sekcje+wyszukiwarka jest już gotowa pod
+// kolejne sekcje, gdy realne Ustawienia zaczną powstawać — dojdzie kolejny obiekt do
+// tej tablicy, zero zmian w layoucie/filtrze.
+const SECTIONS: SettingsSection[] = [
+  {
+    title: 'DIAGNOSTYKA (TEST)',
+    items: [
+      { key: 'google', label: 'Zaloguj przez Google', description: 'logowanie konto sign-in', icon: LogIn, accent: colors.stat.woda },
+      { key: 'firestore', label: 'Test Firestore', description: 'baza danych synchronizacja', icon: Database, accent: colors.stat.finanse },
+      { key: 'calendar', label: 'Test Kalendarza Google', description: 'wydarzenia kalendarz', icon: CalendarDays, accent: colors.stat.event },
+      { key: 'alert', label: 'Test alertu (max priorytet)', description: 'powiadomienia alert notification', icon: AlertTriangle, accent: colors.accent.red },
+    ],
+  },
+];
+
+// Ekran Ustawień — wyszukiwarka + pogrupowane karty w naszym systemie wizualnym
+// (Inter, kolorowe odznaki ikon, kafle jak na Dashboardzie). Pod spodem WCIĄŻ tylko
+// testy infrastruktury (Firebase/Google Sign-in/Calendar/alert) — WYŁĄCZNIE do
+// sprawdzenia czy są dobrze poustawione po stronie Google Cloud/Firebase Console,
+// zanim zaczniemy dokładać prawdziwe sekcje Ustawień. `@react-native-google-signin`
+// importowany DYNAMICZNIE w środku handlerów (natywny moduł, którego nie ma w Expo
+// Go — statyczny import na starcie appki wywaliłby cały ekran, może i appkę, zanim
+// user zdążyłby cokolwiek kliknąć). Błąd stąd ("Native module... cannot be null" /
+// podobny) = normalne, oczekiwane w Expo Go, wyjaśnione userowi wprost w UI.
 export default function SettingsScreen() {
   const s = makeS();
   const [log, setLog] = useState<string[]>([]);
+  const [query, setQuery] = useState('');
 
   const append = (line: string) => setLog((prev) => [line, ...prev].slice(0, 12));
 
@@ -86,20 +108,19 @@ export default function SettingsScreen() {
     }
   };
 
-  // Test "full-screen alertu" (2026-10-27, user chce sprawdzić jak bardzo customowe
-  // da się zrobić powiadomienia na Androidzie — "ja sprawdzę jak działa"). UCZCIWIE:
-  // to jest SUFIT tego co daje goły `expo-notifications` (kanał o najwyższym priorytecie
-  // Androida, dźwięk, wibracja, heads-up) — NIE prawdziwy full-screen-intent blokujący
-  // ekran jak budzik. Ten drugi wymaga `notifee` albo natywnego kodu (patrz NEXT_STEPS.md)
-  // — dopiero po tym jak user oceni ten test, warto inwestować w cięższą zależność.
+  // Test "full-screen alertu" (user chce sprawdzić jak bardzo customowe da się zrobić
+  // powiadomienia na Androidzie). UCZCIWIE: to SUFIT tego co daje goły
+  // `expo-notifications` (kanał o najwyższym priorytecie, dźwięk, wibracja, heads-up)
+  // — NIE prawdziwy full-screen-intent blokujący ekran jak budzik (to wymaga `notifee`
+  // albo natywnego kodu, patrz NEXT_STEPS.md).
   const testFullScreenAlert = async () => {
     append('⏳ Alert (max priorytet)…');
     try {
       const Notifications = await import('expo-notifications');
       // BEZ TEGO appka w ogóle nie pokazuje powiadomienia gdy jest na pierwszym planie
-      // (domyślne zachowanie Expo od kilku SDK) — to najpewniej prawdziwa przyczyna
-      // "nic się nie dzieje" (2026-10-27): `scheduleNotificationAsync` mógł się udać
-      // (✅ w logu), ale bez handlera system nie wiedział że ma cokolwiek wyświetlić.
+      // (domyślne zachowanie Expo od kilku SDK) — realna przyczyna "nic się nie
+      // dzieje": `scheduleNotificationAsync` mógł się udać (✅ w logu), ale bez
+      // handlera system nie wiedział że ma cokolwiek wyświetlić.
       Notifications.setNotificationHandler({
         handleNotification: async () => ({
           shouldShowBanner: true,
@@ -119,8 +140,8 @@ export default function SettingsScreen() {
       });
       // `as any` — `NotificationPermissionsStatus`'s re-eksportowany `PermissionResponse`
       // z pakietu `expo` nie rozwiązuje się poprawnie w tej wersji (status/granted "nie
-      // istnieją" wg tsc mimo że runtime je zwraca, udokumentowane pola Expo) —
-      // niegroźne dla testowego przycisku, nie warto walczyć z typami dla tego.
+      // istnieją" wg tsc mimo że runtime je zwraca) — niegroźne dla testowego
+      // przycisku, nie warto walczyć z typami dla tego.
       const permResult: any = await Notifications.requestPermissionsAsync();
       if (!permResult?.granted && permResult?.status !== 'granted') {
         throw new Error('Brak zgody na powiadomienia');
@@ -147,32 +168,78 @@ export default function SettingsScreen() {
     }
   };
 
+  const handlers: Record<string, () => void> = {
+    google: testGoogleSignIn,
+    firestore: testFirestore,
+    calendar: testCalendar,
+    alert: testFullScreenAlert,
+  };
+
+  const q = query.trim().toLowerCase();
+  const filteredSections = useMemo(() => {
+    if (!q) return SECTIONS;
+    return SECTIONS
+      .map((section) => ({
+        ...section,
+        items: section.items.filter(
+          (item) => item.label.toLowerCase().includes(q) || item.description.toLowerCase().includes(q),
+        ),
+      }))
+      .filter((section) => section.items.length > 0);
+  }, [q]);
+
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}><ChevronLeft size={22} color={colors.text.primary} /></TouchableOpacity>
-        <Text style={s.title}>Ustawienia (test infra)</Text>
+        <Text style={s.title}>Ustawienia</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={s.scroll}>
-        {TEST_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const onPress = {
-            google: testGoogleSignIn,
-            firestore: testFirestore,
-            calendar: testCalendar,
-            alert: testFullScreenAlert,
-          }[item.key];
-          return (
-            <TouchableOpacity key={item.key} style={s.btn} onPress={onPress} activeOpacity={0.7}>
-              <View style={[s.btnIcon, { backgroundColor: `${item.accent}33` }]}>
-                <Icon size={16} color={item.accent} />
-              </View>
-              <Text style={s.btnTxt}>{item.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
+      <View style={s.searchBar}>
+        <Search size={16} color={colors.text.muted} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Szukaj w ustawieniach…"
+          placeholderTextColor={colors.text.muted}
+          style={s.searchInput}
+        />
+        {query.length > 0 && (
+          <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
+            <X size={15} color={colors.text.muted} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+        {filteredSections.length === 0 && (
+          <Text style={s.noResults}>Brak wyników dla „{query}”.</Text>
+        )}
+
+        {filteredSections.map((section) => (
+          <View key={section.title} style={s.section}>
+            <Text style={s.sectionTitle}>{section.title}</Text>
+            <View style={s.sectionCard}>
+              {section.items.map((item, i) => {
+                const Icon = item.icon;
+                return (
+                  <TouchableOpacity
+                    key={item.key}
+                    style={[s.item, i !== section.items.length - 1 && s.itemDivider]}
+                    onPress={handlers[item.key]}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[s.itemIcon, { backgroundColor: `${item.accent}33` }]}>
+                      <Icon size={16} color={item.accent} />
+                    </View>
+                    <Text style={s.itemLabel}>{item.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        ))}
 
         <View style={s.logBox}>
           {log.length === 0 && <Text style={s.logEmpty}>Wyniki testów pojawią się tutaj.</Text>}
@@ -188,18 +255,33 @@ const makeS = themedStyles((c) => StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[3], paddingVertical: spacing[2] },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, textAlign: 'center', fontSize: 15, fontFamily: 'Inter_900Black', color: c.text.primary },
-  scroll: { padding: spacing[4], gap: spacing[2] },
 
-  btn: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing[3], backgroundColor: c.bg.card,
-    borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default, padding: spacing[3],
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[2],
+    marginHorizontal: spacing[4], marginBottom: spacing[3],
+    backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default,
+    paddingHorizontal: spacing[3], height: 42,
   },
-  btnIcon: {
-    width: 32, height: 32, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
-  },
-  btnTxt: { flex: 1, fontSize: 13.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  searchInput: { flex: 1, fontSize: 13.5, fontFamily: 'Inter_500Medium', color: c.text.primary, padding: 0 },
 
-  logBox: { backgroundColor: c.bg.elevated, borderRadius: radius.lg, padding: spacing[3], gap: 6, marginTop: spacing[2] },
+  scroll: { paddingHorizontal: spacing[4], paddingBottom: spacing[4], gap: spacing[4] },
+  noResults: { fontSize: 12.5, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', marginTop: spacing[4] },
+
+  section: { gap: spacing[2] },
+  sectionTitle: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted, letterSpacing: 0.5, marginLeft: spacing[1] },
+  sectionCard: {
+    backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default,
+    overflow: 'hidden',
+  },
+  item: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[3],
+    paddingHorizontal: spacing[3], paddingVertical: spacing[3],
+  },
+  itemDivider: { borderBottomWidth: 1, borderBottomColor: c.border.subtle },
+  itemIcon: { width: 32, height: 32, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  itemLabel: { flex: 1, fontSize: 13.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
+
+  logBox: { backgroundColor: c.bg.elevated, borderRadius: radius.lg, padding: spacing[3], gap: 6 },
   logEmpty: { fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.muted },
   logLine: { fontSize: 11.5, color: c.text.secondary, fontFamily: 'monospace' },
 }));

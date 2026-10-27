@@ -220,3 +220,26 @@ między zaokrąglonymi wierszami.
   dashboardu) — teraz ten sam wzorzec co StatTile/PatternTileBackground/TaskListTile
   (`colors.stat.finanse`, pionowy, pod contentem).
 - Niezweryfikowane na urządzeniu — czeka na build i test usera.
+
+## Runda poprawek 6 (2026-10-27)
+
+- **Ustawienia przebudowane na nasz system wizualny + wyszukiwarka** (user: "zrob nam
+  lepiej zakładkę ustawienia, tam zeby bylo z wyszukiwarka i tam będą te testy itp
+  tylko w tym stylu ci mamy" — stylu wypracowanego na kafelkach Dashboardu). Nowa
+  struktura `app/settings.tsx`:
+  - `SECTIONS: SettingsSection[]` — sekcje z tytułem + listą itemów (`label`,
+    `description` do wyszukiwarki, `icon`, `accent`). Na razie jedna sekcja
+    "DIAGNOSTYKA (TEST)" z dawnymi 4 testami (Google/Firestore/Kalendarz/Alert) —
+    kiedy zaczniemy robić prawdziwe Ustawienia, dojdzie kolejny obiekt do tablicy,
+    zero zmian w layoucie/filtrze.
+  - Pasek wyszukiwania (karta jak wszędzie: `c.bg.card` + `border.default` +
+    `radius.lg`) filtrujący sekcje/itemy po `label`/`description` (lowercase
+    `includes`), z przyciskiem X do czyszczenia i komunikatem "Brak wyników" gdy
+    pusto.
+  - Itemy pogrupowane w jedną kartę na sekcję z cienkimi dzielnikami
+    (`border.subtle`) między wierszami zamiast osobnych kart każdy — bardziej
+    "ustawieniowy" look niż poprzednia wersja (każdy przycisk osobną kartą).
+  - Cała logika testów (Google/Firestore/Kalendarz/full-screen alert, dynamiczne
+    importy natywnych modułów) bez zmian — WCIĄŻ tylko infrastruktura testowa, nie
+    prawdziwe Ustawienia z ARCHITECTURE.md.
+- Niezweryfikowane na urządzeniu — czeka na build i test usera.
