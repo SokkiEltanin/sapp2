@@ -46,28 +46,48 @@ pracy nad nawigacją/stylem.
 - Android OAuth + Firestore: sprawdzić czy user utworzył bazę Firestore w konsoli
   Firebase (`Create database`, projekt `sapp2-a2354`) — bez tego test Firestore
   nie przejdzie niezależnie od fixu transportu w kodzie.
-- Satelickie ekrany z `sapp` (produkty, pojazdy, nawyki) — nierozstrzygnięte czy
-  zostają jako osobne ekrany czy wtapiają się w kontekst innych ekranów. User
-  (2026-10-26): pomysł żeby żyły pod customowym przyciskiem w lewym dolnym rogu,
-  PER EKRAN Finanse — **koliduje z tym że ten róg jest teraz stałym, globalnym
-  miejscem Ustawień** (patrz sekcja Navbar niżej). Do rozstrzygnięcia: albo Ustawienia
-  przenoszą się gdzie indziej, albo kontekstowy przycisk Finanse dostaje inne miejsce.
-- **Lista zadań w `ZADANIA`** — do zaprojektowania od nowa (user: "możesz zaproponować
-  jak inne aplikacje to pullują"). Rekomendacja z rozmowy 2026-10-26: `sapp` już ma
-  sprawdzony, dopracowany model sekcji TERAZ / bezterminowe / terminowe (zadanie #42 w
-  historii `sapp`) — naturalny punkt startowy zamiast wymyślania od zera. Zewnętrzna
+- **Lista zadań w `ZADANIA`** — logika sekcji ponownie z `sapp` (TERAZ / bezterminowe /
+  terminowe, zadanie #42), **UI/UX zupełnie nowy** (user potwierdził 2026-10-26: "zrobimy
+  podobnie ale UIUX będzie zupełnie inny" — to samo dotyczy Finansów). Zewnętrzna
   referencja: TickTick łączy pasek kalendarza u góry z listą zadań pod spodem dokładnie
   w stylu który user opisał (tydzień zwinięty → miesiąc po kliknięciu).
+- **Widget na pulpicie Androida dla Zadań** (user, 2026-10-26) — `sapp` już to ma,
+  wzorzec do powtórzenia 1:1 (nie szukać nowej biblioteki), patrz `ARCHITECTURE.md`
+  sekcja ZADANIA po pełny opis mechanizmu (`plugins/withTasksWidget.js`, natywny
+  Kotlin, bez zewnętrznego pakietu).
+
+## Kolizja lewy dolny róg (Ustawienia / satelickie Finanse / "dodaj")
+
+Trzy rzeczy chcą tego samego miejsca: globalne Ustawienia (już tam, zbudowane), dostęp
+do satelickich ekranów Finansów (Pojazdy/Produkty/Subskrypcje), i teraz też nowy,
+ujednolicony "dodaj" dla Finansów (parser paragonu + ręczny "custom paragon" + przychód
+— patrz `ARCHITECTURE.md` sekcja FINANSE po pełny opis problemu z `sapp`, który to
+wymusił). User (2026-10-26) sam zauważył kolizję i poprosił o propozycję.
+
+**Rekomendacja:** rozdzielić po częstości/zasięgu, nie upychać wszystkiego w jeden róg:
+- **Ustawienia** zostają w lewym dolnym rogu navbara — rzadkie, globalne, już zbudowane.
+- **"Dodaj" w Finansach** → **floating action button**, nie kolejna ikona w rogu. To
+  jedna z najczęstszych akcji w całej appce (user: paragon z Lidl+ w sekundę), zasługuje
+  na własne, stałe miejsce w zasięgu kciuka (np. pływający przycisk tuż nad/obok
+  klastra 5 zakładek), kontekstowy per-ekran (na Finansach = dodaj wydatek/paragon/
+  przychód, na Zadaniach później może = dodaj zadanie) — wzorzec znany z Gmaila/Todoist.
+- **Satelickie ekrany Finansów** (Pojazdy/Produkty/Subskrypcje) — rzadkie, nie
+  potrzebują własnego miejsca w navbarze wcale; naturalnie mieszczą się jako mały rząd
+  ikon/chipów WEWNĄTRZ samego ekranu Finanse, nie jako osobny przycisk globalny.
+
+Nie wdrożone jeszcze — **rekomendacja, do potwierdzenia przez usera** zanim zacznę budować.
+
+## Pozostałe ogólne decyzje
+
 - **Powiadomienia full-screen** (user chce coś jak budzik — blokuje ekran, nie da się
   nic zrobić dopóki nie odhaczysz). Android to wspiera (full-screen intent, ten sam
   mechanizm co budziki/połączenia), ale goły `expo-notifications` ma tu ograniczone/
   kruche wsparcie — realna ścieżka to prawdopodobnie biblioteka `notifee` (dojrzalsza
   w tym temacie, działa z Expo przez config plugin) albo custom native code. Nie
   trywialne w managed workflow — do przetestowania osobno zanim obiecamy to w UI.
-- **Wibracje — zakres toggle'a.** Rekomendacja: jeden globalny przełącznik w
-  Ustawieniach, NIE per-ekran (mniej złożoności UI; jeśli jakiś ekran okaże się zbyt
-  "wibrujący", wyciszamy to punktowo w kodzie tego ekranu zamiast dodawać kolejny
-  przełącznik).
+- **Wibracje — ZDECYDOWANE (2026-10-26):** jeden globalny przełącznik w Ustawieniach,
+  tak jak w `sapp`, NIE per-ekran. Jeśli jakiś ekran okaże się zbyt "wibrujący",
+  wyciszamy to punktowo w kodzie tego ekranu zamiast dodawać kolejny przełącznik.
 
 ## Dashboard — pierwsze 4 rzędy zbudowane (2026-10-26), otwarte przybliżenia
 
