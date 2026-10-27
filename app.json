@@ -22,12 +22,15 @@
         "backgroundColor": "#0B0E14"
       },
       "permissions": [
-        "android.permission.INTERNET"
+        "android.permission.INTERNET",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
       ]
     },
     "plugins": [
       "expo-router",
       "expo-font",
+      "expo-notifications",
       [
         "expo-build-properties",
         {

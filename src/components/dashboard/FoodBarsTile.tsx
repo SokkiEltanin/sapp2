@@ -45,7 +45,17 @@ export default function FoodBarsTile({
               </Text>
               <View style={s.barTrack}>
                 {col.kind === 'average' ? (
-                  <View style={[s.avgLine, { backgroundColor: colors.stat.finanse }]} />
+                  // Kreska średniej siedzi na WYSOKOŚCI odpowiadającej jej wartości
+                  // względem pozostałych słupków (user, 2026-10-27: "miała pokazywać tę
+                  // średnią wysokością względem innych kafelków") — ten sam % co słupek,
+                  // nie przyklejona do dołu.
+                  <View
+                    style={[
+                      s.avgLine,
+                      { bottom: `${Math.max(12, (col.value / maxValue) * 100)}%` },
+                      { backgroundColor: colors.stat.finanse },
+                    ]}
+                  />
                 ) : (
                   <View
                     style={[
@@ -84,9 +94,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
   column: { flex: 1, height: '100%', justifyContent: 'flex-end' },
   value: { fontFamily: 'Inter_700Bold', fontSize: 11, textAlign: 'center' },
   valueActive: { fontFamily: 'Inter_900Black' },
-  barTrack: { flex: 1, width: '72%', alignSelf: 'center', justifyContent: 'flex-end', marginVertical: 3 },
+  barTrack: {
+    flex: 1, width: '72%', alignSelf: 'center', justifyContent: 'flex-end', marginVertical: 3,
+    position: 'relative',
+  },
   bar: { width: '100%', borderRadius: 3 },
-  avgLine: { width: '100%', height: 2, borderRadius: 999, marginBottom: 2 },
+  avgLine: { position: 'absolute', left: 0, right: 0, height: 2, borderRadius: 999 },
   label: { fontFamily: 'Inter_700Bold', fontSize: 9, textAlign: 'center' },
   labelActive: { fontFamily: 'Inter_900Black' },
 }));

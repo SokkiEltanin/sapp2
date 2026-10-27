@@ -17,10 +17,12 @@ import { spacing, themedStyles } from '@/theme';
 // placeholder, nieustalone jeszcze); rząd 4 — FINANSE (1/4, kafel statystyk) > wykres
 // wydatków na jedzenie per miesiąc (3/4). Dane na sztywno (mock) — jeszcze nie podpięte
 // do żadnego store'a, tylko weryfikacja stylu na urządzeniu.
+// Pokazuje wszystkie 4 stany systemu tagów (2026-10-27): nazwany skrót, pilne
+// (czerwone, wykrzyknik), bez taga (puste kropeczki), przypomnienie (dzwonek).
 const MOCK_TASKS: Task[] = [
   { id: '1', title: 'Prezentacja Trzyna - 15 slajdów', tag: { kind: 'label', text: 'UR', color: '#1B36AF' } },
-  { id: '2', title: 'Projekt Marchewka', tag: { kind: 'label', text: 'UR', color: '#1B36AF' } },
-  { id: '3', title: 'Wyrzucić śmieci !!', tag: { kind: 'dots', color: '#A7ADBD' } },
+  { id: '2', title: 'Projekt Marchewka', tag: { kind: 'urgent' } },
+  { id: '3', title: 'Wyrzucić śmieci !!', tag: { kind: 'empty' } },
   { id: '4', title: 'Jutro zabrać klucze!', tag: { kind: 'bell', color: colors.stat.event } },
 ];
 const MOCK_FOOD_COLUMNS: BarColumn[] = [

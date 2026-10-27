@@ -1,40 +1,59 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Bell, MoreHorizontal } from 'lucide-react-native';
+import { Bell, MoreHorizontal, AlertTriangle } from 'lucide-react-native';
+import { colors } from '@/theme/colors';
 import { spacing, themedStyles } from '@/theme';
 import { cornersForPosition, TILE_ROW_HEIGHT, type StatTilePosition } from './tilePosition';
 
-// Kafelek "Zadania" (2026-10-26) — lista do 4 pozycji, każda z własnym tagiem po lewej
-// (kolor taga = kolor gradientu tła tego wiersza, fade do 0% w prawo — user: "gradient
-// od niebieskiego do 0 transparent"). Cała warstwa gradientu na 20% opacity — ten sam
-// wzorzec co StatTile/PatternTileBackground (user poprawił 2026-10-26: pierwsza wersja
-// miała gradient na pełnej sile, niespójnie z resztą kafli). Tylko kolor taga UR
-// (#1B36AF) był podany wprost w mockupie; kolory dla "..." i dzwonka to przybliżenie
-// z istniejącej palety (NEXT_STEPS.md).
+// Kafelek "Zadania" — lista do 4 pozycji, każda z własnym tagiem po lewej (kolor taga =
+// kolor gradientu tła tego wiersza, fade do 0% w prawo, cała warstwa na 20% opacity —
+// ten sam wzorzec co StatTile/PatternTileBackground).
+//
+// System tagów (2026-10-27, user): dowolny skrót (#UR, #PW, przyszłe inne) → chip z
+// tym tekstem; BRAK taga → pusty chip z kropeczkami; PILNE → czerwony chip z
+// wykrzyknikiem (niezależnie od tego czy ma nazwany tag — osobny stan). `label.text`
+// jest dowolnym stringiem, więc nowe skróty (PW itp.) nie wymagają zmian w kodzie,
+// tylko w danych.
 export type TaskTag =
+  | { kind: 'empty' }
   | { kind: 'label'; text: string; color: string }
-  | { kind: 'dots'; color: string }
+  | { kind: 'urgent' }
   | { kind: 'bell'; color: string };
 
 export type Task = { id: string; title: string; tag: TaskTag };
 
+function tagColor(tag: TaskTag): string {
+  switch (tag.kind) {
+    case 'label': return tag.color;
+    case 'bell': return tag.color;
+    case 'urgent': return colors.accent.red;
+    case 'empty': default: return colors.chart.muted;
+  }
+}
+
 function TagChip({ tag }: { tag: TaskTag }) {
   const s = makeS();
+  const bg = tagColor(tag);
+  // Chip-pigułka (tekst, szerokość rośnie z treścią) dla label/urgent; chip-kółko
+  // (stały rozmiar) dla empty/bell — dokładnie jak w mockupie.
+  const isPill = tag.kind === 'label';
   return (
-    <View style={[s.chip, { backgroundColor: tag.color }]}>
-      {tag.kind === 'label' && <Text style={s.chipLabel}>{tag.text}</Text>}
-      {tag.kind === 'dots' && <MoreHorizontal size={14} color="#0B0E14" />}
+    <View style={[s.chip, isPill ? s.chipPill : s.chipRound, { backgroundColor: bg }]}>
+      {tag.kind === 'label' && <Text style={s.chipLabel} numberOfLines={1}>{tag.text}</Text>}
+      {tag.kind === 'empty' && <MoreHorizontal size={14} color="#0B0E14" />}
       {tag.kind === 'bell' && <Bell size={14} color="#0B0E14" />}
+      {tag.kind === 'urgent' && <AlertTriangle size={13} color="#0B0E14" fill="#0B0E14" strokeWidth={0} />}
     </View>
   );
 }
 
 function TaskRow({ task, isLast }: { task: Task; isLast: boolean }) {
   const s = makeS();
+  const gradientColor = tagColor(task.tag);
   return (
     <View style={[s.row, !isLast && s.rowGap]}>
       <LinearGradient
-        colors={[task.tag.color, 'transparent']}
+        colors={[gradientColor, 'transparent']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={s.gradient}
@@ -69,16 +88,15 @@ export default function TaskListTile({
 const makeS = themedStyles((c) => StyleSheet.create({
   // `padding` tutaj (2026-10-26, user: brakowało odstępu od krawędzi) — bez niego
   // pierwszy wiersz siedział tak blisko dużego zaokrąglenia zewnętrznego rogu kafla, że
-  // ten róg "odgryzał" kawałek chipa taga (stąd "UR" ucięte do "U"). Padding daje
-  // odstęp i jednocześnie rozwiązuje to niechciane przycinanie.
+  // ten róg "odgryzał" kawałek chipa taga. Padding daje odstęp.
   tile: {
     flex: 3, height: TILE_ROW_HEIGHT, backgroundColor: c.bg.card, overflow: 'hidden',
     padding: 6,
   },
   // Każdy wiersz to osobny, lekko zaokrąglony segment z odstępem do następnego (nie
-  // ciągły blok z cienkimi liniami-dzielnikami jak w pierwszej wersji) — tak jak w
-  // mockupie usera. Zewnętrzny `tile` (overflow: hidden + zaokrąglenie skrajnych
-  // krawędzi) przycina pierwszy/ostatni wiersz do właściwego kształtu automatycznie.
+  // ciągły blok z cienkimi liniami-dzielnikami) — jak w mockupie usera. Zewnętrzny
+  // `tile` (overflow: hidden + zaokrąglenie skrajnych krawędzi) przycina
+  // pierwszy/ostatni wiersz do właściwego kształtu automatycznie.
   row: { flex: 1, borderRadius: 10, overflow: 'hidden' },
   rowGap: { marginBottom: 3 },
   gradient: { ...StyleSheet.absoluteFillObject, opacity: 0.2 },
@@ -86,10 +104,17 @@ const makeS = themedStyles((c) => StyleSheet.create({
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing[2],
     paddingHorizontal: spacing[2],
   },
+  // `flexShrink: 0` — chip NIGDY nie ma się kurczyć (nawet gdyby tytuł obok próbował
+  // zabrać więcej miejsca niż ma); brak `minWidth` jako GÓRNEGO ograniczenia tekstu —
+  // poprzednia wersja miała `minWidth: 26` które po odjęciu paddingu zostawiało tylko
+  // ~12px na "UR" w Inter Black — za mało, stąd ucięte do "U" (2026-10-27, user to
+  // złapał nawet PO dodaniu paddingu z poprzedniego fixu, więc to było coś innego).
+  // Teraz chip rośnie wyłącznie z treści + padding.
   chip: {
-    minWidth: 26, height: 20, borderRadius: 999, paddingHorizontal: 7,
-    alignItems: 'center', justifyContent: 'center',
+    height: 20, alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  chipLabel: { fontFamily: 'Inter_900Black', fontSize: 9, color: '#0B0E14' },
+  chipPill: { minWidth: 24, paddingHorizontal: 8, borderRadius: 999 },
+  chipRound: { width: 24, borderRadius: 999 },
+  chipLabel: { fontFamily: 'Inter_900Black', fontSize: 10, color: '#0B0E14' },
   title: { flex: 1, fontFamily: 'Inter_700Bold', fontSize: 13, color: c.text.primary },
 }));

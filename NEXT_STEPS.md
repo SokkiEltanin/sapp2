@@ -79,12 +79,14 @@ Nie wdrożone jeszcze — **rekomendacja, do potwierdzenia przez usera** zanim z
 
 ## Pozostałe ogólne decyzje
 
-- **Powiadomienia full-screen** (user chce coś jak budzik — blokuje ekran, nie da się
-  nic zrobić dopóki nie odhaczysz). Android to wspiera (full-screen intent, ten sam
-  mechanizm co budziki/połączenia), ale goły `expo-notifications` ma tu ograniczone/
-  kruche wsparcie — realna ścieżka to prawdopodobnie biblioteka `notifee` (dojrzalsza
-  w tym temacie, działa z Expo przez config plugin) albo custom native code. Nie
-  trywialne w managed workflow — do przetestowania osobno zanim obiecamy to w UI.
+- **Powiadomienia full-screen** — pierwszy test dodany (2026-10-27): `expo-notifications`
+  zainstalowany, przycisk "Test alertu (max priorytet)" w Ustawieniach
+  (`app/settings.tsx`) wysyła natychmiastowe powiadomienie przez kanał o
+  `AndroidImportance.MAX` + dźwięk + wibracja + `bypassDnd` + widoczność na ekranie
+  blokady. **To SUFIT tego co daje goły `expo-notifications`, NIE prawdziwy
+  full-screen-intent** (appka wymuszająca pełny ekran jak budzik — do tego nadal
+  potrzeba `notifee` albo natywnego kodu). User ma ocenić ten test na urządzeniu i
+  zdecydować czy to wystarczy, czy inwestujemy w cięższą zależność.
 - **Wibracje — ZDECYDOWANE (2026-10-26):** jeden globalny przełącznik w Ustawieniach,
   tak jak w `sapp`, NIE per-ekran. Jeśli jakiś ekran okaże się zbyt "wibrujący",
   wyciszamy to punktowo w kodzie tego ekranu zamiast dodawać kolejny przełącznik.
@@ -161,3 +163,20 @@ między zaokrąglonymi wierszami.
   górę, zgrupowany z ikoną księżyca i etykietą "SNU" w jedno dziecko, żeby
   `justifyContent: 'space-between'` z `PatternTileBackground` rozciągał tylko DWIE
   rzeczy (górną grupę i zakres godzin na dole), nie trzy.
+
+## Runda poprawek 3 (2026-10-27)
+
+- **StatTile label** — wymusza 1 linię (nie 2) dla zwykłych jednowyrazowych nazw
+  kategorii, żeby `adjustsFontSizeToFit` zmniejszał czcionkę zamiast zawijać do
+  brzydkiej sieroty ("ĆWICZENIA" → "ĆWICZENI"/"A"). Wykrywane po obecności `\n` w
+  stringu (jest `\n` → 2 linie, np. "DZIENNIE\n#JEDZENIE" w Finansach; nie ma → 1).
+- **System tagów w Zadaniach przebudowany** (`TaskListTile.tsx`) — 4 stany zamiast 3:
+  `empty` (brak taga, kropeczki), `label` (dowolny skrót, np. UR, PW — tekst z danych,
+  nie z kodu, więc nowe skróty nie wymagają zmian), `urgent` (czerwony, wykrzyknik,
+  niezależny od tego czy zadanie ma nazwany tag), `bell` (przypomnienie). Realna
+  przyczyna "UR"→"U": `minWidth: 26` na chipie po odjęciu paddingu zostawiało ~12px na
+  tekst — za mało dla Inter Black. Usunięty `minWidth`, dodany `flexShrink: 0`, chip
+  rośnie wyłącznie z treści + padding (pill dla tekstu, stałe kółko dla ikon).
+- **FoodBarsTile — kreska średniej** pozycjonowana na wysokości % wartości względem
+  max (jak słupek), nie przyklejona do dołu — user: "miała pokazywać tę średnią
+  wysokością względem innych kafelków". Zachowanie/interakcja — osobno, później.

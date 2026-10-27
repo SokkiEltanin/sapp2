@@ -64,7 +64,18 @@ export default function StatTile(props: StatTileProps) {
                 {props.detail}
               </Text>
             ) : (
-              <Text style={[s.label, { color: accent }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>
+              // `numberOfLines`: 2 TYLKO gdy etykieta ma jawny `\n` (np. "DZIENNIE\n#JEDZENIE"
+              // w Finansach — to CELOWY dwuwiersz). Dla zwykłej jednowyrazowej nazwy
+              // kategorii (WODA/SŁODYCZE/ĆWICZENIA) wymuszamy 1 linię, żeby
+              // `adjustsFontSizeToFit` ZMNIEJSZAŁ czcionkę zamiast zawijać do brzydkiego
+              // drugiego wiersza z jedną sierotą-literą (user: "ĆWICZENIA wypierdzielaj
+              // się dziwnie", 2026-10-27).
+              <Text
+                style={[s.label, { color: accent }]}
+                numberOfLines={props.label.includes('\n') ? 2 : 1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.5}
+              >
                 {props.label}
               </Text>
             )}
