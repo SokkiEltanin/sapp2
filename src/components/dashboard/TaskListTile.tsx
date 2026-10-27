@@ -112,7 +112,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
   // przycina pierwszy/ostatni wiersz do właściwego kształtu automatycznie.
   row: { flex: 1, borderRadius: 10, overflow: 'hidden' },
   rowGap: { marginBottom: 6 },
-  gradient: { ...StyleSheet.absoluteFillObject, opacity: 0.2 },
+  // Opacity WYŻSZA niż na reszcie dashboardu (tam 0.2) — celowo. Kolor taga (np. #1B36AF,
+  // ciemny granat dobrany pod CZYTELNY biały tekst na chipie) jest dużo ciemniejszy niż
+  // jasne akcenty kafli statystyk (np. #5AAFFA WODA) — przy tych samych 20% nad czarnym
+  // tłem robi się praktycznie niewidoczny (user porównał z Figmą: u niego wiersz ma
+  // wyraźnie widoczny kolor, u nas wychodził prawie czarny pasek z samym chipem).
+  gradient: { ...StyleSheet.absoluteFillObject, opacity: 0.4 },
   rowContent: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing[2],
     paddingHorizontal: spacing[2],

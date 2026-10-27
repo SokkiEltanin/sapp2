@@ -243,3 +243,24 @@ między zaokrąglonymi wierszami.
     importy natywnych modułów) bez zmian — WCIĄŻ tylko infrastruktura testowa, nie
     prawdziwe Ustawienia z ARCHITECTURE.md.
 - Niezweryfikowane na urządzeniu — czeka na build i test usera.
+
+## Runda poprawek 7 (2026-10-27)
+
+User podesłał zrzuty bezpośrednio z Figmy (nie tylko exportowany mockup) — bezpośrednie
+porównanie wykryło 2 realne rozjazdy:
+
+- **Kafelek EVENT (27 MINUT) — `detail` tekst był źle złamany i źle wyrównany**: w
+  Figmie `[JD] 15:00 -21:00 (6h)` to WYŚRODKOWANY tekst na 2 liniach
+  (`[JD] 15:00` / `-21:00 (6h)`); u nas był wyrównany DO LEWEJ na 3 liniach
+  (`[JD]` / `15:00-21:00` / `(6h)`) — stąd mniejszy odstęp od "MINUT" niż w oryginale
+  (więcej tekstu = mniej miejsca na `justifyContent:'space-between'` do rozepchnięcia).
+  Fix: `StatTile.tsx` detail `textAlign: 'left'` → `'center'`, `numberOfLines` 3→2;
+  mock data w `index.tsx` `'[JD]\n15:00-21:00\n(6h)'` → `'[JD] 15:00\n-21:00 (6h)'`.
+- **TaskListTile — wiersze dalej za ciemne nawet po poprzedniej rundzie**: realny root
+  cause doprecyzowany po bezpośrednim porównaniu z Figmą — kolor taga (np. `#1B36AF`,
+  CELOWO ciemny granat pod czytelny biały tekst chipa) przy tych samych 20% opacity co
+  reszta dashboardu (gdzie akcenty są jasne, np. WODA `#5AAFFA`) wychodzi praktycznie
+  niewidoczny nad czarnym tłem. Podbite `gradient.opacity` w `TaskListTile.tsx`:
+  0.2 → 0.4 (WYŻSZE niż gdzie indziej na dashboardzie — celowo, bo baza koloru jest
+  ciemniejsza).
+- Niezweryfikowane na urządzeniu — czeka na build i test usera.

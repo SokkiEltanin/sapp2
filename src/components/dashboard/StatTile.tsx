@@ -60,7 +60,7 @@ export default function StatTile(props: StatTileProps) {
               {props.unit}
             </Text>
             {props.variant === 'event' ? (
-              <Text style={[s.detail, { color: accent }]} numberOfLines={3} adjustsFontSizeToFit minimumFontScale={0.7}>
+              <Text style={[s.detail, { color: accent }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.7}>
                 {props.detail}
               </Text>
             ) : (
@@ -127,7 +127,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   detail: {
     fontFamily: 'Inter_500Medium',
     fontSize: 13,
-    textAlign: 'left',
+    textAlign: 'center',
     lineHeight: 14,
   },
   weatherIconWrap: {

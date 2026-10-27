@@ -59,7 +59,7 @@ export default function DashboardScreen() {
           value="27"
           unit="MINUT"
           variant="event"
-          detail={'[JD]\n15:00-21:00\n(6h)'}
+          detail={'[JD] 15:00\n-21:00 (6h)'}
         />
         <StatTile
           position={getTilePosition(3, 4)}
