@@ -19,6 +19,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # SHORT_SHA/BUILD_DATE policzone RAZ na początku, wyeksportowane do $GITHUB_ENV —
+      # dostępne we wszystkich kolejnych krokach (zarówno do wstrzyknięcia w bundlu JS
+      # przez EXPO_PUBLIC_*, jak i do nazwy pliku APK/release'u niżej), bez liczenia
+      # dwa razy.
+      - name: Compute build metadata
+        run: |
+          echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+          echo "BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M UTC')" >> "$GITHUB_ENV"
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -119,12 +128,13 @@ jobs:
         env:
           GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=512m -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g"
           EXPO_PUBLIC_BUILD_NUMBER: ${{ github.run_number }}
+          EXPO_PUBLIC_BUILD_DATE: ${{ env.BUILD_DATE }}
+          EXPO_PUBLIC_BUILD_COMMIT: ${{ env.SHORT_SHA }}
           EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
 
       - name: Rename APK
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          SHORT_SHA=$(git rev-parse --short HEAD)
           cp android/app/build/outputs/apk/release/app-release.apk \
             "sapp2-build${{ github.run_number }}-v${VERSION}-${SHORT_SHA}.apk"
 

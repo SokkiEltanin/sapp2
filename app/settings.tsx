@@ -3,11 +3,26 @@ import type { ComponentType } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import Constants from 'expo-constants';
 import { ChevronLeft, Search, X, LogIn, Database, CalendarDays, AlertTriangle } from 'lucide-react-native';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db, withTimeout } from '@/firebase';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
+
+// Build metadata wstrzyknięty przez CI (`.github/workflows/build.yml`, krok "Build
+// release APK") jako EXPO_PUBLIC_* — Expo inline'uje te zmienne w bundlu JS na etapie
+// budowania. W Expo Go / dev (gdzie tych zmiennych nikt nie ustawia) spadamy na "dev"
+// — to NORMALNE, nie błąd (user to zobaczy wyłącznie uruchamiając appkę przez Expo Go,
+// nie w prawdziwym APK z CI). Dodane po tym jak user kilka razy z rzędu nie mógł
+// stwierdzić czy zainstalowany APK faktycznie jest najnowszym buildem (2026-10-27) —
+// patrz też fix `versionCode` w tym samym commicie/NEXT_STEPS.md.
+const BUILD_INFO = {
+  version: Constants.expoConfig?.version ?? '?',
+  buildNumber: process.env.EXPO_PUBLIC_BUILD_NUMBER ?? 'dev',
+  buildDate: process.env.EXPO_PUBLIC_BUILD_DATE ?? 'dev',
+  commit: process.env.EXPO_PUBLIC_BUILD_COMMIT ?? 'dev',
+};
 
 type SettingsItem = {
   key: string;
@@ -245,6 +260,17 @@ export default function SettingsScreen() {
           {log.length === 0 && <Text style={s.logEmpty}>Wyniki testów pojawią się tutaj.</Text>}
           {log.map((line, i) => <Text key={i} style={s.logLine}>{line}</Text>)}
         </View>
+
+        {/* Statyczny blok info — POZA systemem sekcji/wyszukiwarki (nic tu nie jest
+            klikalne ani nie pasuje do konceptu "ustawienia do znalezienia"), żeby user
+            zawsze mógł jednym spojrzeniem sprawdzić czy zainstalowany APK to faktycznie
+            najnowszy build, niezależnie od tego co wpisze w wyszukiwarkę wyżej. */}
+        <View style={s.aboutBox}>
+          <Text style={s.aboutRow}>Wersja <Text style={s.aboutValue}>{BUILD_INFO.version}</Text></Text>
+          <Text style={s.aboutRow}>Build <Text style={s.aboutValue}>#{BUILD_INFO.buildNumber}</Text></Text>
+          <Text style={s.aboutRow}>Zbudowano <Text style={s.aboutValue}>{BUILD_INFO.buildDate}</Text></Text>
+          <Text style={s.aboutRow}>Commit <Text style={s.aboutValue}>{BUILD_INFO.commit}</Text></Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -284,4 +310,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
   logBox: { backgroundColor: c.bg.elevated, borderRadius: radius.lg, padding: spacing[3], gap: 6 },
   logEmpty: { fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.muted },
   logLine: { fontSize: 11.5, color: c.text.secondary, fontFamily: 'monospace' },
+
+  aboutBox: { alignItems: 'center', gap: 4, paddingVertical: spacing[2] },
+  aboutRow: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: c.text.muted },
+  aboutValue: { fontFamily: 'Inter_700Bold', color: c.text.secondary },
 }));

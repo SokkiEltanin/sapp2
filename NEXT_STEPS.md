@@ -316,3 +316,26 @@ kiedyś napotka tam podobny objaw.
 build #24/#25 na czysto — to obejście tego konkretnego problemu niezależnie od fixu
 (fix w workflow zapobiega PRZYSZŁYM przypadkom, nie naprawia już zainstalowanej
 starej kopii).
+
+**Update**: user zrobił pełny odinstaluj+zainstaluj i DALEJ to samo ("to samo xdd") —
+poprosił o sekcję w Ustawieniach pokazującą numer builda/datę, żeby móc jednym
+spojrzeniem w appce (nie w GitHubie) zweryfikować czy zainstalowany APK to faktycznie
+najnowszy build. Dodane:
+- `.github/workflows/build.yml`: nowy krok "Compute build metadata" na samym początku
+  (`git rev-parse --short HEAD` → `SHORT_SHA`, `date -u` → `BUILD_DATE`, oba do
+  `$GITHUB_ENV` — dostępne we wszystkich kolejnych krokach). Krok "Build release APK"
+  dostaje teraz `EXPO_PUBLIC_BUILD_DATE`/`EXPO_PUBLIC_BUILD_COMMIT` obok już istniejącego
+  `EXPO_PUBLIC_BUILD_NUMBER` — Expo inline'uje `EXPO_PUBLIC_*` w bundlu JS na etapie
+  budowania. Krok "Rename APK" uproszczony żeby użyć tego samego `$SHORT_SHA` zamiast
+  liczyć go drugi raz.
+- `app/settings.tsx`: `BUILD_INFO` (wersja z `expo-constants`, reszta z
+  `process.env.EXPO_PUBLIC_*`, fallback `'dev'` gdy puste — czyli w Expo Go/dev, bo
+  tam nikt tych zmiennych nie ustawia) + statyczny blok "O APLIKACJI" na dole ekranu
+  (POZA systemem sekcji/wyszukiwarki — nic tu nie jest klikalne): Wersja / Build #N /
+  Zbudowano <data UTC> / Commit <short sha>.
+- To NIE zastępuje fixu `versionCode` wyżej — to DIAGNOSTYKA, żeby user mógł sam
+  potwierdzić (albo wykluczyć) czy wciąż widzi stary build, zamiast zgadywać ze
+  zrzutów ekranu. Jeśli po tym buildzie ekran "O APLIKACJI" pokaże właściwy
+  numer/datę, a layout dalej wygląda staro — to już NIE jest problem instalacji/cache,
+  tylko coś innego do zdiagnozowania od nowa.
+- Niezweryfikowane na urządzeniu — czeka na build i test usera.
