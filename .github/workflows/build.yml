@@ -37,6 +37,15 @@ jobs:
         env:
           EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
 
+      # BEZ TEGO `versionCode` jest ZAWSZE 1 (nigdy nie ustawiony w app.json, `expo
+      # prebuild` defaultuje) — Android na niektórych ROM-ach/w niektórych flow
+      # instalacji "update z pliku APK" (nie `adb install -r`) potrafi po cichu NIE
+      # podmienić kodu gdy nowy plik ma identyczny versionCode co zainstalowana wersja,
+      # mimo że install "się udał" — user to złapał po kilku buildach z rzędu
+      # pokazujących ten sam stary zrzut mimo realnych zmian w kodzie (2026-10-27).
+      - name: Set unique versionCode (github.run_number)
+        run: sed -i "s/versionCode [0-9]\+/versionCode ${{ github.run_number }}/" android/app/build.gradle
+
       - name: Copy google-services.json to Android project
         run: cp google-services.json android/app/google-services.json
 

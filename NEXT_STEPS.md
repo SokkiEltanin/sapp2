@@ -285,3 +285,34 @@ Zadania — ujawnił 2 realne rozjazdy w kształcie/proporcjach chipa:
   `title.fontSize` 13.5 → 14.5.
 - Kolor tytułu (`#D6D6D6`) już się zgadzał z `c.text.primary` — bez zmian.
 - Niezweryfikowane na urządzeniu — czeka na build i test usera.
+
+## Infra fix (2026-10-27) — `versionCode` zawsze 1
+
+User po build #24 zgłosił że screen wygląda identycznie jak sprzed kilku buildów
+("chyba nic nie zmieniłeś") — sam podejrzewał że potrzebuje pełnego reinstalu
+zamiast "update". Sprawdziłem `.github/workflows/build.yml`: `app.json` nigdy nie
+ustawia `android.versionCode`, więc `expo prebuild` generuje `versionCode 1` w
+KAŻDYM buildzie (zweryfikowane lokalnie: `npx expo prebuild` → `android/app/build.gradle`
+ma `versionCode 1`, zawsze). Android przy instalce "z pliku APK" (nie `adb install -r`)
+na niektórych ROM-ach/wersjach potrafi po cichu NIE podmienić kodu gdy nowy plik ma
+identyczny `versionCode` co zainstalowana wersja — install "się udaje" bez błędu, ale
+kod zostaje stary. To realnie mogło być źródłem powtarzających się "starych" zrzutów.
+
+**Fix**: nowy krok w workflow zaraz po `expo prebuild`, PRZED resztą (sign/build) —
+`sed -i "s/versionCode [0-9]\+/versionCode ${{ github.run_number }}/" android/app/build.gradle`
+— każdy build dostaje unikalny, ROSNĄCY `versionCode` (numer runu, ten sam używany już
+w nazwie pliku/release). Zweryfikowane lokalnie: uruchomiony `npx expo prebuild`,
+potwierdzony dokładny format linii (`versionCode 1`), przetestowany sam `sed` na
+żywym pliku — podmienia poprawnie. `android/` jest gitignored (`/android` w
+`.gitignore`), prebuild-generowany na świeżo w CI za każdym razem — ten lokalny test
+nie zostawił nic do commitowania poza samym workflow.
+
+**sapp (dojrzały reference-app) ma DOKŁADNIE TEN SAM gap** (sprawdzone,
+`versionCode`/`autoIncrement` też nigdzie nie ustawiane) — ale CLAUDE.md zakazuje
+ruszania sapp, więc zostawione bez zmian tam; to jest coś do przekazania userowi jeśli
+kiedyś napotka tam podobny objaw.
+
+**User**: spróbuj mimo wszystko PEŁNEGO odinstalowania obecnej wersji i instalacji
+build #24/#25 na czysto — to obejście tego konkretnego problemu niezależnie od fixu
+(fix w workflow zapobiega PRZYSZŁYM przypadkom, nie naprawia już zainstalowanej
+starej kopii).
