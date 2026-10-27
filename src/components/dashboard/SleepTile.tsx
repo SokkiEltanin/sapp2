@@ -40,7 +40,7 @@ export default function SleepTile({
 const makeS = themedStyles((c) => StyleSheet.create({
   topGroup: {},
   topRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  value: { fontFamily: 'Inter_900Black', fontSize: 22, marginTop: 4 },
-  label: { fontFamily: 'Inter_200ExtraLight', fontSize: 15, color: c.text.primary, marginTop: -2 },
+  value: { fontFamily: 'Inter_900Black', fontSize: 25, marginTop: 0 },
+  label: { fontFamily: 'Inter_200ExtraLight', fontSize: 15, color: c.text.primary, marginTop: -4 },
   window: { fontFamily: 'Inter_700Bold', fontSize: 14 },
 }));

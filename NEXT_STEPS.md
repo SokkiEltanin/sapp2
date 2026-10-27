@@ -195,3 +195,24 @@ między zaokrąglonymi wierszami.
 - **TabBar: Ustawienia wizualnie oddzielone od klastra 5 zakładek** (user: "żeby było
   że to przycisk nie część navbaru, ale nadal to navbar") — tło+obramowanie jak karta
   (zamiast gołej ikony bez tła) + pionowa kreska-separator między nimi a klastrem.
+
+## Runda poprawek 5 (2026-10-27)
+
+- **SleepTile** — delikatny polish (wartość 22→25, ciaśniejszy odstęp do "SNU") —
+  struktura top-left (ikona góra-prawo, wartość+SNU góra-lewo, godziny dół) była już
+  poprawna z poprzedniej rundy, user podesłał dokładny mockup z Figmy do porównania.
+- **TaskListTile — realny kontrast chipów naprawiony**: WSZYSTKIE chipy miały twardo
+  zakodowany prawie-czarny tekst/ikonę (`#0B0E14`), co na ciemnoniebieskim (`label`)
+  i szarym (`empty`) tle było praktycznie nieczytelne — user mockup pokazuje wyraźny
+  BIAŁY tekst/ikonę na tych tłach. Dodana `chipContentColor(tag)`: biały domyślnie,
+  czarny tylko dla `bell` (złote tło) i `urgent` (czerwone, świadomie "znak
+  ostrzegawczy" czarny-na-czerwonym/żółtym — ten jeden był już OK, nie dotykany).
+  Chipy też powiększone (wysokość 20→26, pill padding 8→12, kółko 24→26,
+  `chipLabel` 10→11.5) i tytuł zadania 13→13.5 — bliżej proporcji z mockupu.
+- **TaskListTile — kontener bez własnego tła** (`c.bg.card` → `transparent`) + większy
+  odstęp między wierszami (3→6px) — user mockup: wiersze "pływają" luzem na czarnym
+  tle ekranu jako osobne, w pełni zaokrąglone pigułki, nie siedzą na wspólnej
+  jaśniejszej karcie z wąskimi szczelinami. Każdy wiersz ma już własny
+  `borderRadius: 10` na wszystkich rogach (to się nie zmieniło) — zmieniło się tylko
+  to co widać W TLE między nimi.
+- Niezweryfikowane na urządzeniu — czeka na build i test usera.

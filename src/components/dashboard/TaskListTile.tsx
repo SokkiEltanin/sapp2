@@ -31,18 +31,29 @@ function tagColor(tag: TaskTag): string {
   }
 }
 
+// Treść chipa (tekst/ikona) jest BIAŁA na ciemnych/nasyconych tłach (label dowolnego
+// koloru, szary "brak taga") i CZARNA na jasnych (bell = złoty event-color, urgent =
+// czerwony — ten drugi to świadomie "znak ostrzegawczy" czarny-na-czerwonym, nie błąd).
+// Wcześniej WSZYSTKIE chipy miały twardo zakodowany prawie-czarny tekst (#0B0E14) — na
+// ciemnoniebieskim/szarym tle "UR" i kropeczki były praktycznie nieczytelne
+// (2026-10-27, user mockup pokazuje wyraźny biały tekst na niebieskim).
+function chipContentColor(tag: TaskTag): string {
+  return tag.kind === 'bell' || tag.kind === 'urgent' ? '#0B0E14' : '#FFFFFF';
+}
+
 function TagChip({ tag }: { tag: TaskTag }) {
   const s = makeS();
   const bg = tagColor(tag);
+  const fg = chipContentColor(tag);
   // Chip-pigułka (tekst, szerokość rośnie z treścią) dla label/urgent; chip-kółko
   // (stały rozmiar) dla empty/bell — dokładnie jak w mockupie.
   const isPill = tag.kind === 'label';
   return (
     <View style={[s.chip, isPill ? s.chipPill : s.chipRound, { backgroundColor: bg }]}>
-      {tag.kind === 'label' && <Text style={s.chipLabel} numberOfLines={1}>{tag.text}</Text>}
-      {tag.kind === 'empty' && <MoreHorizontal size={14} color="#0B0E14" />}
-      {tag.kind === 'bell' && <Bell size={14} color="#0B0E14" />}
-      {tag.kind === 'urgent' && <AlertTriangle size={13} color="#0B0E14" fill="#0B0E14" strokeWidth={0} />}
+      {tag.kind === 'label' && <Text style={[s.chipLabel, { color: fg }]} numberOfLines={1}>{tag.text}</Text>}
+      {tag.kind === 'empty' && <MoreHorizontal size={15} color={fg} />}
+      {tag.kind === 'bell' && <Bell size={15} color={fg} />}
+      {tag.kind === 'urgent' && <AlertTriangle size={14} color={fg} fill={fg} strokeWidth={0} />}
     </View>
   );
 }
@@ -86,19 +97,21 @@ export default function TaskListTile({
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
-  // `padding` tutaj (2026-10-26, user: brakowało odstępu od krawędzi) — bez niego
-  // pierwszy wiersz siedział tak blisko dużego zaokrąglenia zewnętrznego rogu kafla, że
-  // ten róg "odgryzał" kawałek chipa taga. Padding daje odstęp.
+  // Tło kontenera TRANSPARENTNE (2026-10-27, user mockup: wiersze "pływają" luzem na
+  // czarnym tle ekranu, nie siedzą na wspólnej karcie) — każdy wiersz niesie WŁASNY
+  // kolor/zaokrąglenie, odstęp między nimi ma pokazywać czarne tło pod spodem, nie
+  // `c.bg.card`. Mały `padding` zostaje, żeby duże zaokrąglenie zewnętrznych rogów
+  // kafla (pierwszy/ostatni wiersz) nie "odgryzało" chipa taga.
   tile: {
-    flex: 3, height: TILE_ROW_HEIGHT, backgroundColor: c.bg.card, overflow: 'hidden',
-    padding: 6,
+    flex: 3, height: TILE_ROW_HEIGHT, backgroundColor: 'transparent', overflow: 'hidden',
+    padding: 4,
   },
-  // Każdy wiersz to osobny, lekko zaokrąglony segment z odstępem do następnego (nie
-  // ciągły blok z cienkimi liniami-dzielnikami) — jak w mockupie usera. Zewnętrzny
-  // `tile` (overflow: hidden + zaokrąglenie skrajnych krawędzi) przycina
-  // pierwszy/ostatni wiersz do właściwego kształtu automatycznie.
+  // Każdy wiersz to osobny, zaokrąglony ze WSZYSTKICH stron segment z wyraźnym odstępem
+  // do następnego (nie ciągły blok z cienkimi liniami-dzielnikami) — jak w mockupie
+  // usera. Zewnętrzny `tile` (overflow: hidden + zaokrąglenie skrajnych krawędzi)
+  // przycina pierwszy/ostatni wiersz do właściwego kształtu automatycznie.
   row: { flex: 1, borderRadius: 10, overflow: 'hidden' },
-  rowGap: { marginBottom: 3 },
+  rowGap: { marginBottom: 6 },
   gradient: { ...StyleSheet.absoluteFillObject, opacity: 0.2 },
   rowContent: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing[2],
@@ -107,14 +120,14 @@ const makeS = themedStyles((c) => StyleSheet.create({
   // `flexShrink: 0` — chip NIGDY nie ma się kurczyć (nawet gdyby tytuł obok próbował
   // zabrać więcej miejsca niż ma); brak `minWidth` jako GÓRNEGO ograniczenia tekstu —
   // poprzednia wersja miała `minWidth: 26` które po odjęciu paddingu zostawiało tylko
-  // ~12px na "UR" w Inter Black — za mało, stąd ucięte do "U" (2026-10-27, user to
-  // złapał nawet PO dodaniu paddingu z poprzedniego fixu, więc to było coś innego).
-  // Teraz chip rośnie wyłącznie z treści + padding.
+  // ~12px na "UR" w Inter Black — za mało, stąd ucięte do "U". Teraz chip rośnie
+  // wyłącznie z treści + padding, powiększony (2026-10-27, mockup: chip wyraźnie
+  // większy/bardziej "pigułkowy" niż poprzednia wersja).
   chip: {
-    height: 20, alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    height: 26, alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  chipPill: { minWidth: 24, paddingHorizontal: 8, borderRadius: 999 },
-  chipRound: { width: 24, borderRadius: 999 },
-  chipLabel: { fontFamily: 'Inter_900Black', fontSize: 10, color: '#0B0E14' },
-  title: { flex: 1, fontFamily: 'Inter_700Bold', fontSize: 13, color: c.text.primary },
+  chipPill: { minWidth: 34, paddingHorizontal: 12, borderRadius: 999 },
+  chipRound: { width: 26, borderRadius: 999 },
+  chipLabel: { fontFamily: 'Inter_900Black', fontSize: 11.5 },
+  title: { flex: 1, fontFamily: 'Inter_700Bold', fontSize: 13.5, color: c.text.primary },
 }));
