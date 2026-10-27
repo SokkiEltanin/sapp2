@@ -45,12 +45,18 @@ function TagChip({ tag }: { tag: TaskTag }) {
   const s = makeS();
   const bg = tagColor(tag);
   const fg = chipContentColor(tag);
-  // Chip-pigułka (tekst, szerokość rośnie z treścią) dla label/urgent; chip-kółko
-  // (stały rozmiar) dla empty/bell — dokładnie jak w mockupie.
-  const isPill = tag.kind === 'label';
   return (
-    <View style={[s.chip, isPill ? s.chipPill : s.chipRound, { backgroundColor: bg }]}>
-      {tag.kind === 'label' && <Text style={[s.chipLabel, { color: fg }]} numberOfLines={1}>{tag.text}</Text>}
+    <View style={[s.chip, { backgroundColor: bg }]}>
+      {tag.kind === 'label' && (
+        <Text
+          style={[s.chipLabel, { color: fg }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+        >
+          {tag.text}
+        </Text>
+      )}
       {tag.kind === 'empty' && <MoreHorizontal size={15} color={fg} />}
       {tag.kind === 'bell' && <Bell size={15} color={fg} />}
       {tag.kind === 'urgent' && <AlertTriangle size={14} color={fg} fill={fg} strokeWidth={0} />}
@@ -122,17 +128,18 @@ const makeS = themedStyles((c) => StyleSheet.create({
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing[2],
     paddingHorizontal: spacing[2],
   },
-  // `flexShrink: 0` — chip NIGDY nie ma się kurczyć (nawet gdyby tytuł obok próbował
-  // zabrać więcej miejsca niż ma); brak `minWidth` jako GÓRNEGO ograniczenia tekstu —
-  // poprzednia wersja miała `minWidth: 26` które po odjęciu paddingu zostawiało tylko
-  // ~12px na "UR" w Inter Black — za mało, stąd ucięte do "U". Teraz chip rośnie
-  // wyłącznie z treści + padding, powiększony (2026-10-27, mockup: chip wyraźnie
-  // większy/bardziej "pigułkowy" niż poprzednia wersja).
+  // JEDEN stały kształt dla WSZYSTKICH 4 stanów taga (2026-10-27, user podesłał
+  // dokładne wymiary z Figmy: chip 89×50, corner radius 20 — proporcja ~1.78:1,
+  // promień ~40% wysokości). To ZAOKRĄGLONY PROSTOKĄT, nie pełna "pigułka"/okrąg —
+  // poprzednia wersja miała DWA różne kształty (rosnąca pigułka dla `label`, stały
+  // okrąg dla `empty`/`bell`/`urgent`) i borderRadius:999 (pełne zaokrąglenie) —
+  // oba te założenia były błędne względem źródła.
   chip: {
-    height: 26, alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    width: 46, height: 26, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  chipPill: { minWidth: 34, paddingHorizontal: 12, borderRadius: 999 },
-  chipRound: { width: 26, borderRadius: 999 },
   chipLabel: { fontFamily: 'Inter_900Black', fontSize: 11.5 },
-  title: { flex: 1, fontFamily: 'Inter_700Bold', fontSize: 13.5, color: c.text.primary },
+  // fontSize podbity względem chipa (2026-10-27, Figma: tytuł 40 vs tekst chipa 32 —
+  // różnica 1.25×, u nas była za mała, 13.5 vs 11.5 ≈ 1.17×).
+  title: { flex: 1, fontFamily: 'Inter_700Bold', fontSize: 14.5, color: c.text.primary },
 }));

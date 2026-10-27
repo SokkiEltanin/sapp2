@@ -264,3 +264,24 @@ porównanie wykryło 2 realne rozjazdy:
   0.2 → 0.4 (WYŻSZE niż gdzie indziej na dashboardzie — celowo, bo baza koloru jest
   ciemniejsza).
 - Niezweryfikowane na urządzeniu — czeka na build i test usera.
+
+## Runda poprawek 8 (2026-10-27)
+
+User podesłał dokładny inspektor Figmy (wymiary, typografia, fill) dla kafelka
+Zadania — ujawnił 2 realne rozjazdy w kształcie/proporcjach chipa:
+
+- **Chip taga — JEDEN stały kształt dla wszystkich 4 stanów, nie dwa różne**: Figma
+  pokazuje `label`/`empty`/`bell`/`urgent` jako IDENTYCZNY zaokrąglony prostokąt
+  (89×50, corner radius 20 — proporcja ~1.78:1, promień ~40% wysokości, NIE pełna
+  "pigułka"/okrąg). U nas były DWA różne kształty: rosnąca z treścią pigułka
+  (`chipPill`, `borderRadius:999`) dla `label`, stały okrąg (`chipRound`,
+  `borderRadius:999`) dla reszty. `TaskListTile.tsx`: usunięty podział na
+  `chipPill`/`chipRound`, jeden `chip` ze stałym `width:46, height:26, borderRadius:10`
+  (zachowuje proporcję z Figmy) dla wszystkich kindów. Tekst "UR" dostał
+  `adjustsFontSizeToFit` jako zabezpieczenie na przyszłość (dowolny string z danych,
+  stały box może być za wąski dla dłuższych skrótów niż 2 znaki).
+- **Tytuł zadania za mały względem chipa**: Figma — tytuł Inter Bold 40 vs tekst
+  chipa Inter Black 32 (różnica ×1.25); u nas 13.5 vs 11.5 (×1.17, za mała różnica).
+  `title.fontSize` 13.5 → 14.5.
+- Kolor tytułu (`#D6D6D6`) już się zgadzał z `c.text.primary` — bez zmian.
+- Niezweryfikowane na urządzeniu — czeka na build i test usera.
