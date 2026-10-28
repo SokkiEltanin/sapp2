@@ -436,3 +436,27 @@ values` — w przeciwieństwie do `expo-notifications` (gdzie wiodące `0` = "op
 startu" jest dozwolone), notifee wymaga WYŁĄCZNIE dodatnich wartości. `[0, 500, 250,
 500]` → `[300, 500, 300, 500]`. Nie zdążyło dojść do faktycznego testu full-screen —
 to blokowało `createChannel` zanim `displayNotification` się w ogóle odpaliło.
+
+## Navbar — restyl pod Figma-reference (2026-10-28)
+
+User podesłał paczkę exportów z Figmy (`PORJEKT_SAPP.zip`, głównie bulk-dump ikon
+całego projektu, nie tylko navbaru) + zrzut samego paska: gear osobno po lewej +
+grupa 4 ikon w ciemnej pigułce, aktywna z jasną zaokrągloną odznaką w tle i ciemną
+ikoną w środku, reszta bez tła. User wprost: "to tylko wizualizacja nie sugeruj się
+ilością [4 vs nasze 5 zakładek] tylko styl i kolory" — więc struktura (5 zakładek,
+te same ikony co mieliśmy) zostaje, zmienia się WYŁĄCZNIE traktowanie wizualne:
+
+- **`TabBar.tsx`**: usunięty system kolorowania per-sekcja (`accent` na każdej
+  zakładce, `${accent}1F` tło + `accent` kolor ikony/tekstu gdy aktywna) — zastąpiony
+  JEDNYM, monochromatycznym traktowaniem: aktywna ikona dostaje jasną, lekko
+  zaokrągloną (nie pigułkę/okrąg — `borderRadius:13` na `38×38`, dokładnie proporcja
+  z `Group 273.svg` w paczce, `rx` ≈ 33% szerokości) odznakę w tle (`c.text.primary`)
+  + ciemną ikonę (`c.bg.primary`) w środku; nieaktywne — goła ikona `c.text.secondary`
+  na przezroczystym tle, bez żadnej odznaki. Spójne z wcześniejszym "pójdziemy we
+  wszystko jednolite" (user, kilka wiadomości wyżej) — jeden system zamiast 5 kolorów.
+- **Etykiety tekstowe pod ikonami USUNIĘTE** (reference nie ma żadnych) — `label` w
+  danych `TABS` zostaje, ale tylko jako `accessibilityLabel`, nie renderowany tekst.
+- Ikony per-zakładka (Dashboard/Daily/Finanse/Zadania/Pupil) BEZ ZMIAN — reference
+  pokazywał inne glify (grid/pencil/calendar/menu) tylko jako PRZYKŁAD stylu
+  (osobny, mniejszy mockup z 4 slotami), nie prescrypcję które ikony mają być u nas.
+- Niezweryfikowane na urządzeniu — czeka na build i test usera.

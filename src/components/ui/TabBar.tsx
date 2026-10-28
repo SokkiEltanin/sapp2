@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LayoutDashboard, Flame, Wallet, CheckSquare, PawPrint, Settings } from 'lucide-react-native';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -18,12 +18,19 @@ import { spacing, radius, themedStyles } from '@/theme';
 // kolejności częstości). Ustawienia NIE są jedną z 5 głównych zakładek — osobny, mały
 // przycisk w lewym dolnym rogu, z dala od klastra (wcześniej pływający na Dashboardzie,
 // nachodził na kafelek pogody — przeniesiony tutaj na stałe).
+//
+// `label` zostaje w danych (accessibility), ale NIE renderuje się już jako tekst pod
+// ikoną (2026-10-28, user podesłał dokładny Figma-reference navbaru: tylko ikony, bez
+// etykiet — "nie sugeruj się ilością [ikon w ich przykładzie] tylko styl i kolory").
+// `accent` per-zakładka USUNIĘTY — reference nie koloruje aktywnej ikony kolorem
+// sekcji, tylko jasna neutralna odznaka + ciemna ikona (patrz `iconBadge`/
+// `iconBadgeActive` niżej), ten sam monochromatyczny system wszędzie.
 export const TABS = [
-  { key: 'index', label: 'Dashboard', icon: LayoutDashboard, accent: '#6C9EFF' },
-  { key: 'daily', label: 'Daily', icon: Flame, accent: '#FB923C' },
-  { key: 'finances', label: 'Finanse', icon: Wallet, accent: '#2AC68F' },
-  { key: 'tasks', label: 'Zadania', icon: CheckSquare, accent: '#6C9EFF' },
-  { key: 'pupil', label: 'Pupil', icon: PawPrint, accent: '#EF4444' },
+  { key: 'index', label: 'Dashboard', icon: LayoutDashboard },
+  { key: 'daily', label: 'Daily', icon: Flame },
+  { key: 'finances', label: 'Finanse', icon: Wallet },
+  { key: 'tasks', label: 'Zadania', icon: CheckSquare },
+  { key: 'pupil', label: 'Pupil', icon: PawPrint },
 ] as const;
 
 export default function TabBar({
@@ -36,7 +43,7 @@ export default function TabBar({
   onSettingsPress: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const { styles: s, inactiveColor } = makeS();
+  const { styles: s, inactiveColor, activeIconColor } = makeS();
   return (
     <View style={[s.wrap, { paddingBottom: insets.bottom + spacing[2] }]}>
       {/* Ustawienia + kreska-separator jako JEDNA grupa, żeby `justifyContent:
@@ -57,11 +64,13 @@ export default function TabBar({
             <TouchableOpacity
               key={t.key}
               onPress={() => onPress(t.key)}
-              style={[s.item, isActive && { backgroundColor: `${t.accent}1F` }]}
+              style={s.item}
               activeOpacity={0.7}
+              accessibilityLabel={t.label}
             >
-              <Icon size={22} color={isActive ? t.accent : inactiveColor} />
-              <Text style={[s.label, { color: isActive ? t.accent : inactiveColor }]}>{t.label}</Text>
+              <View style={[s.iconBadge, isActive && s.iconBadgeActive]}>
+                <Icon size={20} color={isActive ? activeIconColor : inactiveColor} />
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -70,9 +79,10 @@ export default function TabBar({
   );
 }
 
-// `inactiveColor` ŚWIADOMIE poza `StyleSheet.create` (nie-stylowa wartość w środku
-// mieszałaby się z RN-ową walidacją obiektów stylów) — `themedStyles` nie wymusza że
-// buduje WYŁĄCZNIE arkusz stylów, więc zwracamy oba razem z jednego cache'u.
+// `inactiveColor`/`activeIconColor` ŚWIADOMIE poza `StyleSheet.create` (nie-stylowe
+// wartości w środku mieszałyby się z RN-ową walidacją obiektów stylów) —
+// `themedStyles` nie wymusza że buduje WYŁĄCZNIE arkusz stylów, więc zwracamy je
+// razem z jednego cache'u.
 const makeS = themedStyles((c) => ({
   styles: StyleSheet.create({
     wrap: {
@@ -91,15 +101,20 @@ const makeS = themedStyles((c) => ({
     },
     divider: { width: 1, height: 24, backgroundColor: c.border.default, marginLeft: spacing[2] },
     cluster: { flexDirection: 'row', gap: spacing[1] },
-    // Aktywna zakładka dostaje odznakę koloru akcentu w tle (2026-10-28, user: "navbar
-    // dopasowany stylem pod taki jaki mamy") — ten sam język co ikony w kolorowych
-    // kółkach na Dashboardzie/w Ustawieniach (`${accent}XX` nad `bg.elevated`), zamiast
-    // samego przebarwienia ikony/tekstu bez żadnego tła.
-    item: {
-      alignItems: 'center', gap: 3, minWidth: 56,
-      paddingVertical: spacing[1], paddingHorizontal: spacing[1], borderRadius: radius.md,
+    item: { alignItems: 'center', justifyContent: 'center', minWidth: 46 },
+    // Aktywna zakładka = JASNA, lekko zaokrąglona (nie pełne koło) odznaka pod ikoną +
+    // ciemna ikona w środku (2026-10-28, dokładny Figma-reference navbaru podesłany
+    // przez usera: `rx` odznaki ≈ 33% jej szerokości — zaokrąglony kwadrat, nie
+    // pigułka/okrąg). Zastępuje poprzedni system kolorowania per-sekcja (każda
+    // zakładka swoim akcentem) jednym spójnym, monochromatycznym traktowaniem —
+    // user: "nie sugeruj się ilością, tylko styl i kolory" + wcześniejsze "pójdziemy
+    // we wszystko jednolite".
+    iconBadge: {
+      width: 38, height: 38, borderRadius: 13,
+      alignItems: 'center', justifyContent: 'center',
     },
-    label: { fontSize: 10.5, fontFamily: 'Inter_700Bold' },
+    iconBadgeActive: { backgroundColor: c.text.primary },
   }),
-  inactiveColor: c.text.muted,
+  inactiveColor: c.text.secondary,
+  activeIconColor: c.bg.primary,
 }));
