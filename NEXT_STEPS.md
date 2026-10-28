@@ -688,3 +688,51 @@ Finansach — patrz "Następna wielka faza" wyżej). Zbudowane:
   nowy UI Zadania/Kalendarz (NIE kopiowany z ~4400 linii ekranów sapp), reużywający
   tylko logikę sekcji TERAZ/bezterminowe/terminowe. Widget na pulpicie Androida —
   osobna, odłożona sesja (native/config-plugin heavy), nie wrzucać do UI Zadań.
+
+## Test na urządzeniu build #39 — wyniki i poprawki (2026-10-28)
+
+User przetestował build #39 (logowanie + Faza 1a). Wyniki:
+1. **Logowanie działa** ✅ (po włączeniu Firebase Authentication w konsoli, patrz
+   INFRA.md).
+2. **BUG: back w Ustawieniach wychodził od razu do Dashboardu** zamiast cofać do
+   listy kategorii, gdy user był w rozwiniętej sekcji. Root cause: sprzętowy/gestowy
+   przycisk "wstecz" na Androidzie POMIJA customowy `handleBack` (ten łapie tylko tap
+   w `ChevronLeft`) — expo-router po prostu zdejmuje `/settings` ze stosu. Dokładnie
+   ten sam bug co kiedyś w sapp. **Fix**: `BackHandler.addEventListener` w
+   `app/settings.tsx`, przechwytuje sprzętowe wstecz gdy `activeSectionId`/`query` są
+   ustawione (ten sam wzorzec co sapp).
+3. **Sync kalendarza (dane)** ✅ — Firestore i Google Calendar round-trip oba OK
+   (screenshot od usera: "Google ok — dodano/zmieniono(true)/fetchEvents znalazł
+   3/usunięto(true)", "Firestore ok — dodano/odczytano(1)/zmieniono/usunięto"). Faza
+   1a warstwy danych ZWERYFIKOWANA na realnym urządzeniu.
+4. **Navbar — zmiana stylu**: user po zobaczeniu na żywo chce KÓŁKO zamiast
+   zaokrąglonego kwadratu na aktywnej odznace (`iconBadge`/`iconBadgeActive` w
+   `TabBar.tsx`, `borderRadius: 13` → `radius.full`).
+5. **Wylogowanie + ponowne logowanie** ✅ działa.
+6. **BUG: alerty notifee kompletnie ciche** (ani dźwięk, ani popup, ani wybudzenie,
+   ani fullscreen) — REGRESJA względem poprzedniej rundy, gdzie wariant Tak/Nie
+   przynajmniej dawał heads-up z przyciskami (nie full-screen, ale coś). Jedyny
+   zadziałał test "Expo (MAX priorytet)", i to tylko jako zwykłe basic powiadomienie.
+   Root cause (najbardziej prawdopodobny): poprzedni fix (`createTriggerNotification`
+   z `alarmManager.allowWhileIdle`) ustawia DOKŁADNY alarm
+   (`setExactAndAllowWhileIdle` pod spodem) — od Androida 12 to wymaga
+   `SCHEDULE_EXACT_ALARM` w manifeście (NIE było dodane), a od Androida 13+ user może
+   dodatkowo musieć ręcznie włączyć to w Ustawienia -> Aplikacje -> Sapp2 -> Alarmy i
+   przypomnienia. Bez tego alarm NIE rzuca błędem (log pokazuje "Zaplanowano"), tylko
+   cicho degraduje się do niedokładnego/odłożonego — efektywnie nigdy nie odpala się
+   w czasie testu. **Fix**: dodane `android.permission.SCHEDULE_EXACT_ALARM` do
+   `app.json` (zweryfikowane lokalnie przez `expo prebuild` że ląduje w
+   AndroidManifest.xml), plus dopisany hint w logu testu o sprawdzeniu systemowego
+   przełącznika jeśli nadal cicho.
+   - **Niezweryfikowane na urządzeniu** — czeka na nowy build + test. Jeśli nadal
+     cicho mimo permission w manifeście, user będzie musiał ręcznie włączyć "Alarmy i
+     przypomnienia" w systemowych ustawieniach appki (Android 13+ to user-grantable,
+     nie auto-grant).
+   - **Prawdziwy full-screen-over-lockscreen wciąż NIE zweryfikowany** nawet przed tą
+     regresją (user: "szkoda tylko jeszcze bym dodał te full screen") — do zbadania w
+     kolejnej rundzie PO potwierdzeniu że alert w ogóle znów coś robi: może wymagać
+     ręcznego włączenia "Pełnoekranowe powiadomienia" (Android 14+, już
+     udokumentowane wyżej) niezależnie od exact-alarm fixa.
+
+Zweryfikowane lokalnie: `npx tsc --noEmit` czysto, `npx expo prebuild` (manifest ma
+`SCHEDULE_EXACT_ALARM`), `npx expo export --platform android` bez błędów.

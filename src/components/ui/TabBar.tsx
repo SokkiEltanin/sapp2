@@ -158,12 +158,13 @@ const makeS = themedStyles((c) => ({
       elevation: 6,
     },
     item: { alignItems: 'center', justifyContent: 'center', minWidth: 46 },
-    // Aktywna zakładka = BIAŁA, lekko zaokrąglona (nie pełne koło) odznaka pod ikoną +
-    // ciemna ikona w środku (2026-10-28, dokładny Figma-reference navbaru: `rx` odznaki
-    // ≈ 33% jej szerokości — zaokrąglony kwadrat, nie pigułka/okrąg). Jeden spójny,
-    // monochromatyczny system zamiast kolorowania per-sekcja.
+    // Aktywna zakładka = BIAŁE KÓŁKO pod ikoną + ciemna ikona w środku (2026-10-28,
+    // user po teście na urządzeniu: "zmień je na KÓŁKO zamiast prostokąta
+    // zaokrąglonego" — poprawka Figma-referencji z wcześniej tego dnia, która miała
+    // `rx` ≈ 33% szerokości, zaokrąglony kwadrat). Jeden spójny, monochromatyczny
+    // system zamiast kolorowania per-sekcja.
     iconBadge: {
-      width: 38, height: 38, borderRadius: 13,
+      width: 38, height: 38, borderRadius: radius.full,
       alignItems: 'center', justifyContent: 'center',
     },
     // `#FFFFFF` DOSŁOWNIE, nie `c.text.primary` (#D6D6D6, lekko szarawy) — user: "miało
@@ -171,7 +172,7 @@ const makeS = themedStyles((c) => ({
     // obiekt trafia też na osobną `Animated.View` nałożoną przez
     // `StyleSheet.absoluteFill` (animacja skali/opacity w `TabIcon`), która nie
     // dziedziczy zaokrąglenia rodzica.
-    iconBadgeActive: { backgroundColor: '#FFFFFF', borderRadius: 13 },
+    iconBadgeActive: { backgroundColor: '#FFFFFF', borderRadius: radius.full },
   }),
   inactiveColor: c.text.secondary,
   activeIconColor: c.bg.primary,

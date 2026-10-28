@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ComponentType } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, BackHandler, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
@@ -336,6 +336,16 @@ export default function SettingsScreen() {
       // wysyłkę PO STRONIE SYSTEMU (Android AlarmManager) — przeżywa zawieszenie JS,
       // tła, a nawet zabicie appki. `alarmManager.allowWhileIdle` — odpala się nawet
       // w trybie Doze (głęboki sen telefonu).
+      //
+      // UWAGA (2026-10-28, user po teście: ten mechanizm okazał się CAŁKOWICIE cichy —
+      // gorzej niż poprzedni `setTimeout`, który przynajmniej dawał heads-up z
+      // przyciskami) — `allowWhileIdle` ustawia DOKŁADNY alarm (`setExactAndAllowWhileIdle`
+      // pod spodem), a od Androida 12 dokładne alarmy wymagają
+      // `SCHEDULE_EXACT_ALARM` w manifeście (dodane w app.json) ORAZ, na Androidzie 13+,
+      // user może dodatkowo musieć ręcznie włączyć to w Ustawienia -> Aplikacje ->
+      // Sapp2 -> Alarmy i przypomnienia — bez tego alarm NIE rzuca błędem (więc log
+      // tu pokazuje sukces), tylko cicho degraduje się do niedokładnego/odłożonego,
+      // efektywnie nigdy nie odpalając w rozsądnym czasie testu.
       await notifee.createTriggerNotification(
         {
           title: 'Test alertu (notifee)',
@@ -364,7 +374,7 @@ export default function SettingsScreen() {
           alarmManager: { allowWhileIdle: true },
         },
       );
-      append('Zaplanowano — zablokuj ekran teraz, wystrzeli za 5s przez system.');
+      append('Zaplanowano — jeśli nadal cicho, sprawdź Ustawienia -> Aplikacje -> Sapp2 -> Alarmy i przypomnienia.');
     } catch (e: any) {
       const msg = String(e?.message ?? e);
       if (msg.includes('Native module') || msg.includes('cannot be null') || msg.includes('TurboModule')) {
@@ -407,6 +417,22 @@ export default function SettingsScreen() {
     if (activeSection) { setActiveSectionId(null); return; }
     router.back();
   };
+
+  // Sprzętowy/gestowy przycisk "wstecz" na Androidzie POMIJA `handleBack` (ten reaguje
+  // tylko na tap w `ChevronLeft` w nagłówku) — bez przechwycenia, expo-router po prostu
+  // zdejmuje `/settings` ze stosu i wychodzi do Dashboardu, nawet gdy user jest w
+  // rozwiniętej kategorii/szukaniu (2026-10-28, user na urządzeniu: "chcę cofnąć to
+  // mnie cofa od razu do DASHBOARDU zamiast do głównych ustawień"). Ten sam dokładnie
+  // bug i fix co w sapp (app/settings.tsx, `closeSection`/`BackHandler`).
+  useEffect(() => {
+    if (Platform.OS !== 'android' || (!activeSectionId && !query)) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (query) { setQuery(''); return true; }
+      setActiveSectionId(null);
+      return true;
+    });
+    return () => sub.remove();
+  }, [activeSectionId, query]);
 
   const headerTitle = query ? 'Szukaj' : activeSection ? activeSection.title : 'Ustawienia';
 
