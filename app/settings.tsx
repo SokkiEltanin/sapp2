@@ -235,7 +235,11 @@ export default function SettingsScreen() {
         importance: AndroidImportance.HIGH,
         sound: 'default',
         vibration: true,
-        vibrationPattern: [0, 500, 250, 500],
+        // UWAGA: notifee (inaczej niż expo-notifications) wymaga WYŁĄCZNIE dodatnich
+        // wartości — wiodące `0` jako "opóźnienie startu" (dozwolone w
+        // expo-notifications) tu wywala walidację ("expected an array containing an
+        // even number of positive values"), złapane na urządzeniu (2026-10-28).
+        vibrationPattern: [300, 500, 300, 500],
         lights: true,
         lightColor: '#EF4444',
         bypassDnd: true,

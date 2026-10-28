@@ -429,3 +429,10 @@ nawet kilka opcji osobno testować, ja powiem która działa/czy coś działa". 
     test "nic nie robi" mimo ✅ w logu, to pierwsze miejsce do sprawdzenia, nie bug.
 - Niezweryfikowane na urządzeniu — czeka na build i test usera. User ma ocenić która
   opcja (jeśli którakolwiek) faktycznie wybudza telefon nad blokadą ekranu.
+
+**Fix po pierwszym teście na urządzeniu**: notifee rzucał błąd przy `createChannel`:
+`'channel.vibrationPattern' expected an array containing an even number of positive
+values` — w przeciwieństwie do `expo-notifications` (gdzie wiodące `0` = "opóźnienie
+startu" jest dozwolone), notifee wymaga WYŁĄCZNIE dodatnich wartości. `[0, 500, 250,
+500]` → `[300, 500, 300, 500]`. Nie zdążyło dojść do faktycznego testu full-screen —
+to blokowało `createChannel` zanim `displayNotification` się w ogóle odpaliło.
