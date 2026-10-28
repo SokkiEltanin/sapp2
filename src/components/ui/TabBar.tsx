@@ -9,26 +9,32 @@ import { spacing, radius, themedStyles } from '@/theme';
 // animacji przejścia (ustalone jako bezpieczny start — prawdziwy "jedzie za palcem"
 // slide był w sapp udokumentowanym źródłem bugów/szarpania, bo wszystkie ciężkie
 // ekrany zostają zamontowane naraz i muszą się przeliczać w trakcie animacji). TO
-// pozostaje bez zmian. Osobna sprawa: samo PODŚWIETLENIE aktywnej ikony w navbarze —
-// mała, tania mikro-animacja na jednym elemencie (nie cały ekran) — user: "navbar nie
-// animowes... ma się tak ładnie podświetlenie" (2026-10-28). `TabIcon` niżej animuje
+// pozostaje bez zmian. Osobna sprawa: samo PODŚWIETLENIE aktywnej ikony — mała, tania
+// mikro-animacja na jednym elemencie (nie cały ekran). `TabIcon` niżej animuje
 // skalę/opacity odznaki przy zmianie `active`, zero wpływu na politykę ekranów.
+//
+// PRAWDZIWIE PŁYWAJĄCY układ (2026-10-28, user podesłał dokładny Figma-reference:
+// "to był floating navbar... ikona ustawień była osobno" — poprzednia wersja miała
+// Ustawienia i klaster zakładek w JEDNYM wspólnym tle/pasku rozdzielonym kreską, co
+// NIE jest tym samym co dwa w pełni osobne, pływające elementy). Teraz: `settingsBtn`
+// (okrągły przycisk) i `cluster` (zaokrąglona karta z ikonami) to DWA niezależne
+// elementy bez wspólnego tła/paska łączącego je — oba leżą bezpośrednio na tle ekranu,
+// z marginesem od dołu/krawędzi, żadnej kreski-separatora (nie jest już potrzebna,
+// skoro są wizualnie w pełni rozdzielone).
 //
 // Kolejność i pozycja (2026-10-26, NEXT_STEPS.md) — klaster ściśnięty do PRAWEJ
 // krawędzi, nie pełna szerokość: prawy skraj = najbliżej kciuka = najkrótszy ruch, więc
 // najczęściej używany ekran (Pupil) jest skrajnie po prawej, najrzadziej używany
 // (Dashboard — i tak zawsze pierwszy po starcie appki) najdalej. "Notatki" z pierwotnej
 // notatki w NEXT_STEPS.md zastąpione realnie istniejącym "Zadania" (ten sam slot w
-// kolejności częstości). Ustawienia NIE są jedną z 5 głównych zakładek — osobny, mały
-// przycisk w lewym dolnym rogu, z dala od klastra (wcześniej pływający na Dashboardzie,
-// nachodził na kafelek pogody — przeniesiony tutaj na stałe).
+// kolejności częstości).
 //
 // `label` zostaje w danych (accessibility), ale NIE renderuje się już jako tekst pod
-// ikoną (2026-10-28, user podesłał dokładny Figma-reference navbaru: tylko ikony, bez
-// etykiet — "nie sugeruj się ilością [ikon w ich przykładzie] tylko styl i kolory").
-// `accent` per-zakładka USUNIĘTY — reference nie koloruje aktywnej ikony kolorem
-// sekcji, tylko jasna neutralna odznaka + ciemna ikona (patrz `iconBadge`/
-// `iconBadgeActive` niżej), ten sam monochromatyczny system wszędzie.
+// ikoną — reference: tylko ikony, bez etykiet ("nie sugeruj się ilością [ikon w ich
+// przykładzie] tylko styl i kolory"). `accent` per-zakładka USUNIĘTY — reference nie
+// koloruje aktywnej ikony kolorem sekcji, tylko BIAŁA odznaka + ciemna ikona (patrz
+// `iconBadgeActive` niżej — `#FFFFFF` dosłownie, nie `c.text.primary`, user: "miało
+// być białe tło a nie ma").
 export const TABS = [
   { key: 'index', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'daily', label: 'Daily', icon: Flame },
@@ -85,17 +91,10 @@ export default function TabBar({
   const insets = useSafeAreaInsets();
   const { styles: s, inactiveColor, activeIconColor } = makeS();
   return (
-    <View style={[s.wrap, { paddingBottom: insets.bottom + spacing[2] }]}>
-      {/* Ustawienia + kreska-separator jako JEDNA grupa, żeby `justifyContent:
-          'space-between'` na `wrap` rozdzielał tylko DWIE rzeczy (tę grupę i klaster
-          zakładek), nie trzy — kreska wizualnie czyta się jako "to osobny przycisk,
-          nie szósta zakładka", ale nadal żyje w tym samym pasku (user, 2026-10-27). */}
-      <View style={s.settingsGroup}>
-        <TouchableOpacity onPress={onSettingsPress} style={s.settingsBtn} activeOpacity={0.7}>
-          <Settings size={17} color={inactiveColor} />
-        </TouchableOpacity>
-        <View style={s.divider} />
-      </View>
+    <View style={[s.wrap, { paddingBottom: insets.bottom + spacing[2] }]} pointerEvents="box-none">
+      <TouchableOpacity onPress={onSettingsPress} style={s.settingsBtn} activeOpacity={0.7}>
+        <Settings size={17} color={inactiveColor} />
+      </TouchableOpacity>
       <View style={s.cluster}>
         {TABS.map((t) => {
           const isActive = t.key === active;
@@ -130,38 +129,49 @@ export default function TabBar({
 // razem z jednego cache'u.
 const makeS = themedStyles((c) => ({
   styles: StyleSheet.create({
+    // BEZ tła/obramowania/paddingu-poziomego na poziomie całego paska (2026-10-28) —
+    // `wrap` jest już tylko bezbarwnym kontenerem pozycjonującym dwa osobne, pływające
+    // elementy (`settingsBtn`, `cluster`) na dole ekranu, nie wspólną "szybą" spod
+    // której by wystawały. `pointerEvents="box-none"` na komponencie, żeby pusta
+    // przestrzeń MIĘDZY dwoma elementami nie blokowała dotyku treści pod spodem.
     wrap: {
       flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between',
-      backgroundColor: c.bg.elevated, borderTopWidth: 1, borderTopColor: c.border.default,
-      paddingTop: spacing[2], paddingHorizontal: spacing[2],
+      paddingHorizontal: spacing[3], paddingTop: spacing[2],
     },
-    settingsGroup: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
-    // Tło + obramowanie jak karty/przyciski gdzie indziej w appce (np. Ustawienia same
-    // w sobie) — żeby Ustawienia czytały się jako samodzielny przycisk, nie 6. zakładka
-    // bez tła wtopiona w resztę klastra.
+    // Okrągły przycisk Ustawień — w PEŁNI osobny pływający element (nie część
+    // wspólnego paska), własny cień żeby czytał się jako uniesiony nad tłem.
     settingsBtn: {
-      width: 38, height: 38, borderRadius: radius.full,
-      backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default,
+      width: 44, height: 44, borderRadius: radius.full,
+      backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.border.default,
       alignItems: 'center', justifyContent: 'center',
+      shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
+      elevation: 6,
     },
-    divider: { width: 1, height: 24, backgroundColor: c.border.default, marginLeft: spacing[2] },
-    cluster: { flexDirection: 'row', gap: spacing[1] },
+    // Karta-pigułka z klastrem zakładek — DRUGI, osobny pływający element, w pełni
+    // zaokrąglony (`radius.full` na wysokości ~56 = stadium/pigułka, nie zaokrąglony
+    // prostokąt), własny cień tak samo jak `settingsBtn` dla spójnego "unoszenia się".
+    cluster: {
+      flexDirection: 'row', gap: spacing[1],
+      backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.border.default,
+      borderRadius: radius.full, paddingHorizontal: spacing[2], paddingVertical: spacing[1],
+      shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
+      elevation: 6,
+    },
     item: { alignItems: 'center', justifyContent: 'center', minWidth: 46 },
-    // Aktywna zakładka = JASNA, lekko zaokrąglona (nie pełne koło) odznaka pod ikoną +
-    // ciemna ikona w środku (2026-10-28, dokładny Figma-reference navbaru podesłany
-    // przez usera: `rx` odznaki ≈ 33% jej szerokości — zaokrąglony kwadrat, nie
-    // pigułka/okrąg). Zastępuje poprzedni system kolorowania per-sekcja (każda
-    // zakładka swoim akcentem) jednym spójnym, monochromatycznym traktowaniem —
-    // user: "nie sugeruj się ilością, tylko styl i kolory" + wcześniejsze "pójdziemy
-    // we wszystko jednolite".
+    // Aktywna zakładka = BIAŁA, lekko zaokrąglona (nie pełne koło) odznaka pod ikoną +
+    // ciemna ikona w środku (2026-10-28, dokładny Figma-reference navbaru: `rx` odznaki
+    // ≈ 33% jej szerokości — zaokrąglony kwadrat, nie pigułka/okrąg). Jeden spójny,
+    // monochromatyczny system zamiast kolorowania per-sekcja.
     iconBadge: {
       width: 38, height: 38, borderRadius: 13,
       alignItems: 'center', justifyContent: 'center',
     },
-    // `borderRadius` zdublowany z `iconBadge` CELOWO — ten obiekt trafia też na
-    // osobną `Animated.View` nałożoną przez `StyleSheet.absoluteFill` (animacja
-    // skali/opacity w `TabIcon`), która nie dziedziczy zaokrąglenia rodzica.
-    iconBadgeActive: { backgroundColor: c.text.primary, borderRadius: 13 },
+    // `#FFFFFF` DOSŁOWNIE, nie `c.text.primary` (#D6D6D6, lekko szarawy) — user: "miało
+    // być białe tło a nie ma". `borderRadius` zdublowany z `iconBadge` CELOWO — ten
+    // obiekt trafia też na osobną `Animated.View` nałożoną przez
+    // `StyleSheet.absoluteFill` (animacja skali/opacity w `TabIcon`), która nie
+    // dziedziczy zaokrąglenia rodzica.
+    iconBadgeActive: { backgroundColor: '#FFFFFF', borderRadius: 13 },
   }),
   inactiveColor: c.text.secondary,
   activeIconColor: c.bg.primary,

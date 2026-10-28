@@ -514,3 +514,30 @@ zero emotek, tylko jeżeli chodzi o wpisywanie humoru xd".
   dopisana do `CLAUDE.md` (#9) jako standing rule na przyszłość: zero emotek w UI/
   logach/tytułach, wyjątek tylko dla treści jawnie humorystycznej.
 - Niezweryfikowane na urządzeniu — czeka na build i test usera.
+
+## Realny bug + floating navbar (2026-10-28) — "jak klikam to nic się nie dzieje"
+
+User mocno sfrustrowany ("mam wrażenie że się cofamy", "umiesz kodować?"). Dokładny
+przegląd kodu znalazł PRAWDZIWY bug, nie tylko kosmetykę:
+
+- **`app/(tabs)/_layout.tsx` — `activeKey()` ZAWSZE zwracał `'index'`**:
+  `ROUTES['index'] = '/'`, czyli prefiks KAŻDEJ ścieżki. `TABS.find(...)` sprawdzał
+  `'index'` jako PIERWSZY wpis, a `pathname.startsWith('/')` wychodzi `true` dla
+  dosłownie każdego pathname — więc funkcja nigdy nie dochodziła do sprawdzenia
+  pozostałych 4 zakładek. Ekran REALNIE się zmieniał (`router.navigate` działał
+  poprawnie przez cały czas), ale podświetlenie w navbarze nigdy nie ruszało się z
+  Dashboardu — stąd "klikam i nic się nie dzieje" (user patrzył na navbar, nie na
+  treść ekranu). Fix: `'index'` wyłączone z pętli prefiksowej (ma już wczesny
+  `return` dla `pathname === '/'`), reszta sprawdzana normalnie.
+- **Navbar przebudowany na PRAWDZIWIE pływający układ** (user: "to był floating
+  navbar... ikona ustawień była osobno" — poprzednia wersja miała Ustawienia i
+  klaster w jednym wspólnym tle/pasku rozdzielonym kreską, nie dwa w pełni osobne
+  elementy). `TabBar.tsx`: usunięty wspólny `wrap` z tłem/obramowaniem/kreską —
+  teraz `settingsBtn` (okrągły przycisk) i `cluster` (zaokrąglona karta-pigułka z
+  ikonami) to DWA niezależne, pływające elementy z własnym cieniem
+  (`shadowColor`/`elevation`), bez wspólnego tła łączącego je, leżące bezpośrednio
+  na czarnym tle ekranu.
+- **Aktywna odznaka — prawdziwie biała** (`#FFFFFF` dosłownie zamiast
+  `c.text.primary` #D6D6D6) — user: "miało być białe tło a nie ma".
+- Niezweryfikowane na urządzeniu — czeka na build i test usera. To NAJWAŻNIEJSZY
+  build do zweryfikowania w tej sesji — fix prawdziwego buga nawigacji.
