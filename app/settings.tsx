@@ -297,13 +297,24 @@ export default function SettingsScreen() {
   // bez przycisku") — `withActions` dokleja dwa przyciski akcji "Tak"/"Nie" na
   // powiadomieniu (jak odbierz/odrzuć w połączeniu przychodzącym), bez tego
   // powiadomienie ma tylko domyślną akcję (tap = otwórz appkę).
+  // 2026-10-28 — user po SCHEDULE_EXACT_ALARM fixie: DALEJ kompletnie cicho, nawet z
+  // pełnymi zgodami w systemowych ustawieniach. Zamiast zgadywać CZWARTY fix na ślepo,
+  // test teraz robi DWIE NIEZALEŻNE rzeczy jedną komendą, żeby log sam powiedział gdzie
+  // dokładnie się psuje:
+  //   1. `displayNotification` NATYCHMIAST (zero triggera/AlarmManager/exact-alarm) —
+  //      jeśli TEGO nie widać/słychać od razu (appka wciąż na wierzchu), problem jest w
+  //      zgodzie/kanale/samym notifee, NIE w opóźnionym planowaniu.
+  //   2. `createTriggerNotification` jak dotąd (za 5s, do testu zablokowanego ekranu) +
+  //      `getTriggerNotificationIds()` zaraz po, żeby log pokazał czy system W OGÓLE
+  //      przyjął ten trigger (pusta lista = cicho odrzucony, mimo že `await` nie rzucił).
   const sendNotifeeAlert = async (withActions: boolean) => {
-    append('Zaplanowano za 5s (zablokuj ekran TERAZ)…');
+    append('Alert notifee: start…');
     try {
       const notifeeModule = await import('@notifee/react-native');
       const notifee = notifeeModule.default;
       const { AndroidImportance, AndroidCategory, AndroidVisibility, AuthorizationStatus, TriggerType } = notifeeModule;
       const settings = await notifee.requestPermission();
+      append(`Zgoda na powiadomienia: status=${settings.authorizationStatus}`);
       if (settings.authorizationStatus < AuthorizationStatus.AUTHORIZED) {
         throw new Error('Brak zgody na powiadomienia');
       }
@@ -325,48 +336,43 @@ export default function SettingsScreen() {
         lightColor: '#EF4444',
         bypassDnd: true,
       });
-      // Opóźnienie przez NATYWNY trigger (AlarmManager), NIE `setTimeout` w JS
-      // (2026-10-28, user: "żaden alert nie wybudza ekranu, brak dźwięku/wibracji" —
-      // realny root cause poprzedniej wersji: `setTimeout` + `await` w JS zależy od
-      // tego, że silnik JS appki DALEJ DZIAŁA przez te 5s; gdy user blokuje ekran
-      // (appka idzie w tło), Android może zawiesić wykonywanie JS zanim timer zdąży
-      // odpalić `displayNotification` — powiadomienie wtedy NIGDY się nie wysyła,
-      // więc "cisza" nie była kwestią konfiguracji dźwięku/wibracji, tylko tego że
-      // notyfikacja w ogóle nie dotarła). `createTriggerNotification` planuje
-      // wysyłkę PO STRONIE SYSTEMU (Android AlarmManager) — przeżywa zawieszenie JS,
-      // tła, a nawet zabicie appki. `alarmManager.allowWhileIdle` — odpala się nawet
-      // w trybie Doze (głęboki sen telefonu).
-      //
-      // UWAGA (2026-10-28, user po teście: ten mechanizm okazał się CAŁKOWICIE cichy —
-      // gorzej niż poprzedni `setTimeout`, który przynajmniej dawał heads-up z
-      // przyciskami) — `allowWhileIdle` ustawia DOKŁADNY alarm (`setExactAndAllowWhileIdle`
-      // pod spodem), a od Androida 12 dokładne alarmy wymagają
-      // `SCHEDULE_EXACT_ALARM` w manifeście (dodane w app.json) ORAZ, na Androidzie 13+,
-      // user może dodatkowo musieć ręcznie włączyć to w Ustawienia -> Aplikacje ->
-      // Sapp2 -> Alarmy i przypomnienia — bez tego alarm NIE rzuca błędem (więc log
-      // tu pokazuje sukces), tylko cicho degraduje się do niedokładnego/odłożonego,
-      // efektywnie nigdy nie odpalając w rozsądnym czasie testu.
-      await notifee.createTriggerNotification(
+      append(`Kanał gotowy: ${channelId}`);
+
+      const android = {
+        channelId,
+        category: AndroidCategory.CALL,
+        importance: AndroidImportance.HIGH,
+        visibility: AndroidVisibility.PUBLIC,
+        fullScreenAction: { id: 'default', launchActivity: 'default' },
+        pressAction: { id: 'default' },
+        sound: 'default',
+        ...(withActions && {
+          actions: [
+            { title: 'Nie', pressAction: { id: 'no' } },
+            { title: 'Tak', pressAction: { id: 'yes' } },
+          ],
+        }),
+      };
+
+      await notifee.displayNotification({
+        title: 'Test NATYCHMIAST (notifee)',
+        body: 'Jeśli TEGO nie widzisz/słyszysz od razu (appka wciąż otwarta), problem jest w zgodzie/kanale, nie w opóźnionym triggerze.',
+        android,
+      });
+      append('Natychmiastowe wysłane — POWINNO pokazać się OD RAZU, appka wciąż otwarta.');
+
+      // Opóźnienie przez NATYWNY trigger (AlarmManager), NIE `setTimeout` w JS — przeżywa
+      // zawieszenie JS/tło/zabicie appki, w przeciwieństwie do poprzedniej wersji tego
+      // testu. `allowWhileIdle` = dokładny alarm (`setExactAndAllowWhileIdle`), co od
+      // Androida 12 wymaga `SCHEDULE_EXACT_ALARM` w manifeście (dodane) — bez tego Android
+      // NIE rzuca błędem, tylko cicho degraduje do niedokładnego/odłożonego alarmu.
+      const notifId = await notifee.createTriggerNotification(
         {
-          title: 'Test alertu (notifee)',
+          title: 'Test alertu za 5s (notifee)',
           body: withActions
             ? 'Wybudzi ekran i pokaże appkę NAD blokadą, z przyciskami Tak/Nie.'
             : 'Wybudzi ekran i pokaże appkę NAD blokadą, bez przycisków (sam tap).',
-          android: {
-            channelId,
-            category: AndroidCategory.CALL,
-            importance: AndroidImportance.HIGH,
-            visibility: AndroidVisibility.PUBLIC,
-            fullScreenAction: { id: 'default', launchActivity: 'default' },
-            pressAction: { id: 'default' },
-            sound: 'default',
-            ...(withActions && {
-              actions: [
-                { title: 'Nie', pressAction: { id: 'no' } },
-                { title: 'Tak', pressAction: { id: 'yes' } },
-              ],
-            }),
-          },
+          android,
         },
         {
           type: TriggerType.TIMESTAMP,
@@ -374,13 +380,15 @@ export default function SettingsScreen() {
           alarmManager: { allowWhileIdle: true },
         },
       );
-      append('Zaplanowano — jeśli nadal cicho, sprawdź Ustawienia -> Aplikacje -> Sapp2 -> Alarmy i przypomnienia.');
+      const pending = await notifee.getTriggerNotificationIds();
+      append(`Trigger zaplanowany (id ${String(notifId)}) — system ma ${pending.length} aktywnych triggerów. Zablokuj ekran TERAZ.`);
     } catch (e: any) {
       const msg = String(e?.message ?? e);
+      const code = e?.code ? ` [${e.code}]` : '';
       if (msg.includes('Native module') || msg.includes('cannot be null') || msg.includes('TurboModule')) {
         append('notifee niedostępny w Expo Go — potrzebny build APK z tego CI.');
       } else {
-        append(`Błąd notifee: ${msg}`);
+        append(`Błąd notifee${code}: ${msg}`);
       }
     }
   };

@@ -736,3 +736,30 @@ User przetestował build #39 (logowanie + Faza 1a). Wyniki:
 
 Zweryfikowane lokalnie: `npx tsc --noEmit` czysto, `npx expo prebuild` (manifest ma
 `SCHEDULE_EXACT_ALARM`), `npx expo export --platform android` bez błędów.
+
+## Alert notifee — DALEJ kompletnie cicho po SCHEDULE_EXACT_ALARM (2026-10-28)
+
+User zbudował #41, dał pełne zgody ręcznie w systemowych ustawieniach — alert dalej
+nic nie robi (ani dźwięk, ani popup, ani wybudzenie, ani fullscreen): "Powiadomienia
+nadal nie działają mimo zgody pełnej w ustawieniach". To już DRUGI fix z rzędu który
+nie pomógł — zamiast zgadywać trzeci na ślepo, `sendNotifeeAlert` w
+`app/settings.tsx` przebudowany na DIAGNOSTYCZNY: zamiast jednego opóźnionego
+triggera, robi teraz DWIE niezależne rzeczy i loguje każdy krok:
+1. `notifee.displayNotification(...)` NATYCHMIAST (zero AlarmManager/exact-alarm) —
+   izoluje czy problem jest w zgodzie/kanale/samym notifee, czy konkretnie w
+   opóźnionym planowaniu. Jeśli TEGO user nie zobaczy/usłyszy od razu (appka wciąż
+   otwarta na ekranie), wina leży wcześniej w łańcuchu, nie w triggerze.
+2. `createTriggerNotification` jak dotąd (za 5s) + zaraz po `getTriggerNotificationIds()`
+   zalogowane do UI — pokaże wprost czy system W OGÓLE przyjął ten trigger (pusta
+   lista = cicho odrzucony mimo że `await` nie rzucił błędem).
+3. Dodatkowo zalogowany `settings.authorizationStatus`, `channelId`, oraz `e?.code`
+   przy błędzie (notifee errors często niosą kod) — więcej sygnału niż poprzednio.
+- **Cel**: następny build ma OD RAZU powiedzieć gdzie dokładnie się psuje, zamiast
+  kolejnej rundy "zgadnij-zbuduj-czekaj-zgadnij". Po teście usera: jeśli (1) też
+  cicho → problem w zgodzie/kanale/OEM (np. agresywne oszczędzanie baterii blokujące
+  powiadomienia, częste na niektórych markach telefonów) niezależnie od
+  AlarmManager. Jeśli (1) działa ale (2) nie (lub `getTriggerNotificationIds()`
+  zwraca pustą listę) → problem konkretnie w exact-alarm/AlarmManager mimo
+  manifestowego permission.
+- Zweryfikowane lokalnie: `npx tsc --noEmit` czysto, `npx expo export --platform
+  android` bez błędów. **Niezweryfikowane na urządzeniu.**
