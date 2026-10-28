@@ -20,6 +20,12 @@ w konsolach, jak będziemy scaffoldować właściwy projekt Expo.
     zostaje. Wartość ma user, poda przy spinaniu CI.
 
 ## Logowanie Google / Kalendarz
+- **Firebase Authentication — WŁĄCZYĆ RĘCZNIE w konsoli** (2026-10-28, user złapał
+  na urządzeniu: `auth/configuration-not-found` przy "Zaloguj przez Google"). To
+  OSOBNY krok od OAuth/Calendar API niżej — Authentication jako produkt trzeba
+  aktywować: console.firebase.google.com/project/sapp2-a2354/authentication →
+  "Get started" → Sign-in method → Add provider → Google → włącz (support e-mail)
+  → Save. Backendowa zmiana, NIE wymaga nowego builda APK.
 - Google Calendar API — włączone w projekcie `sapp2-a2354`.
 - OAuth consent screen — skonfigurowany (external), scope
   `https://www.googleapis.com/auth/calendar.events` (dokładnie ten co w sapp,
