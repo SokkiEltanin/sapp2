@@ -487,3 +487,13 @@ w kodzie. Dwie osobne, zdiagnozowane przyczyny:
   powiadomienie faktycznie wystrzeli.
 - Niezweryfikowane na urządzeniu — czeka na build i KOLEJNY test (tym razem z
   faktycznie zablokowanym ekranem w momencie wystrzału).
+
+**Dodatkowy wariant** (2026-10-28, user: "spróbuj dodać tak i nie [i] bez przycisku"):
+trzeci test w sekcji Alerty — "Notifee (Tak/Nie)" obok dotychczasowego, przemianowanego
+na "Notifee (bez przycisku)". Wspólna logika wydzielona do `sendNotifeeAlert(withActions)`
+— `withActions: true` dokleja `android.actions: [{title:'Nie',...}, {title:'Tak',...}]`
+(jak odbierz/odrzuć w połączeniu przychodzącym). Oba warianty mają to samo 5s
+opóźnienie + świeży kanał `alerts-fullscreen-v2`. User ma ocenić czy przyciski w ogóle
+się pokazują na pełnoekranowym alercie i czy da się nimi coś wywołać (na razie bez
+podpiętej logiki co się dzieje po "Tak"/"Nie" — czysto wizualny test UI, logika
+dopiero gdy user potwierdzi że full-screen jako takie działa).

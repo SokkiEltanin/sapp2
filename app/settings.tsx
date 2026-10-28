@@ -79,7 +79,8 @@ const SECTIONS: SettingsSection[] = [
     id: 'alerty', title: 'Alerty', icon: Bell, color: colors.accent.red,
     items: [
       { kind: 'action', key: 'alert-expo', label: 'Expo (MAX priorytet)', description: 'powiadomienia alert notification heads-up', icon: AlertTriangle, accent: colors.accent.red },
-      { kind: 'action', key: 'alert-notifee', label: 'Notifee (full-screen)', description: 'powiadomienia alert notification pelny ekran budzik', icon: Rocket, accent: colors.accent.purple },
+      { kind: 'action', key: 'alert-notifee', label: 'Notifee (bez przycisku)', description: 'powiadomienia alert notification pelny ekran budzik', icon: Rocket, accent: colors.accent.purple },
+      { kind: 'action', key: 'alert-notifee-buttons', label: 'Notifee (Tak/Nie)', description: 'powiadomienia alert notification pelny ekran budzik przyciski akcji', icon: Rocket, accent: colors.accent.green },
     ],
   },
   {
@@ -212,14 +213,18 @@ export default function SettingsScreen() {
     }
   };
 
-  // Opcja 2/2: `notifee` z natywnym `fullScreenAction` (patrz
+  // Opcje 2-3: `notifee` z natywnym `fullScreenAction` (patrz
   // `plugins/withFullScreenAlert.js` — bez flag `showWhenLocked`/`turnScreenOn` na
   // docelowej Activity w manifeście, Android pokaże to WYŁĄCZNIE jako zwykłe
   // heads-up, nie nad blokadą ekranu). Na Androidzie 14+ `USE_FULL_SCREEN_INTENT`
   // może też wymagać ręcznego włączenia przez usera w ustawieniach systemowych
   // appki ("Pełnoekranowe powiadomienia") — jeśli test "nic nie robi" mimo ✅ w
-  // logu, to pierwsze miejsce do sprawdzenia, nie bug w kodzie.
-  const testNotifeeFullScreen = async () => {
+  // logu, to pierwsze miejsce do sprawdzenia, nie bug w kodzie. Wspólna funkcja dla
+  // dwóch wariantów do porównania (2026-10-28, user: "spróbuj dodać tak i nie [i]
+  // bez przycisku") — `withActions` dokleja dwa przyciski akcji "Tak"/"Nie" na
+  // powiadomieniu (jak odbierz/odrzuć w połączeniu przychodzącym), bez tego
+  // powiadomienie ma tylko domyślną akcję (tap = otwórz appkę).
+  const sendNotifeeAlert = async (withActions: boolean) => {
     append('⏳ Za 5s (zablokuj ekran TERAZ)…');
     try {
       const notifeeModule = await import('@notifee/react-native');
@@ -255,7 +260,9 @@ export default function SettingsScreen() {
       await new Promise((resolve) => setTimeout(resolve, 5000));
       await notifee.displayNotification({
         title: '🔴 Test alertu (notifee)',
-        body: 'Jeśli to działa jak budzik — wybudzi ekran i pokaże appkę NAD blokadą.',
+        body: withActions
+          ? 'Wybudzi ekran i pokaże appkę NAD blokadą, z przyciskami Tak/Nie.'
+          : 'Wybudzi ekran i pokaże appkę NAD blokadą, bez przycisków (sam tap).',
         android: {
           channelId,
           category: AndroidCategory.CALL,
@@ -264,6 +271,12 @@ export default function SettingsScreen() {
           fullScreenAction: { id: 'default', launchActivity: 'default' },
           pressAction: { id: 'default' },
           sound: 'default',
+          ...(withActions && {
+            actions: [
+              { title: 'Nie', pressAction: { id: 'no' } },
+              { title: 'Tak', pressAction: { id: 'yes' } },
+            ],
+          }),
         },
       });
       append('✅ Wysłano teraz (po 5s).');
@@ -282,7 +295,8 @@ export default function SettingsScreen() {
     firestore: testFirestore,
     calendar: testCalendar,
     'alert-expo': testExpoAlert,
-    'alert-notifee': testNotifeeFullScreen,
+    'alert-notifee': () => sendNotifeeAlert(false),
+    'alert-notifee-buttons': () => sendNotifeeAlert(true),
   };
 
   const q = query.trim().toLowerCase();
