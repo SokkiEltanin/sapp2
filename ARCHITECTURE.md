@@ -47,6 +47,11 @@ Obszerna zakładka, popupy zależnie od klikniętego kafelka. Obejmuje:
   (`TasksWidgetModule.requestUpdate()`) odświeża widget, 6 stałych slotów (RemoteViews
   nie wspiera scrolla bez `RemoteViewsService`), tap → deep link schematem appki. Ten
   sam wzorzec do powtórzenia w `sapp2`, nie szukać biblioteki od zera.
+- **Warstwa danych portowana** (2026-10-28, Faza 1a — patrz NEXT_STEPS.md): `src/types/
+  calendar.ts`, `src/services/calendarService.ts` (Firestore), `src/services/
+  googleCalendarService.ts` + `src/utils/googleCalendarMap.ts` (Google Calendar REST),
+  `src/store/calendarStore.ts` (Zustand). ZERO UI jeszcze — to dopiero po Finansach/
+  parserach, Faza 1b.
 
 ## FINANSE [GE]
 

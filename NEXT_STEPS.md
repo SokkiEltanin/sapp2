@@ -635,9 +635,56 @@ Zbudowane:
 - **Niezweryfikowane na urządzeniu** — czeka na build i realny test logowania/
   wylogowania usera (dev-client wymagany, `@react-native-google-signin` nie działa
   w Expo Go — identycznie jak istniejący test Diagnostyki).
-- **Dalej, po weryfikacji na urządzeniu**: Faza 1a kalendarza — port
-  `src/types/calendar.ts` (trimmed), `src/services/calendarService.ts` (na nowym
-  `userCol`/`userDoc`), `src/services/googleCalendarService.ts` +
-  `src/utils/googleCalendarMap.ts`, `src/store/calendarStore.ts` — patrz sekcja
-  "Następna wielka faza" wyżej dla pełnego planu i kolejności faz.
-  ARCHITECTURE.md — dokładnie tak jak user poprosił ("z głową").
+- **Dalej**: Faza 1a kalendarza (port warstwy danych) — patrz sekcja niżej, zaczęta
+  RÓWNOLEGLE z czekaniem na weryfikację logowania na urządzeniu (user: "już teraz
+  zacznij przygotowywać kod Fazy 1a" — bezpieczne, bo to nowe izolowane pliki, nic
+  nie dotykają istniejących ekranów).
+
+## Faza 1a kalendarza — port warstwy danych (2026-10-28)
+
+Port z sapp, logika 1:1 gdzie się da, bez UI (to Faza 1b, dopiero po tej i po
+Finansach — patrz "Następna wielka faza" wyżej). Zbudowane:
+
+- `src/types/calendar.ts` — `CalendarEvent`/`eventCoversDay`/`isMultiDay` bez zmian.
+  `Task` TRIMMED — usunięte `counterId` (Licznik, nie istnieje w sapp2),
+  `classEventId`/`classEventLabel`/`classReminderMinutesBefore` (Plan zajęć,
+  sapp-only), `postCompletionMood` (tracker nastroju, nie portowany), oraz
+  `kind`/`waitingFor`/`wakeAt` (model quick/deep/waiting — ARCHITECTURE.md mówi
+  wprost "UI/UX zupełnie nowy" dla Zadań, więc ciągnięcie starego modelu
+  klasyfikacji do warstwy danych PRZED zaprojektowaniem nowego UX byłoby
+  zgadywaniem, nie portem).
+- `src/utils/date.ts` — tylko `ymd`/`todayISO` (jedyne dwie funkcje z sapp'owego
+  `date.ts`, których ten port faktycznie potrzebuje — reszta jak/kiedy coś z niej
+  zacznie korzystać, nie z wyprzedzeniem).
+- `src/services/calendarService.ts` — Firestore CRUD (events + tasks), 1:1 logika.
+  Różnica: `userCol`/`userDoc` (sapp2) są SYNCHRONICZNE (bez `await` przed nimi) —
+  sapp2 nie ma anonimowego auto-logowania do wyczekania jak sapp.
+- `src/utils/googleCalendarMap.ts` — `mapEvent` (GCal event → `CalendarEvent`),
+  czysta funkcja, bez zmian.
+- `src/services/googleCalendarService.ts` — REST wrapper na Google Calendar API,
+  1:1 logika. Różnica: `GoogleSignin` importowany DYNAMICZNIE w `refreshToken()`
+  (jedyne miejsce gdzie jest potrzebny) — sapp go importuje statycznie na górze
+  pliku, co u nas jest zabronione (natywny moduł, zero w Expo Go — statyczny import
+  wywaliłby appkę, jeśli cokolwiek co importuje ten serwis zdąży się zamontować w
+  Expo Go).
+- `src/store/calendarStore.ts` — Zustand + `persist`, 1:1 logika/shape. Różnica:
+  zwykły `createJSONStorage(() => AsyncStorage)` zamiast sapp'owego
+  `throttledPersistStorage()` — ten throttling tam istnieje bo profiling na
+  REALNYCH, dużych danych (wydatki) złapał konkretny zmierzony koszt; dodawanie go
+  tu teraz, zanim istnieje jakikolwiek dowód tego samego problemu, byłoby "burdel
+  pod przyszłość" (CLAUDE.md) — dodamy jeśli/kiedy profiling na sapp2 to pokaże.
+- Ustawienia → Diagnostyka → nowy test **"Sync kalendarza (dane)"** —
+  weryfikuje warstwę danych PRZED jakimkolwiek UI (jak poprosił user): round-trip
+  dodaj→odczytaj→zmień→usuń, osobno dla Firestore (`calendarService`) i dla
+  PRAWDZIWEGO Google Calendar (`googleCalendarService` — tworzy, modyfikuje, czyta
+  przez `fetchEvents`, usuwa; kończy się usunięciem, więc nie zaśmieca realnego
+  kalendarza usera).
+- Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
+  bundluje się bez błędów.
+- **Niezweryfikowane na urządzeniu** — nowy test "Sync kalendarza (dane)" wymaga
+  dev-client buildu (jak każdy test z `@react-native-google-signin`) ORAZ
+  wcześniejszego zalogowania (żeby `googleCalendarService` miał token).
+- **Dalej, dopiero po Finansach/parserach (kolejność faz niezmienna)**: Faza 1b —
+  nowy UI Zadania/Kalendarz (NIE kopiowany z ~4400 linii ekranów sapp), reużywający
+  tylko logikę sekcji TERAZ/bezterminowe/terminowe. Widget na pulpicie Androida —
+  osobna, odłożona sesja (native/config-plugin heavy), nie wrzucać do UI Zadań.

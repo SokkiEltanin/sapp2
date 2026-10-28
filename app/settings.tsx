@@ -15,6 +15,9 @@ import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { GOOGLE_WEB_CLIENT_ID, signOutGoogle } from '@/services/googleAuth';
+import { calendarService } from '@/services/calendarService';
+import { googleCalendarService } from '@/services/googleCalendarService';
+import { todayISO } from '@/utils/date';
 
 // Build metadata wstrzyknięty przez CI (`.github/workflows/build.yml`, krok "Build
 // release APK") jako EXPO_PUBLIC_* — Expo inline'uje te zmienne w bundlu JS na etapie
@@ -80,6 +83,7 @@ function buildSections(email: string | null): SettingsSection[] {
       { kind: 'action', key: 'google', label: 'Zaloguj przez Google', description: 'logowanie konto sign-in', icon: LogIn, accent: colors.stat.woda },
       { kind: 'action', key: 'firestore', label: 'Test Firestore', description: 'baza danych synchronizacja', icon: Database, accent: colors.stat.finanse },
       { kind: 'action', key: 'calendar', label: 'Test Kalendarza Google', description: 'wydarzenia kalendarz', icon: CalendarDays, accent: colors.stat.event },
+      { kind: 'action', key: 'calendar-sync', label: 'Sync kalendarza (dane)', description: 'test warstwy danych firestore i google calendar round-trip', icon: CalendarDays, accent: colors.stat.event },
     ],
   },
   // Sandbox do porównania kilku podejść do prawdziwych full-screen-intent alertów
@@ -190,6 +194,44 @@ export default function SettingsScreen() {
         append('Ten natywny moduł nie działa w Expo Go — potrzebny dev-client build.');
       } else {
         append(`Błąd kalendarza (zaloguj się najpierw): ${msg}`);
+      }
+    }
+  };
+
+  // Weryfikacja warstwy danych portu kalendarza (Faza 1a, 2026-10-28) — PRZED
+  // jakimkolwiek UI (user: "z głową, nie burdel pod przyszłość"). Round-trip
+  // dodaj→odczytaj→zmień→usuń, osobno dla Firestore (calendarService) i dla
+  // prawdziwego Google Calendar (googleCalendarService) — oba kończą się usunięciem
+  // testowego eventu, więc nie zaśmiecają ani bazy, ani realnego kalendarza usera.
+  const testCalendarSync = async () => {
+    append('Sync kalendarza: Firestore…');
+    try {
+      const created = await calendarService.addEvent({
+        title: '[TEST] sapp2 sync', date: todayISO(), allDay: true, priority: 'normal',
+      });
+      const all = await calendarService.getAllEvents();
+      await calendarService.updateEvent(created.id, { title: '[TEST] sapp2 sync (zmieniono)' });
+      await calendarService.deleteEvent(created.id);
+      append(`Firestore ok — dodano/odczytano (${all.length} eventów)/zmieniono/usunięto.`);
+    } catch (e: any) {
+      append(`Błąd Firestore: ${String(e?.message ?? e)}`);
+    }
+
+    append('Sync kalendarza: Google Calendar…');
+    try {
+      const gcalId = await googleCalendarService.createEvent({ title: '[TEST] sapp2 sync', date: todayISO(), allDay: true });
+      if (!gcalId) throw new Error('Brak tokenu Google — najpierw "Zaloguj przez Google" wyżej.');
+      const appId = `gcal-${gcalId}`;
+      const updated = await googleCalendarService.updateEvent(appId, { title: '[TEST] sapp2 sync (zmieniono)' });
+      const fetched = await googleCalendarService.fetchEvents(1, 1);
+      const deleted = await googleCalendarService.deleteEvent(appId);
+      append(`Google ok — dodano/zmieniono (${updated})/fetchEvents znalazł ${fetched.length}/usunięto (${deleted}).`);
+    } catch (e: any) {
+      const msg = String(e?.message ?? e);
+      if (msg.includes('Native module') || msg.includes('cannot be null') || msg.includes('TurboModule')) {
+        append('Ten natywny moduł nie działa w Expo Go — potrzebny dev-client build.');
+      } else {
+        append(`Błąd Google Calendar: ${msg}`);
       }
     }
   };
@@ -338,6 +380,7 @@ export default function SettingsScreen() {
     google: testGoogleSignIn,
     firestore: testFirestore,
     calendar: testCalendar,
+    'calendar-sync': testCalendarSync,
     'alert-expo': testExpoAlert,
     'alert-notifee': () => sendNotifeeAlert(false),
     'alert-notifee-buttons': () => sendNotifeeAlert(true),
