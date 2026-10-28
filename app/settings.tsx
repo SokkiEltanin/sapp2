@@ -225,11 +225,11 @@ export default function SettingsScreen() {
   // powiadomieniu (jak odbierz/odrzuć w połączeniu przychodzącym), bez tego
   // powiadomienie ma tylko domyślną akcję (tap = otwórz appkę).
   const sendNotifeeAlert = async (withActions: boolean) => {
-    append('Za 5s (zablokuj ekran TERAZ)…');
+    append('Zaplanowano za 5s (zablokuj ekran TERAZ)…');
     try {
       const notifeeModule = await import('@notifee/react-native');
       const notifee = notifeeModule.default;
-      const { AndroidImportance, AndroidCategory, AndroidVisibility, AuthorizationStatus } = notifeeModule;
+      const { AndroidImportance, AndroidCategory, AndroidVisibility, AuthorizationStatus, TriggerType } = notifeeModule;
       const settings = await notifee.requestPermission();
       if (settings.authorizationStatus < AuthorizationStatus.AUTHORIZED) {
         throw new Error('Brak zgody na powiadomienia');
@@ -252,34 +252,46 @@ export default function SettingsScreen() {
         lightColor: '#EF4444',
         bypassDnd: true,
       });
-      // Opóźnienie CELOWE: Android pokazuje `fullScreenAction` TYLKO gdy appka NIE
-      // jest już widoczna na pierwszym planie (zablokowany ekran / inna appka) — user
-      // klikał przycisk i patrzył na telefon, więc appka BYŁA widoczna i system
-      // pokazywał zwykły heads-up zamiast przejęcia ekranu (2026-10-28, pierwszy test
-      // na urządzeniu). 5s daje czas na zablokowanie ekranu po kliknięciu.
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-      await notifee.displayNotification({
-        title: 'Test alertu (notifee)',
-        body: withActions
-          ? 'Wybudzi ekran i pokaże appkę NAD blokadą, z przyciskami Tak/Nie.'
-          : 'Wybudzi ekran i pokaże appkę NAD blokadą, bez przycisków (sam tap).',
-        android: {
-          channelId,
-          category: AndroidCategory.CALL,
-          importance: AndroidImportance.HIGH,
-          visibility: AndroidVisibility.PUBLIC,
-          fullScreenAction: { id: 'default', launchActivity: 'default' },
-          pressAction: { id: 'default' },
-          sound: 'default',
-          ...(withActions && {
-            actions: [
-              { title: 'Nie', pressAction: { id: 'no' } },
-              { title: 'Tak', pressAction: { id: 'yes' } },
-            ],
-          }),
+      // Opóźnienie przez NATYWNY trigger (AlarmManager), NIE `setTimeout` w JS
+      // (2026-10-28, user: "żaden alert nie wybudza ekranu, brak dźwięku/wibracji" —
+      // realny root cause poprzedniej wersji: `setTimeout` + `await` w JS zależy od
+      // tego, że silnik JS appki DALEJ DZIAŁA przez te 5s; gdy user blokuje ekran
+      // (appka idzie w tło), Android może zawiesić wykonywanie JS zanim timer zdąży
+      // odpalić `displayNotification` — powiadomienie wtedy NIGDY się nie wysyła,
+      // więc "cisza" nie była kwestią konfiguracji dźwięku/wibracji, tylko tego że
+      // notyfikacja w ogóle nie dotarła). `createTriggerNotification` planuje
+      // wysyłkę PO STRONIE SYSTEMU (Android AlarmManager) — przeżywa zawieszenie JS,
+      // tła, a nawet zabicie appki. `alarmManager.allowWhileIdle` — odpala się nawet
+      // w trybie Doze (głęboki sen telefonu).
+      await notifee.createTriggerNotification(
+        {
+          title: 'Test alertu (notifee)',
+          body: withActions
+            ? 'Wybudzi ekran i pokaże appkę NAD blokadą, z przyciskami Tak/Nie.'
+            : 'Wybudzi ekran i pokaże appkę NAD blokadą, bez przycisków (sam tap).',
+          android: {
+            channelId,
+            category: AndroidCategory.CALL,
+            importance: AndroidImportance.HIGH,
+            visibility: AndroidVisibility.PUBLIC,
+            fullScreenAction: { id: 'default', launchActivity: 'default' },
+            pressAction: { id: 'default' },
+            sound: 'default',
+            ...(withActions && {
+              actions: [
+                { title: 'Nie', pressAction: { id: 'no' } },
+                { title: 'Tak', pressAction: { id: 'yes' } },
+              ],
+            }),
+          },
         },
-      });
-      append('Wysłano teraz (po 5s).');
+        {
+          type: TriggerType.TIMESTAMP,
+          timestamp: Date.now() + 5000,
+          alarmManager: { allowWhileIdle: true },
+        },
+      );
+      append('Zaplanowano — zablokuj ekran teraz, wystrzeli za 5s przez system.');
     } catch (e: any) {
       const msg = String(e?.message ?? e);
       if (msg.includes('Native module') || msg.includes('cannot be null') || msg.includes('TurboModule')) {

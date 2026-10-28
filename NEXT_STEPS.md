@@ -541,3 +541,43 @@ przegląd kodu znalazł PRAWDZIWY bug, nie tylko kosmetykę:
   `c.text.primary` #D6D6D6) — user: "miało być białe tło a nie ma".
 - Niezweryfikowane na urządzeniu — czeka na build i test usera. To NAJWAŻNIEJSZY
   build do zweryfikowania w tej sesji — fix prawdziwego buga nawigacji.
+
+## Alert notifee — fix mechanizmu opóźnienia (2026-10-28)
+
+User: "żaden alert nie wybudza ekranu... nie ma dźwięku ani wibracji". Zdiagnozowany
+realny root cause: poprzednia wersja używała `setTimeout` W JS do 5s opóźnienia przed
+`displayNotification`. Gdy user blokuje ekran (appka idzie w tło), Android może
+zawiesić wykonywanie JS ZANIM timer zdąży odpalić — powiadomienie wtedy NIGDY się nie
+wysyła. "Cisza" nie była więc kwestią configu dźwięku/wibracji (ten był poprawny) —
+notyfikacja po prostu nigdy nie dotarła do systemu. Fix: `notifee.createTriggerNotification`
+z `TriggerType.TIMESTAMP` + `alarmManager.allowWhileIdle: true` — planowanie PO
+STRONIE SYSTEMU (Android AlarmManager), przeżywa zawieszenie JS/tło/nawet zabicie
+appki, odpala się nawet w trybie Doze. To dotyczy OBU wariantów notifee (z przyciskami
+i bez) — wspólna funkcja `sendNotifeeAlert`.
+- Niezweryfikowane na urządzeniu — czeka na build i test usera.
+
+## Następna wielka faza: port kalendarza/finansów/parserów z sapp (2026-10-28)
+
+User: "ogarnij super bazę, poprzenoś nasze parsery... z głową, nie burdel pod
+przyszłość żeby nie lagowało". Ustalona KOLEJNOŚĆ faz (nie zaczynać kolejnej przed
+ukończeniem poprzedniej):
+
+1. **Kalendarz** (z sapp) — obustronnie edytowalny, ma być BAZĄ pod plan/pracę itp.
+   Pierwsza faza — zaczynamy od tego.
+2. **Finanse + parsery** — parser paragonów (share-intent, Select All → Share, BEZ
+   OCR — zasada #5 w CLAUDE.md) z sapp był "zajebisty" w rozpoznawaniu sklepu,
+   przenosimy tę logikę. ALE obsługa produktów ma działać INACZEJ niż w sapp:
+   - Łapanie produktów + wrzucanie do kategorii — jak było.
+   - Kategorie — zostają z sapp (ta sama taksonomia).
+   - NOWE: porządny edytor produktów — gdy parser złapie np. "KETCH. DAWTONA 400g",
+     ma rozpoznać to jako wariant istniejącego produktu "Ketchup Dawtona" (fuzzy
+     matching po słowach) i POKAZAĆ WARIANTY zamiast tworzyć nowy wpis za każdym
+     razem gdy nazwa z paragonu różni się (user: "ket.dawt.", "ketchup daw. 400g",
+     "ketchup 400g" nie mogą tworzyć 10 osobnych produktów). Musi być gdzieś
+     dostępne RĘCZNE łączenie duplikatów + poprawianie nazw (user explicitly chce
+     móc to zrobić samemu, nie tylko automat).
+3. **Praca, Daily itp.** — dopiero po kalendarzu i finansach.
+- **Nie zaczęte** — to jest zakres na WIELE kolejnych sesji, nie jeden build. Przed
+  pisaniem kodu trzeba przejrzeć implementację kalendarza w sapp (store, ekrany,
+  Google Calendar sync) i rozpisać plan portu/adaptacji do sapp2, zaktualizować
+  ARCHITECTURE.md — dokładnie tak jak user poprosił ("z głową").
