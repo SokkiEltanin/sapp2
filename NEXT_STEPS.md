@@ -576,6 +576,14 @@ ukończeniem poprzedniej):
      "ketchup 400g" nie mogą tworzyć 10 osobnych produktów). Musi być gdzieś
      dostępne RĘCZNE łączenie duplikatów + poprawianie nazw (user explicitly chce
      móc to zrobić samemu, nie tylko automat).
+   - **Dopisane**: lepsze rozpoznawanie czy produkt JEST czy NIE JEST jedzeniem
+     (user: "lepiej rozwiązać produkty które są i nie są jedzeniem, może
+     rozpoznawanie jakieś?"). Najprostszy sensowny kierunek do rozważenia przy
+     projektowaniu: status "to jedzenie" wynika z PRZYPISANEJ KATEGORII (jeśli
+     kategorie z sapp już grupują się np. Jedzenie/Słodycze/Napoje vs
+     Chemia/Kosmetyki/Elektronika), nie osobny klasyfikator po nazwie — prościej,
+     spójne z "kategorie zostają z sapp" wyżej. Dashboard sapp2 ma już kafelek
+     "DZIENNIE #JEDZENIE" / "#JedzeniePerMiesiąc" który będzie to konsumował.
 3. **Praca, Daily itp.** — dopiero po kalendarzu i finansach.
 - **Nie zaczęte** — to jest zakres na WIELE kolejnych sesji, nie jeden build. Przed
   pisaniem kodu trzeba przejrzeć implementację kalendarza w sapp (store, ekrany,
