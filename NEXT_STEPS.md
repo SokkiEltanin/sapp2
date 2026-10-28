@@ -497,3 +497,20 @@ opóźnienie + świeży kanał `alerts-fullscreen-v2`. User ma ocenić czy przyc
 się pokazują na pełnoekranowym alercie i czy da się nimi coś wywołać (na razie bez
 podpiętej logiki co się dzieje po "Tak"/"Nie" — czysto wizualny test UI, logika
 dopiero gdy user potwierdzi że full-screen jako takie działa).
+
+## Polish: animacja navbaru + zero emotek (2026-10-28)
+
+User: "navbar nie animowes jak klikam... mam wrażenie że robisz na odwal" + "zasada
+zero emotek, tylko jeżeli chodzi o wpisywanie humoru xd".
+
+- **`TabBar.tsx` — odznaka aktywnej zakładki teraz animowana** (`TabIcon`, nowy
+  subkomponent): skala 0.75→1 + opacity 0→1 na `Animated.Value` per-ikona,
+  `useNativeDriver: true`, 180ms. To NIE jest złamanie wcześniejszej zasady "zero
+  animacji przejścia między zakładkami" (ta dotyczy przełączania EKRANÓW — pozostaje
+  tap-only bez animacji z udokumentowanego powodu bugów w sapp) — to osobna, tania
+  mikroanimacja na jednym małym elemencie UI, nie na całym ekranie.
+- **Wszystkie emotki usunięte z appki** (`app/settings.tsx` — log statusów testów:
+  `⏳/✅/❌/⚠️`, tytuły powiadomień: `🔴`) — zastąpione plain textem. Zasada
+  dopisana do `CLAUDE.md` (#9) jako standing rule na przyszłość: zero emotek w UI/
+  logach/tytułach, wyjątek tylko dla treści jawnie humorystycznej.
+- Niezweryfikowane na urządzeniu — czeka na build i test usera.

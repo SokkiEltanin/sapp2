@@ -35,6 +35,10 @@ skończeniu/odkryciu czegoś nowego.
 8. **Build APK = GitHub Actions, bez EAS** (`expo prebuild` + goły Gradle, patrz
    `.github/workflows/build.yml` i `INFRA.md`). EAS zarezerwowane tylko pod przyszłe
    OTA, nieużywane jeszcze.
+9. **Zero emotek w appce** (UI, teksty, logi, tytuły powiadomień) — user: "zasada
+   zero emotek, tylko jeżeli chodzi o wpisywanie humoru xd" (2026-10-28). Wyjątek
+   wyłącznie dla treści jawnie humorystycznej/żartobliwej, nigdy dla statusów typu
+   sukces/błąd/w toku — te plain-textem ("Błąd: ...", "Wysłano", nie "✅ Wysłano").
 
 ## Stack (skrót)
 

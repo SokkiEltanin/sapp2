@@ -108,7 +108,7 @@ export default function SettingsScreen() {
   const append = (line: string) => setLog((prev) => [line, ...prev].slice(0, 12));
 
   const testGoogleSignIn = async () => {
-    append('⏳ Logowanie Google…');
+    append('Logowanie Google…');
     try {
       const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
       GoogleSignin.configure({
@@ -118,31 +118,31 @@ export default function SettingsScreen() {
       });
       await GoogleSignin.hasPlayServices();
       const result = await GoogleSignin.signIn();
-      append(`✅ Zalogowano: ${result.data?.user?.email ?? 'brak e-maila w odpowiedzi'}`);
+      append(`Zalogowano: ${result.data?.user?.email ?? 'brak e-maila w odpowiedzi'}`);
     } catch (e: any) {
       const msg = String(e?.message ?? e);
       if (msg.includes('Native module') || msg.includes('cannot be null') || msg.includes('TurboModule')) {
-        append('⚠️ Ten natywny moduł nie działa w Expo Go — potrzebny dev-client build.');
+        append('Ten natywny moduł nie działa w Expo Go — potrzebny dev-client build.');
       } else {
-        append(`❌ Błąd logowania: ${msg}`);
+        append(`Błąd logowania: ${msg}`);
       }
     }
   };
 
   const testFirestore = async () => {
-    append('⏳ Firestore…');
+    append('Firestore…');
     try {
       const ref = doc(db, '_test', 'ping');
       await withTimeout(setDoc(ref, { at: new Date().toISOString() }));
       const snap = await withTimeout(getDoc(ref));
-      append(`✅ Firestore ok, zapisano/odczytano: ${snap.data()?.at}`);
+      append(`Firestore ok, zapisano/odczytano: ${snap.data()?.at}`);
     } catch (e: any) {
-      append(`❌ Błąd Firestore: ${String(e?.message ?? e)}`);
+      append(`Błąd Firestore: ${String(e?.message ?? e)}`);
     }
   };
 
   const testCalendar = async () => {
-    append('⏳ Kalendarz Google…');
+    append('Kalendarz Google…');
     try {
       const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
       const tokens = await GoogleSignin.getTokens();
@@ -152,13 +152,13 @@ export default function SettingsScreen() {
       );
       const json = await resp.json();
       if (!resp.ok) throw new Error(json.error?.message ?? `HTTP ${resp.status}`);
-      append(`✅ Kalendarz ok, ${json.items?.length ?? 0} nadchodzących wydarzeń`);
+      append(`Kalendarz ok, ${json.items?.length ?? 0} nadchodzących wydarzeń`);
     } catch (e: any) {
       const msg = String(e?.message ?? e);
       if (msg.includes('Native module') || msg.includes('cannot be null') || msg.includes('TurboModule')) {
-        append('⚠️ Ten natywny moduł nie działa w Expo Go — potrzebny dev-client build.');
+        append('Ten natywny moduł nie działa w Expo Go — potrzebny dev-client build.');
       } else {
-        append(`❌ Błąd kalendarza (zaloguj się najpierw): ${msg}`);
+        append(`Błąd kalendarza (zaloguj się najpierw): ${msg}`);
       }
     }
   };
@@ -169,7 +169,7 @@ export default function SettingsScreen() {
   // usera — nie przebija blokady ekranu). Zostaje jako punkt odniesienia do porównania
   // z opcją notifee niżej.
   const testExpoAlert = async () => {
-    append('⏳ Alert (max priorytet)…');
+    append('Alert (max priorytet)…');
     try {
       const Notifications = await import('expo-notifications');
       Notifications.setNotificationHandler({
@@ -195,20 +195,20 @@ export default function SettingsScreen() {
       }
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '🔴 Test alertu',
+          title: 'Test alertu',
           body: 'To sufit zwykłego expo-notifications (max priorytet) — nie prawdziwy full-screen jak budzik.',
           sound: 'default',
           priority: Notifications.AndroidNotificationPriority.MAX,
         },
         trigger: { channelId: 'alerts-max' },
       });
-      append('✅ Wysłano — oceń jak wygląda/brzmi na urządzeniu.');
+      append('Wysłano — oceń jak wygląda/brzmi na urządzeniu.');
     } catch (e: any) {
       const msg = String(e?.message ?? e);
       if (msg.includes('Native module') || msg.includes('cannot be null') || msg.includes('TurboModule')) {
-        append('⚠️ Ten natywny moduł nie działa w Expo Go — potrzebny dev-client build.');
+        append('Ten natywny moduł nie działa w Expo Go — potrzebny dev-client build.');
       } else {
-        append(`❌ Błąd alertu: ${msg}`);
+        append(`Błąd alertu: ${msg}`);
       }
     }
   };
@@ -218,14 +218,14 @@ export default function SettingsScreen() {
   // docelowej Activity w manifeście, Android pokaże to WYŁĄCZNIE jako zwykłe
   // heads-up, nie nad blokadą ekranu). Na Androidzie 14+ `USE_FULL_SCREEN_INTENT`
   // może też wymagać ręcznego włączenia przez usera w ustawieniach systemowych
-  // appki ("Pełnoekranowe powiadomienia") — jeśli test "nic nie robi" mimo ✅ w
+  // appki ("Pełnoekranowe powiadomienia") — jeśli test "nic nie robi" mimo sukcesu w
   // logu, to pierwsze miejsce do sprawdzenia, nie bug w kodzie. Wspólna funkcja dla
   // dwóch wariantów do porównania (2026-10-28, user: "spróbuj dodać tak i nie [i]
   // bez przycisku") — `withActions` dokleja dwa przyciski akcji "Tak"/"Nie" na
   // powiadomieniu (jak odbierz/odrzuć w połączeniu przychodzącym), bez tego
   // powiadomienie ma tylko domyślną akcję (tap = otwórz appkę).
   const sendNotifeeAlert = async (withActions: boolean) => {
-    append('⏳ Za 5s (zablokuj ekran TERAZ)…');
+    append('Za 5s (zablokuj ekran TERAZ)…');
     try {
       const notifeeModule = await import('@notifee/react-native');
       const notifee = notifeeModule.default;
@@ -259,7 +259,7 @@ export default function SettingsScreen() {
       // na urządzeniu). 5s daje czas na zablokowanie ekranu po kliknięciu.
       await new Promise((resolve) => setTimeout(resolve, 5000));
       await notifee.displayNotification({
-        title: '🔴 Test alertu (notifee)',
+        title: 'Test alertu (notifee)',
         body: withActions
           ? 'Wybudzi ekran i pokaże appkę NAD blokadą, z przyciskami Tak/Nie.'
           : 'Wybudzi ekran i pokaże appkę NAD blokadą, bez przycisków (sam tap).',
@@ -279,13 +279,13 @@ export default function SettingsScreen() {
           }),
         },
       });
-      append('✅ Wysłano teraz (po 5s).');
+      append('Wysłano teraz (po 5s).');
     } catch (e: any) {
       const msg = String(e?.message ?? e);
       if (msg.includes('Native module') || msg.includes('cannot be null') || msg.includes('TurboModule')) {
-        append('⚠️ notifee niedostępny w Expo Go — potrzebny build APK z tego CI.');
+        append('notifee niedostępny w Expo Go — potrzebny build APK z tego CI.');
       } else {
-        append(`❌ Błąd notifee: ${msg}`);
+        append(`Błąd notifee: ${msg}`);
       }
     }
   };

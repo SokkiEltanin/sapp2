@@ -1,14 +1,18 @@
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { View, TouchableOpacity, Animated, Easing, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LayoutDashboard, Flame, Wallet, CheckSquare, PawPrint, Settings } from 'lucide-react-native';
 import { spacing, radius, themedStyles } from '@/theme';
 
 // Pasek zakładek — WŁASNY komponent (nie domyślny `Tabs` UI) dla pełnej kontroli nad
-// wyglądem, ten sam wzorzec co w sapp. Tap-only, ZERO animacji przejścia między
-// zakładkami (ustalone jako bezpieczny start — prawdziwy "jedzie za palcem" slide był w
-// sapp udokumentowanym źródłem bugów/szarpania, bo wszystkie ciężkie ekrany zostają
-// zamontowane naraz i muszą się przeliczać w trakcie animacji). Jak appka okaże się
-// solidna/szybka, tani fade można dorzucić później jako polish — nie teraz.
+// wyglądem, ten sam wzorzec co w sapp. Przełączanie EKRANÓW jest tap-only, ZERO
+// animacji przejścia (ustalone jako bezpieczny start — prawdziwy "jedzie za palcem"
+// slide był w sapp udokumentowanym źródłem bugów/szarpania, bo wszystkie ciężkie
+// ekrany zostają zamontowane naraz i muszą się przeliczać w trakcie animacji). TO
+// pozostaje bez zmian. Osobna sprawa: samo PODŚWIETLENIE aktywnej ikony w navbarze —
+// mała, tania mikro-animacja na jednym elemencie (nie cały ekran) — user: "navbar nie
+// animowes... ma się tak ładnie podświetlenie" (2026-10-28). `TabIcon` niżej animuje
+// skalę/opacity odznaki przy zmianie `active`, zero wpływu na politykę ekranów.
 //
 // Kolejność i pozycja (2026-10-26, NEXT_STEPS.md) — klaster ściśnięty do PRAWEJ
 // krawędzi, nie pełna szerokość: prawy skraj = najbliżej kciuka = najkrótszy ruch, więc
@@ -32,6 +36,42 @@ export const TABS = [
   { key: 'tasks', label: 'Zadania', icon: CheckSquare },
   { key: 'pupil', label: 'Pupil', icon: PawPrint },
 ] as const;
+
+type TabIconProps = {
+  Icon: (typeof TABS)[number]['icon'];
+  isActive: boolean;
+  activeIconColor: string;
+  inactiveColor: string;
+  badgeStyle: object;
+  badgeActiveStyle: object;
+};
+
+// Odznaka pod ikoną wjeżdża/znika skalą+opacity zamiast twardego snapu
+// (`useNativeDriver: true` — animuje się na wątku UI, tanie, nie dotyka layoutu reszty
+// paska). Kolor samej ikony zostaje zmieniany od razu (bez cross-fade) — to świadomy,
+// tańszy kompromis: dwie nakładające się ikony różnych kolorów byłyby bardziej
+// "poprawne" wizualnie, ale dla 20px glifu różnica jest w praktyce niezauważalna, a
+// kod dwa razy prostszy.
+function TabIcon({ Icon, isActive, activeIconColor, inactiveColor, badgeStyle, badgeActiveStyle }: TabIconProps) {
+  const progress = useRef(new Animated.Value(isActive ? 1 : 0)).current;
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: isActive ? 1 : 0,
+      duration: 180,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  }, [isActive, progress]);
+  const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.75, 1] });
+  return (
+    <View style={badgeStyle}>
+      <Animated.View
+        style={[StyleSheet.absoluteFill, badgeActiveStyle, { opacity: progress, transform: [{ scale }] }]}
+      />
+      <Icon size={20} color={isActive ? activeIconColor : inactiveColor} />
+    </View>
+  );
+}
 
 export default function TabBar({
   active,
@@ -68,9 +108,14 @@ export default function TabBar({
               activeOpacity={0.7}
               accessibilityLabel={t.label}
             >
-              <View style={[s.iconBadge, isActive && s.iconBadgeActive]}>
-                <Icon size={20} color={isActive ? activeIconColor : inactiveColor} />
-              </View>
+              <TabIcon
+                Icon={Icon}
+                isActive={isActive}
+                activeIconColor={activeIconColor}
+                inactiveColor={inactiveColor}
+                badgeStyle={s.iconBadge}
+                badgeActiveStyle={s.iconBadgeActive}
+              />
             </TouchableOpacity>
           );
         })}
@@ -113,7 +158,10 @@ const makeS = themedStyles((c) => ({
       width: 38, height: 38, borderRadius: 13,
       alignItems: 'center', justifyContent: 'center',
     },
-    iconBadgeActive: { backgroundColor: c.text.primary },
+    // `borderRadius` zdublowany z `iconBadge` CELOWO — ten obiekt trafia też na
+    // osobną `Animated.View` nałożoną przez `StyleSheet.absoluteFill` (animacja
+    // skali/opacity w `TabIcon`), która nie dziedziczy zaokrąglenia rodzica.
+    iconBadgeActive: { backgroundColor: c.text.primary, borderRadius: 13 },
   }),
   inactiveColor: c.text.secondary,
   activeIconColor: c.bg.primary,
