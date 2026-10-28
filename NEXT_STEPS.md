@@ -364,3 +364,31 @@ dostaliśmy PRAWDZIWY feedback wizualny na aktualny kod (patrz Runda poprawek 9 
   `start:{1,1}→end:{0,0}` (czarny prawy-dół, akcent lewy-góra), reszta (kolor, 20%
   opacity) bez zmian.
 - Niezweryfikowane na urządzeniu — czeka na build i test usera.
+
+## Runda poprawek 10 (2026-10-28) — Ustawienia na kategorie + navbar w naszym stylu
+
+User: "navbar dopasowany stylem pod taki jaki mamy, tak samo ustawienia i zakładki
+(ustawienia jak w sap musimy podzielić żeby mieć INFO, DIAGNOSTYKĘ, FINANSE itp)".
+
+- **`app/settings.tsx` przebudowany na dwupoziomową strukturę kategorii** — ten sam
+  wzorzec co sapp (`SettingsSectionDef`/`SettingsCategoryRow`/`activeSectionId` jako
+  stan lokalny, nie osobna trasa routera): główny ekran pokazuje KARTY kategorii
+  (odznaka ikony + tytuł + liczba pozycji + strzałka), kliknięcie wchodzi w pełną
+  listę tej kategorii. 3 sekcje na start:
+  - **Info** — dawny statyczny blok "O aplikacji" (wersja/build/data/commit)
+    przeniesiony TUTAJ jako 4 itemy typu `value` (nieklikalne, tylko wyświetlają),
+    zamiast osobnego bloku zawsze widocznego na dole ekranu.
+  - **Diagnostyka** — dawne 4 testy (Google/Firestore/Kalendarz/alert), logika bez
+    zmian, tylko przeniesione pod tę kategorię.
+  - **Finanse** — jeden statyczny item "Wkrótce" (parser paragonów/budżety/limity) —
+    appka nie ma jeszcze ŻADNEJ funkcji finansowej, więc sekcja jest pusta-poza-stub,
+    NIE udajemy gotowej funkcji. Struktura gotowa pod realne itemy gdy Finanse
+    zaczną powstawać.
+  - Wyszukiwarka jest GLOBALNA (przeszukuje wszystkie sekcje naraz, płaska lista
+    wyników — wzorzec `filterSections` z sapp), nie tylko aktywną kategorię.
+  - Log testów Diagnostyki widoczny TYLKO w tej sekcji (nie zaśmieca innych widoków).
+- **`TabBar.tsx` — aktywna zakładka dostaje kolorową odznakę w tle** (`${accent}1F`
+  nad `item`), ten sam język co ikony w kółkach na Dashboardzie/w Ustawieniach —
+  wcześniej aktywność sygnalizował WYŁĄCZNIE kolor ikony/tekstu, bez żadnego tła,
+  co odstawało od reszty systemu wizualnego.
+- Niezweryfikowane na urządzeniu — czeka na build i test usera.

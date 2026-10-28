@@ -54,7 +54,12 @@ export default function TabBar({
           const isActive = t.key === active;
           const Icon = t.icon;
           return (
-            <TouchableOpacity key={t.key} onPress={() => onPress(t.key)} style={s.item} activeOpacity={0.7}>
+            <TouchableOpacity
+              key={t.key}
+              onPress={() => onPress(t.key)}
+              style={[s.item, isActive && { backgroundColor: `${t.accent}1F` }]}
+              activeOpacity={0.7}
+            >
               <Icon size={22} color={isActive ? t.accent : inactiveColor} />
               <Text style={[s.label, { color: isActive ? t.accent : inactiveColor }]}>{t.label}</Text>
             </TouchableOpacity>
@@ -86,6 +91,10 @@ const makeS = themedStyles((c) => ({
     },
     divider: { width: 1, height: 24, backgroundColor: c.border.default, marginLeft: spacing[2] },
     cluster: { flexDirection: 'row', gap: spacing[1] },
+    // Aktywna zakładka dostaje odznakę koloru akcentu w tle (2026-10-28, user: "navbar
+    // dopasowany stylem pod taki jaki mamy") — ten sam język co ikony w kolorowych
+    // kółkach na Dashboardzie/w Ustawieniach (`${accent}XX` nad `bg.elevated`), zamiast
+    // samego przebarwienia ikony/tekstu bez żadnego tła.
     item: {
       alignItems: 'center', gap: 3, minWidth: 56,
       paddingVertical: spacing[1], paddingHorizontal: spacing[1], borderRadius: radius.md,

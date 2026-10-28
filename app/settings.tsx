@@ -4,7 +4,11 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
-import { ChevronLeft, Search, X, LogIn, Database, CalendarDays, AlertTriangle } from 'lucide-react-native';
+import {
+  ChevronLeft, ChevronRight, Search, X,
+  Info, Stethoscope, Wallet, Clock,
+  LogIn, Database, CalendarDays, AlertTriangle,
+} from 'lucide-react-native';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db, withTimeout } from '@/firebase';
 import { colors } from '@/theme/colors';
@@ -13,10 +17,8 @@ import { spacing, radius, themedStyles } from '@/theme';
 // Build metadata wstrzyknięty przez CI (`.github/workflows/build.yml`, krok "Build
 // release APK") jako EXPO_PUBLIC_* — Expo inline'uje te zmienne w bundlu JS na etapie
 // budowania. W Expo Go / dev (gdzie tych zmiennych nikt nie ustawia) spadamy na "dev"
-// — to NORMALNE, nie błąd (user to zobaczy wyłącznie uruchamiając appkę przez Expo Go,
-// nie w prawdziwym APK z CI). Dodane po tym jak user kilka razy z rzędu nie mógł
-// stwierdzić czy zainstalowany APK faktycznie jest najnowszym buildem (2026-10-27) —
-// patrz też fix `versionCode` w tym samym commicie/NEXT_STEPS.md.
+// — to NORMALNE, nie błąd. Dodane po tym jak user kilka razy z rzędu nie mógł
+// stwierdzić czy zainstalowany APK faktycznie jest najnowszym buildem (2026-10-27).
 const BUILD_INFO = {
   version: Constants.expoConfig?.version ?? '?',
   buildNumber: process.env.EXPO_PUBLIC_BUILD_NUMBER ?? 'dev',
@@ -24,38 +26,61 @@ const BUILD_INFO = {
   commit: process.env.EXPO_PUBLIC_BUILD_COMMIT ?? 'dev',
 };
 
-type SettingsItem = {
-  key: string;
-  label: string;
-  description: string; // nie pokazywana — tylko do dopasowania wyszukiwarki
-  icon: ComponentType<{ size?: number; color?: string }>;
-  accent: string;
-};
+type Icon = ComponentType<{ size?: number; color?: string }>;
 
-type SettingsSection = { title: string; items: SettingsItem[] };
+type SettingsItem =
+  | { kind: 'action'; key: string; label: string; description: string; icon: Icon; accent: string }
+  | { kind: 'value'; key: string; label: string; description: string; icon: Icon; accent: string; value: string };
 
-// Jedna sekcja na razie — "Diagnostyka" (dawne TEST_ITEMS) — to WCIĄŻ tylko
-// infrastruktura testowa (patrz komentarz przy handlerach niżej), nie prawdziwe
-// Ustawienia z ARCHITECTURE.md. Struktura sekcje+wyszukiwarka jest już gotowa pod
-// kolejne sekcje, gdy realne Ustawienia zaczną powstawać — dojdzie kolejny obiekt do
-// tej tablicy, zero zmian w layoucie/filtrze.
+type SettingsSection = { id: string; title: string; icon: Icon; color: string; items: SettingsItem[] };
+
+function plCount(n: number, one: string, few: string, many: string) {
+  if (n === 1) return one;
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)) return few;
+  return many;
+}
+
+// Sekcje Ustawień (2026-10-28, user: "ustawienia jak w sap musimy podzielić żeby mieć
+// INFO, DIAGNOSTYKĘ, FINANSE itp") — ten sam dwupoziomowy wzorzec co w sapp
+// (`SettingsSectionDef`/`SettingsCategoryRow`): lista kategorii na głównym ekranie,
+// kliknięcie przełącza widok na pełną listę TEJ kategorii (stan `activeSectionId`
+// niżej w komponencie, nie osobna trasa routera — dokładnie jak w sapp, patrz
+// komentarz przy `SettingsCategoryRow` tam: "kliknięcie woła openSection(section.id)").
+// FINANSE ma na razie jeden statyczny item "W budowie" — appka nie ma jeszcze żadnej
+// funkcji finansowej do wystawienia tutaj (patrz ARCHITECTURE.md); sekcja istnieje
+// żeby struktura była gotowa, nie żeby udawać gotową funkcję.
 const SECTIONS: SettingsSection[] = [
   {
-    title: 'DIAGNOSTYKA (TEST)',
+    id: 'info', title: 'Info', icon: Info, color: colors.stat.woda,
     items: [
-      { key: 'google', label: 'Zaloguj przez Google', description: 'logowanie konto sign-in', icon: LogIn, accent: colors.stat.woda },
-      { key: 'firestore', label: 'Test Firestore', description: 'baza danych synchronizacja', icon: Database, accent: colors.stat.finanse },
-      { key: 'calendar', label: 'Test Kalendarza Google', description: 'wydarzenia kalendarz', icon: CalendarDays, accent: colors.stat.event },
-      { key: 'alert', label: 'Test alertu (max priorytet)', description: 'powiadomienia alert notification', icon: AlertTriangle, accent: colors.accent.red },
+      { kind: 'value', key: 'info-version', label: 'Wersja', description: 'wersja aplikacji', icon: Info, accent: colors.stat.woda, value: BUILD_INFO.version },
+      { kind: 'value', key: 'info-build', label: 'Build', description: 'numer builda github actions', icon: Info, accent: colors.stat.woda, value: `#${BUILD_INFO.buildNumber}` },
+      { kind: 'value', key: 'info-date', label: 'Zbudowano', description: 'data builda', icon: Clock, accent: colors.stat.woda, value: BUILD_INFO.buildDate },
+      { kind: 'value', key: 'info-commit', label: 'Commit', description: 'git commit sha', icon: Info, accent: colors.stat.woda, value: BUILD_INFO.commit },
+    ],
+  },
+  {
+    id: 'diagnostyka', title: 'Diagnostyka', icon: Stethoscope, color: colors.accent.red,
+    items: [
+      { kind: 'action', key: 'google', label: 'Zaloguj przez Google', description: 'logowanie konto sign-in', icon: LogIn, accent: colors.stat.woda },
+      { kind: 'action', key: 'firestore', label: 'Test Firestore', description: 'baza danych synchronizacja', icon: Database, accent: colors.stat.finanse },
+      { kind: 'action', key: 'calendar', label: 'Test Kalendarza Google', description: 'wydarzenia kalendarz', icon: CalendarDays, accent: colors.stat.event },
+      { kind: 'action', key: 'alert', label: 'Test alertu (max priorytet)', description: 'powiadomienia alert notification', icon: AlertTriangle, accent: colors.accent.red },
+    ],
+  },
+  {
+    id: 'finanse', title: 'Finanse', icon: Wallet, color: colors.stat.finanse,
+    items: [
+      { kind: 'value', key: 'finanse-soon', label: 'Wkrótce', description: 'parser paragonów budżety limity kategorie', icon: Clock, accent: colors.stat.finanse, value: 'W budowie' },
     ],
   },
 ];
 
-// Ekran Ustawień — wyszukiwarka + pogrupowane karty w naszym systemie wizualnym
-// (Inter, kolorowe odznaki ikon, kafle jak na Dashboardzie). Pod spodem WCIĄŻ tylko
-// testy infrastruktury (Firebase/Google Sign-in/Calendar/alert) — WYŁĄCZNIE do
-// sprawdzenia czy są dobrze poustawione po stronie Google Cloud/Firebase Console,
-// zanim zaczniemy dokładać prawdziwe sekcje Ustawień. `@react-native-google-signin`
+// Ekran Ustawień — kategorie + wyszukiwarka w naszym systemie wizualnym (Inter,
+// kolorowe odznaki ikon, karty jak na Dashboardzie). Logika testów Diagnostyki
+// (Firebase/Google Sign-in/Calendar/alert) — WYŁĄCZNIE do sprawdzenia czy są dobrze
+// poustawione po stronie Google Cloud/Firebase Console. `@react-native-google-signin`
 // importowany DYNAMICZNIE w środku handlerów (natywny moduł, którego nie ma w Expo
 // Go — statyczny import na starcie appki wywaliłby cały ekran, może i appkę, zanim
 // user zdążyłby cokolwiek kliknąć). Błąd stąd ("Native module... cannot be null" /
@@ -64,6 +89,7 @@ export default function SettingsScreen() {
   const s = makeS();
   const [log, setLog] = useState<string[]>([]);
   const [query, setQuery] = useState('');
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
 
   const append = (line: string) => setLog((prev) => [line, ...prev].slice(0, 12));
 
@@ -132,10 +158,6 @@ export default function SettingsScreen() {
     append('⏳ Alert (max priorytet)…');
     try {
       const Notifications = await import('expo-notifications');
-      // BEZ TEGO appka w ogóle nie pokazuje powiadomienia gdy jest na pierwszym planie
-      // (domyślne zachowanie Expo od kilku SDK) — realna przyczyna "nic się nie
-      // dzieje": `scheduleNotificationAsync` mógł się udać (✅ w logu), ale bez
-      // handlera system nie wiedział że ma cokolwiek wyświetlić.
       Notifications.setNotificationHandler({
         handleNotification: async () => ({
           shouldShowBanner: true,
@@ -153,10 +175,6 @@ export default function SettingsScreen() {
         bypassDnd: true,
         lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
       });
-      // `as any` — `NotificationPermissionsStatus`'s re-eksportowany `PermissionResponse`
-      // z pakietu `expo` nie rozwiązuje się poprawnie w tej wersji (status/granted "nie
-      // istnieją" wg tsc mimo że runtime je zwraca) — niegroźne dla testowego
-      // przycisku, nie warto walczyć z typami dla tego.
       const permResult: any = await Notifications.requestPermissionsAsync();
       if (!permResult?.granted && permResult?.status !== 'granted') {
         throw new Error('Brak zgody na powiadomienia');
@@ -168,8 +186,6 @@ export default function SettingsScreen() {
           sound: 'default',
           priority: Notifications.AndroidNotificationPriority.MAX,
         },
-        // `{ channelId }` (bez `type`) = dostarcz NATYCHMIAST, ale przez ten kanał
-        // (to kanał, nie content, niesie priorytet/dźwięk/wibrację na Androidzie 8+).
         trigger: { channelId: 'alerts-max' },
       });
       append('✅ Wysłano — oceń jak wygląda/brzmi na urządzeniu.');
@@ -191,23 +207,55 @@ export default function SettingsScreen() {
   };
 
   const q = query.trim().toLowerCase();
-  const filteredSections = useMemo(() => {
-    if (!q) return SECTIONS;
-    return SECTIONS
-      .map((section) => ({
-        ...section,
-        items: section.items.filter(
-          (item) => item.label.toLowerCase().includes(q) || item.description.toLowerCase().includes(q),
-        ),
-      }))
-      .filter((section) => section.items.length > 0);
+  // Szukanie jest GLOBALNE (przeszukuje wszystkie sekcje naraz, nie tylko aktywną) —
+  // wpisanie czegokolwiek w pasek pokazuje płaską listę trafień ze WSZYSTKICH sekcji
+  // (ten sam wzorzec co w sapp: `filterSections`), żeby user nie musiał wiedzieć w
+  // której kategorii coś jest.
+  const searchResults = useMemo(() => {
+    if (!q) return null;
+    return SECTIONS.flatMap((section) =>
+      section.items.filter(
+        (item) => item.label.toLowerCase().includes(q) || item.description.toLowerCase().includes(q),
+      ),
+    );
   }, [q]);
+
+  const activeSection = activeSectionId ? SECTIONS.find((sec) => sec.id === activeSectionId) ?? null : null;
+
+  const handleBack = () => {
+    if (query) { setQuery(''); return; }
+    if (activeSection) { setActiveSectionId(null); return; }
+    router.back();
+  };
+
+  const headerTitle = query ? 'Szukaj' : activeSection ? activeSection.title : 'Ustawienia';
+
+  const renderItem = (item: SettingsItem, isLast: boolean) => {
+    const Icon = item.icon;
+    const inner = (
+      <>
+        <View style={[s.itemIcon, { backgroundColor: `${item.accent}33` }]}>
+          <Icon size={16} color={item.accent} />
+        </View>
+        <Text style={s.itemLabel}>{item.label}</Text>
+        {item.kind === 'value' && <Text style={s.itemValue} numberOfLines={1}>{item.value}</Text>}
+      </>
+    );
+    if (item.kind === 'value') {
+      return <View key={item.key} style={[s.item, !isLast && s.itemDivider]}>{inner}</View>;
+    }
+    return (
+      <TouchableOpacity key={item.key} style={[s.item, !isLast && s.itemDivider]} onPress={handlers[item.key]} activeOpacity={0.7}>
+        {inner}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}><ChevronLeft size={22} color={colors.text.primary} /></TouchableOpacity>
-        <Text style={s.title}>Ustawienia</Text>
+        <TouchableOpacity onPress={handleBack} style={s.backBtn}><ChevronLeft size={22} color={colors.text.primary} /></TouchableOpacity>
+        <Text style={s.title}>{headerTitle}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -215,7 +263,7 @@ export default function SettingsScreen() {
         <Search size={16} color={colors.text.muted} />
         <TextInput
           value={query}
-          onChangeText={setQuery}
+          onChangeText={(v) => { setQuery(v); if (v) setActiveSectionId(null); }}
           placeholder="Szukaj w ustawieniach…"
           placeholderTextColor={colors.text.muted}
           style={s.searchInput}
@@ -228,49 +276,51 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-        {filteredSections.length === 0 && (
-          <Text style={s.noResults}>Brak wyników dla „{query}”.</Text>
+        {searchResults ? (
+          searchResults.length === 0 ? (
+            <Text style={s.noResults}>Brak wyników dla „{query}”.</Text>
+          ) : (
+            <View style={s.sectionCard}>
+              {searchResults.map((item, i) => renderItem(item, i === searchResults.length - 1))}
+            </View>
+          )
+        ) : activeSection ? (
+          <View style={s.sectionCard}>
+            {activeSection.items.map((item, i) => renderItem(item, i === activeSection.items.length - 1))}
+          </View>
+        ) : (
+          SECTIONS.map((section) => {
+            const Icon = section.icon;
+            return (
+              <TouchableOpacity
+                key={section.id}
+                style={s.categoryRow}
+                onPress={() => setActiveSectionId(section.id)}
+                activeOpacity={0.7}
+              >
+                <View style={[s.categoryIcon, { backgroundColor: `${section.color}33` }]}>
+                  <Icon size={18} color={section.color} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.categoryTitle}>{section.title}</Text>
+                  <Text style={s.categorySubtitle}>
+                    {section.items.length} {plCount(section.items.length, 'pozycja', 'pozycje', 'pozycji')}
+                  </Text>
+                </View>
+                <ChevronRight size={18} color={colors.text.muted} />
+              </TouchableOpacity>
+            );
+          })
         )}
 
-        {filteredSections.map((section) => (
-          <View key={section.title} style={s.section}>
-            <Text style={s.sectionTitle}>{section.title}</Text>
-            <View style={s.sectionCard}>
-              {section.items.map((item, i) => {
-                const Icon = item.icon;
-                return (
-                  <TouchableOpacity
-                    key={item.key}
-                    style={[s.item, i !== section.items.length - 1 && s.itemDivider]}
-                    onPress={handlers[item.key]}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[s.itemIcon, { backgroundColor: `${item.accent}33` }]}>
-                      <Icon size={16} color={item.accent} />
-                    </View>
-                    <Text style={s.itemLabel}>{item.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+        {/* Log testów — tylko w sekcji Diagnostyka (jedyne miejsce gdzie testy coś
+            robią), nie zaśmieca listy kategorii ani innych sekcji/wyników szukania. */}
+        {activeSection?.id === 'diagnostyka' && (
+          <View style={s.logBox}>
+            {log.length === 0 && <Text style={s.logEmpty}>Wyniki testów pojawią się tutaj.</Text>}
+            {log.map((line, i) => <Text key={i} style={s.logLine}>{line}</Text>)}
           </View>
-        ))}
-
-        <View style={s.logBox}>
-          {log.length === 0 && <Text style={s.logEmpty}>Wyniki testów pojawią się tutaj.</Text>}
-          {log.map((line, i) => <Text key={i} style={s.logLine}>{line}</Text>)}
-        </View>
-
-        {/* Statyczny blok info — POZA systemem sekcji/wyszukiwarki (nic tu nie jest
-            klikalne ani nie pasuje do konceptu "ustawienia do znalezienia"), żeby user
-            zawsze mógł jednym spojrzeniem sprawdzić czy zainstalowany APK to faktycznie
-            najnowszy build, niezależnie od tego co wpisze w wyszukiwarkę wyżej. */}
-        <View style={s.aboutBox}>
-          <Text style={s.aboutRow}>Wersja <Text style={s.aboutValue}>{BUILD_INFO.version}</Text></Text>
-          <Text style={s.aboutRow}>Build <Text style={s.aboutValue}>#{BUILD_INFO.buildNumber}</Text></Text>
-          <Text style={s.aboutRow}>Zbudowano <Text style={s.aboutValue}>{BUILD_INFO.buildDate}</Text></Text>
-          <Text style={s.aboutRow}>Commit <Text style={s.aboutValue}>{BUILD_INFO.commit}</Text></Text>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -290,11 +340,21 @@ const makeS = themedStyles((c) => StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 13.5, fontFamily: 'Inter_500Medium', color: c.text.primary, padding: 0 },
 
-  scroll: { paddingHorizontal: spacing[4], paddingBottom: spacing[4], gap: spacing[4] },
+  scroll: { paddingHorizontal: spacing[4], paddingBottom: spacing[4], gap: spacing[2] },
   noResults: { fontSize: 12.5, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', marginTop: spacing[4] },
 
-  section: { gap: spacing[2] },
-  sectionTitle: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted, letterSpacing: 0.5, marginLeft: spacing[1] },
+  // Wiersz kategorii na głównym ekranie Ustawień (2026-10-28, wzorzec z sapp:
+  // `SettingsCategoryRow`) — karta z odznaką ikony, tytułem + liczbą pozycji, strzałką
+  // w prawo. Kliknięcie wchodzi w pełną listę tej kategorii (`activeSectionId`).
+  categoryRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[3],
+    backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default,
+    padding: spacing[3],
+  },
+  categoryIcon: { width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  categoryTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  categorySubtitle: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 1 },
+
   sectionCard: {
     backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default,
     overflow: 'hidden',
@@ -306,12 +366,9 @@ const makeS = themedStyles((c) => StyleSheet.create({
   itemDivider: { borderBottomWidth: 1, borderBottomColor: c.border.subtle },
   itemIcon: { width: 32, height: 32, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   itemLabel: { flex: 1, fontSize: 13.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  itemValue: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.secondary, maxWidth: 160 },
 
   logBox: { backgroundColor: c.bg.elevated, borderRadius: radius.lg, padding: spacing[3], gap: 6 },
   logEmpty: { fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.muted },
   logLine: { fontSize: 11.5, color: c.text.secondary, fontFamily: 'monospace' },
-
-  aboutBox: { alignItems: 'center', gap: 4, paddingVertical: spacing[2] },
-  aboutRow: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: c.text.muted },
-  aboutValue: { fontFamily: 'Inter_700Bold', color: c.text.secondary },
 }));
