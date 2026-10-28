@@ -1,5 +1,8 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, initializeFirestore, type Firestore } from 'firebase/firestore';
+import * as firebaseAuth from 'firebase/auth';
+import { initializeAuth, getAuth, indexedDBLocalPersistence, type Auth } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Wszystko tu poza `apiKey` to publiczna konfiguracja klienta (projekt sapp2-a2354,
 // patrz INFRA.md) — bezpieczna do commitowania, tak jak google-services.json. `apiKey`
@@ -33,6 +36,27 @@ try {
   _db = getFirestore(firebaseApp);
 }
 export const db: Firestore = _db;
+
+// Logowanie wymagane od razu (2026-10-28, user: "wymagaj logowania Google od razu" —
+// prostszy wariant niż sap-owa anonimowa-sesja-linkowana-z-Google), więc trwała
+// persystencja sesji jest KRYTYCZNA — bez niej user musiałby logować się ponownie
+// przy każdym starcie appki. `getReactNativePersistence` istnieje TYLKO w RN-owym
+// buildzie `firebase/auth` (nie w typach/web buildzie) — stąd wyciągnięte dynamicznie
+// (`as any`), nie jako nazwany import, żeby nie wywalić typecheck/web. Ten sam
+// dokładnie gotcha i fix co w sapp (src/services/firebase.ts).
+const getRNPersistence = (firebaseAuth as any).getReactNativePersistence as
+  | ((storage: unknown) => unknown)
+  | undefined;
+
+let _auth: Auth;
+try {
+  _auth = initializeAuth(firebaseApp, {
+    persistence: getRNPersistence ? (getRNPersistence(AsyncStorage) as any) : indexedDBLocalPersistence,
+  });
+} catch {
+  _auth = getAuth(firebaseApp);
+}
+export const auth: Auth = _auth;
 
 // sapp (src/services/firebase.ts) złapał ten sam objaw: zapis bez persystencji nie
 // resolve'uje ANI nie rejectuje na słabym/zablokowanym połączeniu — wisi tak długo, aż

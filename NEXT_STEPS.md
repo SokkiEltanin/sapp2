@@ -588,4 +588,56 @@ ukończeniem poprzedniej):
 - **Nie zaczęte** — to jest zakres na WIELE kolejnych sesji, nie jeden build. Przed
   pisaniem kodu trzeba przejrzeć implementację kalendarza w sapp (store, ekrany,
   Google Calendar sync) i rozpisać plan portu/adaptacji do sapp2, zaktualizować
+
+## Fundament logowania Google — PRZED portem kalendarza (2026-10-28)
+
+Port kalendarza wymaga danych per-user w Firestore (`users/{uid}/...`, dokładnie jak w
+sapp) — a sapp2 nie miało WCALE Firebase Auth (test "Zaloguj przez Google" w
+Diagnostyce wołał tylko `GoogleSignin.signIn()`, bez żadnego linkowania do Firebase).
+User wybrał (zapytany wprost): **"Wymagaj logowania Google od razu"** — bez
+anonimowej sesji jak w sapp (tam Google Sign-in w Diagnostyce i tak nigdy nie dotykał
+`auth.currentUser` — sapp cały czas działa na anonimowym userze, Google Sign-in tam
+służy TYLKO do Google Calendar API, nie do Firebase Auth).
+
+Zbudowane:
+- `src/firebase.ts` — `auth` export (`initializeAuth` + `getReactNativePersistence`
+  dynamicznie, `indexedDBLocalPersistence` jako fallback — identyczny gotcha/fix co w
+  sapp `src/services/firebase.ts`).
+- `src/hooks/useAuthUser.ts` — `onAuthStateChanged` wrapper, `initializing` startuje
+  jako `true` ZAWSZE (nawet dla sesji z persystencji `auth.currentUser` nie jest
+  ustawiony synchronicznie — Firebase i tak woła listener asynchronicznie
+  przynajmniej raz).
+- `src/services/googleAuth.ts` — `signInWithGoogle()`/`signOutGoogle()`. JEDYNE
+  miejsce gdzie Google Sign-in realnie robi `signInWithCredential` do Firebase —
+  test Diagnostyki w Ustawieniach zostaje bez zmian logiki (sam sprawdza config
+  Google Cloud/Firebase Console, teraz tylko czyta `GOOGLE_WEB_CLIENT_ID` z tego
+  serwisu zamiast duplikować string).
+- `src/utils/userData.ts` — `userCol`/`userDoc`/`requireUid()`. Bez anonimowego
+  fallbacku jak w sapp — `requireUid()` rzuca jeśli nie ma usera, bo bramka poniżej
+  nie powinna nigdy dopuścić do wywołania tego bez zalogowanego usera (błąd
+  programisty, nie przypadek do cichej obsługi).
+- `app/login.tsx` — nowy ekran, jedyna droga do appki dla niezalogowanego usera.
+  Przycisk "Zaloguj przez Google" woła `signInWithGoogle()`; po sukcesie NIE robi
+  ręcznego `router.replace` — bramka w `_layout.tsx` sama przekieruje po zmianie
+  stanu auth.
+- `app/_layout.tsx` — `useAuthGate()`: `useSegments()[0] === 'login'` + jeden efekt
+  przekierowujący w obie strony (niezalogowany gdzieś poza `/login` → `/login`;
+  zalogowany wciąż na `/login` → `/`). Krótki spinner na czas `initializing`
+  (pierwszy `onAuthStateChanged`, zwykle < 1 klatka) — bez tego byłby błysk złego
+  ekranu na starcie appki.
+- `app/settings.tsx` — nowa sekcja "Konto" (e-mail zalogowanego usera + "Wyloguj")
+  tak żeby logowanie nie było dead-endem bez możliwości wylogowania (zasada #7).
+  `SECTIONS` zmienione ze statycznej stałej na `buildSections(email)` wołane przez
+  `useMemo` w komponencie, bo e-mail jest dynamiczny (wcześniej cała lista sekcji
+  była całkowicie statyczna).
+- Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
+  bundluje się bez błędów (3252 modułów).
+- **Niezweryfikowane na urządzeniu** — czeka na build i realny test logowania/
+  wylogowania usera (dev-client wymagany, `@react-native-google-signin` nie działa
+  w Expo Go — identycznie jak istniejący test Diagnostyki).
+- **Dalej, po weryfikacji na urządzeniu**: Faza 1a kalendarza — port
+  `src/types/calendar.ts` (trimmed), `src/services/calendarService.ts` (na nowym
+  `userCol`/`userDoc`), `src/services/googleCalendarService.ts` +
+  `src/utils/googleCalendarMap.ts`, `src/store/calendarStore.ts` — patrz sekcja
+  "Następna wielka faza" wyżej dla pełnego planu i kolejności faz.
   ARCHITECTURE.md — dokładnie tak jak user poprosił ("z głową").

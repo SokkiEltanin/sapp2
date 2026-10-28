@@ -7,12 +7,14 @@ import Constants from 'expo-constants';
 import {
   ChevronLeft, ChevronRight, Search, X,
   Info, Stethoscope, Wallet, Clock, Bell,
-  LogIn, Database, CalendarDays, AlertTriangle, Rocket,
+  LogIn, LogOut, User as UserIcon, Database, CalendarDays, AlertTriangle, Rocket,
 } from 'lucide-react-native';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db, withTimeout } from '@/firebase';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
+import { useAuthUser } from '@/hooks/useAuthUser';
+import { GOOGLE_WEB_CLIENT_ID, signOutGoogle } from '@/services/googleAuth';
 
 // Build metadata wstrzyknięty przez CI (`.github/workflows/build.yml`, krok "Build
 // release APK") jako EXPO_PUBLIC_* — Expo inline'uje te zmienne w bundlu JS na etapie
@@ -50,7 +52,19 @@ function plCount(n: number, one: string, few: string, many: string) {
 // FINANSE ma na razie jeden statyczny item "W budowie" — appka nie ma jeszcze żadnej
 // funkcji finansowej do wystawienia tutaj (patrz ARCHITECTURE.md); sekcja istnieje
 // żeby struktura była gotowa, nie żeby udawać gotową funkcję.
-const SECTIONS: SettingsSection[] = [
+//
+// Funkcja, nie stała — sekcja "Konto" potrzebuje realnego e-maila zalogowanego usera
+// (`useAuthUser()`), więc cała lista musi przeliczać się w komponencie, nie raz na
+// moduł (patrz `useMemo(() => buildSections(...))` niżej).
+function buildSections(email: string | null): SettingsSection[] {
+  return [
+  {
+    id: 'konto', title: 'Konto', icon: UserIcon, color: colors.accent.blue,
+    items: [
+      { kind: 'value', key: 'account-email', label: 'Zalogowano jako', description: 'konto google', icon: UserIcon, accent: colors.accent.blue, value: email ?? '—' },
+      { kind: 'action', key: 'account-logout', label: 'Wyloguj', description: 'wyloguj z konta google', icon: LogOut, accent: colors.accent.red },
+    ],
+  },
   {
     id: 'info', title: 'Info', icon: Info, color: colors.stat.woda,
     items: [
@@ -89,7 +103,8 @@ const SECTIONS: SettingsSection[] = [
       { kind: 'value', key: 'finanse-soon', label: 'Wkrótce', description: 'parser paragonów budżety limity kategorie', icon: Clock, accent: colors.stat.finanse, value: 'W budowie' },
     ],
   },
-];
+  ];
+}
 
 // Ekran Ustawień — kategorie + wyszukiwarka w naszym systemie wizualnym (Inter,
 // kolorowe odznaki ikon, karty jak na Dashboardzie). Logika testów Diagnostyki
@@ -101,18 +116,34 @@ const SECTIONS: SettingsSection[] = [
 // podobny) = normalne, oczekiwane w Expo Go, wyjaśnione userowi wprost w UI.
 export default function SettingsScreen() {
   const s = makeS();
+  const { user } = useAuthUser();
   const [log, setLog] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
 
   const append = (line: string) => setLog((prev) => [line, ...prev].slice(0, 12));
 
+  // Ekran Ustawień żyje WYŁĄCZNIE pod bramką logowania (app/_layout.tsx) — `user` tu
+  // jest więc zawsze ustawiony, ale `?? null` i tak jest bezpieczne dla typów i dla
+  // ułamka sekundy między wylogowaniem a przekierowaniem bramki na /login.
+  const sections = useMemo(() => buildSections(user?.email ?? null), [user?.email]);
+
+  const handleLogout = async () => {
+    append('Wylogowywanie…');
+    try {
+      await signOutGoogle();
+      append('Wylogowano — przekieruje na ekran logowania.');
+    } catch (e: any) {
+      append(`Błąd wylogowania: ${String(e?.message ?? e)}`);
+    }
+  };
+
   const testGoogleSignIn = async () => {
     append('Logowanie Google…');
     try {
       const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
       GoogleSignin.configure({
-        webClientId: '237061417548-pent1blbeebj8kov67f8f5focr98usgr.apps.googleusercontent.com',
+        webClientId: GOOGLE_WEB_CLIENT_ID,
         offlineAccess: true,
         scopes: ['https://www.googleapis.com/auth/calendar.events'],
       });
@@ -303,6 +334,7 @@ export default function SettingsScreen() {
   };
 
   const handlers: Record<string, () => void> = {
+    'account-logout': handleLogout,
     google: testGoogleSignIn,
     firestore: testFirestore,
     calendar: testCalendar,
@@ -318,14 +350,14 @@ export default function SettingsScreen() {
   // której kategorii coś jest.
   const searchResults = useMemo(() => {
     if (!q) return null;
-    return SECTIONS.flatMap((section) =>
+    return sections.flatMap((section) =>
       section.items.filter(
         (item) => item.label.toLowerCase().includes(q) || item.description.toLowerCase().includes(q),
       ),
     );
-  }, [q]);
+  }, [q, sections]);
 
-  const activeSection = activeSectionId ? SECTIONS.find((sec) => sec.id === activeSectionId) ?? null : null;
+  const activeSection = activeSectionId ? sections.find((sec) => sec.id === activeSectionId) ?? null : null;
 
   const handleBack = () => {
     if (query) { setQuery(''); return; }
@@ -394,7 +426,7 @@ export default function SettingsScreen() {
             {activeSection.items.map((item, i) => renderItem(item, i === activeSection.items.length - 1))}
           </View>
         ) : (
-          SECTIONS.map((section) => {
+          sections.map((section) => {
             const Icon = section.icon;
             return (
               <TouchableOpacity
@@ -418,9 +450,9 @@ export default function SettingsScreen() {
           })
         )}
 
-        {/* Log testów — tylko w sekcjach gdzie testy coś robią (Diagnostyka, Alerty),
-            nie zaśmieca listy kategorii ani innych sekcji/wyników szukania. */}
-        {(activeSection?.id === 'diagnostyka' || activeSection?.id === 'alerty') && (
+        {/* Log testów — tylko w sekcjach gdzie testy/akcje coś robią (Konto, Diagnostyka,
+            Alerty), nie zaśmieca listy kategorii ani innych sekcji/wyników szukania. */}
+        {(activeSection?.id === 'konto' || activeSection?.id === 'diagnostyka' || activeSection?.id === 'alerty') && (
           <View style={s.logBox}>
             {log.length === 0 && <Text style={s.logEmpty}>Wyniki testów pojawią się tutaj.</Text>}
             {log.map((line, i) => <Text key={i} style={s.logLine}>{line}</Text>)}

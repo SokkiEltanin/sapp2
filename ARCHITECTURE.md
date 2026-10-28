@@ -90,3 +90,20 @@ powiadomień (patrz niżej).
   Pupila/roślinki. Patrz rozmowa 2026-10-26 w historii sesji po szczegóły wykonalności
   (Android full-screen intent — wymaga więcej niż goły `expo-notifications`,
   prawdopodobnie `notifee` albo custom native code).
+- **Logowanie (wymagane od razu)** — 2026-10-28, user: "wymagaj logowania Google od
+  razu". W przeciwieństwie do sapp (sesja anonimowa cały czas, Google Sign-in tam
+  tylko dla Google Calendar API, nigdy nie dotyka Firebase Auth), sapp2 NIE wpuszcza
+  nigdzie bez zalogowanego Firebase-usera:
+  - `app/_layout.tsx` (`useAuthGate`) — bramka: `useSegments()[0] === 'login'` +
+    `useAuthUser()` (`src/hooks/useAuthUser.ts`) decydują czy przekierować na
+    `/login` czy na `/`. Krótki spinner na czas `initializing`.
+  - `app/login.tsx` — jedyny ekran dostępny bez usera, przycisk woła
+    `signInWithGoogle()` (`src/services/googleAuth.ts` — JEDYNE miejsce które realnie
+    robi `signInWithCredential` do Firebase; test Diagnostyki w `app/settings.tsx`
+    woła samo `GoogleSignin.signIn()`, bez linkowania, bo sprawdza tylko konfigurację
+    Google Cloud/Firebase Console).
+  - `src/utils/userData.ts` (`userCol`/`userDoc`/`requireUid`) — jedyna droga do
+    Firestore per-user (`users/{uid}/...`), bez anonimowego fallbacku jak w sapp.
+    Każdy przyszły serwis (kalendarz, finanse) idzie przez to, nie przez gołe
+    `collection(db, ...)`.
+  - "Konto" w Ustawieniach (e-mail + Wyloguj) — żeby logowanie nie było dead-endem.
