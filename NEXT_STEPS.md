@@ -460,3 +460,30 @@ te same ikony co mieliśmy) zostaje, zmienia się WYŁĄCZNIE traktowanie wizual
   pokazywał inne glify (grid/pencil/calendar/menu) tylko jako PRZYKŁAD stylu
   (osobny, mniejszy mockup z 4 slotami), nie prescrypcję które ikony mają być u nas.
 - Niezweryfikowane na urządzeniu — czeka na build i test usera.
+
+## Notifee full-screen — pierwszy prawdziwy test na urządzeniu (2026-10-28)
+
+User odpalił "Notifee (full-screen)" — dotarło do `displayNotification` (fix
+`vibrationPattern` zadziałał), ale: (1) pokazał się zwykły, długi popup heads-up, NIE
+full-screen nad blokadą, (2) BEZ dźwięku i wibracji mimo poprawnej konfiguracji kanału
+w kodzie. Dwie osobne, zdiagnozowane przyczyny:
+
+- **Cisza**: kanały powiadomień na Androidzie są NIEMUTOWALNE po pierwszym utworzeniu.
+  Build #29 (przed fixem `vibrationPattern`) rzucał błąd walidacji W TRAKCIE
+  `createChannel` — mógł zdążyć zarejestrować kanał `alerts-fullscreen` z domyślnymi
+  (cichymi) ustawieniami, zanim dotarł do walidacji wzorca wibracji. Każdy kolejny,
+  poprawny `createChannel` pod tym samym `id` jest przez system IGNOROWANY — trzyma
+  się pierwszej rejestracji. Fix: nowy `id` kanału (`alerts-fullscreen-v2`), świeża
+  rejestracja. Jeśli to się powtórzy po kolejnej zmianie configu kanału — podbić `id`
+  znowu, nie da się "nadpisać" istniejącego kanału z poziomu appki (tylko user ręcznie
+  przez ustawienia systemowe albo pełny reinstall appki).
+- **Brak full-screen**: user klikał przycisk i PATRZYŁ na telefon — appka była więc
+  cały czas widoczna na pierwszym planie. Android pokazuje `fullScreenAction` WYŁĄCZNIE
+  gdy target-Activity NIE jest już widoczna (zablokowany ekran / inna appka na
+  wierzchu) — skoro appka była widoczna, system uznał że nie ma po co jej "wybudzać"
+  i pokazał zwykły heads-up. Fix: `testNotifeeFullScreen` ma teraz 5-sekundowe
+  opóźnienie (`setTimeout`) PRZED `displayNotification`, z komunikatem w logu "Za 5s
+  (zablokuj ekran TERAZ)" — user ma czas kliknąć przycisk i zablokować telefon zanim
+  powiadomienie faktycznie wystrzeli.
+- Niezweryfikowane na urządzeniu — czeka na build i KOLEJNY test (tym razem z
+  faktycznie zablokowanym ekranem w momencie wystrzału).

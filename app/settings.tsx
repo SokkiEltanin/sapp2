@@ -220,7 +220,7 @@ export default function SettingsScreen() {
   // appki ("Pełnoekranowe powiadomienia") — jeśli test "nic nie robi" mimo ✅ w
   // logu, to pierwsze miejsce do sprawdzenia, nie bug w kodzie.
   const testNotifeeFullScreen = async () => {
-    append('⏳ Alert (notifee full-screen)…');
+    append('⏳ Za 5s (zablokuj ekran TERAZ)…');
     try {
       const notifeeModule = await import('@notifee/react-native');
       const notifee = notifeeModule.default;
@@ -229,21 +229,30 @@ export default function SettingsScreen() {
       if (settings.authorizationStatus < AuthorizationStatus.AUTHORIZED) {
         throw new Error('Brak zgody na powiadomienia');
       }
+      // UWAGA: kanał na Androidzie jest NIEMUTOWALNY po utworzeniu — build #29 rzucał
+      // błąd walidacji na starym `vibrationPattern` W TRAKCIE `createChannel`, co mogło
+      // zdążyć zarejestrować kanał z domyślnymi (cichymi) ustawieniami zanim doszło do
+      // walidacji. Każda kolejna zmiana konfiguracji musi iść pod NOWYM id, inaczej
+      // system trzyma się pierwszej (zepsutej) rejestracji — złapane na urządzeniu
+      // (2026-10-28, user: "bez wibracji czy dźwięku" mimo poprawnej konfiguracji w
+      // kodzie). `-v2` tutaj, podbijać przy kolejnej zmianie configu kanału.
       const channelId = await notifee.createChannel({
-        id: 'alerts-fullscreen',
-        name: 'Alerty pełnoekranowe (test)',
+        id: 'alerts-fullscreen-v2',
+        name: 'Alerty pełnoekranowe (test) v2',
         importance: AndroidImportance.HIGH,
         sound: 'default',
         vibration: true,
-        // UWAGA: notifee (inaczej niż expo-notifications) wymaga WYŁĄCZNIE dodatnich
-        // wartości — wiodące `0` jako "opóźnienie startu" (dozwolone w
-        // expo-notifications) tu wywala walidację ("expected an array containing an
-        // even number of positive values"), złapane na urządzeniu (2026-10-28).
         vibrationPattern: [300, 500, 300, 500],
         lights: true,
         lightColor: '#EF4444',
         bypassDnd: true,
       });
+      // Opóźnienie CELOWE: Android pokazuje `fullScreenAction` TYLKO gdy appka NIE
+      // jest już widoczna na pierwszym planie (zablokowany ekran / inna appka) — user
+      // klikał przycisk i patrzył na telefon, więc appka BYŁA widoczna i system
+      // pokazywał zwykły heads-up zamiast przejęcia ekranu (2026-10-28, pierwszy test
+      // na urządzeniu). 5s daje czas na zablokowanie ekranu po kliknięciu.
+      await new Promise((resolve) => setTimeout(resolve, 5000));
       await notifee.displayNotification({
         title: '🔴 Test alertu (notifee)',
         body: 'Jeśli to działa jak budzik — wybudzi ekran i pokaże appkę NAD blokadą.',
@@ -257,7 +266,7 @@ export default function SettingsScreen() {
           sound: 'default',
         },
       });
-      append('✅ Wysłano — zablokuj ekran teraz i poczekaj (albo obserwuj na żywo).');
+      append('✅ Wysłano teraz (po 5s).');
     } catch (e: any) {
       const msg = String(e?.message ?? e);
       if (msg.includes('Native module') || msg.includes('cannot be null') || msg.includes('TurboModule')) {
