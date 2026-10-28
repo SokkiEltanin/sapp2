@@ -392,3 +392,40 @@ User: "navbar dopasowany stylem pod taki jaki mamy, tak samo ustawienia i zakła
   wcześniej aktywność sygnalizował WYŁĄCZNIE kolor ikony/tekstu, bez żadnego tła,
   co odstawało od reszty systemu wizualnego.
 - Niezweryfikowane na urządzeniu — czeka na build i test usera.
+
+## Sandbox pełnoekranowych alertów (2026-10-28)
+
+User: "potraktujmy sapp2 jako pole do manewrów, zrób ustawienia tych alertów, możesz
+nawet kilka opcji osobno testować, ja powiem która działa/czy coś działa". Nowa sekcja
+**Alerty** w Ustawieniach z DWOMA niezależnymi testami do bezpośredniego porównania:
+
+- **Expo (MAX priorytet)** — bez zmian logiki (dawny `testFullScreenAlert`,
+  przeniesiony z Diagnostyki), punkt odniesienia. Już wcześniej potwierdzone przez
+  usera że NIE przebija blokady ekranu — to tylko heads-up, sufit gołego
+  `expo-notifications`.
+- **Notifee (full-screen)** — NOWA opcja, `@notifee/react-native` (`npx expo install`,
+  wylądował na `^9.1.8`). Prawdziwy natywny `fullScreenAction: { launchActivity:
+  'default' }` w `displayNotification`, kanał `AndroidImportance.HIGH` +
+  `AndroidCategory.CALL` (ten sam mechanizm co budzik/połączenie przychodzące).
+  - **`plugins/withFullScreenAlert.js`** (nowy, wzorzec identyczny do
+    `withTasksWidget.js` w sapp — `withAndroidManifest` + `getMainActivityOrThrow`):
+    dopisuje `android:showWhenLocked="true"` + `android:turnScreenOn="true"` na
+    MainActivity. BEZ TEGO notifee wystawia `fullScreenIntent` natywnie, ale Android
+    i tak pokaże to jako zwykłe heads-up — te dwie flagi na DOCELOWEJ Activity są
+    tym co faktycznie pozwala wyjść NAD blokadę ekranu. Zweryfikowane lokalnie:
+    `npx expo prebuild` → `AndroidManifest.xml` ma obie flagi na `.MainActivity`.
+  - **`app.json`**: dodane `android.permission.USE_FULL_SCREEN_INTENT` (wymagane od
+    któregoś Androida żeby full-screen-intent w ogóle się odpalił) + plugin do tablicy
+    `plugins`.
+  - **UWAGA do oceny razem z userem**: `showWhenLocked` na MainActivity jest GLOBALNE
+    dla tej Activity, nie tylko w momencie alertu — jeśli user zdecyduje że to
+    zostaje na stałe, docelowo lepiej przenieść te flagi na DEDYKOWANĄ, osobną
+    natywną Activity tylko dla alertów (nie całą główną appkę), żeby zwykłe otwarcie
+    appki z zablokowanego telefonu nie omijało blokady ekranu poza kontekstem
+    prawdziwego alertu. Zostawione tak na razie bo to SANDBOX/test, nie decyzja
+    produkcyjna.
+  - **Android 14+**: `USE_FULL_SCREEN_INTENT` może wymagać RĘCZNEGO włączenia przez
+    usera w ustawieniach systemowych appki ("Pełnoekranowe powiadomienia") — jeśli
+    test "nic nie robi" mimo ✅ w logu, to pierwsze miejsce do sprawdzenia, nie bug.
+- Niezweryfikowane na urządzeniu — czeka na build i test usera. User ma ocenić która
+  opcja (jeśli którakolwiek) faktycznie wybudza telefon nad blokadą ekranu.

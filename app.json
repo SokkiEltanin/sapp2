@@ -24,13 +24,15 @@
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.VIBRATE",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.USE_FULL_SCREEN_INTENT"
       ]
     },
     "plugins": [
       "expo-router",
       "expo-font",
       "expo-notifications",
+      "./plugins/withFullScreenAlert.js",
       [
         "expo-build-properties",
         {

@@ -6,8 +6,8 @@ import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import {
   ChevronLeft, ChevronRight, Search, X,
-  Info, Stethoscope, Wallet, Clock,
-  LogIn, Database, CalendarDays, AlertTriangle,
+  Info, Stethoscope, Wallet, Clock, Bell,
+  LogIn, Database, CalendarDays, AlertTriangle, Rocket,
 } from 'lucide-react-native';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db, withTimeout } from '@/firebase';
@@ -66,7 +66,20 @@ const SECTIONS: SettingsSection[] = [
       { kind: 'action', key: 'google', label: 'Zaloguj przez Google', description: 'logowanie konto sign-in', icon: LogIn, accent: colors.stat.woda },
       { kind: 'action', key: 'firestore', label: 'Test Firestore', description: 'baza danych synchronizacja', icon: Database, accent: colors.stat.finanse },
       { kind: 'action', key: 'calendar', label: 'Test Kalendarza Google', description: 'wydarzenia kalendarz', icon: CalendarDays, accent: colors.stat.event },
-      { kind: 'action', key: 'alert', label: 'Test alertu (max priorytet)', description: 'powiadomienia alert notification', icon: AlertTriangle, accent: colors.accent.red },
+    ],
+  },
+  // Sandbox do porównania kilku podejść do prawdziwych full-screen-intent alertów
+  // (2026-10-28, user: "potraktujmy sapp2 jako pole do manewrów... kilka opcji osobno
+  // testować, ja powiem która działa"). Dwa NIEZALEŻNE testy, celowo osobno:
+  // `expo` = sufit gołego expo-notifications (MAX priorytet, heads-up — już wcześniej
+  // sprawdzone, NIE przebija blokady ekranu); `notifee` = prawdziwy natywny
+  // `fullScreenIntent` (patrz `plugins/withFullScreenAlert.js`), który POWINIEN
+  // wybudzić telefon i pokazać appkę NAD blokadą jak budzik/połączenie przychodzące.
+  {
+    id: 'alerty', title: 'Alerty', icon: Bell, color: colors.accent.red,
+    items: [
+      { kind: 'action', key: 'alert-expo', label: 'Expo (MAX priorytet)', description: 'powiadomienia alert notification heads-up', icon: AlertTriangle, accent: colors.accent.red },
+      { kind: 'action', key: 'alert-notifee', label: 'Notifee (full-screen)', description: 'powiadomienia alert notification pelny ekran budzik', icon: Rocket, accent: colors.accent.purple },
     ],
   },
   {
@@ -149,12 +162,12 @@ export default function SettingsScreen() {
     }
   };
 
-  // Test "full-screen alertu" (user chce sprawdzić jak bardzo customowe da się zrobić
-  // powiadomienia na Androidzie). UCZCIWIE: to SUFIT tego co daje goły
-  // `expo-notifications` (kanał o najwyższym priorytecie, dźwięk, wibracja, heads-up)
-  // — NIE prawdziwy full-screen-intent blokujący ekran jak budzik (to wymaga `notifee`
-  // albo natywnego kodu, patrz NEXT_STEPS.md).
-  const testFullScreenAlert = async () => {
+  // Opcja 1/2 sandboxa alertów: SUFIT tego co daje goły `expo-notifications` (kanał o
+  // najwyższym priorytecie, dźwięk, wibracja, heads-up) — NIE prawdziwy
+  // full-screen-intent blokujący ekran jak budzik (już sprawdzone wcześniej przez
+  // usera — nie przebija blokady ekranu). Zostaje jako punkt odniesienia do porównania
+  // z opcją notifee niżej.
+  const testExpoAlert = async () => {
     append('⏳ Alert (max priorytet)…');
     try {
       const Notifications = await import('expo-notifications');
@@ -199,11 +212,64 @@ export default function SettingsScreen() {
     }
   };
 
+  // Opcja 2/2: `notifee` z natywnym `fullScreenAction` (patrz
+  // `plugins/withFullScreenAlert.js` — bez flag `showWhenLocked`/`turnScreenOn` na
+  // docelowej Activity w manifeście, Android pokaże to WYŁĄCZNIE jako zwykłe
+  // heads-up, nie nad blokadą ekranu). Na Androidzie 14+ `USE_FULL_SCREEN_INTENT`
+  // może też wymagać ręcznego włączenia przez usera w ustawieniach systemowych
+  // appki ("Pełnoekranowe powiadomienia") — jeśli test "nic nie robi" mimo ✅ w
+  // logu, to pierwsze miejsce do sprawdzenia, nie bug w kodzie.
+  const testNotifeeFullScreen = async () => {
+    append('⏳ Alert (notifee full-screen)…');
+    try {
+      const notifeeModule = await import('@notifee/react-native');
+      const notifee = notifeeModule.default;
+      const { AndroidImportance, AndroidCategory, AndroidVisibility, AuthorizationStatus } = notifeeModule;
+      const settings = await notifee.requestPermission();
+      if (settings.authorizationStatus < AuthorizationStatus.AUTHORIZED) {
+        throw new Error('Brak zgody na powiadomienia');
+      }
+      const channelId = await notifee.createChannel({
+        id: 'alerts-fullscreen',
+        name: 'Alerty pełnoekranowe (test)',
+        importance: AndroidImportance.HIGH,
+        sound: 'default',
+        vibration: true,
+        vibrationPattern: [0, 500, 250, 500],
+        lights: true,
+        lightColor: '#EF4444',
+        bypassDnd: true,
+      });
+      await notifee.displayNotification({
+        title: '🔴 Test alertu (notifee)',
+        body: 'Jeśli to działa jak budzik — wybudzi ekran i pokaże appkę NAD blokadą.',
+        android: {
+          channelId,
+          category: AndroidCategory.CALL,
+          importance: AndroidImportance.HIGH,
+          visibility: AndroidVisibility.PUBLIC,
+          fullScreenAction: { id: 'default', launchActivity: 'default' },
+          pressAction: { id: 'default' },
+          sound: 'default',
+        },
+      });
+      append('✅ Wysłano — zablokuj ekran teraz i poczekaj (albo obserwuj na żywo).');
+    } catch (e: any) {
+      const msg = String(e?.message ?? e);
+      if (msg.includes('Native module') || msg.includes('cannot be null') || msg.includes('TurboModule')) {
+        append('⚠️ notifee niedostępny w Expo Go — potrzebny build APK z tego CI.');
+      } else {
+        append(`❌ Błąd notifee: ${msg}`);
+      }
+    }
+  };
+
   const handlers: Record<string, () => void> = {
     google: testGoogleSignIn,
     firestore: testFirestore,
     calendar: testCalendar,
-    alert: testFullScreenAlert,
+    'alert-expo': testExpoAlert,
+    'alert-notifee': testNotifeeFullScreen,
   };
 
   const q = query.trim().toLowerCase();
@@ -313,9 +379,9 @@ export default function SettingsScreen() {
           })
         )}
 
-        {/* Log testów — tylko w sekcji Diagnostyka (jedyne miejsce gdzie testy coś
-            robią), nie zaśmieca listy kategorii ani innych sekcji/wyników szukania. */}
-        {activeSection?.id === 'diagnostyka' && (
+        {/* Log testów — tylko w sekcjach gdzie testy coś robią (Diagnostyka, Alerty),
+            nie zaśmieca listy kategorii ani innych sekcji/wyników szukania. */}
+        {(activeSection?.id === 'diagnostyka' || activeSection?.id === 'alerty') && (
           <View style={s.logBox}>
             {log.length === 0 && <Text style={s.logEmpty}>Wyniki testów pojawią się tutaj.</Text>}
             {log.map((line, i) => <Text key={i} style={s.logLine}>{line}</Text>)}
