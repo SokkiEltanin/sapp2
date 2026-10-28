@@ -339,3 +339,28 @@ najnowszy build. Dodane:
   numer/datę, a layout dalej wygląda staro — to już NIE jest problem instalacji/cache,
   tylko coś innego do zdiagnozowania od nowa.
 - Niezweryfikowane na urządzeniu — czeka na build i test usera.
+
+**Rozwiązane**: po instrukcji ręcznego sprawdzenia nazwy pobranego pliku + "O
+aplikacji" user potwierdził build #26 faktycznie zainstalowany (problem był po jego
+stronie — stary/zcache'owany download, nie infrastruktura). Dzięki temu dopiero teraz
+dostaliśmy PRAWDZIWY feedback wizualny na aktualny kod (patrz Runda poprawek 9 niżej).
+
+## Runda poprawek 9 (2026-10-28) — pierwszy prawdziwy feedback na build #26
+
+- **TaskListTile — chip REALNIE wystawał poza wiersz** (user: "kolorowe kwadraty...
+  za duże per kafelek... nachodzą na granice"). Policzone dokładnie: dostępna
+  wysokość JEDNEGO wiersza = `(TILE_ROW_HEIGHT=120 − padding kafla×2=8 − 3 odstępy
+  międzywierszowe×6=18) / 4 wiersze ≈ 23.5px`. Chip miał `height: 26` — WIĘKSZY niż
+  wiersz, w którym żyje! Wcześniej (odstęp 3px zamiast 6px z rundy 7) różnica była
+  pod-pikselowa/niezauważalna; podbicie odstępu do 6px (żeby wiersze "pływały" jak w
+  mockupie) dopiero wtedy przelało to w realny, widoczny overflow — klasyczny
+  przypadek dwóch osobno-poprawnych zmian psujących się nawzajem. Fix:
+  `chip` 46×26 radius 10 → **32×18 radius 7** (ta sama proporcja z Figmy ~1.78:1 /
+  promień ~40% wysokości, przeskalowana żeby faktycznie mieścić się w 23.5px), ikony
+  wewnątrz 15/14 → 11/10, `chipLabel` fontSize 11.5 → 10.
+- **FoodBarsTile — zły kierunek gradientu**: user "był lekki od prawego dolnego rogu
+  do lewego górnego" (skos), u nas był pionowy góra→dół (z poprzedniej rundy, zgadywany
+  bez referencji bo user wtedy powiedział "ogarniesz już po stylu"). Fix:
+  `start:{1,1}→end:{0,0}` (czarny prawy-dół, akcent lewy-góra), reszta (kolor, 20%
+  opacity) bez zmian.
+- Niezweryfikowane na urządzeniu — czeka na build i test usera.

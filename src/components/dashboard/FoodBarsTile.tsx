@@ -29,10 +29,13 @@ export default function FoodBarsTile({
 
   return (
     <View style={[s.tile, cornersForPosition(position)]}>
+      {/* Po skosie z prawego-dolnego (czarny) do lewego-górnego (akcent) — user:
+          "lekki od prawego dolnego rogu do lewego górnego". Poprzednio pionowy
+          (góra→dół), nie po przekątnej jak w oryginale. */}
       <LinearGradient
         colors={['#000000', colors.stat.finanse]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+        start={{ x: 1, y: 1 }}
+        end={{ x: 0, y: 0 }}
         style={s.gradient}
       />
       <Text style={s.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{title}</Text>

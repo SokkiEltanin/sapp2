@@ -57,9 +57,9 @@ function TagChip({ tag }: { tag: TaskTag }) {
           {tag.text}
         </Text>
       )}
-      {tag.kind === 'empty' && <MoreHorizontal size={15} color={fg} />}
-      {tag.kind === 'bell' && <Bell size={15} color={fg} />}
-      {tag.kind === 'urgent' && <AlertTriangle size={14} color={fg} fill={fg} strokeWidth={0} />}
+      {tag.kind === 'empty' && <MoreHorizontal size={11} color={fg} />}
+      {tag.kind === 'bell' && <Bell size={11} color={fg} />}
+      {tag.kind === 'urgent' && <AlertTriangle size={10} color={fg} fill={fg} strokeWidth={0} />}
     </View>
   );
 }
@@ -134,11 +134,21 @@ const makeS = themedStyles((c) => StyleSheet.create({
   // poprzednia wersja miała DWA różne kształty (rosnąca pigułka dla `label`, stały
   // okrąg dla `empty`/`bell`/`urgent`) i borderRadius:999 (pełne zaokrąglenie) —
   // oba te założenia były błędne względem źródła.
+  //
+  // Rozmiar PRZELICZONY względem realnie dostępnej wysokości wiersza, nie przepisany
+  // 1:1 — realny root cause "chip wystaje poza kafelek" (2026-10-27, user): wysokość
+  // 26 była WIĘKSZA niż faktyczna wysokość jednego wiersza (TILE_ROW_HEIGHT=120, minus
+  // padding kafla ×2, minus 3 odstępy między wierszami, przez 4 wiersze ≈ 23.5px) —
+  // chip dosłownie nie mieścił się w swoim wierszu. Wcześniej (mniejszy odstęp
+  // międzywierszowy, 3px zamiast 6px) różnica była na tyle mała że niezauważalna;
+  // runda 7 podbiła odstęp do 6px i dopiero wtedy przelało się to w realny,
+  // widoczny overflow. 18 (zamiast 26) mieści się z zapasem, proporcja z Figmy
+  // zachowana (~1.78:1 szerokość:wysokość, promień ~40% wysokości).
   chip: {
-    width: 46, height: 26, borderRadius: 10,
+    width: 32, height: 18, borderRadius: 7,
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  chipLabel: { fontFamily: 'Inter_900Black', fontSize: 11.5 },
+  chipLabel: { fontFamily: 'Inter_900Black', fontSize: 10 },
   // fontSize podbity względem chipa (2026-10-27, Figma: tytuł 40 vs tekst chipa 32 —
   // różnica 1.25×, u nas była za mała, 13.5 vs 11.5 ≈ 1.17×).
   title: { flex: 1, fontFamily: 'Inter_700Bold', fontSize: 14.5, color: c.text.primary },
