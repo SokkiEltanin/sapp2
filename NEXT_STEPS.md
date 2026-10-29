@@ -771,3 +771,12 @@ rundzie diagnostyki). Dodane `expo-clipboard` (`Clipboard.setStringAsync`) +
 przycisk "Kopiuj log" nad listą logów w Konto/Diagnostyka/Alerty — kopiuje dokładnie
 to co widać na ekranie (ten sam porządek co `log`, najnowsze na górze). Zweryfikowane:
 `npx tsc --noEmit` czysto, `npx expo export --platform android` bez błędów.
+
+## Navbar — kolor tła dopasowany do kafelków (2026-10-29)
+
+User: "ogarnij żeby ten navbar był w szarym tym co mamy inne kafelki" — `TabBar.tsx`
+(`settingsBtn`/`cluster`) używał `c.bg.elevated` (#14171F, lekko niebieskawy), a
+wszystkie kafelki Dashboardu (StatTile, FoodBarsTile, LevelTile,
+PatternTileBackground) konsekwentnie używają `c.bg.card` (#141414, neutralny szary).
+Zmienione na `c.bg.card` dla spójności. Zweryfikowane: `npx tsc --noEmit` czysto,
+`npx expo export --platform android` bez błędów.

@@ -140,9 +140,13 @@ const makeS = themedStyles((c) => ({
     },
     // Okrągły przycisk Ustawień — w PEŁNI osobny pływający element (nie część
     // wspólnego paska), własny cień żeby czytał się jako uniesiony nad tłem.
+    // `c.bg.card` (2026-10-29, user: "ogarnij żeby ten navbar był w szarym tym co
+    // mamy inne kafelki") — NIE `c.bg.elevated` (lekko niebieskawy #14171F), tylko
+    // ten sam neutralny szary #141414 co Dashboard stat tiles/FoodBarsTile/LevelTile
+    // itd. (patrz colors.ts: "Baza pod kartami/kaflami... jednolicie").
     settingsBtn: {
       width: 44, height: 44, borderRadius: radius.full,
-      backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.border.default,
+      backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default,
       alignItems: 'center', justifyContent: 'center',
       shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
       elevation: 6,
@@ -152,7 +156,7 @@ const makeS = themedStyles((c) => ({
     // prostokąt), własny cień tak samo jak `settingsBtn` dla spójnego "unoszenia się".
     cluster: {
       flexDirection: 'row', gap: spacing[1],
-      backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.border.default,
+      backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default,
       borderRadius: radius.full, paddingHorizontal: spacing[2], paddingVertical: spacing[1],
       shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
       elevation: 6,
