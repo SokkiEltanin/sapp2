@@ -100,6 +100,7 @@ function buildSections(email: string | null): SettingsSection[] {
       { kind: 'action', key: 'alert-expo', label: 'Expo (MAX priorytet)', description: 'powiadomienia alert notification heads-up', icon: AlertTriangle, accent: colors.accent.red },
       { kind: 'action', key: 'alert-notifee', label: 'Notifee (bez przycisku)', description: 'powiadomienia alert notification pelny ekran budzik', icon: Rocket, accent: colors.accent.purple },
       { kind: 'action', key: 'alert-notifee-buttons', label: 'Notifee (Tak/Nie)', description: 'powiadomienia alert notification pelny ekran budzik przyciski akcji', icon: Rocket, accent: colors.accent.green },
+      { kind: 'action', key: 'alert-notifee-5min', label: 'Notifee za 5 min (test OLED)', description: 'sprawdza czy ekran faktycznie sie wybudza z glebokiego usypiania, nie tylko gra w ciemno', icon: Rocket, accent: colors.accent.orange },
     ],
   },
   {
@@ -316,8 +317,16 @@ export default function SettingsScreen() {
   //   2. `createTriggerNotification` jak dotąd (za 5s, do testu zablokowanego ekranu) +
   //      `getTriggerNotificationIds()` zaraz po, żeby log pokazał czy system W OGÓLE
   //      przyjął ten trigger (pusta lista = cicho odrzucony, mimo že `await` nie rzucił).
-  const sendNotifeeAlert = async (withActions: boolean) => {
-    append('Alert notifee: start…');
+  // `delayMs` (2026-10-29, user: "musimy sprawdzić czy np po 5 min ekran się
+  // wybudzi sam... czy będzie ciemny, bo to OLED screen") — domyślnie 5s do
+  // szybkich testów, ale parametryzowane żeby dało się odpalić realny test na
+  // dłuższym opóźnieniu (patrz item "Test alertu za 5 min" w Alerty) — krótki 5s
+  // test nie sprawdza czy ekran FIZYCZNIE się wybudza z głębokiego uśpienia/OLED
+  // całkowicie czarnego ekranu, tylko czy mechanizm w ogóle działa zanim telefon
+  // zdąży zejść w głębszy stan oszczędzania energii.
+  const sendNotifeeAlert = async (withActions: boolean, delayMs = 5000) => {
+    const delayLabel = delayMs >= 60000 ? `${Math.round(delayMs / 60000)} min` : `${Math.round(delayMs / 1000)}s`;
+    append(`Alert notifee (za ${delayLabel}): start…`);
     try {
       const notifeeModule = await import('@notifee/react-native');
       const notifee = notifeeModule.default;
@@ -347,6 +356,19 @@ export default function SettingsScreen() {
       });
       append(`Kanał gotowy: ${channelId}`);
 
+      // `loopSound: true` (2026-10-29, user: "dodaj na razie domyślny [dźwięk],
+      // żeby potem customowy cały ekran") — zero nowego pliku audio do
+      // zbundlowania: to ustawia `FLAG_INSISTENT`, czyli DOMYŚLNY systemowy dźwięk
+      // kanału (`sound: 'default'`) powtarza się w pętli aż notyfikacja zostanie
+      // otwarta/anulowana, zamiast zagrać raz i ucichnąć (łatwo przegapić
+      // pojedynczy krótki "ding" w trakcie przejścia na pełny ekran — to
+      // prawdopodobnie dlaczego wcześniej wyglądało na "brak dźwięku"). Docelowo
+      // (gdy user poda/wybierze własny plik audio) to miejsce PRZEJDZIE na
+      // zapętlone odtwarzanie customowego dźwięku z poziomu `app/alert-test.tsx`
+      // (tak jak już robi to wibracja tam) zamiast systemowego dźwięku kanału —
+      // rozdzielenie "warstwa notyfikacji" (ten plik) vs "warstwa ekranu alarmu"
+      // (alert-test.tsx) jest już naturalne, więc ta zmiana będzie izolowana, nie
+      // przepisywaniem całości.
       const android = {
         channelId,
         category: AndroidCategory.CALL,
@@ -355,6 +377,7 @@ export default function SettingsScreen() {
         fullScreenAction: { id: 'default', launchActivity: 'default' },
         pressAction: { id: 'default' },
         sound: 'default',
+        loopSound: true,
         ...(withActions && {
           actions: [
             { title: 'Nie', pressAction: { id: 'no' } },
@@ -384,7 +407,7 @@ export default function SettingsScreen() {
       // NIE rzuca błędem, tylko cicho degraduje do niedokładnego/odłożonego alarmu.
       const notifId = await notifee.createTriggerNotification(
         {
-          title: 'Test alertu za 5s (notifee)',
+          title: `Test alertu za ${delayLabel} (notifee)`,
           body: withActions
             ? 'Wybudzi ekran i pokaże appkę NAD blokadą, z przyciskami Tak/Nie.'
             : 'Wybudzi ekran i pokaże appkę NAD blokadą, bez przycisków (sam tap).',
@@ -393,12 +416,12 @@ export default function SettingsScreen() {
         },
         {
           type: TriggerType.TIMESTAMP,
-          timestamp: Date.now() + 5000,
+          timestamp: Date.now() + delayMs,
           alarmManager: { allowWhileIdle: true },
         },
       );
       const pending = await notifee.getTriggerNotificationIds();
-      append(`Trigger zaplanowany (id ${String(notifId)}) — system ma ${pending.length} aktywnych triggerów. Zablokuj ekran TERAZ.`);
+      append(`Trigger zaplanowany za ${delayLabel} (id ${String(notifId)}) — system ma ${pending.length} aktywnych triggerów. Zablokuj ekran TERAZ.`);
     } catch (e: any) {
       const msg = String(e?.message ?? e);
       const code = e?.code ? ` [${e.code}]` : '';
@@ -419,6 +442,7 @@ export default function SettingsScreen() {
     'alert-expo': testExpoAlert,
     'alert-notifee': () => sendNotifeeAlert(false),
     'alert-notifee-buttons': () => sendNotifeeAlert(true),
+    'alert-notifee-5min': () => sendNotifeeAlert(false, 5 * 60 * 1000),
   };
 
   const q = query.trim().toLowerCase();

@@ -857,3 +857,35 @@ Zbudowane w odpowiedzi:
   bez błędów. **Niezweryfikowane na urządzeniu** — czeka na build i realny test:
   czy launch teraz faktycznie ląduje na `/alert-test` (nie w Ustawieniach), czy
   wibracja się odpala.
+
+## Domyślny dźwięk (loopSound) + test wybudzenia OLED (2026-10-29)
+
+User: "dodaj na razie domyślny [dźwięk], żeby potem customowy cały ekran" + "musimy
+sprawdzić czy np po 5 min ekran się wybudzi sam z ekranem alarmu, czy będzie ciemny
+i będzie grał, bo to OLED screen".
+
+- **`loopSound: true`** dodane do wspólnego `android` configu w `sendNotifeeAlert`
+  (`app/settings.tsx`) — zero nowego pliku audio: ustawia natywny
+  `FLAG_INSISTENT`, więc DOMYŚLNY systemowy dźwięk kanału (`sound: 'default'`)
+  powtarza się w pętli aż notyfikacja zostanie otwarta/anulowana, zamiast zagrać
+  raz i ucichnąć. Prawdopodobne wyjaśnienie dlaczego wcześniej "nie było dźwięku"
+  — pojedynczy krótki systemowy "ding" łatwo przegapić w trakcie przejścia na
+  pełny ekran.
+  - **Zapisane pod przyszłą customizację** (user: "żeby potem customowy cały
+    ekran") — warstwa notyfikacji (ten plik, systemowy dźwięk+loopSound) i warstwa
+    ekranu alarmu (`app/alert-test.tsx`, wibracja) są już naturalnie rozdzielone.
+    Gdy user poda/wybierze własny plik audio: dodać go do `assets/`, zastąpić
+    `sound: 'default'`/`loopSound` odtwarzaniem pętli tego pliku przez `expo-av`
+    BEZPOŚREDNIO w `alert-test.tsx` (tak jak już robi to `Vibration.vibrate`
+    tam) — izolowana zmiana, nie przepisywanie całości.
+- **Nowy test "Notifee za 5 min (test OLED)"** w Ustawienia -> Alerty —
+  `sendNotifeeAlert` sparametryzowane przez `delayMs` (domyślnie 5000, tu
+  `5*60*1000`). Cel: krótki 5s test nie sprawdza czy ekran FIZYCZNIE wybudza się
+  z głębokiego uśpienia/OLED całkowicie czarnego ekranu, tylko czy mechanizm w
+  ogóle działa zanim telefon zdąży zejść w głębszy stan oszczędzania energii —
+  user ma zamknąć appkę, zablokować ekran, odłożyć telefon na 5 min i sprawdzić
+  czy ekran sam się włączy z ekranem alarmu (dobry znak) czy zostanie czarny i
+  tylko zagra dźwięk/zawibruje w tle (zły znak — oznaczałby że `turnScreenOn`
+  działa tylko w krótkim oknie, nie po głębszym uśpieniu).
+- Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
+  bez błędów. **Niezweryfikowane na urządzeniu.**
