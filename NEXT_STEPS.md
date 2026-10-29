@@ -780,3 +780,44 @@ wszystkie kafelki Dashboardu (StatTile, FoodBarsTile, LevelTile,
 PatternTileBackground) konsekwentnie używają `c.bg.card` (#141414, neutralny szary).
 Zmienione na `c.bg.card` dla spójności. Zweryfikowane: `npx tsc --noEmit` czysto,
 `npx expo export --platform android` bez błędów.
+
+## Szkielety ekranów: Daily/Zadania/Finanse (2026-10-29)
+
+User: "zacznij budować szkielet tak jak opisywałem pod finanse, kalendarz, zadania,
+itp". Zapytany wprost o zakres — potwierdzone: **lekka struktura nawigacyjna wg
+ARCHITECTURE.md**, bez głębokiej logiki (parser paragonów, edytor produktów,
+prawdziwe dane kalendarza w UI) — to wciąż wchodzi w ustalonej, niezmiennej
+kolejności faz: Kalendarz/Zadania UI (Faza 1b) → Finanse+parsery (Faza 2) →
+Praca/Daily (Faza 3). Trzy zakładki zamienione z gołego `PlaceholderScreen` na
+poukładaną strukturę:
+
+- **`app/(tabs)/daily.tsx`** — sekcje Zdrowie(woda)/Ćwiczenia/Kroki/Waga/Humor, 1:1
+  z ARCHITECTURE.md §DAILY. JEDZENIE świadomie pominięte (user w sapp: "nie
+  sprawdzała się", ARCHITECTURE.md: "zostawiamy potencjał/miejsce, NIE dodajemy jej
+  teraz") — zero karty, nie tylko wyłączona.
+- **`app/(tabs)/tasks.tsx`** — statyczny pasek BIEŻĄCEGO tygodnia (Pon-Nd, dziś
+  podświetlone, ŻADNYCH prawdziwych wydarzeń — to wymaga podpięcia
+  `calendarStore`, które czeka na Fazę 1b) + trzy sekcje TERAZ/Bezterminowe/
+  Terminowe (logika z sapp #42, UI/UX od zera — tu na razie tylko nagłówki +
+  empty state).
+- **`app/(tabs)/finances.tsx`** — karta salda (placeholder "0,00 zł"), "Ostatnie
+  transakcje" (empty state, docelowo max 3-4 pozycje, nie cała lista — §FINANSE),
+  Praca/Subskrypcje jako wiersze. POJAZDY/PRODUKTY świadomie pominięte (§FINANSE:
+  "odłożone na koniec"). Zunifikowany FAB "dodaj" też pominięty — czeka na
+  rozstrzygnięcie "Kolizja lewy dolny róg" (patrz niżej w tym pliku) żeby nie
+  dublować miejsca z Ustawieniami.
+- **`src/components/ui/ComingSoonRow.tsx`** — nowy, współdzielony wiersz "ikona +
+  etykieta + odznaka Wkrótce" (Daily sekcje, Finanse Praca/Subskrypcje — ten sam
+  kształt w obu miejscach, stąd jeden komponent zamiast kopiowania). Celowo `View`
+  nie `TouchableOpacity` — nic tu jeszcze nigdzie nie prowadzi.
+- **Pupil NIE dotknięty** — zostaje `PlaceholderScreen`, bo jego mechanika
+  ("roślinka zamiast bossów") to dopiero pomysł do zaprojektowania od zera, nie ma
+  jeszcze struktury (sekcji/podekranów) żeby ją zeszkieletować bez zgadywania.
+- Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
+  bez błędów. Czysto wizualne — brak logiki do testowania na urządzeniu poza "czy
+  się nie wywraca i wygląda spójnie z resztą appki".
+- **Dalej**: Faza 1a (warstwa danych kalendarza) jest już zweryfikowana na
+  urządzeniu (test "Sync kalendarza (dane)", build #39) — następny krok to Faza 1b,
+  pełna logika Kalendarza/Zadań (podpięcie `calendarStore`/`calendarService`/
+  `googleCalendarService` pod te ekrany, prawdziwe dane zamiast empty-state), PRZED
+  Finansami, zgodnie z ustaloną kolejnością.

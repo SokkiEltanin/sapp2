@@ -1,9 +1,16 @@
 # ARCHITECTURE.md — sapp2
 
 Mapa ekranów i połączeń między nimi. Rozpisana przez usera (2026-10-26), zapisana tu
-żeby się nie zgubiła między sesjami. **Jeszcze nie zbudowane** (poza Dashboardem, patrz
-`NEXT_STEPS.md`) — to plan, nie stan faktyczny. Aktualizuj przy każdej decyzji o nowym
+żeby się nie zgubiła między sesjami. Aktualizuj przy każdej decyzji o nowym
 ekranie/połączeniu (patrz `CLAUDE.md`).
+
+**Stan budowy** (2026-10-29): Dashboard w pełni zbudowany. Daily/Zadania/Finanse mają
+**lekki szkielet struktury** (layout, sekcje, nagłówki — bez głębokiej logiki, patrz
+NEXT_STEPS.md "Szkielety ekranów") — user: "zacznij budować szkielet pod finanse,
+kalendarz, zadania", potwierdzone: struktura teraz, pełne funkcje w ustalonej
+kolejności faz (Kalendarz/Zadania UI → Finanse+parsery → Praca/Daily). Pupil —
+wciąż tylko placeholder, bo jego mechanika ("roślinka") jest dopiero pomysłem do
+zaprojektowania, nie ma jeszcze struktury do zeszkieletowania.
 
 Oznaczenia głębokości nawigacji:
 - **GE** — Główny Ekran (jeden z 5 w navbarze)
