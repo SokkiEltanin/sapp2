@@ -363,9 +363,16 @@ export default function SettingsScreen() {
         }),
       };
 
+      // `data: { route: 'alert-test' }` — łapane przez
+      // src/hooks/useNotifeeAlertLaunch.ts, żeby tap/fullScreenAction na TYM alercie
+      // (nie na jakimkolwiek innym powiadomieniu appki) przekierował na dedykowany
+      // ekran alarmu (app/alert-test.tsx), nie zostawiał usera na ostatnim otwartym
+      // ekranie appki (2026-10-29, user po teście: "żeby nie cała apka była tylko
+      // alarm screen testowy").
       await notifee.displayNotification({
         title: 'Test NATYCHMIAST (notifee)',
         body: 'Jeśli TEGO nie widzisz/słyszysz od razu (appka wciąż otwarta), problem jest w zgodzie/kanale, nie w opóźnionym triggerze.',
+        data: { route: 'alert-test' },
         android,
       });
       append('Natychmiastowe wysłane — POWINNO pokazać się OD RAZU, appka wciąż otwarta.');
@@ -381,6 +388,7 @@ export default function SettingsScreen() {
           body: withActions
             ? 'Wybudzi ekran i pokaże appkę NAD blokadą, z przyciskami Tak/Nie.'
             : 'Wybudzi ekran i pokaże appkę NAD blokadą, bez przycisków (sam tap).',
+          data: { route: 'alert-test' },
           android,
         },
         {

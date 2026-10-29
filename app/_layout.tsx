@@ -14,6 +14,7 @@ import {
 } from '@expo-google-fonts/inter';
 import { colors } from '@/theme/colors';
 import { useAuthUser } from '@/hooks/useAuthUser';
+import { useNotifeeAlertLaunch } from '@/hooks/useNotifeeAlertLaunch';
 
 // ŚWIADOMIE bez importu @react-native-google-signin/google-signin tutaj — to natywny
 // moduł, Expo Go go nie ma, a import na poziomie modułu (nie wołanie funkcji) wywaliłby
@@ -58,6 +59,9 @@ export default function RootLayout() {
 
   const { user, initializing } = useAuthUser();
   useAuthGate(user, initializing);
+  // Deep-link z pełnoekranowego alertu notifee na dedykowany ekran alarmu (patrz
+  // app/alert-test.tsx) — patrz komentarz w src/hooks/useNotifeeAlertLaunch.ts.
+  useNotifeeAlertLaunch();
 
   // W przeciwieństwie do fontów, TEGO jednego czekania appka nie może "ignorować" —
   // pierwszy render musi wiedzieć czy pokazać ekrany, czy /login, inaczej zalogowany

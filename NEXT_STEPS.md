@@ -821,3 +821,39 @@ poukładaną strukturę:
   pełna logika Kalendarza/Zadań (podpięcie `calendarStore`/`calendarService`/
   `googleCalendarService` pod te ekrany, prawdziwe dane zamiast empty-state), PRZED
   Finansami, zgodnie z ustaloną kolejnością.
+
+## Alert notifee — fullscreen DZIAŁA, dedykowany ekran + wibracja (2026-10-29)
+
+Pierwsza na urządzeniu potwierdzona kamień milowy: user po buildzie z
+SCHEDULE_EXACT_ALARM + diagnostycznym teście — "chyba full screen alert działa...
+jak wyjdę z apki to pokazuje zablokowany ekran [i launchuje appkę nad nim]". Czyli
+natywny `fullScreenAction` (plugin `withFullScreenAlert.js` + `USE_FULL_SCREEN_INTENT`
++ `SCHEDULE_EXACT_ALARM`) faktycznie działa, gdy appka jest w tle — pierwsze
+potwierdzone działanie tego mechanizmu w całej sadze. Dwa pozostałe problemy:
+1. Brak dźwięku/wibracji nadal.
+2. Launch ląduje w ostatnio otwartym ekranie appki (np. Ustawienia), nie w
+   dedykowanym "ekranie alarmu" — user: "trzeba dostosować okno alertu osobne...
+   żeby nie cała apka była tylko alarm screen testowy z wibracjami lub dźwiękiem".
+
+Zbudowane w odpowiedzi:
+- **`app/alert-test.tsx`** — nowy, dedykowany pełnoekranowy ekran alarmu (duża
+  ikona, tytuł, przycisk "Wyłącz"). Wibracja przez WBUDOWANE RN `Vibration.vibrate`
+  (pętla, zero nowej zależności/assetu) — odpala się przy montowaniu, zatrzymuje na
+  dismiss/unmount. To bezpośrednio rozwiązuje połowę problemu #1 (wibracja).
+- **`src/hooks/useNotifeeAlertLaunch.ts`** — deep-link z powiadomienia na ten
+  ekran: `getInitialNotification()` (cold start) + `onForegroundEvent` (wznowienie
+  z tła) + `onBackgroundEvent` (appka w tle, nie zabita — dokładnie scenariusz
+  który user przetestował), wszystko za dynamicznym importem notifee (zasada appki
+  — zero statycznych importów natywnych modułów poza handlerami). Rozwiązuje #2.
+- **`app/_layout.tsx`** — wywołuje `useNotifeeAlertLaunch()`.
+- **`app/settings.tsx`** — oba powiadomienia (natychmiastowe + trigger) dostały
+  `data: { route: 'alert-test' }`, żeby hook wyżej wiedział że TO konkretnie ten
+  alert, nie jakiekolwiek inne powiadomienie appki w przyszłości.
+- **DŹWIĘK ŚWIADOMIE POMINIĘTY na razie** — wymaga pliku audio do zbundlowania w
+  `assets/`, którego appka jeszcze nie ma. User: "dostosowywanie później w
+  ustawieniach czy coś" — zaakceptowane jako kolejny, osobny krok (potrzebny plik
+  dźwiękowy od usera albo wybór jednego do dodania), nie blokuje tej rundy.
+- Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
+  bez błędów. **Niezweryfikowane na urządzeniu** — czeka na build i realny test:
+  czy launch teraz faktycznie ląduje na `/alert-test` (nie w Ustawieniach), czy
+  wibracja się odpala.
