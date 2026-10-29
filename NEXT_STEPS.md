@@ -763,3 +763,11 @@ triggera, robi teraz DWIE niezależne rzeczy i loguje każdy krok:
   manifestowego permission.
 - Zweryfikowane lokalnie: `npx tsc --noEmit` czysto, `npx expo export --platform
   android` bez błędów. **Niezweryfikowane na urządzeniu.**
+
+## Kopiowanie logu w Ustawieniach (2026-10-29)
+
+User: "dodaj tam kopiowanie logów, będzie szybciej" (zamiast screenshota przy każdej
+rundzie diagnostyki). Dodane `expo-clipboard` (`Clipboard.setStringAsync`) +
+przycisk "Kopiuj log" nad listą logów w Konto/Diagnostyka/Alerty — kopiuje dokładnie
+to co widać na ekranie (ten sam porządek co `log`, najnowsze na górze). Zweryfikowane:
+`npx tsc --noEmit` czysto, `npx expo export --platform android` bez błędów.

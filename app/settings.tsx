@@ -6,9 +6,10 @@ import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import {
   ChevronLeft, ChevronRight, Search, X,
-  Info, Stethoscope, Wallet, Clock, Bell,
+  Info, Stethoscope, Wallet, Clock, Bell, Copy,
   LogIn, LogOut, User as UserIcon, Database, CalendarDays, AlertTriangle, Rocket,
 } from 'lucide-react-native';
+import * as Clipboard from 'expo-clipboard';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db, withTimeout } from '@/firebase';
 import { colors } from '@/theme/colors';
@@ -126,6 +127,14 @@ export default function SettingsScreen() {
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
 
   const append = (line: string) => setLog((prev) => [line, ...prev].slice(0, 12));
+
+  // User: "dodaj tam kopiowanie logów, będzie szybciej" — zamiast screenshotów przy
+  // każdej rundzie diagnostyki. Kopiuje dokładnie to co widać (najnowsze na górze,
+  // ten sam porządek co `log`), żeby wklejona treść 1:1 odpowiadała ekranowi.
+  const copyLog = async () => {
+    await Clipboard.setStringAsync(log.join('\n'));
+    append('Log skopiowany do schowka.');
+  };
 
   // Ekran Ustawień żyje WYŁĄCZNIE pod bramką logowania (app/_layout.tsx) — `user` tu
   // jest więc zawsze ustawiony, ale `?? null` i tak jest bezpieczne dla typów i dla
@@ -531,7 +540,14 @@ export default function SettingsScreen() {
             Alerty), nie zaśmieca listy kategorii ani innych sekcji/wyników szukania. */}
         {(activeSection?.id === 'konto' || activeSection?.id === 'diagnostyka' || activeSection?.id === 'alerty') && (
           <View style={s.logBox}>
-            {log.length === 0 && <Text style={s.logEmpty}>Wyniki testów pojawią się tutaj.</Text>}
+            {log.length === 0 ? (
+              <Text style={s.logEmpty}>Wyniki testów pojawią się tutaj.</Text>
+            ) : (
+              <TouchableOpacity style={s.logCopyBtn} onPress={copyLog} activeOpacity={0.7}>
+                <Copy size={13} color={colors.text.muted} />
+                <Text style={s.logCopyLabel}>Kopiuj log</Text>
+              </TouchableOpacity>
+            )}
             {log.map((line, i) => <Text key={i} style={s.logLine}>{line}</Text>)}
           </View>
         )}
@@ -584,5 +600,10 @@ const makeS = themedStyles((c) => StyleSheet.create({
 
   logBox: { backgroundColor: c.bg.elevated, borderRadius: radius.lg, padding: spacing[3], gap: 6 },
   logEmpty: { fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.muted },
+  logCopyBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-end',
+    paddingHorizontal: spacing[2], paddingVertical: 4, marginBottom: 2,
+  },
+  logCopyLabel: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: c.text.muted },
   logLine: { fontSize: 11.5, color: c.text.secondary, fontFamily: 'monospace' },
 }));
