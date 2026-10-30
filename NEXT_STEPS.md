@@ -1091,6 +1091,15 @@ Usunięte kolorowanie per-kategoria z:**
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
 bez błędów. **Niezweryfikowane na urządzeniu.**
 
+## Drobna poprawka — kolejność ikon w wierszu zadania (2026-10-30)
+
+User: "I w zadaniach na odwrót, odznaczenie po prawej a usuń po lewej" — `TaskRow.tsx`
+miał checkbox (odznaczenie) z lewej, kosz z prawej; odwrócone na: kosz z lewej,
+checkbox z prawej. Tylko kolejność elementów w wierszu, bez zmian logiki/zachowania.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
+bez błędów. **Niezweryfikowane na urządzeniu.**
+
 ## Build #54 feedback — tygodniowy widok jak Samsung Calendar + modal zamiast stałej listy (2026-10-30)
 
 User podesłał 2 screenshoty Samsung Calendar + feedback na build #54: "Nie o to mi
