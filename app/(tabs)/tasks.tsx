@@ -1,10 +1,13 @@
-import { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Plus, X } from 'lucide-react-native';
+import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { useCalendarStore } from '@/store/calendarStore';
 import { todayISO } from '@/utils/date';
 import type { Task } from '@/types/calendar';
+import { googleCalendarService } from '@/services/googleCalendarService';
 import WeekMonthCalendar from '@/components/tasks/WeekMonthCalendar';
 import TaskRow from '@/components/tasks/TaskRow';
 import AddTaskCard from '@/components/tasks/AddTaskCard';
@@ -12,12 +15,13 @@ import AddTaskCard from '@/components/tasks/AddTaskCard';
 // Faza 1b (2026-10-30, user: "Kalendarza tez nie ogarnąłeś... w zakladce nie widac
 // niczego ani zadan ani kalendarza podpiętego") — REALNE UI podpięte pod `calendarStore`
 // (warstwa danych z Fazy 1a, już przetestowana w Ustawieniach → Diagnostyka → "Sync
-// kalendarza"), nie szkielet/zaślepka. Offline-first: CRUD leci TYLKO przez
+// kalendarza"), nie szkielet/zaślepka. Zadania (CRUD) — offline-first, leci TYLKO przez
 // `useCalendarStore` (AsyncStorage, persystuje między uruchomieniami appki) — ŚWIADOMIE
-// bez auto-synchronizacji do Firestore/Google Calendar przy każdej akcji z tego ekranu
-// (to osobny, już istniejący, ręczny test w Diagnostyce; pełen dwukierunkowy sync przy
-// każdym CRUD to oddzielny kawałek pracy, nie "burdel pod przyszłość" dorzucony na
-// szybko — patrz NEXT_STEPS.md).
+// bez auto-synchronizacji ZAPISÓW do Firestore/Google Calendar przy każdej akcji z tego
+// ekranu (pełen dwukierunkowy sync przy każdym CRUD to oddzielny kawałek pracy — patrz
+// NEXT_STEPS.md). Kalendarz (widok) — ODCZYT z Google Calendar JEST automatyczny (patrz
+// `useEffect`/`fetchEvents` niżej, dodane 2026-10-30 po tym jak user zauważył brak
+// eventów) — to jednokierunkowe pociąganie do wyświetlenia, nie pełny sync zapisu.
 //
 // Kategoryzacja TERAZ/TERMINOWE/BEZTERMINOWE — jedno pole `deadline` napędza wszystko
 // (patrz AddTaskCard.tsx): `deadline <= dziś` → TERAZ (aktywne/zaległe), `deadline` w
@@ -41,9 +45,32 @@ export default function TasksScreen() {
   const gcalEvents = useCalendarStore((st) => st.gcalEvents);
   const selectedDate = useCalendarStore((st) => st.selectedDate);
   const setSelectedDate = useCalendarStore((st) => st.setSelectedDate);
+  const setGcalEvents = useCalendarStore((st) => st.setGcalEvents);
   const addTask = useCalendarStore((st) => st.addTask);
   const updateTask = useCalendarStore((st) => st.updateTask);
   const deleteTask = useCalendarStore((st) => st.deleteTask);
+
+  const [composerOpen, setComposerOpen] = useState(false);
+
+  // Pociąganie realnych wydarzeń z Google Calendar (2026-10-30, user: "nie widzę
+  // żadnych eventow w kalendarzu zaciagnietych z googla jak wcześniej w sapp") — brakowało
+  // tego w ogóle, `gcalEvents` w `calendarStore` nigdy nie było wypełniane poza ręcznym
+  // testem w Diagnostyce (który od razu kasuje swój event). Login appki
+  // (`src/services/googleAuth.ts`) już prosi o scope `calendar.events`, więc token do
+  // odczytu powinien być dostępny bez dodatkowego logowania. Cichy fallback do pustej
+  // listy gdy brak tokenu (np. appka nigdy nie miała świeżej natywnej sesji Google) —
+  // `googleCalendarService.fetchEvents` już to obsługuje, nic dodatkowego tu nie trzeba.
+  // `gcalEvents` CELOWO nie jest trwałe w AsyncStorage (`calendarStore` partialize) —
+  // zawsze świeże przy wejściu na ekran, nie przy starcie appki (Dashboard jeszcze nie
+  // czyta prawdziwych eventów).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const fetched = await googleCalendarService.fetchEvents();
+      if (!cancelled) setGcalEvents(fetched);
+    })();
+    return () => { cancelled = true; };
+  }, [setGcalEvents]);
 
   const today = todayISO();
   const allEvents = useMemo(() => [...events, ...gcalEvents], [events, gcalEvents]);
@@ -91,7 +118,7 @@ export default function TasksScreen() {
       <ScrollView contentContainerStyle={s.scroll}>
         <WeekMonthCalendar events={allEvents} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
 
-        <AddTaskCard onAdd={handleAdd} />
+        <AddTaskCard visible={composerOpen} onAdd={handleAdd} onClose={() => setComposerOpen(false)} />
 
         {SECTIONS.map((section) => {
           const list = buckets[section.key];
@@ -119,6 +146,24 @@ export default function TasksScreen() {
           );
         })}
       </ScrollView>
+
+      {/* FAB zamiast pełnoszerokościowego przycisku "+ Nowe zadanie" w scrollu
+          (2026-10-30, user: "zależy nam na przestrzeni... chcę mieć zamiast tam
+          przycisk w prawym nad navbarem") — pływa nad zawartością w rogu ekranu, nie
+          zajmuje stałego miejsca na liście. `bottom`/`right` liczone względem TEGO
+          ekranu (SafeAreaView), NIE całego okna — TabBar w app/(tabs)/_layout.tsx
+          jest osobnym, sąsiednim elementem flex pod `<Tabs>`, więc "dół ekranu" tutaj
+          już kończy się TUŻ NAD navbarem, bez potrzeby doliczania jego wysokości. */}
+      <TouchableOpacity
+        style={s.fab}
+        onPress={() => setComposerOpen((v) => !v)}
+        activeOpacity={0.8}
+        accessibilityLabel={composerOpen ? 'Zamknij dodawanie zadania' : 'Nowe zadanie'}
+      >
+        {composerOpen
+          ? <X size={22} color={colors.bg.primary} />
+          : <Plus size={22} color={colors.bg.primary} />}
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -132,6 +177,13 @@ const makeS = themedStyles((c) => StyleSheet.create({
   sectionTitle: {
     fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.secondary,
     textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing[2],
+  },
+  fab: {
+    position: 'absolute', right: spacing[4], bottom: spacing[4],
+    width: 52, height: 52, borderRadius: radius.full, backgroundColor: c.text.bright,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
+    elevation: 6,
   },
   card: {
     backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default,

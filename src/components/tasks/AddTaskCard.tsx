@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
-import { Plus } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { ymd, todayISO } from '@/utils/date';
@@ -12,6 +11,13 @@ import { ymd, todayISO } from '@/utils/date';
 // (brak zainstalowanej biblioteki do tego, a te trzy opcje pokrywają realny use-case
 // bez nowej zależności). Tag — jedno pole tekstowe, nie lista: `Task.tags` to string[],
 // ale UI dla wielu tagów naraz to rozbudowa na później, jeśli user tego zażąda.
+//
+// KONTROLOWANY przez rodzica (`visible`/`onClose`), nie własny stan otwarcia
+// (2026-10-30, user: "zależy nam na przestrzeni... chcę mieć zamiast tam przycisk w
+// prawym nad navbarem") — wcześniej ten komponent sam renderował pełnoszerokościowy
+// przycisk-wyzwalacz zajmujący stały wiersz w scrollu; teraz wyzwalacz to pływający
+// FAB w tasks.tsx (nad navbarem, nie zajmuje miejsca na liście), ten komponent
+// renderuje WYŁĄCZNIE formularz, i to tylko gdy `visible`.
 const DEADLINE_OPTIONS = [
   { key: 'none', label: 'Bez terminu' },
   { key: 'today', label: 'Dziś' },
@@ -21,12 +27,15 @@ const DEADLINE_OPTIONS = [
 type DeadlineChoice = (typeof DEADLINE_OPTIONS)[number]['key'];
 
 export default function AddTaskCard({
+  visible,
   onAdd,
+  onClose,
 }: {
+  visible: boolean;
   onAdd: (input: { title: string; tags: string[]; deadline?: string }) => void;
+  onClose: () => void;
 }) {
   const s = makeS();
-  const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [tag, setTag] = useState('');
   const [deadlineChoice, setDeadlineChoice] = useState<DeadlineChoice>('none');
@@ -35,7 +44,7 @@ export default function AddTaskCard({
     setTitle('');
     setTag('');
     setDeadlineChoice('none');
-    setOpen(false);
+    onClose();
   };
 
   const handleSave = () => {
@@ -53,14 +62,7 @@ export default function AddTaskCard({
     reset();
   };
 
-  if (!open) {
-    return (
-      <TouchableOpacity style={s.openBtn} onPress={() => setOpen(true)} activeOpacity={0.7}>
-        <Plus size={16} color={colors.text.secondary} />
-        <Text style={s.openBtnLabel}>Nowe zadanie</Text>
-      </TouchableOpacity>
-    );
-  }
+  if (!visible) return null;
 
   return (
     <View style={s.card}>
@@ -110,13 +112,6 @@ export default function AddTaskCard({
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
-  openBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2],
-    backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default,
-    paddingVertical: spacing[3], marginBottom: spacing[4],
-  },
-  openBtnLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.secondary },
-
   card: {
     backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default,
     padding: spacing[3], marginBottom: spacing[4], gap: spacing[2],

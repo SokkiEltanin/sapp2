@@ -1090,3 +1090,49 @@ Usunięte kolorowanie per-kategoria z:**
 
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
 bez błędów. **Niezweryfikowane na urządzeniu.**
+
+## Build #52 feedback — FAB zamiast pełnego wiersza + realne eventy z Google (2026-10-30)
+
+User przetestował build #52 (screenshot Zadań) i napisał: "zależy nam na przestrzeni
+bo zbijamy sporo zakładek a dodatkowo patrzymy na dostępność... chcę mieć zamiast
+tam przycisk w prawym nad navbarem" + "nie widzę żadnych eventów w kalendarzu
+zaciągniętych z googla jak wcześniej w sapp".
+
+**1. "+ Nowe zadanie" z pełnoszerokościowego wiersza na pływający FAB:**
+- `AddTaskCard.tsx` — PRZEBUDOWANY z własnego stanu `open`/przycisku-wyzwalacza na
+  komponent KONTROLOWANY (`visible`/`onClose` z rodzica) — renderuje WYŁĄCZNIE
+  formularz, `null` gdy `!visible`. Usunięty import `Plus`/stare style
+  `openBtn`/`openBtnLabel`.
+- `app/(tabs)/tasks.tsx` — nowy `composerOpen` (useState) + `TouchableOpacity`
+  `s.fab`: okrągły przycisk 52×52, `position: 'absolute'`, `right/bottom:
+  spacing[4]`, tło `c.text.bright` (jasne, jak inne akcje "aktywne" w appce), ikona
+  Plus/X (toggle — X gdy formularz otwarty, też zamyka). WAŻNE: `bottom` liczony
+  względem SafeAreaView TEGO ekranu, nie całego okna — TabBar
+  (`app/(tabs)/_layout.tsx`) jest osobnym, sąsiednim elementem flex POD `<Tabs>`,
+  nie overlay/position:absolute, więc "dół ekranu" w tasks.tsx już kończy się tuż
+  NAD navbarem — nie trzeba doliczać wysokości navbara/insets.bottom ręcznie.
+- Zwolnione miejsce w scrollu (był to stały wiersz nad sekcjami) — teraz kalendarz
+  i sekcje zaczynają się bezpośrednio pod sobą, mniej przewijania.
+
+**2. Realne wydarzenia z Google Calendar — brakujący auto-fetch, teraz dodany:**
+- Root cause: `calendarStore.gcalEvents` nigdy nie było wypełniane poza ręcznym
+  testem w Ustawieniach → Diagnostyka → "Sync kalendarza" (który od razu kasuje
+  swój testowy event) — `WeekMonthCalendar` poprawnie CZYTAŁ `gcalEvents`, ale
+  nikt tam nic nie WPISYWAŁ.
+- Fix: `app/(tabs)/tasks.tsx` dostał `useEffect` na mount, woła
+  `googleCalendarService.fetchEvents()` (już istniejący serwis z Fazy 1a, REST do
+  Google Calendar z paginacją, ~2 lata wstecz + rok w przód) i wypełnia
+  `setGcalEvents(...)`. Login appki (`src/services/googleAuth.ts`) już prosi o
+  scope `calendar.events` przy logowaniu, więc token powinien być dostępny bez
+  dodatkowego ręcznego kroku w Diagnostyce — `fetchEvents` i tak cicho zwraca
+  pustą listę gdy brak tokenu (istniejące zachowanie serwisu, nic dodatkowego nie
+  trzeba było dopisywać).
+- `gcalEvents` CELOWO nie jest trwałe w AsyncStorage (zgodnie z
+  `calendarStore.partialize`) — świeże przy każdym wejściu na ekran Zadania, nie
+  cache'owane między sesjami.
+- **Niezweryfikowane na urządzeniu**: czy po buildzie realnie pokazują się kropki
+  wydarzeń na kalendarzu — zależy czy natywna sesja GoogleSignin (ustawiona przy
+  logowaniu) faktycznie trzyma ważny/odświeżalny token na tym etapie appki.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
+bez błędów. **Niezweryfikowane na urządzeniu.**
