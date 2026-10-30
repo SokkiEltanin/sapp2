@@ -43,7 +43,7 @@ class ${MODULE_CLASS}(reactContext: ReactApplicationContext) : ReactContextBaseJ
 
   @ReactMethod
   fun setShowOverLockScreen(enabled: Boolean) {
-    val activity = currentActivity ?: return
+    val activity = reactApplicationContext.currentActivity ?: return
     activity.runOnUiThread {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
         activity.setShowWhenLocked(enabled)
