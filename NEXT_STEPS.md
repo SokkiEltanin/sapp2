@@ -889,3 +889,39 @@ i będzie grał, bo to OLED screen".
   działa tylko w krótkim oknie, nie po głębszym uśpieniu).
 - Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
   bez błędów. **Niezweryfikowane na urządzeniu.**
+
+## Build #47 test — postęp + prawdziwy bug "5 min" (2026-10-29)
+
+User przetestował build #47: wibracja działa, deep-link na ekran "Alarm testowy"
+działa dla wszystkich wariantów notifee (bez przycisku/Tak-Nie/5min — user: "nie
+widzę różnicy XD", oczekiwane, bo pełnoekranowy launch pomija banner z
+przyciskami). Dźwięk DALEJ cichy mimo `loopSound`. I **realny bug**: kliknięcie
+"za 5 min" odpalało się OD RAZU, nie po 5 minutach.
+
+Root cause bugu "5 min": `sendNotifeeAlert` zawsze najpierw wołało
+`notifee.displayNotification(...)` (część "NATYCHMIAST" z rundy diagnostycznej),
+NIEZALEŻNIE od `delayMs` — to ONO przekierowywało na `/alert-test` natychmiast,
+maskując fakt że właściwy, opóźniony trigger w ogóle nie został sprawdzony. Test
+OLED (cel: sprawdzić czy ekran się budzi po realnym, dłuższym uśpieniu) nigdy się
+nie wykonał.
+
+Fix:
+- `sendNotifeeAlert` dostało trzeci parametr `includeInstant` (domyślnie `true`,
+  zachowuje istniejące zachowanie 5s-testów) — `displayNotification` teraz
+  warunkowe.
+- Handler `alert-notifee-5min` woła `sendNotifeeAlert(false, 5*60*1000, false)` —
+  TYLKO trigger, bez instant-części. Teraz kliknięcie tego przycisku faktycznie
+  nic nie pokazuje od razu (poprawne!) i dopiero po 5 min powinien odpalić się
+  prawdziwy alarm.
+- Kanał zbumpowany `-v2` → `-v3` — drugi strzał w ciszę dźwięku tym samym fixem
+  co poprzednio zadziałał (niemutowalny kanał, możliwa stała zła rejestracja).
+- Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
+  bez błędów. **Niezweryfikowane na urządzeniu** — czeka na realny test 5-min
+  (teraz faktycznie testujący to co ma) + sprawdzenie czy `-v3` pomogło dźwiękowi.
+- **Jeśli `-v3` NIE pomoże dźwiękowi**: kolejna hipoteza do zbadania — fullscreen-
+  intent launch może z natury tłumić dźwięk kanału na niektórych
+  urządzeniach/wersjach Androida (aplikacja budzika "zjada" powiadomienie
+  natychmiast otwierając Activity, zanim user usłyszy cokolwiek) — wtedy jedyne
+  rozwiązanie to własne odtwarzanie dźwięku z `app/alert-test.tsx` (jak wibracja),
+  co wymaga pliku audio od usera (patrz sekcja "Domyślny dźwięk" wyżej — user
+  jeszcze nie podał/wybrał pliku).

@@ -324,7 +324,13 @@ export default function SettingsScreen() {
   // test nie sprawdza czy ekran FIZYCZNIE się wybudza z głębokiego uśpienia/OLED
   // całkowicie czarnego ekranu, tylko czy mechanizm w ogóle działa zanim telefon
   // zdąży zejść w głębszy stan oszczędzania energii.
-  const sendNotifeeAlert = async (withActions: boolean, delayMs = 5000) => {
+  // `includeInstant` (2026-10-29, user: test "za 5 min" odpalał się OD RAZU) — BUG:
+  // funkcja zawsze najpierw wysyłała powiadomienie NATYCHMIASTOWE (część
+  // diagnostyczna z wcześniejszej rundy, do izolowania problemu zgoda/kanał vs
+  // trigger), niezależnie od `delayMs` — to ONO przekierowywało na ekran alarmu
+  // natychmiast, maskując to że prawdziwy test opóźnienia (5 min) w ogóle się nie
+  // wykonał. Test OLED musi iść BEZ instant-części, inaczej nie testuje tego co ma.
+  const sendNotifeeAlert = async (withActions: boolean, delayMs = 5000, includeInstant = true) => {
     const delayLabel = delayMs >= 60000 ? `${Math.round(delayMs / 60000)} min` : `${Math.round(delayMs / 1000)}s`;
     append(`Alert notifee (za ${delayLabel}): start…`);
     try {
@@ -342,10 +348,12 @@ export default function SettingsScreen() {
       // walidacji. Każda kolejna zmiana konfiguracji musi iść pod NOWYM id, inaczej
       // system trzyma się pierwszej (zepsutej) rejestracji — złapane na urządzeniu
       // (2026-10-28, user: "bez wibracji czy dźwięku" mimo poprawnej konfiguracji w
-      // kodzie). `-v2` tutaj, podbijać przy kolejnej zmianie configu kanału.
+      // kodzie). `-v3` (2026-10-29, `loopSound` dalej cicho mimo poprawnego kodu —
+      // ten sam objaw co poprzednio, ten sam fix: nowy id na wszelki wypadek stałej
+      // rejestracji).
       const channelId = await notifee.createChannel({
-        id: 'alerts-fullscreen-v2',
-        name: 'Alerty pełnoekranowe (test) v2',
+        id: 'alerts-fullscreen-v3',
+        name: 'Alerty pełnoekranowe (test) v3',
         importance: AndroidImportance.HIGH,
         sound: 'default',
         vibration: true,
@@ -392,13 +400,15 @@ export default function SettingsScreen() {
       // ekran alarmu (app/alert-test.tsx), nie zostawiał usera na ostatnim otwartym
       // ekranie appki (2026-10-29, user po teście: "żeby nie cała apka była tylko
       // alarm screen testowy").
-      await notifee.displayNotification({
-        title: 'Test NATYCHMIAST (notifee)',
-        body: 'Jeśli TEGO nie widzisz/słyszysz od razu (appka wciąż otwarta), problem jest w zgodzie/kanale, nie w opóźnionym triggerze.',
-        data: { route: 'alert-test' },
-        android,
-      });
-      append('Natychmiastowe wysłane — POWINNO pokazać się OD RAZU, appka wciąż otwarta.');
+      if (includeInstant) {
+        await notifee.displayNotification({
+          title: 'Test NATYCHMIAST (notifee)',
+          body: 'Jeśli TEGO nie widzisz/słyszysz od razu (appka wciąż otwarta), problem jest w zgodzie/kanale, nie w opóźnionym triggerze.',
+          data: { route: 'alert-test' },
+          android,
+        });
+        append('Natychmiastowe wysłane — POWINNO pokazać się OD RAZU, appka wciąż otwarta.');
+      }
 
       // Opóźnienie przez NATYWNY trigger (AlarmManager), NIE `setTimeout` w JS — przeżywa
       // zawieszenie JS/tło/zabicie appki, w przeciwieństwie do poprzedniej wersji tego
@@ -442,7 +452,7 @@ export default function SettingsScreen() {
     'alert-expo': testExpoAlert,
     'alert-notifee': () => sendNotifeeAlert(false),
     'alert-notifee-buttons': () => sendNotifeeAlert(true),
-    'alert-notifee-5min': () => sendNotifeeAlert(false, 5 * 60 * 1000),
+    'alert-notifee-5min': () => sendNotifeeAlert(false, 5 * 60 * 1000, false),
   };
 
   const q = query.trim().toLowerCase();
