@@ -6,7 +6,8 @@ import { cornersForPosition, TILE_ROW_HEIGHT, type StatTilePosition } from './ti
 // Mini wykres słupkowy w kaflu Finanse (2026-10-26) — user: "ogarniesz już po stylu".
 // Wysokość słupka proporcjonalna do wartości względem max w zestawie (sensowny domyślny
 // wybór, niezależnie od dokładnych, prawdopodobnie orientacyjnych wysokości w mockupie).
-// Kolumna "average" (np. "~ŚR") nie ma słupka, tylko kreskę pod liczbą.
+// Kolumna "average" (np. "~ŚR") ma słupek z przerywaną ramką zamiast wypełnienia
+// (2026-10-30) — odróżnia wartość odniesienia od realnych miesięcy, bez znikania.
 //
 // Monochromatyczne (2026-10-30, redesign) — usunięty gradient tła oraz kolorowanie
 // `colors.stat.finanse` na aktywnej kolumnie/tytule: aktywna (bieżący miesiąc) kolumna
@@ -51,15 +52,18 @@ export default function FoodBarsTile({
               </Text>
               <View style={s.barTrack}>
                 {col.kind === 'average' ? (
-                  // Kreska średniej siedzi na WYSOKOŚCI odpowiadającej jej wartości
-                  // względem pozostałych słupków (user, 2026-10-27: "miała pokazywać tę
-                  // średnią wysokością względem innych kafelków") — ten sam % co słupek,
-                  // nie przyklejona do dołu.
+                  // Prostokąt średniej, WYSOKOŚĆ jak zwykły słupek (user, 2026-10-27:
+                  // "miała pokazywać tę średnią wysokością względem innych kafelków"),
+                  // ale PRZERYWANA ramka zamiast pełnego wypełnienia — odróżnia
+                  // "wartość odniesienia" od realnych danych miesięcy, zamiast zupełnie
+                  // zanikać jak w poprzedniej wersji (sama kreska bez prostokąta — user
+                  // zaznaczył na referencyjnym screenshocie 2026-10-30: "w wydatkach
+                  // jedzenia brakuje tam prostokąt przy średniej").
                   <View
                     style={[
-                      s.avgLine,
-                      { bottom: `${Math.max(12, (col.value / maxValue) * 100)}%` },
-                      { backgroundColor: colors.chart.muted },
+                      s.bar,
+                      s.avgBar,
+                      { height: `${Math.max(12, (col.value / maxValue) * 100)}%` },
                     ]}
                   />
                 ) : (
@@ -105,7 +109,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
     position: 'relative',
   },
   bar: { width: '100%', borderRadius: 3 },
-  avgLine: { position: 'absolute', left: 0, right: 0, height: 2, borderRadius: 999 },
+  avgBar: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: c.chart.muted, borderStyle: 'dashed' },
   label: { fontFamily: 'Inter_700Bold', fontSize: 9, textAlign: 'center' },
   labelActive: { fontFamily: 'Inter_900Black' },
 }));

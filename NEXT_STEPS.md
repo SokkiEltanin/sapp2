@@ -1002,3 +1002,91 @@ Usunięte ze WSZYSTKICH kafli Dashboardu:
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
 bez błędów. **Niezweryfikowane na urządzeniu** — czeka na build i porównanie z
 referencyjnym screenshotem.
+
+## Build #51 feedback — dokończenie monochromatyczności + realne Zadania/Kalendarz (2026-10-30)
+
+User odpowiedział na build #51 screenshotem z adnotacjami (zaznaczone na turkusowo)
++ tekstem: "wywal te ikonkę przy ciekawostkach", "w wydatkach jedzenia brakuje tam
+prostokąt przy średniej", "zakładki inne nie machają stylu... ustawienia tez...
+ogarnij to teraz", "Kalendarza tez nie ogarnąłeś... w zakladce nie widac niczego
+ani zadan ani kalendarza podpiętego". Trzy osobne rzeczy:
+
+**1. Dwie konkretne poprawki Dashboardu:**
+- `FactTile.tsx` — ikona `Globe` USUNIĘTA CAŁKOWICIE (nie zastąpiona niczym), user
+  zaznaczył ją bezpośrednio na screenshocie. Kafel to teraz czysty wycentrowany tekst.
+- `FoodBarsTile.tsx` — kolumna "average" (~ŚR) dostała z powrotem PROSTOKĄT (wcześniejszy
+  redesign zostawił tylko cienką kreskę `avgLine`, user: "brakuje tam prostokąt") —
+  teraz słupek tej samej wysokości co inne (proporcjonalnej do wartości), ale z
+  przerywaną ramką zamiast wypełnienia (`avgBar`, `borderStyle: 'dashed'`) — odróżnia
+  wartość odniesienia od realnych miesięcy, bez całkowitego zanikania.
+
+**2. Monochromatyczny audyt ROZSZERZONY na całą appkę — poprzednia nota (wyżej,
+sekcja "Dashboard — redesign") że "ComingSoonRow accenty/dziś-podświetlenie w
+Zadaniach ŚWIADOMIE zostawione kolorowe" była BŁĘDNA — user explicite: "zakładki
+inne nie machają stylu miałeś wszystko robic w tym stylu, ustawienia tez".
+Usunięte kolorowanie per-kategoria z:**
+- `ComingSoonRow.tsx` — `accent` prop CAŁKOWICIE USUNIĘTY z API (odznaka ikony
+  teraz neutralna `c.bg.elevated` + `colors.text.secondary`, tak jak odznaki w
+  Ustawieniach).
+- `app/(tabs)/daily.tsx` — `accent` per-sekcja (woda/ćwiczenia/kroki/waga/humor)
+  usunięty z danych `SECTIONS`.
+- `app/(tabs)/finances.tsx` — `accent` usunięty z obu wywołań `ComingSoonRow`
+  (Praca/Subskrypcje).
+- `app/settings.tsx` — NAJWIĘKSZA zmiana: `color`/`accent` usunięte z typów
+  `SettingsSection`/`SettingsItem` i z `buildSections()` (każda kategoria/pozycja
+  miała swój kolor: niebieski Konto, żółty Info, czerwony Diagnostyka/Alerty per-item
+  różne kolory, zielony Finanse) — wszystkie odznaki ikon (`categoryIcon`/`itemIcon`)
+  teraz jednolicie neutralne (`c.bg.elevated` + `colors.text.secondary`).
+- Dzień "dziś" na pasku tygodnia w Zadaniach przy okazji przebudowy (patrz pkt 3
+  niżej) też przestał być `colors.accent.blue` — teraz `c.text.bright` (biały),
+  spójnie z aktywną zakładką w TabBar (białe kółko, nie kolor).
+- **TabBar.tsx NIE dotknięty** — już wcześniej monochromatyczny (żadnego `accent`
+  per-zakładka, potwierdzone przy poprzednim audycie).
+- Jedyne kolory które ZOSTAJĄ w całej appce: chip taga w TaskListTile/TaskRow
+  (funkcjonalny akcent na poziomie POJEDYNCZEGO zadania, nie kategorii ekranu —
+  dokładnie ten jeden wyjątek z referencyjnego SVG).
+
+**3. Realne Kalendarz + Zadania (Faza 1b) — wcześniej odłożone przez przerwanie
+(dziura bezpieczeństwa), teraz zbudowane:**
+- `src/components/tasks/WeekMonthCalendar.tsx` (nowy) — tydzień (domyślny, zawsze
+  bieżący Pon-Nd) ↔ miesiąc (pełna siatka, nawigacja strzałkami + skrót "Dziś"),
+  przełącznik = cały nagłówek karty. Kropka pod dniem = ma wydarzenie
+  (`eventCoversDay` z `types/calendar.ts`, obsługuje wielodniowe). Podpięty pod
+  `useCalendarStore` (`events` + `gcalEvents` razem, `selectedDate`/`setSelectedDate`
+  już istniejące w store z Fazy 1a).
+- `src/components/tasks/TaskRow.tsx` (nowy) — checkbox (tap = `status: 'done'`,
+  znika z listy), tytuł, tagi (neutralne szare chipy — `Task.tags` nie ma pola
+  koloru, w przeciwieństwie do mock-danych Dashboardu), kosz (tap = usuń od razu,
+  bez potwierdzenia, świadomie proste).
+- `src/components/tasks/AddTaskCard.tsx` (nowy) — przycisk "+ Nowe zadanie" →
+  rozwija formularz: tytuł, tag (jedno pole tekstowe, nie lista), termin przez
+  SZYBKIE WYBORY (Dziś/Jutro/Za tydzień/Bez terminu — brak zainstalowanej
+  biblioteki date-pickera, te 4 opcje pokrywają realny use-case bez nowej
+  zależności).
+- `app/(tabs)/tasks.tsx` PRZEBUDOWANY (nie szkielet) — realne CRUD przez
+  `useCalendarStore` (`addTask`/`updateTask`/`deleteTask`), kategoryzacja
+  TERAZ/TERMINOWE/BEZTERMINOWE napędzana jednym polem `deadline`
+  (`<= dziś` → Teraz, w przyszłości → Terminowe, brak → Bezterminowe).
+
+**ŚWIADOME ograniczenia zakresu (udokumentowane, nie przeoczone):**
+- **Offline-first, BEZ auto-sync do Firestore/Google Calendar** — CRUD z tego
+  ekranu leci tylko przez `useCalendarStore` (AsyncStorage, persystuje między
+  uruchomieniami appki). Pełny dwukierunkowy sync przy KAŻDEJ akcji to osobny
+  kawałek pracy (konflikty, kolejka offline, itp.) — już istnieje osobny, ręczny
+  test w Ustawieniach → Diagnostyka → "Sync kalendarza" (round-trip Firestore +
+  Google Calendar), ale to NIE jest spięte z normalnym UI. Jeśli user chce żeby
+  zadania/eventy z tego ekranu realnie szły do chmury — to następny, świadomy krok,
+  nie coś co po cichu brakuje.
+- **Widget na ekran główny Androida — NIE zrobiony w tej rundzie.** User prosił o
+  niego wcześniej w tej samej wiadomości co kalendarz/zadania ("działające zadania
+  może od razu z widgetem ogarnijmy"), ale to osobna, ciężka robota natywna
+  (config-plugin + Kotlin RemoticeViews/AppWidgetProvider, podobny ciężar do
+  `LockScreenModule`) — rozmyślnie odłożone, żeby nie wrzucać tego w ten sam, już
+  spory commit. Zrobię jak user potwierdzi że reszta (styl + kalendarz + zadania)
+  działa dobrze na urządzeniu.
+- Brak pełnego date-pickera (tylko 4 szybkie opcje terminu) i braku edycji
+  istniejącego zadania (tylko dodaj/ukończ/usuń) — jeśli user będzie chciał więcej
+  (zmiana terminu/tagu po fakcie, wiele tagów na zadanie) to kolejna, świadoma runda.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
+bez błędów. **Niezweryfikowane na urządzeniu.**

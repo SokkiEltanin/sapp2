@@ -1,7 +1,6 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Droplet, Dumbbell, Footprints, Scale, Smile } from 'lucide-react-native';
-import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import ComingSoonRow from '@/components/ui/ComingSoonRow';
 
@@ -12,12 +11,15 @@ import ComingSoonRow from '@/components/ui/ComingSoonRow';
 // ĆWICZENIA/KROKI/WAGA/HUMOR. JEDZENIE świadomie POMINIĘTE — user: "nie sprawdzała
 // się w SAPP... zostawiamy potencjał/miejsce, NIE dodajemy jej teraz" — więc żadnej
 // karty tutaj, nie tylko wyłączonej.
+//
+// `accent` per-sekcja USUNIĘTY (2026-10-30, monochromatyczny redesign — patrz
+// ComingSoonRow.tsx) — odznaki ikon teraz neutralne, tak jak wszędzie indziej.
 const SECTIONS = [
-  { key: 'zdrowie', label: 'Zdrowie', description: 'woda', icon: Droplet, accent: colors.stat.woda },
-  { key: 'cwiczenia', label: 'Ćwiczenia', description: 'treningi, powiązane z Pupilem', icon: Dumbbell, accent: colors.stat.cwiczenia },
-  { key: 'kroki', label: 'Kroki', description: 'z zegarka', icon: Footprints, accent: colors.accent.blue },
-  { key: 'waga', label: 'Waga', icon: Scale, accent: colors.stat.event },
-  { key: 'humor', label: 'Humor', icon: Smile, accent: colors.accent.purple },
+  { key: 'zdrowie', label: 'Zdrowie', description: 'woda', icon: Droplet },
+  { key: 'cwiczenia', label: 'Ćwiczenia', description: 'treningi, powiązane z Pupilem', icon: Dumbbell },
+  { key: 'kroki', label: 'Kroki', description: 'z zegarka', icon: Footprints },
+  { key: 'waga', label: 'Waga', icon: Scale },
+  { key: 'humor', label: 'Humor', icon: Smile },
 ] as const;
 
 export default function DailyScreen() {
@@ -35,7 +37,6 @@ export default function DailyScreen() {
               icon={section.icon}
               label={section.label}
               description={'description' in section ? section.description : undefined}
-              accent={section.accent}
               isLast={i === SECTIONS.length - 1}
             />
           ))}

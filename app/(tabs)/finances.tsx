@@ -34,8 +34,8 @@ export default function FinancesScreen() {
 
         <Text style={s.sectionTitle}>Obszary</Text>
         <View style={s.card}>
-          <ComingSoonRow icon={Briefcase} label="Praca" description="zmiany, godziny, wypłaty" accent={colors.stat.finanse} />
-          <ComingSoonRow icon={Repeat} label="Subskrypcje" description="cykliczne płatności" accent={colors.accent.purple} isLast />
+          <ComingSoonRow icon={Briefcase} label="Praca" description="zmiany, godziny, wypłaty" />
+          <ComingSoonRow icon={Repeat} label="Subskrypcje" description="cykliczne płatności" isLast />
         </View>
       </ScrollView>
     </SafeAreaView>

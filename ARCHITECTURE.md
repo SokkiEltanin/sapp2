@@ -4,13 +4,14 @@ Mapa ekranów i połączeń między nimi. Rozpisana przez usera (2026-10-26), za
 żeby się nie zgubiła między sesjami. Aktualizuj przy każdej decyzji o nowym
 ekranie/połączeniu (patrz `CLAUDE.md`).
 
-**Stan budowy** (2026-10-29): Dashboard w pełni zbudowany. Daily/Zadania/Finanse mają
-**lekki szkielet struktury** (layout, sekcje, nagłówki — bez głębokiej logiki, patrz
-NEXT_STEPS.md "Szkielety ekranów") — user: "zacznij budować szkielet pod finanse,
-kalendarz, zadania", potwierdzone: struktura teraz, pełne funkcje w ustalonej
-kolejności faz (Kalendarz/Zadania UI → Finanse+parsery → Praca/Daily). Pupil —
-wciąż tylko placeholder, bo jego mechanika ("roślinka") jest dopiero pomysłem do
-zaprojektowania, nie ma jeszcze struktury do zeszkieletowania.
+**Stan budowy** (2026-10-30): Dashboard w pełni zbudowany (monochromatyczny redesign,
+patrz NEXT_STEPS.md). **Zadania ma teraz realne UI** (kalendarz tydzień↔miesiąc +
+CRUD listy, offline-first przez `calendarStore`, patrz sekcja ZADANIA niżej) —
+widget na pulpit JESZCZE NIE zrobiony. Daily/Finanse wciąż mają **lekki szkielet
+struktury** (layout, sekcje, nagłówki — bez głębokiej logiki) — kolejność faz:
+Zadania UI (zrobione) → widget → Finanse+parsery → Praca/Daily. Pupil — wciąż tylko
+placeholder, bo jego mechanika ("roślinka") jest dopiero pomysłem do zaprojektowania,
+nie ma jeszcze struktury do zeszkieletowania.
 
 Oznaczenia głębokości nawigacji:
 - **GE** — Główny Ekran (jeden z 5 w navbarze)
@@ -36,29 +37,51 @@ Obszerna zakładka, popupy zależnie od klikniętego kafelka. Obejmuje:
 
 ## ZADANIA [GE]
 
-- Kalendarz domyślnie **tygodniowy, zwinięty** → klik rozwija do **widoku miesięcznego**
-  (ładna animacja, do przemyślenia jak w `sapp` — dwustronna edycja z Google Calendar,
-  czytanie zmian w pracy (praca żyje w zakładce `FINANSE`), plan lekcji.
-- **Lista zadań** — kategoryzacja/logika sekcji **ponownie wzięta z `sapp`** (TERAZ/
-  bezterminowe/terminowe — sprawdzony, dopracowany model, zadanie #42 w `sapp`), ALE
-  **UI/UX zupełnie nowy** (user, 2026-10-26: "zrobimy podobnie ale UIUX będzie zupełnie
-  inny"), nie kopiujemy wyglądu z `sapp`. Zewnętrzna referencja zachowania kalendarza:
-  TickTick (pasek kalendarza u góry + lista pod spodem).
-- **Widget na pulpicie Androida** (user, 2026-10-26: "jak będziemy robić zadania to
-  musimy zrobić to tak jak tam [w `sapp`]"). `sapp` ma to zrobione jako **własny,
-  natywny Kotlin wpięty przez config-plugin** (`plugins/withTasksWidget.js`) — ŚWIADOMIE
-  bez zewnętrznej biblioteki (np. `react-native-android-widget`), bo `sapp` już raz
-  złapał build-breaking problem z zależnością zewnętrznego pakietu widgetów
-  (namespace/AGP8 na SDK 54). Mechanizm: `AppWidgetProvider` + `RemoteViews`, JS
-  (`widgetSync.ts`) pisze JSON snapshot do `filesDir`, natywny most
-  (`TasksWidgetModule.requestUpdate()`) odświeża widget, 6 stałych slotów (RemoteViews
-  nie wspiera scrolla bez `RemoteViewsService`), tap → deep link schematem appki. Ten
-  sam wzorzec do powtórzenia w `sapp2`, nie szukać biblioteki od zera.
-- **Warstwa danych portowana** (2026-10-28, Faza 1a — patrz NEXT_STEPS.md): `src/types/
-  calendar.ts`, `src/services/calendarService.ts` (Firestore), `src/services/
-  googleCalendarService.ts` + `src/utils/googleCalendarMap.ts` (Google Calendar REST),
-  `src/store/calendarStore.ts` (Zustand). ZERO UI jeszcze — to dopiero po Finansach/
-  parserach, Faza 1b.
+**UI zbudowane (2026-10-30, Faza 1b)** — `app/(tabs)/tasks.tsx` + 3 komponenty w
+`src/components/tasks/`:
+- `WeekMonthCalendar.tsx` — kalendarz domyślnie **tygodniowy** (zawsze bieżący
+  Pon-Nd) → tap na nagłówek karty rozwija do **widoku miesięcznego** (pełna siatka,
+  nawigacja strzałkami + skrót "Dziś"). Kropka pod dniem = ma wydarzenie
+  (`eventCoversDay`, obsługuje wielodniowe). Czyta `events`+`gcalEvents` z
+  `calendarStore`. Zaznaczenie dnia (`selectedDate`) jest na razie czysto
+  wizualne/nawigacyjne, NIE filtruje listy zadań niżej (dwa osobne widoki tego
+  samego ekranu, nie master-detail).
+- `TaskRow.tsx` — checkbox (ukończ, znika z listy), tytuł, tagi (neutralne szare
+  chipy), kosz (usuń od razu, bez potwierdzenia).
+- `AddTaskCard.tsx` — formularz dodawania: tytuł, jeden tag (tekst), termin przez
+  4 szybkie wybory (Dziś/Jutro/Za tydzień/Bez terminu — brak date-pickera jako
+  zależności).
+- **Lista zadań** — kategoryzacja TERAZ/TERMINOWE/BEZTERMINOWE napędzana jednym
+  polem `deadline` (logika sekcji wzięta z `sapp`, zadanie #42 tam, ale UI/UX
+  zupełnie nowy, jak ustalone 2026-10-26). `deadline <= dziś` → Teraz, w przyszłości
+  → Terminowe, brak → Bezterminowe.
+- **Offline-first, ŚWIADOMIE bez auto-sync do Firestore/Google Calendar** przy
+  CRUD z tego ekranu — leci tylko przez `useCalendarStore` (AsyncStorage). Pełny
+  dwukierunkowy sync to osobny krok (patrz NEXT_STEPS.md), już istnieje jako
+  ręczny test w Ustawieniach → Diagnostyka → "Sync kalendarza", ale nie spięty z
+  normalnym UI.
+- Zewnętrzna referencja zachowania kalendarza: TickTick (pasek kalendarza u góry +
+  lista pod spodem) — zachowana.
+
+**Widget na pulpicie Androida — JESZCZE NIE ZROBIONY** (user, 2026-10-26: "jak
+będziemy robić zadania to musimy zrobić to tak jak tam [w `sapp`]"; ponowiona
+prośba 2026-10-30 przy okazji feedbacku o kalendarzu — świadomie odłożone w tej
+rundzie, osobny ciężki kawałek natywnej roboty). `sapp` ma to zrobione jako
+**własny, natywny Kotlin wpięty przez config-plugin** (`plugins/
+withTasksWidget.js`) — ŚWIADOMIE bez zewnętrznej biblioteki (np.
+`react-native-android-widget`), bo `sapp` już raz złapał build-breaking problem z
+zależnością zewnętrznego pakietu widgetów (namespace/AGP8 na SDK 54). Mechanizm:
+`AppWidgetProvider` + `RemoteViews`, JS (`widgetSync.ts`) pisze JSON snapshot do
+`filesDir`, natywny most (`TasksWidgetModule.requestUpdate()`) odświeża widget, 6
+stałych slotów (RemoteViews nie wspiera scrolla bez `RemoteViewsService`), tap →
+deep link schematem appki. Ten sam wzorzec do powtórzenia w `sapp2`, nie szukać
+biblioteki od zera.
+
+**Warstwa danych** (2026-10-28, Faza 1a): `src/types/calendar.ts`,
+`src/services/calendarService.ts` (Firestore), `src/services/
+googleCalendarService.ts` + `src/utils/googleCalendarMap.ts` (Google Calendar REST),
+`src/store/calendarStore.ts` (Zustand, AsyncStorage-persisted) — to na niej stoi UI
+wyżej.
 
 ## FINANSE [GE]
 

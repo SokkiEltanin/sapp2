@@ -35,10 +35,10 @@ const BUILD_INFO = {
 type Icon = ComponentType<{ size?: number; color?: string }>;
 
 type SettingsItem =
-  | { kind: 'action'; key: string; label: string; description: string; icon: Icon; accent: string }
-  | { kind: 'value'; key: string; label: string; description: string; icon: Icon; accent: string; value: string };
+  | { kind: 'action'; key: string; label: string; description: string; icon: Icon }
+  | { kind: 'value'; key: string; label: string; description: string; icon: Icon; value: string };
 
-type SettingsSection = { id: string; title: string; icon: Icon; color: string; items: SettingsItem[] };
+type SettingsSection = { id: string; title: string; icon: Icon; items: SettingsItem[] };
 
 function plCount(n: number, one: string, few: string, many: string) {
   if (n === 1) return one;
@@ -60,31 +60,38 @@ function plCount(n: number, one: string, few: string, many: string) {
 // Funkcja, nie stała — sekcja "Konto" potrzebuje realnego e-maila zalogowanego usera
 // (`useAuthUser()`), więc cała lista musi przeliczać się w komponencie, nie raz na
 // moduł (patrz `useMemo(() => buildSections(...))` niżej).
+//
+// `color`/`accent` per-sekcja i per-item USUNIĘTE (2026-10-30, user zaznaczył to
+// explicite: "ustawienia tez [maja byc w nowym stylu]... ogarnij to teraz" —
+// monochromatyczny redesign, patrz colors.ts). Odznaki ikon teraz neutralne
+// (`c.bg.elevated` + `c.text.secondary`), tak samo dla wszystkich kategorii/pozycji —
+// kolor nie niesie już znaczenia kategorii, tylko funkcjonalne akcenty (tagi zadań)
+// zostają kolorowe.
 function buildSections(email: string | null): SettingsSection[] {
   return [
   {
-    id: 'konto', title: 'Konto', icon: UserIcon, color: colors.accent.blue,
+    id: 'konto', title: 'Konto', icon: UserIcon,
     items: [
-      { kind: 'value', key: 'account-email', label: 'Zalogowano jako', description: 'konto google', icon: UserIcon, accent: colors.accent.blue, value: email ?? '—' },
-      { kind: 'action', key: 'account-logout', label: 'Wyloguj', description: 'wyloguj z konta google', icon: LogOut, accent: colors.accent.red },
+      { kind: 'value', key: 'account-email', label: 'Zalogowano jako', description: 'konto google', icon: UserIcon, value: email ?? '—' },
+      { kind: 'action', key: 'account-logout', label: 'Wyloguj', description: 'wyloguj z konta google', icon: LogOut },
     ],
   },
   {
-    id: 'info', title: 'Info', icon: Info, color: colors.stat.woda,
+    id: 'info', title: 'Info', icon: Info,
     items: [
-      { kind: 'value', key: 'info-version', label: 'Wersja', description: 'wersja aplikacji', icon: Info, accent: colors.stat.woda, value: BUILD_INFO.version },
-      { kind: 'value', key: 'info-build', label: 'Build', description: 'numer builda github actions', icon: Info, accent: colors.stat.woda, value: `#${BUILD_INFO.buildNumber}` },
-      { kind: 'value', key: 'info-date', label: 'Zbudowano', description: 'data builda', icon: Clock, accent: colors.stat.woda, value: BUILD_INFO.buildDate },
-      { kind: 'value', key: 'info-commit', label: 'Commit', description: 'git commit sha', icon: Info, accent: colors.stat.woda, value: BUILD_INFO.commit },
+      { kind: 'value', key: 'info-version', label: 'Wersja', description: 'wersja aplikacji', icon: Info, value: BUILD_INFO.version },
+      { kind: 'value', key: 'info-build', label: 'Build', description: 'numer builda github actions', icon: Info, value: `#${BUILD_INFO.buildNumber}` },
+      { kind: 'value', key: 'info-date', label: 'Zbudowano', description: 'data builda', icon: Clock, value: BUILD_INFO.buildDate },
+      { kind: 'value', key: 'info-commit', label: 'Commit', description: 'git commit sha', icon: Info, value: BUILD_INFO.commit },
     ],
   },
   {
-    id: 'diagnostyka', title: 'Diagnostyka', icon: Stethoscope, color: colors.accent.red,
+    id: 'diagnostyka', title: 'Diagnostyka', icon: Stethoscope,
     items: [
-      { kind: 'action', key: 'google', label: 'Zaloguj przez Google', description: 'logowanie konto sign-in', icon: LogIn, accent: colors.stat.woda },
-      { kind: 'action', key: 'firestore', label: 'Test Firestore', description: 'baza danych synchronizacja', icon: Database, accent: colors.stat.finanse },
-      { kind: 'action', key: 'calendar', label: 'Test Kalendarza Google', description: 'wydarzenia kalendarz', icon: CalendarDays, accent: colors.stat.event },
-      { kind: 'action', key: 'calendar-sync', label: 'Sync kalendarza (dane)', description: 'test warstwy danych firestore i google calendar round-trip', icon: CalendarDays, accent: colors.stat.event },
+      { kind: 'action', key: 'google', label: 'Zaloguj przez Google', description: 'logowanie konto sign-in', icon: LogIn },
+      { kind: 'action', key: 'firestore', label: 'Test Firestore', description: 'baza danych synchronizacja', icon: Database },
+      { kind: 'action', key: 'calendar', label: 'Test Kalendarza Google', description: 'wydarzenia kalendarz', icon: CalendarDays },
+      { kind: 'action', key: 'calendar-sync', label: 'Sync kalendarza (dane)', description: 'test warstwy danych firestore i google calendar round-trip', icon: CalendarDays },
     ],
   },
   // Sandbox do porównania kilku podejść do prawdziwych full-screen-intent alertów
@@ -95,18 +102,18 @@ function buildSections(email: string | null): SettingsSection[] {
   // `fullScreenIntent` (patrz `plugins/withFullScreenAlert.js`), który POWINIEN
   // wybudzić telefon i pokazać appkę NAD blokadą jak budzik/połączenie przychodzące.
   {
-    id: 'alerty', title: 'Alerty', icon: Bell, color: colors.accent.red,
+    id: 'alerty', title: 'Alerty', icon: Bell,
     items: [
-      { kind: 'action', key: 'alert-expo', label: 'Expo (MAX priorytet)', description: 'powiadomienia alert notification heads-up', icon: AlertTriangle, accent: colors.accent.red },
-      { kind: 'action', key: 'alert-notifee', label: 'Notifee (bez przycisku)', description: 'powiadomienia alert notification pelny ekran budzik', icon: Rocket, accent: colors.accent.purple },
-      { kind: 'action', key: 'alert-notifee-buttons', label: 'Notifee (Tak/Nie)', description: 'powiadomienia alert notification pelny ekran budzik przyciski akcji', icon: Rocket, accent: colors.accent.green },
-      { kind: 'action', key: 'alert-notifee-5min', label: 'Notifee za 5 min (test OLED)', description: 'sprawdza czy ekran faktycznie sie wybudza z glebokiego usypiania, nie tylko gra w ciemno', icon: Rocket, accent: colors.accent.orange },
+      { kind: 'action', key: 'alert-expo', label: 'Expo (MAX priorytet)', description: 'powiadomienia alert notification heads-up', icon: AlertTriangle },
+      { kind: 'action', key: 'alert-notifee', label: 'Notifee (bez przycisku)', description: 'powiadomienia alert notification pelny ekran budzik', icon: Rocket },
+      { kind: 'action', key: 'alert-notifee-buttons', label: 'Notifee (Tak/Nie)', description: 'powiadomienia alert notification pelny ekran budzik przyciski akcji', icon: Rocket },
+      { kind: 'action', key: 'alert-notifee-5min', label: 'Notifee za 5 min (test OLED)', description: 'sprawdza czy ekran faktycznie sie wybudza z glebokiego usypiania, nie tylko gra w ciemno', icon: Rocket },
     ],
   },
   {
-    id: 'finanse', title: 'Finanse', icon: Wallet, color: colors.stat.finanse,
+    id: 'finanse', title: 'Finanse', icon: Wallet,
     items: [
-      { kind: 'value', key: 'finanse-soon', label: 'Wkrótce', description: 'parser paragonów budżety limity kategorie', icon: Clock, accent: colors.stat.finanse, value: 'W budowie' },
+      { kind: 'value', key: 'finanse-soon', label: 'Wkrótce', description: 'parser paragonów budżety limity kategorie', icon: Clock, value: 'W budowie' },
     ],
   },
   ];
@@ -499,8 +506,8 @@ export default function SettingsScreen() {
     const Icon = item.icon;
     const inner = (
       <>
-        <View style={[s.itemIcon, { backgroundColor: `${item.accent}33` }]}>
-          <Icon size={16} color={item.accent} />
+        <View style={s.itemIcon}>
+          <Icon size={16} color={colors.text.secondary} />
         </View>
         <Text style={s.itemLabel}>{item.label}</Text>
         {item.kind === 'value' && <Text style={s.itemValue} numberOfLines={1}>{item.value}</Text>}
@@ -563,8 +570,8 @@ export default function SettingsScreen() {
                 onPress={() => setActiveSectionId(section.id)}
                 activeOpacity={0.7}
               >
-                <View style={[s.categoryIcon, { backgroundColor: `${section.color}33` }]}>
-                  <Icon size={18} color={section.color} />
+                <View style={s.categoryIcon}>
+                  <Icon size={18} color={colors.text.secondary} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.categoryTitle}>{section.title}</Text>
@@ -623,7 +630,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
     backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default,
     padding: spacing[3],
   },
-  categoryIcon: { width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  categoryIcon: { width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.elevated },
   categoryTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.primary },
   categorySubtitle: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 1 },
 
@@ -636,7 +643,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
     paddingHorizontal: spacing[3], paddingVertical: spacing[3],
   },
   itemDivider: { borderBottomWidth: 1, borderBottomColor: c.border.subtle },
-  itemIcon: { width: 32, height: 32, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  itemIcon: { width: 32, height: 32, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.elevated },
   itemLabel: { flex: 1, fontSize: 13.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
   itemValue: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.secondary, maxWidth: 160 },
 

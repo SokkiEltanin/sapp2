@@ -1,17 +1,16 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { Globe } from 'lucide-react-native';
-import { colors } from '@/theme/colors';
 import { themedStyles } from '@/theme';
 import PatternTileBackground from './PatternTileBackground';
 import type { StatTilePosition } from './tilePosition';
 
 // "Ciekawostka" (2026-10-26) — user usunął kropkę karuzeli (było zapowiedzią przyszłego
 // swipe'a między wieloma ciekawostkami, teraz nieużywane — jeśli karuzela wróci,
-// potrzebny będzie inny wskaźnik stron). Tekst wycentrowany w całym kaflu, ikona
-// przypięta osobno w rogu (position: absolute), żeby nie brała udziału w centrowaniu.
+// potrzebny będzie inny wskaźnik stron). Tekst wycentrowany w całym kaflu.
 //
 // Monochromatyczne — `accent` prop USUNIĘTY (2026-10-30, redesign, patrz
-// PatternTileBackground.tsx), ikona i tekst neutralne.
+// PatternTileBackground.tsx). Ikona Globe USUNIĘTA CAŁKOWICIE (2026-10-30, user
+// zaznaczył ją na referencyjnym screenshocie: "wywal tę ikonkę przy ciekawostkach") —
+// nie zastąpiona niczym, kafel to teraz czysty wycentrowany tekst.
 export default function FactTile({
   position,
   text,
@@ -23,7 +22,6 @@ export default function FactTile({
   return (
     <PatternTileBackground position={position}>
       <View style={s.wrap}>
-        <Globe size={18} color={colors.text.secondary} style={s.icon} />
         <Text
           style={s.title}
           numberOfLines={4}
@@ -39,6 +37,5 @@ export default function FactTile({
 
 const makeS = themedStyles((c) => StyleSheet.create({
   wrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  icon: { position: 'absolute', top: 0, left: 0 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 14, lineHeight: 19, textAlign: 'center', color: c.text.primary },
 }));
