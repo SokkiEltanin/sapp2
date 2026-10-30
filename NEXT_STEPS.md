@@ -965,3 +965,40 @@ ukrywać") — potwierdziło się.
   — zablokuj ekran, poczekaj na trigger), (c) że ZWYKŁE używanie appki (Dashboard
   itp.) na zablokowanym telefonie TERAZ wymaga normalnego odblokowania (to jest
   POPRAWNE, oczekiwane zachowanie, nie regresja).
+
+## Dashboard — redesign na monochromatyczny (2026-10-30)
+
+User: "zmieniłem trochę styl nasz na bardziej prostszy... wywaliłem gradienty i
+poprawiłem monochromatyczność... TAKI STYL PRZYJMUJEMY DLA CAŁEJ APLIKACJI OD
+TERAZ" + podesłał dokładny SVG-referencję (eksport Figmy) + screenshot.
+Wyciągnięte z SVG wszystkie użyte kolory (grep `fill="#..."`): okazało się że to
+PRAWIE WYŁĄCZNIE skala szarości — `#141414` (= nasz `bg.card`, już pasował),
+`#D6D6D6` (= nasz `text.primary`, już pasował), `#ECECEC` (jaśniejszy biały,
+NOWY — dodany jako `text.bright`), `#6A6A6A`/`#0A0A0A` (= nasze
+`chart.muted`/`chart.barBg`, już pasowały). JEDYNY nie-neutralny kolor w całym
+SVG to niebieski `#1B36AF` — dokładnie kolor chipa taga "UR" w TaskListTile,
+czyli funkcjonalne akcenty (tagi) ZOSTAJĄ kolorowe, tła/liczby kafli — NIE.
+
+Usunięte ze WSZYSTKICH kafli Dashboardu:
+- Gradienty tła (pionowe w StatTile, po skosie w PatternTileBackground/
+  FoodBarsTile, fade-w-prawo per-tag w TaskListTile) — teraz płaskie `c.bg.card`.
+- Kolorowanie dużych liczb/etykiet/ikon `accent`-em per-kategoria (`colors.stat.*`)
+  — `accent` prop CAŁKOWICIE USUNIĘTY z API StatTile/FactTile/SleepTile/
+  PatternTileBackground (nic go już nie używało po usunięciu gradientu).
+- FoodBarsTile: kolumna "average" (~ŚR) przestała być specjalnie kolorowana —
+  w referencji tylko OSTATNIA (bieżący miesiąc) kolumna jest jaśniejsza, reszta
+  (w tym average) jednolicie szara.
+- LevelTile: etykieta "LVL" z `accent.red` na neutralny `text.secondary`.
+- ConcentricPattern (FactTile/SleepTile tło): pierścienie z accent-koloru na
+  neutralny `chart.muted`, nie usunięte całkiem (user mówił o gradientach, nie o
+  samym wzorze).
+- `app/(tabs)/finances.tsx` — wartość salda z `colors.stat.finanse` na
+  `colors.text.bright`, spójnie z resztą (ComingSoonRow accenty/dziś-podświetlenie
+  w Zadaniach ŚWIADOMIE zostawione kolorowe — to small functional accenty jak
+  tagi, inny przypadek niż duże liczby/gradienty kafli, których dotyczyła
+  referencja).
+- `src/theme/colors.ts`: dodany `text.bright: '#ECECEC'`.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
+bez błędów. **Niezweryfikowane na urządzeniu** — czeka na build i porównanie z
+referencyjnym screenshotem.

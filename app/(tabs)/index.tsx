@@ -11,12 +11,21 @@ import { spacing, themedStyles } from '@/theme';
 
 // Pierwsze cztery rzędy prawdziwego Dashboardu (2026-10-26) wg mockupów usera:
 // rząd 1 — STREAK WODA > STREAK SŁODYCZE > INCOMING EVENT > STREAK ĆWICZENIA (kafle
-// statystyk, gradient pionowy — pogoda wywalona, zastąpiona streakiem ćwiczeń, ten sam
-// kafelek co WODA/SŁODYCZE); rząd 2 — CIEKAWOSTKA > SEN (kafle z dodatkowym wzorem koncentrycznym
-// w tle + gradient po skosie); rząd 3 — ZADANIA (3/4 szerokości) > PUPIL/LVL (1/4,
-// placeholder, nieustalone jeszcze); rząd 4 — FINANSE (1/4, kafel statystyk) > wykres
-// wydatków na jedzenie per miesiąc (3/4). Dane na sztywno (mock) — jeszcze nie podpięte
-// do żadnego store'a, tylko weryfikacja stylu na urządzeniu.
+// statystyk — pogoda wywalona, zastąpiona streakiem ćwiczeń, ten sam kafelek co
+// WODA/SŁODYCZE); rząd 2 — CIEKAWOSTKA > SEN (kafle z dodatkowym wzorem koncentrycznym
+// w tle); rząd 3 — ZADANIA (3/4 szerokości) > PUPIL/LVL (1/4, placeholder, nieustalone
+// jeszcze); rząd 4 — FINANSE (1/4, kafel statystyk) > wykres wydatków na jedzenie per
+// miesiąc (3/4). Dane na sztywno (mock) — jeszcze nie podpięte do żadnego store'a,
+// tylko weryfikacja stylu na urządzeniu.
+//
+// MONOCHROMATYCZNY REDESIGN (2026-10-30) — user podesłał dokładny SVG-referencję:
+// "wywaliłem gradienty i poprawiłem monochromatyczność... taki styl przyjmujemy dla
+// całej aplikacji". Wszystkie gradienty tła (per-kategoria, po skosie/pionowe) oraz
+// kolorowanie dużych liczb/etykiet/ikon kaflom `accent`-em USUNIĘTE — patrz
+// StatTile.tsx/PatternTileBackground.tsx/FactTile.tsx/SleepTile.tsx/FoodBarsTile.tsx/
+// TaskListTile.tsx/LevelTile.tsx. Jedyny kolor który ZOSTAŁ to funkcjonalne akcenty
+// (np. kolor chipa taga w MOCK_TASKS niżej) — dokładnie jak w referencyjnym SVG,
+// gdzie jedynym nie-neutralnym elementem był niebieski chip "UR".
 // Pokazuje wszystkie 4 stany systemu tagów (2026-10-27): nazwany skrót, pilne
 // (czerwone, wykrzyknik), bez taga (puste kropeczki), przypomnienie (dzwonek).
 const MOCK_TASKS: Task[] = [
@@ -41,21 +50,18 @@ export default function DashboardScreen() {
       <View style={s.row}>
         <StatTile
           position={getTilePosition(0, 4)}
-          accent={colors.stat.woda}
           value="74"
           unit="DNI"
           label="WODA"
         />
         <StatTile
           position={getTilePosition(1, 4)}
-          accent={colors.stat.slodycze}
           value="4"
           unit="DNI"
           label="SŁODYCZE"
         />
         <StatTile
           position={getTilePosition(2, 4)}
-          accent={colors.stat.event}
           value="27"
           unit="MINUT"
           variant="event"
@@ -63,7 +69,6 @@ export default function DashboardScreen() {
         />
         <StatTile
           position={getTilePosition(3, 4)}
-          accent={colors.stat.cwiczenia}
           value="12"
           unit="DNI"
           label="ĆWICZENIA"
@@ -73,12 +78,10 @@ export default function DashboardScreen() {
       <View style={[s.row, s.rowGap]}>
         <FactTile
           position={getTilePosition(0, 2)}
-          accent={colors.stat.sen}
           text="Mózg zużywa jedną piątą energii twojego organizmu"
         />
         <SleepTile
           position={getTilePosition(1, 2)}
-          accent={colors.stat.sen}
           duration="7h 50m"
           window="23:05 - 06:06"
         />
@@ -92,7 +95,6 @@ export default function DashboardScreen() {
       <View style={[s.row, s.rowGap]}>
         <StatTile
           position={getTilePosition(0, 2)}
-          accent={colors.stat.finanse}
           value="22,4"
           unit="PLN"
           label={'DZIENNIE\n#JEDZENIE'}

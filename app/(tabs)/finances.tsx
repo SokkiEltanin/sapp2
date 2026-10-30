@@ -24,7 +24,7 @@ export default function FinancesScreen() {
       <ScrollView contentContainerStyle={s.scroll}>
         <View style={s.balanceCard}>
           <Text style={s.balanceLabel}>Saldo</Text>
-          <Text style={[s.balanceValue, { color: colors.stat.finanse }]}>0,00 zł</Text>
+          <Text style={[s.balanceValue, { color: colors.text.bright }]}>0,00 zł</Text>
         </View>
 
         <Text style={s.sectionTitle}>Ostatnie transakcje</Text>
@@ -52,6 +52,9 @@ const makeS = themedStyles((c) => StyleSheet.create({
     alignItems: 'center', paddingVertical: spacing[5], marginBottom: spacing[4],
   },
   balanceLabel: { fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  // `colors.text.bright` (2026-10-30, redesign Dashboardu na monochromatyczny) —
+  // zamiast `colors.stat.finanse`, spójnie z dużymi liczbami kafli Dashboardu
+  // (StatTile.tsx).
   balanceValue: { fontSize: 36, fontFamily: 'Inter_900Black', marginTop: spacing[1] },
   sectionTitle: {
     fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.secondary,

@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Globe } from 'lucide-react-native';
+import { colors } from '@/theme/colors';
 import { themedStyles } from '@/theme';
 import PatternTileBackground from './PatternTileBackground';
 import type { StatTilePosition } from './tilePosition';
@@ -8,22 +9,23 @@ import type { StatTilePosition } from './tilePosition';
 // swipe'a między wieloma ciekawostkami, teraz nieużywane — jeśli karuzela wróci,
 // potrzebny będzie inny wskaźnik stron). Tekst wycentrowany w całym kaflu, ikona
 // przypięta osobno w rogu (position: absolute), żeby nie brała udziału w centrowaniu.
+//
+// Monochromatyczne — `accent` prop USUNIĘTY (2026-10-30, redesign, patrz
+// PatternTileBackground.tsx), ikona i tekst neutralne.
 export default function FactTile({
   position,
-  accent,
   text,
 }: {
   position: StatTilePosition;
-  accent: string;
   text: string;
 }) {
   const s = makeS();
   return (
-    <PatternTileBackground position={position} accent={accent}>
+    <PatternTileBackground position={position}>
       <View style={s.wrap}>
-        <Globe size={18} color={accent} style={s.icon} />
+        <Globe size={18} color={colors.text.secondary} style={s.icon} />
         <Text
-          style={[s.title, { color: accent }]}
+          style={s.title}
           numberOfLines={4}
           adjustsFontSizeToFit
           minimumFontScale={0.7}
@@ -35,8 +37,8 @@ export default function FactTile({
   );
 }
 
-const makeS = themedStyles(() => StyleSheet.create({
+const makeS = themedStyles((c) => StyleSheet.create({
   wrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   icon: { position: 'absolute', top: 0, left: 0 },
-  title: { fontFamily: 'Inter_700Bold', fontSize: 14, lineHeight: 19, textAlign: 'center' },
+  title: { fontFamily: 'Inter_700Bold', fontSize: 14, lineHeight: 19, textAlign: 'center', color: c.text.primary },
 }));

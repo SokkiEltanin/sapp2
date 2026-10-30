@@ -1,5 +1,4 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '@/theme/colors';
 import { spacing, themedStyles } from '@/theme';
 import { cornersForPosition, TILE_ROW_HEIGHT, type StatTilePosition } from './tilePosition';
@@ -8,6 +7,12 @@ import { cornersForPosition, TILE_ROW_HEIGHT, type StatTilePosition } from './ti
 // Wysokość słupka proporcjonalna do wartości względem max w zestawie (sensowny domyślny
 // wybór, niezależnie od dokładnych, prawdopodobnie orientacyjnych wysokości w mockupie).
 // Kolumna "average" (np. "~ŚR") nie ma słupka, tylko kreskę pod liczbą.
+//
+// Monochromatyczne (2026-10-30, redesign) — usunięty gradient tła oraz kolorowanie
+// `colors.stat.finanse` na aktywnej kolumnie/tytule: aktywna (bieżący miesiąc) kolumna
+// jest teraz jasna/neutralna (`c.text.bright`), reszta (w tym "average") ciemnoszara
+// (`colors.chart.muted`) — w referencyjnym mockupie tylko OSTATNIA kolumna (bieżący
+// miesiąc) jest jaśniejsza, "average" NIE jest już specjalnie wyróżniona kolorem.
 export type BarColumn = {
   label: string;
   value: number;
@@ -29,20 +34,11 @@ export default function FoodBarsTile({
 
   return (
     <View style={[s.tile, cornersForPosition(position)]}>
-      {/* Po skosie z prawego-dolnego (czarny) do lewego-górnego (akcent) — user:
-          "lekki od prawego dolnego rogu do lewego górnego". Poprzednio pionowy
-          (góra→dół), nie po przekątnej jak w oryginale. */}
-      <LinearGradient
-        colors={['#000000', colors.stat.finanse]}
-        start={{ x: 1, y: 1 }}
-        end={{ x: 0, y: 0 }}
-        style={s.gradient}
-      />
       <Text style={s.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{title}</Text>
       <View style={s.columns}>
         {columns.map((col) => {
           const active = col.kind === 'highlight';
-          const tint = active || col.kind === 'average' ? colors.stat.finanse : colors.chart.muted;
+          const tint = active ? colors.text.bright : colors.chart.muted;
           return (
             <View key={col.label} style={s.column}>
               <Text
@@ -63,7 +59,7 @@ export default function FoodBarsTile({
                     style={[
                       s.avgLine,
                       { bottom: `${Math.max(12, (col.value / maxValue) * 100)}%` },
-                      { backgroundColor: colors.stat.finanse },
+                      { backgroundColor: colors.chart.muted },
                     ]}
                   />
                 ) : (
@@ -71,7 +67,7 @@ export default function FoodBarsTile({
                     style={[
                       s.bar,
                       { height: `${Math.max(12, (col.value / maxValue) * 100)}%` },
-                      { backgroundColor: active ? colors.stat.finanse : colors.chart.barBg },
+                      { backgroundColor: active ? colors.text.bright : colors.chart.barBg },
                     ]}
                   />
                 )}
@@ -97,8 +93,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
     flex: 3, height: TILE_ROW_HEIGHT, backgroundColor: c.bg.card, overflow: 'hidden',
     padding: spacing[2],
   },
-  gradient: { ...StyleSheet.absoluteFillObject, opacity: 0.2 },
-  title: { fontFamily: 'Inter_700Bold', fontSize: 11, color: colors.stat.finanse, marginBottom: 4 },
+  title: { fontFamily: 'Inter_700Bold', fontSize: 11, color: c.text.secondary, marginBottom: 4 },
   columns: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
   // `alignItems: 'stretch'` (domyślne) — Text potrzebuje realnej szerokości kolumny żeby
   // `adjustsFontSizeToFit` miało względem czego się kurczyć (ten sam fix co StatTile).

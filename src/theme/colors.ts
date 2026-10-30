@@ -17,6 +17,12 @@ export const colors = {
     primary: '#D6D6D6',
     secondary: '#A7ADBD',
     muted: '#6B7180',
+    // `bright` (2026-10-30, redesign Dashboardu na monochromatyczny — user podesłał
+    // dokładny SVG referencyjny, wyciągnięte z niego fill'e) — jaśniejszy biały dla
+    // WYRÓŻNIONYCH dużych liczb kafelków (np. "74" WODA, "7h 50m" SNU, aktywna
+    // kolumna wykresu), odróżnialny od zwykłego `primary` tekstu. Zastępuje
+    // kolorowanie liczb per-kategoria (`stat.*`) — patrz komentarz w StatTile.tsx.
+    bright: '#ECECEC',
   },
   accent: {
     blue: '#6C9EFF',   // Dashboard (nawigacja/taby)
@@ -25,9 +31,14 @@ export const colors = {
     red: '#EF4444',    // Pupil
     purple: '#A78BFA',
   },
-  // Kolory kategorii kafelków statystyk na Dashboardzie — jeden kolor na kategorię,
-  // używany i do tekstu (liczba + etykieta), i do gradientu w tle tego samego kafla
-  // (ten sam hex, warstwa gradientu na 20% opacity nad #141414 — patrz StatTile).
+  // Kolory kategorii — UŻYWANE TYLKO jako małe, funkcjonalne akcenty (np. tagi
+  // zadań w TaskListTile, kolorowe odznaki ikon w Ustawieniach), NIE jako tło/tekst
+  // dużych kafelków Dashboardu (2026-10-30, user podesłał SVG-referencję:
+  // "wywaliłem gradienty i poprawiłem monochromatyczność... taki styl przyjmujemy
+  // dla całej aplikacji" — cały SVG to w zasadzie sama skala szarości, JEDYNY
+  // nie-neutralny kolor to niebieski chip taga "UR"). Historyczny komentarz niżej
+  // (gradient w tle kafla) już NIEAKTUALNY dla Dashboardu — patrz StatTile.tsx/
+  // PatternTileBackground.tsx/FoodBarsTile.tsx.
   stat: {
     woda: '#5AAFFA',
     slodycze: '#C43A3D',

@@ -1,19 +1,21 @@
 import { View, Text, StyleSheet } from 'react-native';
 import type { ReactNode } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import { themedStyles } from '@/theme';
 import { cornersForPosition, getTilePosition, TILE_ROW_HEIGHT, type StatTilePosition } from './tilePosition';
 
-// Wzorzec z mockupów usera (2026-10-26, kafelek WODA) — jeden kolor akcentu na
-// kategorię, używany i do tekstu, i do gradientu w tle (ten sam hex, warstwa gradientu
-// czarny→akcent na 20% opacity nad bazą #141414). Reguła zaokrąglania (tylko skrajne
-// krawędzie rzędu) — patrz `tilePosition.ts`, wspólna z PatternTileBackground.
+// Monochromatyczny redesign (2026-10-30, user podesłał dokładny SVG-referencję:
+// "wywaliłem gradienty i poprawiłem monochromatyczność... taki styl przyjmujemy dla
+// całej aplikacji") — ZASTĘPUJE poprzedni wzorzec "jeden kolor akcentu na kategorię,
+// użyty i w tekście, i w gradiencie tła". Teraz: płaskie tło `c.bg.card`, liczba
+// `c.text.bright`, etykieta/jednostka `c.text.secondary` — bez per-kategoria
+// kolorowania. `accent` (prop) USUNIĘTY z API — nic go już tu nie używa. Reguła
+// zaokrąglania (tylko skrajne krawędzie rzędu) — patrz `tilePosition.ts`, wspólna z
+// PatternTileBackground.
 export type { StatTilePosition };
 export { getTilePosition };
 
 type BaseProps = {
   position: StatTilePosition;
-  accent: string;
   value: string;
 };
 
@@ -38,18 +40,12 @@ export type StatTileProps = StatProps | EventProps | WeatherProps;
 
 export default function StatTile(props: StatTileProps) {
   const s = makeS();
-  const { position, accent, value } = props;
+  const { position, value } = props;
 
   return (
     <View style={[s.tile, cornersForPosition(position)]}>
-      <LinearGradient
-        colors={['#000000', accent]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={s.gradient}
-      />
       <View style={s.content}>
-        <Text style={[s.value, { color: accent }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+        <Text style={s.value} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
           {value}
         </Text>
         {props.variant === 'weather' ? (
@@ -60,7 +56,7 @@ export default function StatTile(props: StatTileProps) {
               {props.unit}
             </Text>
             {props.variant === 'event' ? (
-              <Text style={[s.detail, { color: accent }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.7}>
+              <Text style={s.detail} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.7}>
                 {props.detail}
               </Text>
             ) : (
@@ -71,7 +67,7 @@ export default function StatTile(props: StatTileProps) {
               // drugiego wiersza z jedną sierotą-literą (user: "ĆWICZENIA wypierdzielaj
               // się dziwnie", 2026-10-27).
               <Text
-                style={[s.label, { color: accent }]}
+                style={s.label}
                 numberOfLines={props.label.includes('\n') ? 2 : 1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.5}
@@ -93,10 +89,6 @@ const makeS = themedStyles((c) => StyleSheet.create({
     backgroundColor: c.bg.card,
     overflow: 'hidden',
   },
-  gradient: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.2,
-  },
   content: {
     flex: 1,
     paddingHorizontal: 10,
@@ -111,6 +103,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
     fontFamily: 'Inter_900Black',
     fontSize: 34,
     textAlign: 'center',
+    color: c.text.bright,
   },
   unit: {
     fontFamily: 'Inter_200ExtraLight',
@@ -123,12 +116,14 @@ const makeS = themedStyles((c) => StyleSheet.create({
     fontFamily: 'Inter_900Black',
     fontSize: 16,
     textAlign: 'center',
+    color: c.text.secondary,
   },
   detail: {
     fontFamily: 'Inter_500Medium',
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 14,
+    color: c.text.secondary,
   },
   weatherIconWrap: {
     flex: 1,
