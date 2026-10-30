@@ -1091,6 +1091,47 @@ Usunięte kolorowanie per-kategoria z:**
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
 bez błędów. **Niezweryfikowane na urządzeniu.**
 
+## Dashboard — szkielet "Jedzenie: rozkład wydatków" (2026-10-30)
+
+User podesłał screenshot analogicznego widoku z `sapp` (karta "JEDZENIE ·
+PAŹDZIERNIK" — suma + porównanie do zeszłego miesiąca, przełącznik
+Tygodnie/Dni/Miesiące, wykres tygodniowy, lista kategorii z paskami proporcji) i
+poprosił: "musimy na dashbordzie w naszym stylu dodać takie coś (tylko teraz
+pewnie szkielet tego żeby nie zapomnieć pasujący ile tam miejsca tyle weźmie ten
+widget) a później zapiszmy żeby wrócić jak zrobimy parser paragonów".
+
+Dodane:
+- `src/components/dashboard/FoodBreakdownCard.tsx` (nowy) — pełnowymiarowa karta
+  (nie kafel w siatce `getTilePosition`, osobny pełnoszerokościowy element):
+  nagłówek (ikona + "JEDZENIE · MIESIĄC" + suma), linia porównania do zeszłego
+  miesiąca, przełącznik okresu (3 zakładki, TYLKO "Tygodnie" wizualnie aktywne),
+  wykres słupkowy tygodni, lista kategorii (kropka koloru + pasek proporcji +
+  kwota + strzałka).
+- `app/(tabs)/index.tsx` — nowy wiersz pod istniejącym rzędem Finanse/wykres
+  jedzenia, mock dane 1:1 z tego co user pokazał (823 zł, -38%, T1-T5, 12
+  kategorii Pieczywo→Ryż i kasze).
+- Dashboard dostał PIERWSZY RAZ `ScrollView` (wcześniej czysty `View` bez
+  przewijania — 4 stałe rzędy zawsze mieściły się na ekranie; ta karta już nie
+  mieści się, więc cały ekran musiał dostać scroll).
+
+ŚWIADOMIE nieinteraktywne/na mocku, nie prawdziwa funkcja:
+- Przełącznik Tygodnie/Dni/Miesiące — tylko wizualny stan, tap nic nie robi
+  (nie ma alternatywnych danych do pokazania).
+- Wiersze kategorii ("stuknij by sprawdzić produkty" w oryginale) — strzałka
+  widoczna, ale BEZ `onPress`, nie ma jeszcze ekranu docelowego.
+- Kolory kropek/pasków per-kategoria ZOSTAJĄ kolorowe (funkcjonalny
+  legend-akcent, ta sama zasada co tagi zadań/kolory eventów Google — nie
+  "kolor kategorii ekranu", więc nie łamie monochromatycznego audytu).
+
+**DO ZROBIENIA PÓŹNIEJ (user: "zapiszmy żeby wrócić")**: podpiąć realne dane,
+gdy powstanie parser paragonów + kategoryzacja wydatków (Faza 2, Finanse) —
+wtedy ten kafel przestaje być mockiem, dostaje prawdziwy `total`/`weeks`/
+`categories` z nowego store'a, przełącznik okresu i wiersze kategorii stają się
+klikalne (nawigacja do listy produktów per kategoria, jak w `sapp`).
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
+bez błędów. **Niezweryfikowane na urządzeniu.**
+
 ## Dashboard — LVL/Pupil zastąpiony kafelkiem "najbliższy termin zadania" (2026-10-30)
 
 User: "tam gdzie lvl27 kafelek przy zadaniach robimy tak jak na górze mamy z tym 27

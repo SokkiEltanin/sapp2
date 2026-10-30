@@ -24,6 +24,12 @@ Kliknięcie w kafelek przenosi na powiązaną zakładkę GE z kontekstem, np. ka
 `DAILY`, od razu pokazując sen z dziś + historię + średnią. Edycja danych (dopisanie
 wody/snu ręcznie itp.) — **odłożone**, na razie budujemy same ekrany/nawigację.
 
+Scrollowalny (od 2026-10-30, dodanie `FoodBreakdownCard` — pierwszy element, który nie
+mieści się na jeden ekran). Pod stałą siatką 4 rzędów (`getTilePosition`) jest teraz
+jeszcze `FoodBreakdownCard.tsx` — pełnowymiarowy, nieregularny szkielet przyszłego
+widoku "rozkład wydatków na jedzenie" (mock dane, czeka na parser paragonów, Faza 2 —
+patrz NEXT_STEPS.md "Dashboard — szkielet Jedzenie: rozkład wydatków").
+
 ## DAILY [GE]
 
 Obszerna zakładka, popupy zależnie od klikniętego kafelka. Obejmuje:

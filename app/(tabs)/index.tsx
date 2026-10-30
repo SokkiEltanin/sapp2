@@ -1,10 +1,11 @@
-import { View, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import StatTile, { getTilePosition } from '@/components/dashboard/StatTile';
 import FactTile from '@/components/dashboard/FactTile';
 import SleepTile from '@/components/dashboard/SleepTile';
 import TaskListTile, { type Task } from '@/components/dashboard/TaskListTile';
 import FoodBarsTile, { type BarColumn } from '@/components/dashboard/FoodBarsTile';
+import FoodBreakdownCard, { type FoodWeek, type FoodCategory } from '@/components/dashboard/FoodBreakdownCard';
 import { colors } from '@/theme/colors';
 import { spacing, themedStyles } from '@/theme';
 
@@ -49,82 +50,128 @@ const MOCK_FOOD_COLUMNS: BarColumn[] = [
   { label: 'LIP', value: 820, display: '820', kind: 'bar' },
   { label: 'SIER', value: 452, display: '452', kind: 'highlight' },
 ];
+
+// Szkielet "Jedzenie — rozkład wydatków" (2026-10-30, user podesłał screenshot z sapp
+// — patrz komentarz w FoodBreakdownCard.tsx) — mock 1:1 z tego co user pokazał, żeby
+// zarezerwować właściwą ilość miejsca pod przyszłą, realną wersję (Faza 2, parser
+// paragonów — patrz NEXT_STEPS.md).
+const MOCK_FOOD_WEEKS: FoodWeek[] = [
+  { label: 'T1', value: 147 },
+  { label: 'T2', value: 197 },
+  { label: 'T3', value: 166 },
+  { label: 'T4', value: 208 },
+  { label: 'T5', value: 105 },
+];
+const MOCK_FOOD_CATEGORIES: FoodCategory[] = [
+  { label: 'Pieczywo', amount: 177, color: '#E0A458' },
+  { label: 'Nabiał', amount: 166, color: '#E0C040' },
+  { label: 'Słodycze', amount: 144, color: '#A78BFA' },
+  { label: 'Mięso', amount: 79, color: '#E06A6A' },
+  { label: 'Warzywa', amount: 73, color: '#4CC38A' },
+  { label: 'Napoje', amount: 44, color: '#4FC3E0' },
+  { label: 'Inne jedzenie', amount: 40, color: '#8A8A8A' },
+  { label: 'Przekąski', amount: 40, color: '#E0A458' },
+  { label: 'Owoce', amount: 26, color: '#E06A6A' },
+  { label: 'Sosy', amount: 25, color: '#E0914A' },
+  { label: 'Mąka i produkty', amount: 5, color: '#D8C9A0' },
+  { label: 'Ryż i kasze', amount: 4, color: '#B98A5A' },
+];
+
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const s = makeS();
 
   return (
     <View style={[s.safe, { paddingTop: insets.top + spacing[2] }]}>
-      <View style={s.row}>
-        <StatTile
-          position={getTilePosition(0, 4)}
-          value="74"
-          unit="DNI"
-          label="WODA"
-        />
-        <StatTile
-          position={getTilePosition(1, 4)}
-          value="4"
-          unit="DNI"
-          label="SŁODYCZE"
-        />
-        <StatTile
-          position={getTilePosition(2, 4)}
-          value="27"
-          unit="MINUT"
-          variant="event"
-          detail={'[JD] 15:00\n-21:00 (6h)'}
-        />
-        <StatTile
-          position={getTilePosition(3, 4)}
-          value="12"
-          unit="DNI"
-          label="ĆWICZENIA"
-        />
-      </View>
+      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={s.row}>
+          <StatTile
+            position={getTilePosition(0, 4)}
+            value="74"
+            unit="DNI"
+            label="WODA"
+          />
+          <StatTile
+            position={getTilePosition(1, 4)}
+            value="4"
+            unit="DNI"
+            label="SŁODYCZE"
+          />
+          <StatTile
+            position={getTilePosition(2, 4)}
+            value="27"
+            unit="MINUT"
+            variant="event"
+            detail={'[JD] 15:00\n-21:00 (6h)'}
+          />
+          <StatTile
+            position={getTilePosition(3, 4)}
+            value="12"
+            unit="DNI"
+            label="ĆWICZENIA"
+          />
+        </View>
 
-      <View style={[s.row, s.rowGap]}>
-        <FactTile
-          position={getTilePosition(0, 2)}
-          text="Mózg zużywa jedną piątą energii twojego organizmu"
-        />
-        <SleepTile
-          position={getTilePosition(1, 2)}
-          duration="7h 50m"
-          window="23:05 - 06:06"
-        />
-      </View>
+        <View style={[s.row, s.rowGap]}>
+          <FactTile
+            position={getTilePosition(0, 2)}
+            text="Mózg zużywa jedną piątą energii twojego organizmu"
+          />
+          <SleepTile
+            position={getTilePosition(1, 2)}
+            duration="7h 50m"
+            window="23:05 - 06:06"
+          />
+        </View>
 
-      <View style={[s.row, s.rowGap]}>
-        <TaskListTile position={getTilePosition(0, 2)} tasks={MOCK_TASKS} />
-        <StatTile
-          position={getTilePosition(1, 2)}
-          value="2"
-          unit="DNI"
-          variant="event"
-          detail={'Projekt\nMarchewka'}
-        />
-      </View>
+        <View style={[s.row, s.rowGap]}>
+          <TaskListTile position={getTilePosition(0, 2)} tasks={MOCK_TASKS} />
+          <StatTile
+            position={getTilePosition(1, 2)}
+            value="2"
+            unit="DNI"
+            variant="event"
+            detail={'Projekt\nMarchewka'}
+          />
+        </View>
 
-      <View style={[s.row, s.rowGap]}>
-        <StatTile
-          position={getTilePosition(0, 2)}
-          value="22,4"
-          unit="PLN"
-          label={'DZIENNIE\n#JEDZENIE'}
-        />
-        <FoodBarsTile
-          position={getTilePosition(1, 2)}
-          title="#JedzeniePerMiesiąc"
-          columns={MOCK_FOOD_COLUMNS}
-        />
-      </View>
+        <View style={[s.row, s.rowGap]}>
+          <StatTile
+            position={getTilePosition(0, 2)}
+            value="22,4"
+            unit="PLN"
+            label={'DZIENNIE\n#JEDZENIE'}
+          />
+          <FoodBarsTile
+            position={getTilePosition(1, 2)}
+            title="#JedzeniePerMiesiąc"
+            columns={MOCK_FOOD_COLUMNS}
+          />
+        </View>
+
+        <View style={s.rowGap}>
+          <FoodBreakdownCard
+            month="Październik"
+            total="823 zł"
+            changePercent={-38}
+            previousTotal="1321 zł"
+            weeks={MOCK_FOOD_WEEKS}
+            categories={MOCK_FOOD_CATEGORIES}
+          />
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.bg.primary, paddingHorizontal: spacing[3] },
+  // `scrollContent` (2026-10-30, dodanie FoodBreakdownCard — pierwszy kafel, który
+  // naprawdę nie mieści się na jednym ekranie bez scrolla) — wcześniej Dashboard był
+  // czystym `View` bez ScrollView, bo 4 rzędy stałej wysokości zawsze mieściły się na
+  // ekranie. `paddingBottom` z zapasem na navbar (TabBar jest osobnym elementem POZA
+  // tym ekranem, ale i tak ostatni kafel nie powinien chować się tuż pod jego krawędzią).
+  scrollContent: { paddingBottom: spacing[8] },
   row: { flexDirection: 'row', gap: spacing[1] },
   rowGap: { marginTop: spacing[1] },
 }));
