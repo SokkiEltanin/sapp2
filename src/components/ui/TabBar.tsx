@@ -142,7 +142,7 @@ const makeS = themedStyles((c) => ({
     // wspólnego paska), własny cień żeby czytał się jako uniesiony nad tłem.
     // `c.bg.card` (2026-10-29, user: "ogarnij żeby ten navbar był w szarym tym co
     // mamy inne kafelki") — NIE `c.bg.elevated` (lekko niebieskawy #14171F), tylko
-    // ten sam neutralny szary #141414 co Dashboard stat tiles/FoodBarsTile/LevelTile
+    // ten sam neutralny szary #141414 co Dashboard stat tiles/FoodBarsTile
     // itd. (patrz colors.ts: "Baza pod kartami/kaflami... jednolicie").
     settingsBtn: {
       width: 44, height: 44, borderRadius: radius.full,

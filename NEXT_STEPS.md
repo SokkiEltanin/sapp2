@@ -1091,6 +1091,22 @@ Usunięte kolorowanie per-kategoria z:**
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
 bez błędów. **Niezweryfikowane na urządzeniu.**
 
+## Dashboard — LVL/Pupil zastąpiony kafelkiem "najbliższy termin zadania" (2026-10-30)
+
+User: "tam gdzie lvl27 kafelek przy zadaniach robimy tak jak na górze mamy z tym 27
+min do, tylko na zadania, np 2 dni, do końca, i nazwa zadania". Placeholder
+`LevelTile` (LVL + liczba, nieustalona koncepcja Pupila) obok kafla Zadań na
+Dashboardzie zastąpiony tym samym wzorcem co kafel "INCOMING EVENT" w rzędzie 1
+(`StatTile variant="event"`) — zero nowego komponentu, te same propsy
+(`value`/`unit`/`detail`), tylko mock dane liczą czas do najbliższego terminu
+zadania zamiast do eventu: `value="2" unit="DNI" detail="Projekt\nMarchewka"`
+(ten sam tytuł co pilne zadanie "Projekt Marchewka" w `MOCK_TASKS` obok — spójna
+narracja dwóch mock-kafli). `LevelTile.tsx` USUNIĘTY (nic go już nie używało) —
+koncept Pupil/poziom wraca jako osobna decyzja później, nie jako martwy plik.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
+bez błędów. **Niezweryfikowane na urządzeniu.**
+
 ## Drobna poprawka — kolejność ikon w wierszu zadania (2026-10-30)
 
 User: "I w zadaniach na odwrót, odznaczenie po prawej a usuń po lewej" — `TaskRow.tsx`
