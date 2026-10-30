@@ -925,3 +925,43 @@ Fix:
   rozwiązanie to własne odtwarzanie dźwięku z `app/alert-test.tsx` (jak wibracja),
   co wymaga pliku audio od usera (patrz sekcja "Domyślny dźwięk" wyżej — user
   jeszcze nie podał/wybrał pliku).
+
+## KRYTYCZNE: dziura bezpieczeństwa — cała appka omijała blokadę ekranu (2026-10-30)
+
+User złapał na urządzeniu: "ta aplikacja cała się buguje bo działa na OFFSCREENIE
+CAŁA — a miał być tylko ALARM na OFFSCREENIE... nie chcę żeby ktoś na
+zablokowanym telefonie mógł [finanse] przeglądać". Root cause: `plugins/
+withFullScreenAlert.js` (wersja 1) ustawiało `android:showWhenLocked`/
+`android:turnScreenOn` na STAŁE w manifeście na `MainActivity` — a że CAŁA appka
+(expo-router) żyje w JEDNEJ Activity, to oznaczało że przy KAŻDYM wznowieniu
+appki na zablokowanym telefonie (nie tylko przez alert), cała appka (łącznie z
+przyszłymi Finansami) pokazywała się nad blokadą BEZ odblokowania. To było
+dokładnie to ryzyko opisane już w komentarzu wersji 1 ("do oceny po teście, nie
+ukrywać") — potwierdziło się.
+
+**Fix (priorytetowy, wypchnięty przed dalszą pracą nad Kalendarzem/Zadaniami):**
+- `plugins/withFullScreenAlert.js` v2 — ZERO statycznych flag w manifeście.
+  Zamiast tego natywny moduł `LockScreenModule` (Kotlin, wstrzyknięty przez
+  `withDangerousMod` + zarejestrowany przez `withMainApplication`/
+  `mergeContents` — DOKŁADNIE ten sam wzorzec co `withTasksWidget.js` w sapp)
+  przełącza `Activity.setShowWhenLocked()`/`setTurnScreenOn()` **W LOCIE** (API
+  27+, Android dodał te metody właśnie po to — pokazywanie KONKRETNEGO ekranu
+  nad blokadą, nie całej appki).
+- `src/services/lockScreen.ts` — JS most (`NativeModules.LockScreen`), jedyne
+  dozwolone miejsce wołania.
+- `app/alert-test.tsx` — JEDYNE miejsce w appce gdzie to się włącza: `true` na
+  mount, `false` na unmount/dismiss. Żaden inny ekran (Dashboard, Ustawienia,
+  przyszłe Finanse) nigdy tego nie woła, więc nigdy nie omija blokady.
+- Zweryfikowane lokalnie: `npx expo prebuild` → `android:showWhenLocked`/
+  `turnScreenOn` NIE WYSTĘPUJĄ już nigdzie w wygenerowanym
+  `AndroidManifest.xml` (grep pusty, potwierdzone), `LockScreenModule.kt`/
+  `LockScreenPackage.kt` wygenerowane poprawnie, rejestracja w
+  `MainApplication.kt` poprawna. `npx tsc --noEmit` czysto, `npx expo export`
+  bez błędów.
+- **Niezweryfikowane na urządzeniu**: (a) czy Kotlin się kompiluje w CI (lokalnie
+  nie da się bez pełnego Android toolchaina — to sprawdzi dopiero build), (b)
+  czy alarm dalej poprawnie pokazuje się nad blokadą z tym nowym, dynamicznym
+  mechanizmem (powinien, ale wymaga realnego testu identycznego jak poprzednio
+  — zablokuj ekran, poczekaj na trigger), (c) że ZWYKŁE używanie appki (Dashboard
+  itp.) na zablokowanym telefonie TERAZ wymaga normalnego odblokowania (to jest
+  POPRAWNE, oczekiwane zachowanie, nie regresja).

@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { AlertTriangle } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
+import { setShowOverLockScreen } from '@/services/lockScreen';
 
 // Dedykowany ekran alarmu notifee (2026-10-29) — user po teście na urządzeniu:
 // pełnoekranowy full-screen-intent DZIAŁA (otwiera appkę NAD blokadą ekranu, gdy
@@ -19,18 +20,30 @@ import { spacing, radius, themedStyles } from '@/theme';
 // dismissu. Dźwięk — ŚWIADOMIE pominięty na razie: wymaga pliku audio do
 // zbundlowania, którego nie ma w assets/ (user: "dostosowywanie później w
 // ustawieniach czy coś" — zaakceptowane jako kolejny krok, nie blokuje tego).
+//
+// `setShowOverLockScreen` (2026-10-30, user: "cała aplikacja się buguje... nie
+// chcę żeby ktoś na zablokowanym telefonie mógł [finanse] przeglądać") — JEDYNE
+// miejsce w appce gdzie włączamy "pokaż nad blokadą" — TYLKO na czas montowania
+// TEGO ekranu, wyłączane natychmiast na unmount. Patrz src/services/lockScreen.ts
+// i plugins/withFullScreenAlert.js — wcześniejsza wersja robiła to na stałe na
+// całej MainActivity, co omijało blokadę ekranu dla CAŁEJ appki, nie tylko alarmu.
 const VIBRATION_PATTERN = [0, 600, 400];
 
 export default function AlertTestScreen() {
   const s = makeS();
 
   useEffect(() => {
+    setShowOverLockScreen(true);
     Vibration.vibrate(VIBRATION_PATTERN, true);
-    return () => Vibration.cancel();
+    return () => {
+      Vibration.cancel();
+      setShowOverLockScreen(false);
+    };
   }, []);
 
   const dismiss = () => {
     Vibration.cancel();
+    setShowOverLockScreen(false);
     router.replace('/');
   };
 
