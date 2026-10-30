@@ -1091,6 +1091,42 @@ Usunięte kolorowanie per-kategoria z:**
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
 bez błędów. **Niezweryfikowane na urządzeniu.**
 
+## Build #53 feedback — kafelki eventów jak w sap (2026-10-30)
+
+User: "pamiętasz jak był zrobiony kalendarz w sap... jak wyglądały kafelki eventów?
+To tak chce tutaj tylko z domyślnie 7 dniowym widokiem". Poszedłem do `/home/user/sapp`
+(oryginalny projekt, lokalnie sklonowany — osobne repo, `SokkiEltanin/sapp`) i
+przeczytałem `app/(tabs)/calendar.tsx`/`src/components/calendar/TaskItem.tsx` żeby
+zobaczyć DOKŁADNY layout, nie zgadywać z pamięci.
+
+Co tam jest: pod kalendarzem (week/month) sekcja "DayDetail" pokazująca kafelki dla
+ZAZNACZONEGO dnia — `eventRow`: kolorowy pasek z lewej (`event.color`, per-event z
+Google Calendar) + kolumna z godziną (start/end albo "cały dzień") + tytuł/opis.
+sapp2 miało tylko kropki na kalendarzu, zaznaczenie dnia nic nie pokazywało —
+brakującego ogniwa.
+
+Dodane:
+- `src/components/tasks/EventCard.tsx` (nowy) — port layoutu `eventRow` 1:1 (pasek
+  koloru/kolumna czasu/tytuł+opis), na tokenach kolorów sapp2. Kolor paska zostaje
+  per-event kolorowy (funkcjonalny akcent jak tag zadania, nie kategoria ekranu —
+  ta sama zasada co przy monochromatycznym audycie).
+- `app/(tabs)/tasks.tsx` — nowa sekcja zaraz pod `WeekMonthCalendar`: nagłówek
+  "Dzisiaj"/pełna nazwa dnia (`fmtDay`, port z sapp) + lista `EventCard` dla
+  `selectedDate` (filtr `eventCoversDay`, sort po `startTime`, puste-najpierw).
+  Pusty stan: "Brak wydarzeń tego dnia."
+- Domyślny widok 7-dniowy (tydzień) — już tak było (`WeekMonthCalendar` startuje
+  `expanded=false`), user to potwierdził jako chciane, nic nie trzeba było zmieniać.
+- ŚWIADOMIE nieportowane z sapp: `DayTimeline` (oś czasu z slotami godzinowymi dla
+  dni z eventami czasowymi), pełnoekranowy `MonthModal` z osobną listą "eventy w tym
+  miesiącu", przycisk odświeżania w nagłówku, tryb "monthExpanded" (pull-to-expand).
+  Kafelki (to o co user pytał) są — reszta to już inny poziom rozbudowy UI, nie
+  proszony teraz.
+- Kafelki NIE są klikalne (brak `onPress`) — sapp2 nie ma jeszcze ekranu
+  szczegółów eventu (`/calendar/[id]`), nie zmyślam nawigacji donikąd.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
+bez błędów. **Niezweryfikowane na urządzeniu.**
+
 ## Build #52 feedback — FAB zamiast pełnego wiersza + realne eventy z Google (2026-10-30)
 
 User przetestował build #52 (screenshot Zadań) i napisał: "zależy nam na przestrzeni

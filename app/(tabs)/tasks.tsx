@@ -6,11 +6,20 @@ import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { useCalendarStore } from '@/store/calendarStore';
 import { todayISO } from '@/utils/date';
-import type { Task } from '@/types/calendar';
+import { eventCoversDay, type Task } from '@/types/calendar';
 import { googleCalendarService } from '@/services/googleCalendarService';
 import WeekMonthCalendar from '@/components/tasks/WeekMonthCalendar';
 import TaskRow from '@/components/tasks/TaskRow';
 import AddTaskCard from '@/components/tasks/AddTaskCard';
+import EventCard from '@/components/tasks/EventCard';
+
+const DAY_FULL = ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota'];
+const MONTH_SHORT = ['Sty', 'Lut', 'Mar', 'Kwi', 'Maj', 'Cze', 'Lip', 'Sie', 'Wrz', 'Paź', 'Lis', 'Gru'];
+
+function fmtDay(dateYMD: string): string {
+  const d = new Date(`${dateYMD}T00:00:00`);
+  return `${DAY_FULL[d.getDay()]}, ${d.getDate()} ${MONTH_SHORT[d.getMonth()]}`;
+}
 
 // Faza 1b (2026-10-30, user: "Kalendarza tez nie ogarnąłeś... w zakladce nie widac
 // niczego ani zadan ani kalendarza podpiętego") — REALNE UI podpięte pod `calendarStore`
@@ -75,6 +84,18 @@ export default function TasksScreen() {
   const today = todayISO();
   const allEvents = useMemo(() => [...events, ...gcalEvents], [events, gcalEvents]);
 
+  // Kafelki wydarzeń dla zaznaczonego dnia (2026-10-30, user: "pamiętasz jak był
+  // zrobiony kalendarz w sap... jak wyglądały kafelki eventów? To tak chce tutaj") —
+  // port wyglądu `EventCard` z `sapp`'s `eventRow`, posortowane: wydarzenia bez
+  // konkretnej godziny (`startTime` puste → '') najpierw, potem rosnąco po czasie,
+  // tak samo jak sapp's `MonthModal`.
+  const selectedDateEvents = useMemo(
+    () => allEvents
+      .filter((e) => eventCoversDay(e, selectedDate))
+      .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? '')),
+    [allEvents, selectedDate],
+  );
+
   const buckets = useMemo(() => {
     const pending = tasks.filter((t) => t.status === 'pending');
     const teraz: Task[] = [];
@@ -117,6 +138,19 @@ export default function TasksScreen() {
       </View>
       <ScrollView contentContainerStyle={s.scroll}>
         <WeekMonthCalendar events={allEvents} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
+
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>
+            {selectedDate === today ? 'Dzisiaj' : fmtDay(selectedDate)}
+          </Text>
+          {selectedDateEvents.length === 0 ? (
+            <View style={s.card}>
+              <Text style={s.empty}>Brak wydarzeń tego dnia.</Text>
+            </View>
+          ) : (
+            selectedDateEvents.map((ev) => <EventCard key={ev.id} event={ev} />)
+          )}
+        </View>
 
         <AddTaskCard visible={composerOpen} onAdd={handleAdd} onClose={() => setComposerOpen(false)} />
 
