@@ -6,26 +6,30 @@ import { spacing, radius, themedStyles } from '@/theme';
 import { ymd, todayISO } from '@/utils/date';
 import { eventCoversDay, type CalendarEvent } from '@/types/calendar';
 
-// Kalendarz Zadań (2026-10-30, user: "od razu może zrób działający ten kalendarz (co
-// domyślnie na górze jest 7 dni i po kliknięciu w niego pokazuje się miesięczny)") —
-// dwa tryby: TYDZIEŃ (domyślny, zawsze bieżący tydzień Pon-Nd) i MIESIĄC (pełna siatka,
-// nawigacja strzałkami). Przełącznik = cały nagłówek karty (tap gdziekolwiek poza
-// strzałkami nawigacji miesiąca), nie pojedynczy mały chevron — łatwiejszy cel dotyku.
-// Kropka pod numerem dnia = dzień ma co najmniej jedno wydarzenie (`eventCoversDay`,
-// obsługuje też wydarzenia wielodniowe). Zaznaczenie dnia (`selectedDate`) jest czysto
-// wizualne/nawigacyjne na razie — NIE filtruje listy zadań niżej (ARCHITECTURE.md
-// §ZADANIA: sekcje Teraz/Bezterminowe/Terminowe są oparte o status/deadline, nie o
-// wybrany dzień — to są dwa osobne widoki tego samego ekranu, nie master-detail).
+// Kalendarz Zadań — dwa tryby: TYDZIEŃ (domyślny, zawsze bieżący tydzień Pon-Nd) i
+// MIESIĄC (pełna siatka, nawigacja strzałkami). Przełącznik = cały nagłówek karty.
 //
-// Dwa RÓŻNE kształty komórki dnia, celowo: w widoku TYGODNIA to mały okrągły "badge"
-// pod etykietą dnia (ten sam wzorzec co aktywna ikona w TabBar.tsx — okrąg, nie
-// wypełniający całej kolumny), w widoku MIESIĄCA to gęsta siatka `flex:1` wypełniająca
-// cały wiersz (normalny kalendarz). Współdzielą kolor/kropkę, nie kontener.
+// Widok tygodnia PRZEROBIONY (2026-10-30, user podesłał screenshoty Samsung Calendar:
+// "jak w samsung calendar taki tygodniowy... teraz za dużo miejsca jak kilka eventów
+// będzie zajmować") — zamiast kółka z numerem dnia + jedna kropka "ma wydarzenie",
+// każda kolumna dnia pokazuje WŁASNE wydarzenia jako małe kolorowe "chipy" (do
+// `MAX_CHIPS_PER_DAY`, reszta jako "+N") — widać WSZYSTKIE 7 dni naraz na pierwszy
+// rzut oka, bez wchodzenia w żaden dzień. Tap w kolumnę (gdziekolwiek, nie tylko w
+// numer) → `onOpenDay` (rodzic otwiera modal ze szczegółami, patrz
+// DayDetailModal.tsx — user: "dopiero po kliknięciu w dzień niech się otwiera jak
+// tam [Samsung]") — kalendarz sam NIE renderuje już listy wydarzeń pod spodem, to
+// zwalnia miejsce dla sekcji Zadań, które user explicite nazwał ważniejszymi
+// ("a tak to zadania pod spodem tylko bo one są ważne").
+//
+// Widok miesiąca ZOSTAJE kompaktowy (kropka, nie chipy) — za mało miejsca w komórce
+// 6-wierszowej siatki na cokolwiek więcej; tap też woła `onOpenDay`, dla spójności
+// interakcji między oboma trybami.
 const DAY_LABELS = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nd'];
 const MONTH_NAMES = [
   'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
   'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień',
 ];
+const MAX_CHIPS_PER_DAY = 3;
 
 function getWeekDays(base: Date): Date[] {
   const dow = base.getDay(); // 0=Nd..6=Sob
@@ -57,10 +61,12 @@ export default function WeekMonthCalendar({
   events,
   selectedDate,
   onSelectDate,
+  onOpenDay,
 }: {
   events: CalendarEvent[];
   selectedDate: string;
   onSelectDate: (dateYMD: string) => void;
+  onOpenDay: (dateYMD: string) => void;
 }) {
   const s = makeS();
   const [expanded, setExpanded] = useState(false);
@@ -74,6 +80,20 @@ export default function WeekMonthCalendar({
   const isCurrentMonth = monthCursor.getFullYear() === new Date().getFullYear()
     && monthCursor.getMonth() === new Date().getMonth();
 
+  // Grupowanie wydarzeń tygodnia po dniu, JEDEN przebieg (nie 7× filter wewnątrz
+  // renderu kolumn) — posortowane: bez godziny/all-day najpierw, potem rosnąco.
+  const weekEventsByDay = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    for (const d of weekDays) {
+      const key = ymd(d);
+      const dayEvents = events
+        .filter((e) => eventCoversDay(e, key))
+        .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''));
+      map.set(key, dayEvents);
+    }
+    return map;
+  }, [weekDays, events]);
+
   const shiftMonth = (delta: number) => {
     setMonthCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
   };
@@ -81,6 +101,11 @@ export default function WeekMonthCalendar({
   const jumpToToday = () => {
     setMonthCursor(new Date());
     onSelectDate(today);
+  };
+
+  const selectDay = (dateYMD: string) => {
+    onSelectDate(dateYMD);
+    onOpenDay(dateYMD);
   };
 
   return (
@@ -123,7 +148,7 @@ export default function WeekMonthCalendar({
                   <View key={j} style={s.monthCellSlot}>
                     <TouchableOpacity
                       style={[s.monthCell, isToday && s.cellToday, isSelected && s.cellSelected]}
-                      onPress={() => onSelectDate(dateYMD)}
+                      onPress={() => selectDay(dateYMD)}
                       activeOpacity={0.7}
                     >
                       <Text style={[s.dayNum, isToday && s.dayNumToday]}>{d.getDate()}</Text>
@@ -136,23 +161,33 @@ export default function WeekMonthCalendar({
           ))}
         </View>
       ) : (
-        <View style={s.weekRow}>
+        <View style={s.weekGrid}>
           {weekDays.map((d) => {
             const dateYMD = ymd(d);
             const isToday = dateYMD === today;
             const isSelected = !isToday && dateYMD === selectedDate;
+            const dayEvents = weekEventsByDay.get(dateYMD) ?? [];
+            const overflow = dayEvents.length - MAX_CHIPS_PER_DAY;
             return (
-              <View key={dateYMD} style={s.weekCellSlot}>
+              <TouchableOpacity
+                key={dateYMD}
+                style={s.dayCol}
+                onPress={() => selectDay(dateYMD)}
+                activeOpacity={0.7}
+              >
                 <Text style={s.dayLabel}>{DAY_LABELS[(d.getDay() + 6) % 7]}</Text>
-                <TouchableOpacity
-                  style={[s.weekCell, isToday && s.cellToday, isSelected && s.cellSelected]}
-                  onPress={() => onSelectDate(dateYMD)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[s.dayNum, isToday && s.dayNumToday]}>{d.getDate()}</Text>
-                </TouchableOpacity>
-                {hasEvent(d) && <View style={[s.dot, isToday && s.dotToday]} />}
-              </View>
+                <View style={[s.dayNumWrap, isToday && s.cellToday, isSelected && s.cellSelected]}>
+                  <Text style={[s.dayNum, s.weekDayNum, isToday && s.dayNumToday]}>{d.getDate()}</Text>
+                </View>
+                <View style={s.chips}>
+                  {dayEvents.slice(0, MAX_CHIPS_PER_DAY).map((ev) => (
+                    <View key={ev.id} style={[s.chip, { backgroundColor: ev.color ?? colors.chart.muted }]}>
+                      <Text style={s.chipLabel} numberOfLines={2}>{ev.title}</Text>
+                    </View>
+                  ))}
+                  {overflow > 0 && <Text style={s.moreLabel}>+{overflow}</Text>}
+                </View>
+              </TouchableOpacity>
             );
           })}
         </View>
@@ -175,10 +210,16 @@ const makeS = themedStyles((c) => StyleSheet.create({
   weekRow: { flexDirection: 'row' },
   month: { gap: 2 },
 
-  // Widok tygodnia — okrągły badge pod etykietą dnia (jak aktywna ikona TabBar).
-  weekCellSlot: { flex: 1, alignItems: 'center', gap: 4 },
-  dayLabel: { fontSize: 10.5, fontFamily: 'Inter_500Medium', color: c.text.muted, textTransform: 'uppercase' },
-  weekCell: { width: 32, height: 32, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  // Widok tygodnia — kolumna na dzień: etykieta, numer (badge), stos chipów wydarzeń.
+  weekGrid: { flexDirection: 'row', alignItems: 'flex-start', gap: 3 },
+  dayCol: { flex: 1, alignItems: 'center', gap: 3 },
+  dayLabel: { fontSize: 9.5, fontFamily: 'Inter_500Medium', color: c.text.muted, textTransform: 'uppercase' },
+  dayNumWrap: { width: 24, height: 24, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  weekDayNum: { fontSize: 11.5 },
+  chips: { width: '100%', gap: 2 },
+  chip: { borderRadius: 4, paddingHorizontal: 3, paddingVertical: 3, minHeight: 26, justifyContent: 'center' },
+  chipLabel: { fontSize: 8.5, fontFamily: 'Inter_700Bold', color: '#FFFFFF', lineHeight: 10 },
+  moreLabel: { fontSize: 9, fontFamily: 'Inter_700Bold', color: c.text.muted, textAlign: 'center' },
 
   // Widok miesiąca — gęsta siatka, komórka wypełnia kolumnę.
   weekLabel: { flex: 1, textAlign: 'center', fontSize: 10, fontFamily: 'Inter_500Medium', color: c.text.muted, textTransform: 'uppercase' },

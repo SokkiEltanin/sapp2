@@ -11,15 +11,7 @@ import { googleCalendarService } from '@/services/googleCalendarService';
 import WeekMonthCalendar from '@/components/tasks/WeekMonthCalendar';
 import TaskRow from '@/components/tasks/TaskRow';
 import AddTaskCard from '@/components/tasks/AddTaskCard';
-import EventCard from '@/components/tasks/EventCard';
-
-const DAY_FULL = ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota'];
-const MONTH_SHORT = ['Sty', 'Lut', 'Mar', 'Kwi', 'Maj', 'Cze', 'Lip', 'Sie', 'Wrz', 'Paź', 'Lis', 'Gru'];
-
-function fmtDay(dateYMD: string): string {
-  const d = new Date(`${dateYMD}T00:00:00`);
-  return `${DAY_FULL[d.getDay()]}, ${d.getDate()} ${MONTH_SHORT[d.getMonth()]}`;
-}
+import DayDetailModal from '@/components/tasks/DayDetailModal';
 
 // Faza 1b (2026-10-30, user: "Kalendarza tez nie ogarnąłeś... w zakladce nie widac
 // niczego ani zadan ani kalendarza podpiętego") — REALNE UI podpięte pod `calendarStore`
@@ -60,6 +52,7 @@ export default function TasksScreen() {
   const deleteTask = useCalendarStore((st) => st.deleteTask);
 
   const [composerOpen, setComposerOpen] = useState(false);
+  const [detailDate, setDetailDate] = useState<string | null>(null);
 
   // Pociąganie realnych wydarzeń z Google Calendar (2026-10-30, user: "nie widzę
   // żadnych eventow w kalendarzu zaciagnietych z googla jak wcześniej w sapp") — brakowało
@@ -84,16 +77,19 @@ export default function TasksScreen() {
   const today = todayISO();
   const allEvents = useMemo(() => [...events, ...gcalEvents], [events, gcalEvents]);
 
-  // Kafelki wydarzeń dla zaznaczonego dnia (2026-10-30, user: "pamiętasz jak był
-  // zrobiony kalendarz w sap... jak wyglądały kafelki eventów? To tak chce tutaj") —
-  // port wyglądu `EventCard` z `sapp`'s `eventRow`, posortowane: wydarzenia bez
-  // konkretnej godziny (`startTime` puste → '') najpierw, potem rosnąco po czasie,
-  // tak samo jak sapp's `MonthModal`.
-  const selectedDateEvents = useMemo(
-    () => allEvents
-      .filter((e) => eventCoversDay(e, selectedDate))
-      .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? '')),
-    [allEvents, selectedDate],
+  // Kafelki wydarzeń NA ŻĄDANIE, nie na stałe pod kalendarzem (2026-10-30, user
+  // podesłał Samsung Calendar: "dopiero po kliknięciu w dzień niech się otwiera jak
+  // tam... a tak to zadania pod spodem tylko bo one są ważne") — `detailDate` ustawia
+  // WeekMonthCalendar'owy `onOpenDay`, modal pokazuje się tylko gdy niepuste. Sort:
+  // wydarzenia bez konkretnej godziny (`startTime` puste → '') najpierw, potem
+  // rosnąco po czasie, tak samo jak sapp's `MonthModal`.
+  const detailDateEvents = useMemo(
+    () => (detailDate
+      ? allEvents
+        .filter((e) => eventCoversDay(e, detailDate))
+        .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''))
+      : []),
+    [allEvents, detailDate],
   );
 
   const buckets = useMemo(() => {
@@ -137,20 +133,12 @@ export default function TasksScreen() {
         <Text style={s.title}>Zadania</Text>
       </View>
       <ScrollView contentContainerStyle={s.scroll}>
-        <WeekMonthCalendar events={allEvents} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
-
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>
-            {selectedDate === today ? 'Dzisiaj' : fmtDay(selectedDate)}
-          </Text>
-          {selectedDateEvents.length === 0 ? (
-            <View style={s.card}>
-              <Text style={s.empty}>Brak wydarzeń tego dnia.</Text>
-            </View>
-          ) : (
-            selectedDateEvents.map((ev) => <EventCard key={ev.id} event={ev} />)
-          )}
-        </View>
+        <WeekMonthCalendar
+          events={allEvents}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          onOpenDay={setDetailDate}
+        />
 
         <AddTaskCard visible={composerOpen} onAdd={handleAdd} onClose={() => setComposerOpen(false)} />
 
@@ -198,6 +186,13 @@ export default function TasksScreen() {
           ? <X size={22} color={colors.bg.primary} />
           : <Plus size={22} color={colors.bg.primary} />}
       </TouchableOpacity>
+
+      <DayDetailModal
+        visible={!!detailDate}
+        dateYMD={detailDate ?? today}
+        events={detailDateEvents}
+        onClose={() => setDetailDate(null)}
+      />
     </SafeAreaView>
   );
 }

@@ -1091,6 +1091,39 @@ Usunięte kolorowanie per-kategoria z:**
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
 bez błędów. **Niezweryfikowane na urządzeniu.**
 
+## Build #54 feedback — tygodniowy widok jak Samsung Calendar + modal zamiast stałej listy (2026-10-30)
+
+User podesłał 2 screenshoty Samsung Calendar + feedback na build #54: "Nie o to mi
+chodziło... jak w samsung calendar taki tygodniowy bo teraz za dużo miejsca jak kilka
+eventów będzie zajmować dopiero po kliknięciu w dzień niech się otwiera jak tam a tak
+to zadania pod spodem tylko bo one są ważne". Czyli poprzednia runda (build #54,
+kafelki eventów NA STAŁE pod kalendarzem) trafiła w zły format — user chciał:
+(1) widok tygodnia pokazujący WSZYSTKIE dni z ich eventami NARAZ (siatka kolumn, nie
+pasek numerów), (2) szczegóły dnia TYLKO po tapnięciu (popup/modal, nie stała sekcja),
+(3) Zadania bezpośrednio pod kalendarzem jako priorytet, nie odepchnięte przez listę
+eventów.
+
+Zmiany:
+- `WeekMonthCalendar.tsx` — widok TYGODNIA przebudowany z "numer dnia + 1 kropka"
+  na prawdziwą siatkę kolumn (jak Samsung): każda kolumna dnia renderuje WŁASNE
+  wydarzenia jako małe kolorowe chipy (tytuł, do 3 na dzień, reszta jako "+N"),
+  pogrupowane jednym przebiegiem (`weekEventsByDay`, `useMemo`). Cała kolumna
+  (TouchableOpacity) = tap otwiera szczegóły dnia (nowy prop `onOpenDay`). Widok
+  miesiąca ZOSTAJE kompaktowy (kropka — za mało miejsca w komórce na chipy), ale
+  też teraz woła `onOpenDay` przy tapie, dla spójności.
+- `DayDetailModal.tsx` (nowy) — modal (tło + karta wyśrodkowana, tap w tło zamyka)
+  pokazujący te same `EventCard` co poprzednio, ale TYLKO gdy user tapnie dzień —
+  nagłówek z pełną nazwą dnia, scrollowalna lista, pusty stan "Brak wydarzeń tego
+  dnia.".
+- `tasks.tsx` — USUNIĘTA stała sekcja "Dzisiaj"/lista eventów pod kalendarzem (to
+  co dodałem w poprzedniej rundzie, odrzucone przez usera) — zastąpiona stanem
+  `detailDate` + `DayDetailModal`. Teraz zaraz pod kalendarzem jest kompozytor
+  dodawania zadania + sekcje Teraz/Terminowe/Bezterminowe, bez niczego pomiędzy —
+  dokładnie układ "zadania pod spodem tylko" o który prosił user.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
+bez błędów. **Niezweryfikowane na urządzeniu.**
+
 ## Build #53 feedback — kafelki eventów jak w sap (2026-10-30)
 
 User: "pamiętasz jak był zrobiony kalendarz w sap... jak wyglądały kafelki eventów?
