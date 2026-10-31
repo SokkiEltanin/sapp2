@@ -1327,24 +1327,51 @@ produktów, powiadomienia z banku + szablony, edycja produktów, kolejność bud
 rozpisany w `ARCHITECTURE.md` §FINANSE "Faza 2 — plan pełny" — to TAM jest
 źródło prawdy (mapa gdzie co żyje), tutaj tylko status + pytania otwarte.
 
-**Status: PLAN, zero kodu jeszcze.** Czeka na potwierdzenie usera + odpowiedzi na
-pytania zanim zacznę Fazę 2.1 (fundament danych).
+**Status: PLAN, zero kodu jeszcze.** Czeka na odpowiedź usera na pytanie #4 (poniżej)
++ potwierdzenie propozycji kategorii zanim zacznę Fazę 2.1 (fundament danych).
 
-**Pytania do usera (zadane w czacie 2026-10-31, nieodpowiedziane jeszcze):**
-1. Jakiego banku/banków realnie używa user teraz? Natywny listener w sapp miał na
-   sztywno Pekao PeoPay/Pekao24 + PKO IKO (nazwy pakietów Android) — potrzebne realne
-   nazwy pakietów dla sapp2, inaczej "łapanie powiadomień z banku" nie zadziała wcale.
-2. Czy wydatki mają iść przez Firestore (offline-first + osobna, ręczna warstwa synchronizacji,
-   jak `calendarStore`/Zadania) tak samo jak Kalendarz, czy to zbyt wrażliwe dane i
-   user chce czegoś innego?
-3. Czy portować testy sapp'a (`__tests__/fixedVariable.test.ts` i okoliczne) — sapp2
-   jeszcze nie ma jesta skonfigurowanego, parser paragonów/fuzzy-match to złożona,
-   podatna-na-regresje logika, warto mieć testy, ale to dodatkowy setup.
-4. "Ewentualnie dodać" (przy ręcznym wprowadzaniu paragonu) — czy to tylko "dodaj
-   pozycję ręcznie" (już w planie), czy user myśli też o skanowaniu/OCR zdjęcia
-   paragonu w przyszłości? Jeśli tak — to osobna, dużo większa faza, nie teraz.
-5. Czy kolejność budowy (fundament danych → parser+ręczne dodawanie → edycja
-   produktów → przebudowa ekranu Finanse → powiadomienia z banku → wibracje) pasuje,
-   czy user chce inaczej poukładane priorytety (np. powiadomienia z banku wcześniej,
-   mimo że to najbardziej ryzykowny, natywny kawałek)?
+**Odpowiedzi usera (2026-10-31):**
+1. **Bank: Pekao, aplikacja PeoPay** (user: "mam bank PKO, ten w sensie POPay" —
+   literówka/pomyłka głosowa, "IKO nie mam" potwierdza że to NIE PKO BP/IKO tylko
+   Pekao/PeoPay, już pokryte przez istniejący wpis `BANK_PACKAGES` w sapp). **Plus
+   Google Wallet** — user czasem dostaje to samo powiadomienie tą drogą (ta sama
+   transakcja, inny kanał) — dodać jako DRUGIE źródło obok PeoPay, deduplikacja już
+   istnieje w `commitBankTx()` (po kwocie+dniu+sklepie), więc podwójne powiadomienie
+   o tej samej płatności nie powinno zdublować wpisu. Przy implementacji: skopiować
+   DOKŁADNĄ nazwę pakietu Pekao z istniejącego, działającego wpisu w sapp (nie
+   zgadywać z pamięci), do tego dojść nazwę pakietu Google Wallet.
+2. **Firestore — TAK, ten sam wzorzec co Kalendarz.** User: "to i tak będzie tylko
+   dla mnie... nikt więcej nie będzie miał dostępu" — brak dodatkowych wymagań
+   prywatności ponad to co już jest (jeden user, jego własne Firestore).
+3. **Portować testy sapp'a — TAK** (user: "posortować testy", potwierdzenie).
+
+**Pytanie #4 wciąż otwarte — user nie zrozumiał, prosi o ponowne, prostsze
+zadanie (do zrobienia na czacie, nie tutaj):** "ewentualnie dodać" przy ręcznym
+wpisywaniu paragonu — chodziło o: czy oprócz wpisywania pozycja-po-pozycji i wklejania
+tekstu user chce też (w jakiejkolwiek przyszłej fazie) robienie zdjęcia paragonu i
+automatyczne odczytanie go (OCR), czy wystarczy sam tekst (wpisany/wklejony)?
+
+**NOWE z tej rundy — dwa realne problemy z sapp, do uwzględnienia w projekcie:**
+
+- **A. Płaskie kategorie sapp'a (`groceries/transport/entertainment/health/
+  clothing/housing/subscriptions/other`) były niejednoznaczne w praktyce** — user
+  używał realnie tylko kilku (jedzenie, mieszkanie, chyba zdrowie), reszta ("inne")
+  była śmietnikiem, a przypadki mieszane (wyjazd: paliwo = transport, bilety na
+  koncert = rozrywka, ale to "jeden wyjazd") nie dawały się sensownie zaszufladkować
+  w JEDNĄ kategorię. **Moja propozycja (do potwierdzenia przez usera, zanim zacznę
+  kod)**: zamiast sztywnej, pojedynczej kategorii per wydatek — mały, jednoznaczny
+  zestaw kategorii PIERWOTNYCH (na tyle ile realnie napędza Stałe/Zmienne/Jedzenie +
+  ikonę/kolor, patrz `fixedVariable.ts`), PLUS dowolne, wielokrotne TAGI (jak już
+  działający system tagów `Task.tags` w Zadaniach — wolny tekst, bez limitu) do
+  swobodnego, krzyżowego grupowania (np. "Wakacje" na zarówno paliwie jak i bilecie
+  na koncert, bez zmuszania do wyboru jednej kategorii). Pozwala filtrować/sumować
+  "ile wydałem na wakacje" NIEZALEŻNIE od podziału Stałe/Zmienne/Jedzenie.
+- **B. UX edytora paragonów/transakcji w sapp był nieczytelny** (user, dosłownie:
+  "200 mini tekstów pod spodem", "w 15 miejscach rozjebane", chce "high-end app",
+  "żebym intuicyjnie wiedział co klikać"). To PODNOSI poprzeczkę ponad to co już
+  było zapisane ("UI napisać od zera, ładniej") — dotyczy NIE TYLKO ekranu edycji
+  produktów, ale całego flow przeglądu/edycji sparsowanego paragonu i transakcji.
+  **Nowy wymóg**: dedykowany ekran w Ustawieniach do zarządzania szablonami
+  rozpoznawania banku (`bankRulesStore`) — przeglądanie/dodawanie/edycja z jednego,
+  czytelnego miejsca, nie tylko ad-hoc przy przeglądzie kolejki powiadomień.
 
