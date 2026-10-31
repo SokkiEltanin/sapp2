@@ -1375,3 +1375,47 @@ automatyczne odczytanie go (OCR), czy wystarczy sam tekst (wpisany/wklejony)?
   rozpoznawania banku (`bankRulesStore`) — przeglądanie/dodawanie/edycja z jednego,
   czytelnego miejsca, nie tylko ad-hoc przy przeglądzie kolejki powiadomień.
 
+
+## Finanse — Faza 2.1 UKOŃCZONA: fundament danych (2026-10-31)
+
+Pierwszy krok z "Kolejności budowy" w ARCHITECTURE.md §FINANSE — czysta logika, ZERO
+UI jeszcze (nic nowego nie widać w appce). Port z sapp, adaptowany pod model bez
+sztywnej kategorii (user: "ciężko mi było dostosować którąś kategorię" → mały zestaw
+strukturalnych sygnałów + dowolne, wielokrotne tagi zamiast tego).
+
+Dodane:
+- `src/types/finances.ts` — `Expense`/`ReceiptItem` (bez `category`, z `tags: string[]`
+  wielokrotnymi, `subscriptionId`, `fvOverride`, `ReceiptItem.foodSubcat`).
+- `src/utils/recurringBills.ts` — słownik rachunków (`BILL_TYPES`) + dopasowanie
+  tekstu, port 1:1. Pominięte: cała maszyneria Subskrypcji
+  (`detectRecurringBills`/`advanceNextBillingDate`/...) — czeka na ekran
+  Subskrypcje.
+- `src/utils/fixedVariable.ts` — podział Stałe/Zmienne/Jedzenie, port 1:1 logiki
+  (`isFixedExpense` zaadaptowane: `subscriptionId` zamiast `category==='subscriptions'`).
+- `src/utils/food.ts` — 19-tagowa taksonomia jedzenia (`FOOD_SUBCATS`) 1:1, te same
+  kolory co już czekały w mocku `FoodBreakdownCard`. `isFoodItem`/`foodAmountOf`
+  uproszczone — źródłem prawdy jest WYŁĄCZNIE `ReceiptItem.foodSubcat`, bez sapp's
+  globalnego mechanizmu "to nie jedzenie" (wiązał się z sapp's "Co zjadłem", którego
+  sapp2 nie ma).
+- `src/utils/productMemory.ts` — fuzzy-matching (trigram), grupowanie, aliasy, pamięć
+  wagi/ceny/werdyktów linii — w większości 1:1 (kategorio-niezależne). "Pamięć
+  kategorii" przemianowana na "pamięć podkategorii jedzenia". Pominięte: pamięć
+  tagów/kcal (sapp-specific, nieaktualne w nowym modelu).
+- `src/utils/merchantMemory.ts` — zaufanie/auto-akceptacja sprzedawców, port 1:1,
+  `category`→`tags`, `guessCategory`→`guessTags`.
+- `src/store/expensesStore.ts` + `src/services/expensesService.ts` — ten sam wzorzec
+  co `calendarStore`/`calendarService` (offline-first AsyncStorage + osobna ręczna
+  warstwa Firestore).
+- **Testy** (user potwierdził: "posortować testy" = portować) — `jest`/`@types/jest`/
+  `jest-expo` dodane jako devDependencies (sapp2 nie miało tego wcześniej, mimo że
+  `"test": "jest"` już było w `package.json`), `jest.config.js`/`jest.setup.js`/
+  `__mocks__/fileMock.js` port 1:1 z sapp. 4 pliki testów (`fixedVariable`/
+  `recurringBills`/`merchantMemory`/`productMemory`), przepisane pod nowy model —
+  **68 testów, wszystkie zielone** (`npx jest`).
+
+Następny krok: Faza 2.2 (parser paragonów + ręczne dodawanie, port
+`receiptParser.ts` + wspólny ekran edycji listy pozycji).
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 68/68 zielone,
+`npx expo export --platform android` bez błędów. Czysto logika — nic nowego nie
+widać jeszcze w appce (brak UI), nie ma czego testować na urządzeniu w tej rundzie.

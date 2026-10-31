@@ -226,10 +226,13 @@ banku... plus szablony wyłapywań")
   ręczna warstwa (serwis), NIE auto-sync przy każdym CRUD (ta sama, już ustalona
   zasada co w Zadaniach — patrz §ZADANIA).
 
-### Kolejność budowy (proponowana, do potwierdzenia z userem)
-1. **Fundament danych** — typy + `fixedVariable.ts`/`food.ts`/`recurringBills.ts`/
-   `productMemory.ts`/`merchantMemory.ts` portowane jako czysta logika (zero UI),
-   `expensesStore.ts`.
+### Kolejność budowy
+1. **Fundament danych — ZROBIONE (2026-10-31)**. `src/types/finances.ts` +
+   `fixedVariable.ts`/`food.ts`/`recurringBills.ts`/`productMemory.ts`/
+   `merchantMemory.ts` portowane jako czysta logika (zero UI), `expensesStore.ts` +
+   `expensesService.ts` (wzorzec `calendarStore`/`calendarService`). Jest
+   skonfigurowany, 68 portowanych testów zielonych. Szczegóły: NEXT_STEPS.md "Faza
+   2.1 UKOŃCZONA".
 2. **Parser + ręczne dodawanie** — wspólny ekran edycji listy pozycji (paste-parse
    LUB pozycja-po-pozycji), zapis jako `Expense`.
 3. **Edycja produktów** — nowy, ładniejszy ekran (katalog + fuzzy-sugestie przy
