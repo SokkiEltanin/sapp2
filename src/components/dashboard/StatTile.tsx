@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import type { ReactNode } from 'react';
 import { themedStyles } from '@/theme';
 import { cornersForPosition, getTilePosition, TILE_ROW_HEIGHT, type StatTilePosition } from './tilePosition';
@@ -17,6 +17,12 @@ export { getTilePosition };
 type BaseProps = {
   position: StatTilePosition;
   value: string;
+  // Opcjonalne (2026-10-31, user: popup "#wydatki" otwierany tapem z Dashboardu,
+  // zamiast rozbudowanego kafla na stałe tam siedzącego) — gdy obecne, kafel staje
+  // się TouchableOpacity; gdy brak, zachowuje się dokładnie jak wcześniej (zwykły
+  // View, zero zmiany zachowania dla wszystkich już istniejących, nieklikalnych
+  // użyć StatTile).
+  onPress?: () => void;
 };
 
 type StatProps = BaseProps & {
@@ -40,10 +46,15 @@ export type StatTileProps = StatProps | EventProps | WeatherProps;
 
 export default function StatTile(props: StatTileProps) {
   const s = makeS();
-  const { position, value } = props;
+  const { position, value, onPress } = props;
 
   return (
-    <View style={[s.tile, cornersForPosition(position)]}>
+    <TouchableOpacity
+      style={[s.tile, cornersForPosition(position)]}
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+    >
       <View style={s.content}>
         <Text style={s.value} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
           {value}
@@ -78,7 +89,7 @@ export default function StatTile(props: StatTileProps) {
           </>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

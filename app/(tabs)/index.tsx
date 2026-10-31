@@ -1,11 +1,13 @@
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import StatTile, { getTilePosition } from '@/components/dashboard/StatTile';
 import FactTile from '@/components/dashboard/FactTile';
 import SleepTile from '@/components/dashboard/SleepTile';
 import TaskListTile, { type Task } from '@/components/dashboard/TaskListTile';
 import FoodBarsTile, { type BarColumn } from '@/components/dashboard/FoodBarsTile';
-import FoodBreakdownCard, { type FoodWeek, type FoodCategory } from '@/components/dashboard/FoodBreakdownCard';
+import WydatkiModal from '@/components/dashboard/WydatkiModal';
+import { type FoodWeek, type FoodCategory } from '@/components/dashboard/FoodBreakdownCard';
 import { colors } from '@/theme/colors';
 import { spacing, themedStyles } from '@/theme';
 
@@ -51,10 +53,14 @@ const MOCK_FOOD_COLUMNS: BarColumn[] = [
   { label: 'SIER', value: 452, display: '452', kind: 'highlight' },
 ];
 
-// Szkielet "Jedzenie — rozkład wydatków" (2026-10-30, user podesłał screenshot z sapp
-// — patrz komentarz w FoodBreakdownCard.tsx) — mock 1:1 z tego co user pokazał, żeby
-// zarezerwować właściwą ilość miejsca pod przyszłą, realną wersję (Faza 2, parser
-// paragonów — patrz NEXT_STEPS.md).
+// Szczegóły wydatków na jedzenie — NIE na Dashboardzie na stałe (2026-10-31, user:
+// "mieliśmy robić nieskrollowalny ekran żeby nie było chaosu... lepiej mniej
+// informacji ale popup po kliknięciu na zakładkę #wydatki" — poprzednia wersja
+// wrzuciła pełną `FoodBreakdownCard` jako piąty rząd i zmusiła Dashboard do scrolla,
+// co było świadomie odrzucone wcześniej ustalenie). Mock 1:1 z tego co user pokazał
+// ze screenshota sapp, ale teraz renderowany w `WydatkiModal` (pełnoekranowy popup),
+// otwieranym tapem w ISTNIEJĄCY kafel "22,4 PLN DZIENNIE #JEDZENIE" niżej — zero
+// NOWEGO elementu na samym Dashboardzie, patrz komentarz w WydatkiModal.tsx.
 const MOCK_FOOD_WEEKS: FoodWeek[] = [
   { label: 'T1', value: 147 },
   { label: 'T2', value: 197 },
@@ -80,98 +86,97 @@ const MOCK_FOOD_CATEGORIES: FoodCategory[] = [
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const s = makeS();
+  const [wydatkiOpen, setWydatkiOpen] = useState(false);
 
   return (
     <View style={[s.safe, { paddingTop: insets.top + spacing[2] }]}>
-      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={s.row}>
-          <StatTile
-            position={getTilePosition(0, 4)}
-            value="74"
-            unit="DNI"
-            label="WODA"
-          />
-          <StatTile
-            position={getTilePosition(1, 4)}
-            value="4"
-            unit="DNI"
-            label="SŁODYCZE"
-          />
-          <StatTile
-            position={getTilePosition(2, 4)}
-            value="27"
-            unit="MINUT"
-            variant="event"
-            detail={'[JD] 15:00\n-21:00 (6h)'}
-          />
-          <StatTile
-            position={getTilePosition(3, 4)}
-            value="12"
-            unit="DNI"
-            label="ĆWICZENIA"
-          />
-        </View>
+      <View style={s.row}>
+        <StatTile
+          position={getTilePosition(0, 4)}
+          value="74"
+          unit="DNI"
+          label="WODA"
+        />
+        <StatTile
+          position={getTilePosition(1, 4)}
+          value="4"
+          unit="DNI"
+          label="SŁODYCZE"
+        />
+        <StatTile
+          position={getTilePosition(2, 4)}
+          value="27"
+          unit="MINUT"
+          variant="event"
+          detail={'[JD] 15:00\n-21:00 (6h)'}
+        />
+        <StatTile
+          position={getTilePosition(3, 4)}
+          value="12"
+          unit="DNI"
+          label="ĆWICZENIA"
+        />
+      </View>
 
-        <View style={[s.row, s.rowGap]}>
-          <FactTile
-            position={getTilePosition(0, 2)}
-            text="Mózg zużywa jedną piątą energii twojego organizmu"
-          />
-          <SleepTile
-            position={getTilePosition(1, 2)}
-            duration="7h 50m"
-            window="23:05 - 06:06"
-          />
-        </View>
+      <View style={[s.row, s.rowGap]}>
+        <FactTile
+          position={getTilePosition(0, 2)}
+          text="Mózg zużywa jedną piątą energii twojego organizmu"
+        />
+        <SleepTile
+          position={getTilePosition(1, 2)}
+          duration="7h 50m"
+          window="23:05 - 06:06"
+        />
+      </View>
 
-        <View style={[s.row, s.rowGap]}>
-          <TaskListTile position={getTilePosition(0, 2)} tasks={MOCK_TASKS} />
-          <StatTile
-            position={getTilePosition(1, 2)}
-            value="2"
-            unit="DNI"
-            variant="event"
-            detail={'Projekt\nMarchewka'}
-          />
-        </View>
+      <View style={[s.row, s.rowGap]}>
+        <TaskListTile position={getTilePosition(0, 2)} tasks={MOCK_TASKS} />
+        <StatTile
+          position={getTilePosition(1, 2)}
+          value="2"
+          unit="DNI"
+          variant="event"
+          detail={'Projekt\nMarchewka'}
+        />
+      </View>
 
-        <View style={[s.row, s.rowGap]}>
-          <StatTile
-            position={getTilePosition(0, 2)}
-            value="22,4"
-            unit="PLN"
-            label={'DZIENNIE\n#JEDZENIE'}
-          />
-          <FoodBarsTile
-            position={getTilePosition(1, 2)}
-            title="#JedzeniePerMiesiąc"
-            columns={MOCK_FOOD_COLUMNS}
-          />
-        </View>
+      <View style={[s.row, s.rowGap]}>
+        <StatTile
+          position={getTilePosition(0, 2)}
+          value="22,4"
+          unit="PLN"
+          label={'DZIENNIE\n#JEDZENIE'}
+          onPress={() => setWydatkiOpen(true)}
+        />
+        <FoodBarsTile
+          position={getTilePosition(1, 2)}
+          title="#JedzeniePerMiesiąc"
+          columns={MOCK_FOOD_COLUMNS}
+        />
+      </View>
 
-        <View style={s.rowGap}>
-          <FoodBreakdownCard
-            month="Październik"
-            total="823 zł"
-            changePercent={-38}
-            previousTotal="1321 zł"
-            weeks={MOCK_FOOD_WEEKS}
-            categories={MOCK_FOOD_CATEGORIES}
-          />
-        </View>
-      </ScrollView>
+      <WydatkiModal
+        visible={wydatkiOpen}
+        onClose={() => setWydatkiOpen(false)}
+        month="Październik"
+        total="823 zł"
+        changePercent={-38}
+        previousTotal="1321 zł"
+        weeks={MOCK_FOOD_WEEKS}
+        categories={MOCK_FOOD_CATEGORIES}
+      />
     </View>
   );
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
+  // Dashboard WRACA do nieprzewijalnego ekranu (2026-10-31, user: "mieliśmy robić
+  // nieskrollowalny ekran żeby nie było chaosu" — ScrollView dodany w poprzedniej
+  // rundzie dla pełnej `FoodBreakdownCard` był błędem, usunięty razem z tamtym
+  // kaflem; szczegóły żyją teraz w `WydatkiModal`, osobnym popupie z WŁASNYM
+  // scrollem). Stałe 4 rzędy zawsze mieszczą się na ekranie, jak przed tą zmianą.
   safe: { flex: 1, backgroundColor: c.bg.primary, paddingHorizontal: spacing[3] },
-  // `scrollContent` (2026-10-30, dodanie FoodBreakdownCard — pierwszy kafel, który
-  // naprawdę nie mieści się na jednym ekranie bez scrolla) — wcześniej Dashboard był
-  // czystym `View` bez ScrollView, bo 4 rzędy stałej wysokości zawsze mieściły się na
-  // ekranie. `paddingBottom` z zapasem na navbar (TabBar jest osobnym elementem POZA
-  // tym ekranem, ale i tak ostatni kafel nie powinien chować się tuż pod jego krawędzią).
-  scrollContent: { paddingBottom: spacing[8] },
   row: { flexDirection: 'row', gap: spacing[1] },
   rowGap: { marginTop: spacing[1] },
 }));

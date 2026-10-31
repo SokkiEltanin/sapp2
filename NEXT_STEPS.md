@@ -1132,6 +1132,48 @@ klikalne (nawigacja do listy produktów per kategoria, jak w `sapp`).
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
 bez błędów. **Niezweryfikowane na urządzeniu.**
 
+## Build #58 feedback — Dashboard wraca do nieprzewijalnego, popup "#wydatki" zamiast (2026-10-31)
+
+User ostro odrzucił poprzednią rundę: "No i huj, mieliśmy robić nie scrollowalny
+ekran żeby nie było chaosu... ten widget jedzenia miałeś zrobić podobny w naszym
+stylu ale nie identyczny bo on się nie mieści i dodałeś scroll ekranu... nie
+chciałem tak, lepiej mniej informacji ale popup po kliknięciu na zakładkę #wydatki,
+w której będzie scroll już jakby bo to popup będzie ze wszystkim co związane z
+wydatkami i wtedy tam przeniesie gdzie jest kategoria jedzenie". Czyli: Dashboard ma
+ZOSTAĆ nieprzewijalny (ustalenie sprzed tej sesji, które złamałem dodając
+`FoodBreakdownCard` na stałe jako piąty rząd) — pełna treść ma żyć w POPUPIE z
+własnym scrollem, otwieranym z kompaktowego elementu na Dashboardzie, nie jako
+kolejny rząd na głównym ekranie.
+
+Naprawione:
+- `app/(tabs)/index.tsx` — ScrollView USUNIĘTY, Dashboard wrócił do czystego `View`
+  z dokładnie 4 stałymi rzędami (jak przed poprzednią rundą). `FoodBreakdownCard`
+  usunięty STĄD jako bezpośredni element.
+- `StatTile.tsx` — dostał opcjonalny prop `onPress` (gdy obecny, kafel staje się
+  `TouchableOpacity`; gdy brak — zero zmiany zachowania, zwykły `View` jak zawsze).
+  Zero nowego elementu wizualnego na Dashboardzie — ISTNIEJĄCY kafel "22,4 PLN
+  DZIENNIE #JEDZENIE" (rząd 4) dostał `onPress`, nic więcej się nie zmieniło.
+- `WydatkiModal.tsx` (nowy) — pełnoekranowy popup (ten sam wzorzec co sapp's
+  `MonthModal`: `presentationStyle="fullScreen"`, `statusBarTranslucent`), nagłówek
+  "Wydatki" + X, scrollowalne ciało zawierające `FoodBreakdownCard` (bez zmian
+  wewnątrz samego komponentu — tylko przeniesiony z Dashboardu do popupu).
+- Otwierany tapem w kafel "22,4 PLN DZIENNIE #JEDZENIE", zamykany X albo
+  sprzętowym/gestowym "wstecz" (`onRequestClose`).
+
+Na razie w popupie jest TYLKO kategoria Jedzenie (jedyna z realną, choć mock,
+treścią) — kolejne kategorie wydatków (gdy Faza 2/parser paragonów powstaną)
+dojdą jako kolejne sekcje POD spodem w TYM SAMYM scrollu popupu, nie jako osobne
+ekrany z własną nawigacją — user: "tam przeniesie gdzie jest kategoria jedzenie"
+czytane jako "przewiń/pokaż w tym samym popupie", nie "przejdź do innego ekranu".
+
+**Zasada na przyszłość (zapisana też w ARCHITECTURE.md §DASHBOARD)**: Dashboard
+NIGDY nie dostaje scrolla. Każda treść, która nie mieści się w 4 stałych rzędach,
+idzie do osobnego popupu/modala otwieranego z istniejącego lub bardzo kompaktowego
+elementu — nie wydłuża głównego ekranu.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
+bez błędów. **Niezweryfikowane na urządzeniu.**
+
 ## Dashboard — LVL/Pupil zastąpiony kafelkiem "najbliższy termin zadania" (2026-10-30)
 
 User: "tam gdzie lvl27 kafelek przy zadaniach robimy tak jak na górze mamy z tym 27

@@ -24,11 +24,14 @@ Kliknięcie w kafelek przenosi na powiązaną zakładkę GE z kontekstem, np. ka
 `DAILY`, od razu pokazując sen z dziś + historię + średnią. Edycja danych (dopisanie
 wody/snu ręcznie itp.) — **odłożone**, na razie budujemy same ekrany/nawigację.
 
-Scrollowalny (od 2026-10-30, dodanie `FoodBreakdownCard` — pierwszy element, który nie
-mieści się na jeden ekran). Pod stałą siatką 4 rzędów (`getTilePosition`) jest teraz
-jeszcze `FoodBreakdownCard.tsx` — pełnowymiarowy, nieregularny szkielet przyszłego
-widoku "rozkład wydatków na jedzenie" (mock dane, czeka na parser paragonów, Faza 2 —
-patrz NEXT_STEPS.md "Dashboard — szkielet Jedzenie: rozkład wydatków").
+**NIEprzewijalny, celowo** (user: "mieliśmy robić nieskrollowalny ekran żeby nie było
+chaosu") — zawsze dokładnie 4 stałe rzędy (`getTilePosition`), nic więcej. Kafel
+"22,4 PLN DZIENNIE #JEDZENIE" (rząd 4) jest tappable (`StatTile`'owy `onPress`) i
+otwiera `WydatkiModal.tsx` — pełnoekranowy popup z WŁASNYM scrollem, zawierający
+`FoodBreakdownCard.tsx` (szkielet przyszłego widoku "rozkład wydatków na jedzenie",
+mock dane, czeka na parser paragonów, Faza 2 — patrz NEXT_STEPS.md). Szczegółowa
+treść żyje w popupach, NIGDY na stałe na samym Dashboardzie — jeśli coś nowego nie
+mieści się w 4 rzędach, idzie do osobnego modala, nie wydłuża głównego ekranu.
 
 ## DAILY [GE]
 
