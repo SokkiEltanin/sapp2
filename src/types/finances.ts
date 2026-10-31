@@ -25,6 +25,8 @@ export interface ReceiptItem {
   weightKg?: number;
   excluded?: boolean; // np. kaucja (kind:'deposit') albo ręcznie wykluczona z sumy
   kind?: 'deposit';
+  promotion?: string; // etykieta promocji wykryta przez parser ("1+1", "-20%"…)
+  suspect?: boolean;  // parser podejrzewa że to nie produkt (nagłówek/suma) — UI auto-odznacza
 }
 
 export interface Expense {

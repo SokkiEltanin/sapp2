@@ -136,22 +136,30 @@ ustalenia z 2026-10-26 (poniżej) WCIĄŻ obowiązują — ten plan je rozwija, 
   jak tam rekomendowano. **Jeden ujednolicony "dodaj"** (ustalenie z 2026-10-26, patrz
   niżej) — jeden FAB, tap pokazuje wybór trybu: Wklej paragon / Dodaj ręcznie / Dodaj
   przychód.
-- **Parser tekstu** (`receiptParser.ts`, 1319 linii w sapp) — **PORTOWAĆ 1:1**,
+- **Parser tekstu** (`receiptParser.ts`, 1319 linii w sapp) — **PORTOWANE (2026-10-31)**,
   battle-tested na prawdziwych polskich paragonach (Biedronka/Lidl/Kaufland + generic
-  fallback), obsługuje rabaty/kaucje/VAT/wagę/skróty nazw. Zero sensu przepisywać od
-  zera. UI do wklejania — nowy, w stylu sapp2 (nie kopiujemy wyglądu `scan.tsx`).
-- **Dodawanie ręczne, pozycja po pozycji** — user: "ewentualnie dodać" — osobny tryb
-  (jak sapp's `manual.tsx`), ale w sapp2 to JEDEN współdzielony ekran edycji listy
-  produktów (nie dwa osobne jak w sapp) — różni się tylko punkt startowy (pusta lista
-  vs sparsowana).
+  fallback), obsługuje rabaty/kaucje/VAT/wagę/skróty nazw, 1:1 logika struktury
+  paragonu. JEDNA realna zmiana vs sapp: `CATEGORY_KEYWORDS`/`categorize()` (sapp's
+  non-food słownik transport/rozrywka/zdrowie/odzież/mieszkanie/subskrypcje) **USUNIĘTE
+  CAŁKOWICIE** — sapp2 nie ma `ExpenseCategory` (patrz redesign kategorii niżej), więc
+  pozycja dostaje `foodSubcat` TYLKO gdy rozpozna się jako jedzenie
+  (`categorizeFoodSubcat()`, port `FOOD_TAG_MAP`+`getFoodTags` 1:1), inaczej zostaje
+  bez kategorii — user ewentualnie doda tag na poziomie całego wydatku. UI do
+  wklejania — nowe (`AddExpenseModal.tsx`), w stylu sapp2 (nie kopiujemy `scan.tsx`).
+- **Dodawanie ręczne, pozycja po pozycji — ZROBIONE jako JEDEN wspólny ekran**
+  (`AddExpenseModal.tsx` + `ReceiptItemRow.tsx`), zgodnie z ustaleniem "jeden
+  ujednolicony dodaj": pole paste + "+ Dodaj pozycję" operują na TEJ SAMEJ liście
+  stanu, różni się tylko punkt startowy. Brak pozycji wcale → pole "Kwota" odkrywa
+  się jako szybki wydatek bez rozbijania na produkty (czynsz, paliwo).
 - **Podpowiadanie produktu po nazwie** (user: "wpisuję nazwę... sugeruje... klikam,
-  cena się uzupełnia") = `productMemory.ts` — **PORTOWAĆ 1:1**: fuzzy-match przez
-  trigramowe podobieństwo Dice'a (próg auto-dopasowania `0.60`), 5 niezależnych
-  "pamięci" (kategoria/tag/subtag/waga/anomalia ceny) uczących się TYLKO z korekt
-  usera. `suggestSimilarName()` (pasmo `0.45–0.60`) = dokładnie "czy to jest to?"
-  sugestia-nie-auto-zastosowanie z opisu usera. Plus `BRAND_CANON`
-  (kanonizacja nazw marek) i `STORE_LABELS` (prywatne marki sklepów → kategoria
-  jedzeniowa).
+  cena się uzupełnia") = `productMemory.ts` — logika portowana (Faza 2.1), **ALE
+  jeszcze NIE podpięta do `AddExpenseModal`/`ReceiptItemRow`** (2026-10-31: pierwsza
+  wersja ekranu działa z czystym parserem, bez fuzzy-sugestii przy wpisywaniu nazwy,
+  bez pamięci wagi/ceny/anomalii) — **świadomy, śledzony gap, nie dead-end**: wpisanie
+  nazwy produktu na liście pozycji dziś NIE podpowiada nic, trzeba wpisać/sprawdzić
+  ręcznie. Do podpięcia: `suggestSimilarName()` (pasmo `0.45–0.60`) jako dropdown pod
+  polem nazwy w `ReceiptItemRow`, `priceFor`/`priceAnomaly` jako ostrzeżenie przy
+  nietypowej cenie, `weightFor` jako auto-uzupełnienie `weightKg`. Patrz NEXT_STEPS.md.
 - **Nadpisanie ceny/ilości/rabatu** (user: "kupiłem taniej... dodaj zniżkę, dodaj
   ilość") — pola już są w `ReceiptItem` (portowany typ): `price`/`quantity`/
   `unitPrice`/`discount`. UI: edytowalne inline na liście review, nie osobny ekran.
@@ -233,13 +241,24 @@ banku... plus szablony wyłapywań")
    `expensesService.ts` (wzorzec `calendarStore`/`calendarService`). Jest
    skonfigurowany, 68 portowanych testów zielonych. Szczegóły: NEXT_STEPS.md "Faza
    2.1 UKOŃCZONA".
-2. **Parser + ręczne dodawanie** — wspólny ekran edycji listy pozycji (paste-parse
-   LUB pozycja-po-pozycji), zapis jako `Expense`.
+2. **Parser + ręczne dodawanie — ZROBIONE (2026-10-31)**. `receiptParser.ts`
+   portowany (adaptacja: `foodSubcat` zamiast `categorize()`/`ExpenseCategory`, patrz
+   wyżej), `__tests__/receiptParser.test.ts` portowane i zielone (105/105 testów w
+   repo). `AddExpenseModal.tsx` (pełnoekranowy modal, Wydatek/Przychód, paste+ręczne
+   na WSPÓLNEJ liście pozycji, kwota-bez-pozycji dla szybkich wydatków, daty/tagi/
+   metoda płatności/`fvOverride` chipy, ostrzeżenie przy niezgodności sumy pozycji z
+   kwotą z paragonu) + `ReceiptItemRow.tsx` (checkbox włącz/wyklucz, edytowalne
+   qty×cena=suma, `+ zniżka`, picker `foodSubcat`). FAB na `app/(tabs)/finances.tsx`
+   (ten sam wzorzec co Zadania), "Ostatnie transakcje" czyta TERAZ z `expensesStore`
+   (tymczasowo, do Fazy 4). **Celowo NIE w tej rundzie**: podpięcie `productMemory`
+   (fuzzy-sugestie/pamięć wagi-ceny — patrz gap wyżej), saldo/popup Stałe-Zmienne-
+   Jedzenie (Faza 4), haptyka (Faza 6).
 3. **Edycja produktów** — nowy, ładniejszy ekran (katalog + fuzzy-sugestie przy
-   wpisywaniu, wykrywanie duplikatów).
+   wpisywaniu, wykrywanie duplikatów) — tu też podłączyć `productMemory` do
+   `AddExpenseModal` (gap z kroku 2), bo oba ekrany dzielą tę samą warstwę pamięci.
 4. **Przebudowa ekranu Finanse** — kafel salda, kafel "4 ostatnie" + pełny popup,
    popup Stałe/Zmienne/Jedzenie (Jedzenie = pierwszy realny konsument
-   `FoodBreakdownCard`), FAB "dodaj".
+   `FoodBreakdownCard`).
 5. **Powiadomienia z banku** — natywny listener + parser + szablony + kolejka +
    zaufanie/auto-akceptacja. Najbardziej ryzykowny, natywny kawałek — celowo na
    końcu, gdy reszta modelu danych/UI jest już sprawdzona.

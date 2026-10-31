@@ -1419,3 +1419,81 @@ Następny krok: Faza 2.2 (parser paragonów + ręczne dodawanie, port
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 68/68 zielone,
 `npx expo export --platform android` bez błędów. Czysto logika — nic nowego nie
 widać jeszcze w appce (brak UI), nie ma czego testować na urządzeniu w tej rundzie.
+
+## Finanse — Faza 2.2 UKOŃCZONA: parser paragonów + pierwszy ekran "dodaj" (2026-10-31)
+
+Drugi krok z "Kolejności budowy" — **pierwszy prawdziwy, klikalny ekran** Finansów w
+sapp2 (user: "dawaj dalej" po Fazie 2.1, która była czystą logiką bez UI).
+
+Dodane:
+- `src/utils/receiptParser.ts` — port `receiptParser.ts` z sapp (1319 linii), logika
+  struktury paragonu 1:1: detekcja sklepu (`STORE_BRANDS`, ~45 marek), daty, metody
+  płatności, router Kaufland (app "Receipt copy" + drukowany + OCR zdjęcie)/Biedronka/
+  generic fallback, rabaty/promocje/kaucje (zwrot i opłata)/VAT/waga/skróty nazw
+  (`ABBR_MAP`). **Jedyna realna zmiana**: `CATEGORY_KEYWORDS`/`categorize()` (sapp's
+  nie-jedzeniowy słownik transport/rozrywka/zdrowie/odzież/mieszkanie/subskrypcje) —
+  **usunięte całkowicie**, zero odpowiednika w nowym modelu bez `ExpenseCategory`.
+  Zamiast tego pozycja dostaje `foodSubcat` tylko gdy rozpozna się jako jedzenie
+  (`categorizeFoodSubcat()` = port `FOOD_TAG_MAP`/`getFoodTags` z sapp + rozstrzyganie
+  priorytetu przez `FOOD_SUBCATS` z `food.ts`, dokładnie jak sapp's `foodSubcat()`
+  robiło to dla `item.tags`).
+- `__tests__/receiptParser.test.ts` — port testów z sapp (paragony Lidl/Kaufland
+  realne, ze zwrotem/opłatą kaucji, multi-buy rabaty, 8 kategorii spiżarniowych +
+  "sosy"), pominięte testy `categorize()` (funkcja nieportowana). **105/105 testów
+  zielonych** (37 nowych + 68 z Fazy 2.1).
+- `src/components/finances/ReceiptItemRow.tsx` (nowy) — wiersz pozycji: checkbox
+  włącz/wyklucz z sumy (domyślnie odznaczony dla `suspect` — linii które parser
+  podejrzewa że to nagłówek/suma, nie produkt), edytowalne pole nazwy, qty×cena
+  jednostkowa=cena finalna (edycja qty/ceny jedn. przelicza cenę; edycja ceny
+  finalnej jest niezależna — "chyba że się cena zmieni"), `+ zniżka` (doliczana do
+  `discount`, odjęta od ceny), picker `foodSubcat` (chipy z kolorami z `food.ts`).
+- `src/components/finances/AddExpenseModal.tsx` (nowy) — pełnoekranowy modal
+  (ten sam wzorzec co `WydatkiModal`), realizuje "jeden ujednolicony dodaj":
+  - Segment Wydatek/Przychód.
+  - Pole paste "Wklej tekst paragonu" + "Rozpoznaj paragon" → `parseReceiptText`,
+    wypełnia TĘ SAMĄ listę pozycji co "+ Dodaj pozycję" (ręczne, od zera) — jeden
+    wspólny stan, nie dwa osobne ekrany jak w sapp (`scan.tsx`/`manual.tsx`).
+  - Lista pozycji puste → pole "Kwota" odkrywa się jako zwykły szybki wydatek
+    (czynsz, paliwo) bez rozbijania na produkty.
+  - Suma pozycji licząca się na żywo + ostrzeżenie gdy nie zgadza się z kwotą
+    wykrytą na paragonie (odpowiedź na "muszę mieć możliwość podglądu ile już w
+    sumach wychodzi produktów").
+  - Data (Dziś/Wczoraj, nadpisywana datą z paragonu jeśli wykryta), sklep, notatka,
+    "Rozlicz jako" (Auto/Stałe/Zmienne/Jedzenie = `fvOverride`), metoda płatności,
+    tagi (wielokrotne, dodawaj/usuwaj chipami — jak `Task.tags`, nie jak
+    `AddTaskCard`'s jedno pole).
+  - Zapisuje przez `useExpensesStore().addExpense()`.
+- `app/(tabs)/finances.tsx` — FAB (ten sam wzorzec co Zadania) otwiera
+  `AddExpenseModal`; "Ostatnie transakcje" czyta TERAZ realnie z `expensesStore`
+  (max 4, najnowsze pierwsze) — **tymczasowo**, tylko żeby zapis miał widzialny
+  efekt do testowania; pełny redesign (saldo/popup Stałe-Zmienne-Jedzenie) to
+  Faza 2.4.
+
+**Świadomie NIE w tej rundzie** (śledzone gapy, nie dead-endy):
+- `productMemory.ts` (fuzzy-sugestie nazwy, pamięć wagi/ceny/anomalii) — portowany w
+  Fazie 2.1, ale jeszcze NIE podpięty do `ReceiptItemRow`/`AddExpenseModal`. Wpisanie
+  nazwy produktu dziś nie podpowiada nic. Do zrobienia razem z Fazą 2.3 (edycja
+  produktów), bo obie dzielą tę samą warstwę pamięci.
+- Data — tylko Dziś/Wczoraj + auto-detekcja z paragonu, brak pełnego date-pickera
+  (ten sam kompromis co `AddTaskCard`, brak biblioteki do tego w projekcie).
+- Haptyka ("zrób te wibracje") — czeka na Fazę 2.6 (port `utils/haptics.ts`, nie
+  istnieje jeszcze w sapp2).
+- Szablony sklepów/produktów z autouzupełnianiem przy wpisywaniu nazwy sklepu —
+  `merchantMemory.ts` portowany logicznie, ale `storeName` w `AddExpenseModal` to
+  dziś goły `TextInput`, bez podpięcia `guessTags`/trust-auto-accept. Patrz wyżej.
+
+**DO PRZETESTOWANIA NA URZĄDZENIU** (pierwszy raz w Fazie 2 jest coś klikalne):
+- FAB na zakładce Finanse → otwiera modal, da się przełączyć Wydatek/Przychód.
+- Wklejenie prawdziwego paragonu (Lidl/Biedronka/Kaufland z telefonu) → "Rozpoznaj
+  paragon" → sprawdzić czy pozycje/ceny/sklep/data wyglądają sensownie.
+- Szybki wydatek bez pozycji (np. "Paliwo", kwota ręcznie) → zapisuje się i pojawia
+  w "Ostatnie transakcje".
+- Edycja pozycji: zmiana qty/ceny, `+ zniżka`, picker kategorii jedzenia, checkbox
+  wyklucz z sumy — czy przelicza się na żywo poprawnie.
+- Przychód — prostszy formularz, zapisuje się z `+` na liście transakcji.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 105/105 zielone,
+`npx expo export --platform android` bez błędów (bundle buduje się, nowe ekrany
+wchodzą do bundla). Następny krok: Faza 2.3 (edycja produktów — nowy ekran +
+podpięcie `productMemory`) ALBO dociągnięcie gapów z tej rundy, do ustalenia z
+userem po teście na urządzeniu.
