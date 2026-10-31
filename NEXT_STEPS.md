@@ -75,7 +75,11 @@ wymusił). User (2026-10-26) sam zauważył kolizję i poprosił o propozycję.
   potrzebują własnego miejsca w navbarze wcale; naturalnie mieszczą się jako mały rząd
   ikon/chipów WEWNĄTRZ samego ekranu Finanse, nie jako osobny przycisk globalny.
 
-Nie wdrożone jeszcze — **rekomendacja, do potwierdzenia przez usera** zanim zacznę budować.
+**ROZWIĄZANE (2026-10-31)** — ten dokładny wzorzec (pływający FAB, prawy dolny róg
+nad navbarem) już zbudowany i działa w Zadaniach (`app/(tabs)/tasks.tsx`,
+`+ Nowe zadanie`/X toggle). Finanse dostaną ten sam wzorzec przy budowie Fazy 2 —
+patrz `ARCHITECTURE.md` §FINANSE "Kolejność budowy", punkt 4. Satelickie ekrany
+(Produkty — teraz w zakresie, Pojazdy — wciąż odłożone) jak opisano wyżej.
 
 ## Pozostałe ogólne decyzje
 
@@ -1313,3 +1317,34 @@ zaciągniętych z googla jak wcześniej w sapp".
 
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx expo export --platform android`
 bez błędów. **Niezweryfikowane na urządzeniu.**
+
+## Finanse — Faza 2, plan pełny (2026-10-31)
+
+User: "przejrzyj sobie całego SAPa... zaprojektuj to wszystko... napisz jak masz
+zamiar to zrobić, będziemy po kolei to robić, żeby niczego nie zjebać, żeby zostawić
+zajebistą optymalizację". Pełny plan (struktura ekranu, parser paragonów, fuzzy-match
+produktów, powiadomienia z banku + szablony, edycja produktów, kolejność budowy) jest
+rozpisany w `ARCHITECTURE.md` §FINANSE "Faza 2 — plan pełny" — to TAM jest
+źródło prawdy (mapa gdzie co żyje), tutaj tylko status + pytania otwarte.
+
+**Status: PLAN, zero kodu jeszcze.** Czeka na potwierdzenie usera + odpowiedzi na
+pytania zanim zacznę Fazę 2.1 (fundament danych).
+
+**Pytania do usera (zadane w czacie 2026-10-31, nieodpowiedziane jeszcze):**
+1. Jakiego banku/banków realnie używa user teraz? Natywny listener w sapp miał na
+   sztywno Pekao PeoPay/Pekao24 + PKO IKO (nazwy pakietów Android) — potrzebne realne
+   nazwy pakietów dla sapp2, inaczej "łapanie powiadomień z banku" nie zadziała wcale.
+2. Czy wydatki mają iść przez Firestore (offline-first + osobna, ręczna warstwa synchronizacji,
+   jak `calendarStore`/Zadania) tak samo jak Kalendarz, czy to zbyt wrażliwe dane i
+   user chce czegoś innego?
+3. Czy portować testy sapp'a (`__tests__/fixedVariable.test.ts` i okoliczne) — sapp2
+   jeszcze nie ma jesta skonfigurowanego, parser paragonów/fuzzy-match to złożona,
+   podatna-na-regresje logika, warto mieć testy, ale to dodatkowy setup.
+4. "Ewentualnie dodać" (przy ręcznym wprowadzaniu paragonu) — czy to tylko "dodaj
+   pozycję ręcznie" (już w planie), czy user myśli też o skanowaniu/OCR zdjęcia
+   paragonu w przyszłości? Jeśli tak — to osobna, dużo większa faza, nie teraz.
+5. Czy kolejność budowy (fundament danych → parser+ręczne dodawanie → edycja
+   produktów → przebudowa ekranu Finanse → powiadomienia z banku → wibracje) pasuje,
+   czy user chce inaczej poukładane priorytety (np. powiadomienia z banku wcześniej,
+   mimo że to najbardziej ryzykowny, natywny kawałek)?
+
