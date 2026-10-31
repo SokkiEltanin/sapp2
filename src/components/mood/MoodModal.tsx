@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, View, Text, StyleSheet, TextInput, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
+import { Modal, View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler';
 import { X, Plus, Check, BookOpen, SquarePen } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { todayISO } from '@/utils/date';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { type MoodEntry, type MoodLevel, MOOD_COLORS, MOOD_EMOJIS, ENERGY_EMOJIS, MOOD_LABELS, ENERGY_LABELS } from '@/types/mood';
 import { useMoodStore } from '@/store/moodStore';
 import { PRESET_TAGS, sortMoodTags } from '@/utils/moodTags';
@@ -30,6 +31,7 @@ import MoodEnergyGrid from './MoodEnergyGrid';
 // = zrobić kolejny check-in tego dnia z własną notatką — nie osobny rekord do pilnowania.
 export default function MoodModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const s = makeS();
+  const kb = useKeyboardHeight();
   const entries = useMoodStore((st) => st.entries);
   const addEntry = useMoodStore((st) => st.addEntry);
   const updateEntry = useMoodStore((st) => st.updateEntry);
@@ -100,7 +102,10 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={handleClose}>
       <GestureHandlerRootView style={s.flex1}>
         <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
-          <KeyboardAvoidingView style={s.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          {/* `paddingBottom: kb` zamiast `KeyboardAvoidingView` — patrz identyczny
+              komentarz w AddExpenseModal.tsx (ten sam problem: `Modal` na Androidzie
+              portuje treść poza zasięg `windowSoftInputMode`). */}
+          <View style={[s.flex1, { paddingBottom: kb }]}>
             <View style={s.header}>
               <View style={s.flex1}>
                 <Text style={s.title}>
@@ -210,7 +215,7 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
                 )}
               </ScrollView>
             )}
-          </KeyboardAvoidingView>
+          </View>
         </SafeAreaView>
       </GestureHandlerRootView>
     </Modal>

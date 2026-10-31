@@ -1546,3 +1546,67 @@ Zrobione — patrz ARCHITECTURE.md §DAILY "Humor / Nastrój" po pełny opis:
 
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 124/124 zielone (19 nowych),
 `npx expo export --platform android` bez błędów.
+
+## Runda poprawek (2026-11-01) — kalendarz miesiąc, Finanse, Dashboard realne zadania
+
+User po testach Finansów/Daily, trzy niezależne poprawki do już zbudowanych rzeczy:
+
+**1. Kalendarz, widok miesiąca → pełnoekranowy popup z chipami**
+"Kalendarz w trybie rozłożonym niech też ma takie kafelki jak tygodniowy widok, może
+być nawet na cały ekran". Dawny inline widok miesiąca (ciasna siatka 6×7, sama
+kropka) zastąpiony `MonthViewModal.tsx` (nowy, pełnoekranowy, wzorzec
+WydatkiModal/AddExpenseModal) — te same kolorowe chipy wydarzeń co widok tygodnia
+(max 2/komórkę + "+N"), nawigacja miesiącami, tap dnia zamyka popup i otwiera
+`DayDetailModal` jak dotąd. `WeekMonthCalendar.tsx` zostaje WYŁĄCZNIE widokiem
+tygodnia (inline) + przyciskiem otwierającym ten popup — `expanded`/inline-miesiąc
+USUNIĘTE, nie dwa tryby w jednym komponencie.
+
+**2. Finanse (AddExpenseModal) — trzy poprawki naraz**
+- **Klawiatura nie zasłania pola** (user: "ogólnie w całej apce uważaj na to") —
+  `useKeyboardHeight.ts` (port z sapp, hook mierzący realną wysokość klawiatury)
+  zamiast `KeyboardAvoidingView`, który jest niewiarygodny wewnątrz RN's `Modal` na
+  Androidzie (osobna natywna hierarchia). Podpięte też w `MoodModal.tsx` (ten sam
+  problem, ten sam fix) — **ale NIE jeszcze w `AddTaskCard`/innych miejscach z
+  inputami** — to inline karty, nie `Modal`, więc prawdopodobnie nie mają tego
+  problemu, ale nie przetestowane bezpośrednio; zgłosić jeśli też zasłania.
+- **Parser bliżej prawego kciuka** — nowy pływający przycisk (ClipboardPaste, taki
+  sam wzorzec jak FAB) w prawym dolnym rogu modala: jedno tapnięcie czyta schowek i
+  od razu parsuje, bez przewijania do pola na górze. Pole paste zostaje jako ścieżka
+  zapasowa (tekst wpisany/zdyktowany).
+- **Kto płacił + saldo odzwierciedlające konto bankowe** — NOWE pole
+  `Expense.payer?: 'me' | 'partner'` (domyślnie "ja" = Olesia nigdy nie jest
+  domyślna). Sekcja "Zapłacono: Ja · Karta" w modalu ZWINIĘTA domyślnie (user: "żeby
+  to miejsca nie zajmowało, ale żeby dało się zmienić"), tap rozwija wybór
+  Ja/Olesia + metody płatności razem. `utils/balance.ts` (nowy): `affectsBalance(e)`
+  = `(payer??'me')==='me' && paymentMethod!=='cash'` — gotówka i płatności Olesi
+  NIGDY nie ruszają salda (user: "chcę saldo żeby odzwierciedlało ile mam na koncie
+  w banku"). `app/(tabs)/finances.tsx`'s kafel Saldo PODPIĘTY realnie
+  (`accountBalance(expenses, offset)`), tap na kafel → mały popup "Ustaw aktualne
+  saldo" do kalibracji (offset w AsyncStorage, `getBalanceOffset`/`setBalanceOffset`,
+  port uproszczony z sapp's `accountBalance.ts` — BEZ osobnego pulu gotówki, user go
+  nie prosił, gotówka jest po prostu wyłączona z sumy).
+
+**3. Dashboard — kafel Zadań i "najbliższy termin" podpięte do realnych danych**
+User: "zadania które dodaję żeby pokazywały się już realnie na dashboardzie żebym
+zobaczył czy działa wszystko". Oba kafle w `app/(tabs)/index.tsx` czytały na sztywno
+`MOCK_TASKS`/"2 DNI Projekt Marchewka" — ZASTĄPIONE `useCalendarStore`'owymi
+zadaniami: kafel Zadań = do 4 pozycji (z terminem rosnąco, potem bez terminu
+najnowsze pierwsze), tag per zadanie (pilne=termin dziś/po terminie, nazwany
+skrót=pierwszy tag, dzwonek=ma termin w przyszłości, puste=żadne z tych); kafel
+"najbliższy termin" = dni do najbliższego terminu + tytuł tego zadania, "Brak
+terminów" gdy żadne zadanie go nie ma.
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**:
+- Zadania → strzałka/header kalendarza → pełnoekranowy miesiąc z chipami, nawigacja,
+  tap dnia otwiera szczegóły.
+- Finanse → dodaj wydatek → klawiatura NIE zasłania pola notatki/kwoty przy pisaniu.
+- Finanse → pływający przycisk schowka → skopiuj tekst paragonu PRZED otwarciem
+  modala, tapnij przycisk, powinno sparsować bez dotykania pola tekstowego.
+- Finanse → zwiń/rozwiń "Zapłacono", zmień na Olesia/gotówka, zapisz → saldo na
+  ekranie Finanse NIE powinno się zmienić dla tego wydatku (sprawdzić przed/po).
+- Finanse → tap na kafel Saldo → wpisać realny stan konta → saldo się kalibruje.
+- Dashboard → dodaj zadanie z terminem w Zadaniach → wróć na Dashboard → widoczne w
+  kaflu Zadań i/lub jako "najbliższy termin".
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 129/129 zielone (5 nowych —
+`balance.test.ts`), `npx expo export --platform android` bez błędów.

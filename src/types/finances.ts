@@ -46,6 +46,11 @@ export interface Expense {
   // (patrz `fvSplitOf` w utils/fixedVariable.ts). `null` = brak nadpisania.
   fvOverride?: FvBucket | null;
   paymentMethod?: PaymentMethod;
+  // Kto faktycznie zapłacił — `undefined`/`'me'` (domyślnie) = ja. `'partner'` = Olesia.
+  // Napędza `utils/balance.ts`'s `affectsBalance` — saldo ma odzwierciedlać WYŁĄCZNIE
+  // stan konta bankowego usera, więc płatność Olesi nigdy go nie rusza, niezależnie
+  // od metody (user, 2026-11-01: "chcę saldo żeby odzwierciedlało ile mam na koncie").
+  payer?: 'me' | 'partner';
   // Ten wydatek już dopasowany do złapanej płatności z banku (Faza 2.5) — żeby
   // powiadomienie o tej samej płatności nie dodało duplikatu.
   bankMatched?: boolean;

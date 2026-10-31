@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Modal, View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { Modal, View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Receipt, Banknote, ClipboardPaste, Plus } from 'lucide-react-native';
+import * as Clipboard from 'expo-clipboard';
+import { X, Receipt, Banknote, ClipboardPaste, Plus, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { todayISO, ymd } from '@/utils/date';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { parseReceiptText } from '@/utils/receiptParser';
 import { useExpensesStore } from '@/store/expensesStore';
 import type { Expense, ReceiptItem, PaymentMethod, FvBucket } from '@/types/finances';
@@ -36,10 +38,16 @@ const PAYMENT_CHOICES: { key: PaymentMethod; label: string }[] = [
   { key: 'cash', label: 'Gotówka' },
   { key: 'transfer', label: 'Przelew' },
 ];
+const PAYMENT_LABEL: Record<PaymentMethod, string> = Object.fromEntries(PAYMENT_CHOICES.map((p) => [p.key, p.label])) as Record<PaymentMethod, string>;
+const PAYER_CHOICES: { key: 'me' | 'partner'; label: string }[] = [
+  { key: 'me', label: 'Ja' },
+  { key: 'partner', label: 'Olesia' },
+];
 
 export default function AddExpenseModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const s = makeS();
   const addExpense = useExpensesStore((st) => st.addExpense);
+  const kb = useKeyboardHeight();
 
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [pasteText, setPasteText] = useState('');
@@ -51,6 +59,8 @@ export default function AddExpenseModal({ visible, onClose }: { visible: boolean
   const [amountInput, setAmountInput] = useState('');
   const [date, setDate] = useState(todayISO());
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
+  const [payer, setPayer] = useState<'me' | 'partner'>('me');
+  const [paidOpen, setPaidOpen] = useState(false);
   const [fvChoice, setFvChoice] = useState<FvBucket | 'auto'>('auto');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
@@ -58,21 +68,36 @@ export default function AddExpenseModal({ visible, onClose }: { visible: boolean
   const reset = () => {
     setType('expense'); setPasteText(''); setUsedPaste(false); setItems([]); setParsedTotal(0);
     setStoreName(''); setNote(''); setAmountInput(''); setDate(todayISO()); setPaymentMethod('card');
-    setFvChoice('auto'); setTags([]); setTagInput('');
+    setPayer('me'); setPaidOpen(false); setFvChoice('auto'); setTags([]); setTagInput('');
   };
 
   const handleClose = () => { reset(); onClose(); };
 
-  const handleParse = () => {
-    const text = pasteText.trim();
-    if (!text) return;
-    const r = parseReceiptText(text);
+  // Rdzeń rozpoznawania, wspólny dla ręcznego "Rozpoznaj" i szybkiej wklejki ze
+  // schowka (patrz `handlePasteFromClipboard` niżej) — żeby nie duplikować logiki.
+  const runParse = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const r = parseReceiptText(trimmed);
     setItems(r.items.map((it) => ({ ...it, excluded: it.suspect ?? false })));
     if (r.storeName) setStoreName(r.storeName);
     if (r.date) setDate(r.date);
     setParsedTotal(r.total);
     setPaymentMethod(r.paymentMethod);
     setUsedPaste(true);
+  };
+  const handleParse = () => runParse(pasteText);
+
+  // Pływający przycisk "wklej i rozpoznaj" (user, 2026-11-01: "zeby ten parser
+  // paragonow byl blizej prawego kciuka") — jedno tapnięcie w prawym dolnym rogu,
+  // bez przewijania do góry i bez ręcznego wklejania w pole tekstowe. Pole paste
+  // nad listą pozycji zostaje jako ścieżka zapasowa (np. tekst wpisany/zdyktowany,
+  // nie skopiowany).
+  const handlePasteFromClipboard = async () => {
+    const text = await Clipboard.getStringAsync();
+    if (!text?.trim()) return;
+    setPasteText(text);
+    runParse(text);
   };
 
   const addBlankItem = () => setItems((prev) => [...prev, { name: '', price: 0, quantity: 1, unitPrice: 0 }]);
@@ -107,6 +132,7 @@ export default function AddExpenseModal({ visible, onClose }: { visible: boolean
       source: usedPaste ? 'receipt' : 'manual',
       fvOverride: type === 'expense' && fvChoice !== 'auto' ? fvChoice : null,
       paymentMethod: type === 'expense' ? paymentMethod : undefined,
+      payer: type === 'expense' && payer !== 'me' ? payer : undefined,
       createdAt: now,
       updatedAt: now,
     };
@@ -117,7 +143,13 @@ export default function AddExpenseModal({ visible, onClose }: { visible: boolean
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={handleClose}>
       <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
-        <KeyboardAvoidingView style={s.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {/* `paddingBottom: kb` zamiast `KeyboardAvoidingView` (user, 2026-11-01:
+            "klawiatura nie zasłania tego co piszesz") — RN's `Modal` na Androidzie
+            portuje treść do OSOBNEJ natywnej hierarchii, gdzie `KeyboardAvoidingView`/
+            `windowSoftInputMode` bywa niewiarygodne (patrz useKeyboardHeight.ts,
+            port z sapp). Płynie też do pływającego przycisku paste niżej, żeby
+            wędrował razem z resztą treści, nie chował się pod klawiaturą. */}
+        <View style={[s.flex1, { paddingBottom: kb }]}>
           <View style={s.header}>
             <Text style={s.title}>{type === 'expense' ? 'Nowy wydatek' : 'Nowy przychód'}</Text>
             <TouchableOpacity onPress={handleClose} hitSlop={8} style={s.closeBtn}>
@@ -273,19 +305,46 @@ export default function AddExpenseModal({ visible, onClose }: { visible: boolean
 
             {type === 'expense' && (
               <View style={s.section}>
-                <Text style={s.label}>Płatność</Text>
-                <View style={s.chips}>
-                  {PAYMENT_CHOICES.map((opt) => (
-                    <TouchableOpacity
-                      key={opt.key}
-                      style={[s.chip, paymentMethod === opt.key && s.chipActive]}
-                      onPress={() => setPaymentMethod(opt.key)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[s.chipLabel, paymentMethod === opt.key && s.chipLabelActive]}>{opt.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                {/* Zwinięte domyślnie (user, 2026-11-01: "ta opcja mniej widoczna po
+                    rozwinięciu kto płacił i czym... żeby to miejsca nie zajmowało,
+                    ale żeby dało się zmienić") — w 99% przypadków to "Ja · Karta",
+                    więc nie zasługuje na stałe miejsce jak "Rozlicz jako" wyżej. */}
+                <TouchableOpacity style={s.paidSummaryRow} onPress={() => setPaidOpen((v) => !v)} activeOpacity={0.7}>
+                  <Text style={s.label}>
+                    Zapłacono: {PAYER_CHOICES.find((p) => p.key === payer)?.label} · {PAYMENT_LABEL[paymentMethod]}
+                  </Text>
+                  {paidOpen ? <ChevronUp size={14} color={colors.text.muted} /> : <ChevronDown size={14} color={colors.text.muted} />}
+                </TouchableOpacity>
+                {paidOpen && (
+                  <View style={s.paidDetail}>
+                    <Text style={s.subLabel}>Kto płacił</Text>
+                    <View style={s.chips}>
+                      {PAYER_CHOICES.map((opt) => (
+                        <TouchableOpacity
+                          key={opt.key}
+                          style={[s.chip, payer === opt.key && s.chipActive]}
+                          onPress={() => setPayer(opt.key)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[s.chipLabel, payer === opt.key && s.chipLabelActive]}>{opt.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <Text style={[s.subLabel, s.subLabelGap]}>Czym</Text>
+                    <View style={s.chips}>
+                      {PAYMENT_CHOICES.map((opt) => (
+                        <TouchableOpacity
+                          key={opt.key}
+                          style={[s.chip, paymentMethod === opt.key && s.chipActive]}
+                          onPress={() => setPaymentMethod(opt.key)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[s.chipLabel, paymentMethod === opt.key && s.chipLabelActive]}>{opt.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
               </View>
             )}
 
@@ -327,7 +386,13 @@ export default function AddExpenseModal({ visible, onClose }: { visible: boolean
               <Text style={s.saveLabel}>Zapisz</Text>
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
+
+          {type === 'expense' && (
+            <TouchableOpacity style={s.pasteFab} onPress={handlePasteFromClipboard} activeOpacity={0.8} accessibilityLabel="Wklej ze schowka i rozpoznaj paragon">
+              <ClipboardPaste size={20} color={colors.bg.primary} />
+            </TouchableOpacity>
+          )}
+        </View>
       </SafeAreaView>
     </Modal>
   );
@@ -438,4 +503,18 @@ const makeS = themedStyles((c) => StyleSheet.create({
   footerAmount: { fontSize: 20, fontFamily: 'Inter_900Black', color: c.text.bright },
   saveBtn: { paddingHorizontal: spacing[6], paddingVertical: spacing[3], borderRadius: radius.md, backgroundColor: c.text.bright },
   saveLabel: { fontSize: 14, fontFamily: 'Inter_900Black', color: c.bg.primary },
+
+  // Pływający, zawsze pod prawym kciukiem — nad stopką z "Zapisz", nie na niej.
+  pasteFab: {
+    position: 'absolute', right: spacing[4], bottom: 84,
+    width: 48, height: 48, borderRadius: radius.full, backgroundColor: c.text.bright,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
+    elevation: 6,
+  },
+
+  paidSummaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  paidDetail: { marginTop: spacing[2], gap: spacing[2] },
+  subLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  subLabelGap: { marginTop: spacing[1] },
 }));

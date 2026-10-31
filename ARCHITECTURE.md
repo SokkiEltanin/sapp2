@@ -33,6 +33,15 @@ mock dane, czeka na parser paragonów, Faza 2 — patrz NEXT_STEPS.md). Szczegó
 treść żyje w popupach, NIGDY na stałe na samym Dashboardzie — jeśli coś nowego nie
 mieści się w 4 rzędach, idzie do osobnego modala, nie wydłuża głównego ekranu.
 
+**Kafel Zadań + "najbliższy termin" — PODPIĘTE do realnych danych (2026-11-01)**,
+user: "zadania które dodaję żeby pokazywały się już realnie na dashboardzie" — oba
+czytały wcześniej `MOCK_TASKS`/sztywne "2 DNI". Teraz w `app/(tabs)/index.tsx`:
+`dashboardTasks` (do 4 zadań z `useCalendarStore`, z terminem rosnąco → bez terminu
+najnowsze pierwsze, tag per zadanie: pilne=termin≤dziś, nazwany skrót=pierwszy tag,
+dzwonek=termin w przyszłości, puste=żadne) i `nextDeadlineTask`/`daysUntilDeadline`
+(najbliższy nieukończony termin ze WSZYSTKICH zadań, nie tylko tych 4 widocznych w
+kaflu). Mock USUNIĘTY całkiem — pusta lista zadań = pusty kafel, nie placeholder.
+
 ## DAILY [GE]
 
 Obszerna zakładka, popupy zależnie od klikniętego kafelka. Obejmuje:
@@ -90,12 +99,17 @@ opcjonalnym tekstem, zapisywanym w formie pamiętnika DZIEŃ DATA")
 **UI zbudowane (2026-10-30, Faza 1b)** — `app/(tabs)/tasks.tsx` + 3 komponenty w
 `src/components/tasks/`:
 - `WeekMonthCalendar.tsx` — kalendarz domyślnie **tygodniowy** (zawsze bieżący
-  Pon-Nd) → tap na nagłówek karty rozwija do **widoku miesięcznego** (pełna siatka,
-  nawigacja strzałkami + skrót "Dziś"). Kropka pod dniem = ma wydarzenie
-  (`eventCoversDay`, obsługuje wielodniowe). Czyta `events`+`gcalEvents` z
-  `calendarStore`. Zaznaczenie dnia (`selectedDate`) jest na razie czysto
-  wizualne/nawigacyjne, NIE filtruje listy zadań niżej (dwa osobne widoki tego
-  samego ekranu, nie master-detail).
+  Pon-Nd, inline w karcie, chipy wydarzeń per dzień) → tap na nagłówek karty otwiera
+  **`MonthViewModal.tsx`** (NOWY, 2026-11-01, user: "kalendarz w trybie rozłożonym
+  niech też ma takie kafelki jak tygodniowy widok, może być nawet na cały ekran") —
+  pełnoekranowy popup (wzorzec WydatkiModal/AddExpenseModal) z siatką 6×7, TYCH SAMYCH
+  kolorowych chipów co tydzień (max 2/komórkę + "+N"), nawigacja miesiącami + "Dziś".
+  Dawny inline widok miesiąca (ciasna siatka, sama kropka) USUNIĘTY — miesiąc nigdy
+  nie renderuje się ściśnięty, zawsze w popupie z miejscem na treść. Kropka pod dniem
+  w widoku tygodnia zastąpiona chipami (`eventCoversDay`, obsługuje wielodniowe).
+  Czyta `events`+`gcalEvents` z `calendarStore`. Zaznaczenie dnia (`selectedDate`)
+  jest na razie czysto wizualne/nawigacyjne, NIE filtruje listy zadań niżej (dwa
+  osobne widoki tego samego ekranu, nie master-detail).
 - `TaskRow.tsx` — checkbox (ukończ, znika z listy), tytuł, tagi (neutralne szare
   chipy), kosz (usuń od razu, bez potwierdzenia).
 - `AddTaskCard.tsx` — formularz dodawania: tytuł, jeden tag (tekst), termin przez
@@ -264,6 +278,33 @@ banku... plus szablony wyłapywań")
   `>1500 zł` zawsze wymuszają ręczny przegląd. **PORTOWAĆ 1:1** — to dokładnie
   mechanizm który sprawia że po kilku powtórzeniach appka "się uczy" i przestaje
   pytać o te same rachunki, idealnie pasuje do opisu usera.
+
+### Runda poprawek (2026-11-01) — kto płacił, saldo konta, ergonomia
+- **`payer?: 'me' | 'partner'`** na `Expense` (domyślnie "ja") — NOWE, nie istniało w
+  sapp. `src/utils/balance.ts`'s `affectsBalance(e)` = `(payer??'me')==='me' &&
+  paymentMethod!=='cash'` — saldo ma odzwierciedlać WYŁĄCZNIE stan konta bankowego
+  usera (user: "chcę saldo żeby odzwierciedlało ile mam na koncie w banku"), więc
+  gotówka i płatności partnerki (Olesia) nigdy go nie ruszają, niezależnie od drugiej
+  zmiennej. `accountBalance(expenses, offset)` = offset + Σ(wpływy−wydatki gdzie
+  `affectsBalance`). Offset w AsyncStorage (`getBalanceOffset`/`setBalanceOffset`) —
+  uproszczony port sapp's `accountBalance.ts` (sapp śledzi KARTĘ i GOTÓWKĘ jako dwa
+  osobne pule z osobnymi offsetami; sapp2 świadomie NIE portuje pulu gotówki, user nie
+  prosił o jej podgląd, tylko o wyłączenie z salda).
+- `app/(tabs)/finances.tsx`'s kafel Saldo czyta `accountBalance` na żywo, tap otwiera
+  mały popup kalibracji ("Ustaw aktualne saldo" → przelicza offset od wpisanej,
+  realnej kwoty).
+- `AddExpenseModal.tsx`'s "Płatność" zastąpione zwiniętą domyślnie sekcją
+  "Zapłacono: Ja · Karta" (user: "ta opcja mniej widoczna po rozwinięciu... żeby to
+  miejsca nie zajmowało") — tap rozwija wybór Ja/Olesia + metoda płatności razem.
+- **Klawiatura nie zasłania pola** (user, ogólna uwaga na całą appkę) —
+  `src/hooks/useKeyboardHeight.ts` (port z sapp) zamiast `KeyboardAvoidingView`,
+  niewiarygodnego wewnątrz RN's `Modal` na Androidzie (osobna natywna hierarchia,
+  poza zasięgiem `windowSoftInputMode`). Podpięte w `AddExpenseModal.tsx` i
+  `MoodModal.tsx` — **jedyne dwa ekrany z inputami wewnątrz `Modal` na razie**, każdy
+  następny z formularzem w pełnoekranowym `Modal` powinien dostać ten sam fix.
+- **Parser bliżej prawego kciuka** (user) — pływający przycisk (`ClipboardPaste`,
+  wzorzec FAB) w prawym dolnym rogu `AddExpenseModal`, czyta schowek i parsuje jednym
+  tapnięciem, bez przewijania do pola tekstowego na górze.
 
 ### Model danych
 - `src/types/finances.ts` (nowy) — port `Expense`/`ReceiptItem` z sapp

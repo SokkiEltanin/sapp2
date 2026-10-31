@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import StatTile, { getTilePosition } from '@/components/dashboard/StatTile';
 import FactTile from '@/components/dashboard/FactTile';
 import SleepTile from '@/components/dashboard/SleepTile';
-import TaskListTile, { type Task } from '@/components/dashboard/TaskListTile';
+import TaskListTile, { type Task, type TaskTag } from '@/components/dashboard/TaskListTile';
 import FoodBarsTile, { type BarColumn } from '@/components/dashboard/FoodBarsTile';
 import WydatkiModal from '@/components/dashboard/WydatkiModal';
 import { type FoodWeek, type FoodCategory } from '@/components/dashboard/FoodBreakdownCard';
 import { colors } from '@/theme/colors';
 import { spacing, themedStyles } from '@/theme';
+import { useCalendarStore } from '@/store/calendarStore';
+import { todayISO } from '@/utils/date';
 
 // Pierwsze cztery rzędy prawdziwego Dashboardu (2026-10-26) wg mockupów usera:
 // rząd 1 — STREAK WODA > STREAK SŁODYCZE > INCOMING EVENT > STREAK ĆWICZENIA (kafle
@@ -37,14 +39,12 @@ import { spacing, themedStyles } from '@/theme';
 // TaskListTile.tsx. Jedyny kolor który ZOSTAŁ to funkcjonalne akcenty (np. kolor
 // chipa taga w MOCK_TASKS niżej) — dokładnie jak w referencyjnym SVG, gdzie jedynym
 // nie-neutralnym elementem był niebieski chip "UR".
-// Pokazuje wszystkie 4 stany systemu tagów (2026-10-27): nazwany skrót, pilne
-// (czerwone, wykrzyknik), bez taga (puste kropeczki), przypomnienie (dzwonek).
-const MOCK_TASKS: Task[] = [
-  { id: '1', title: 'Prezentacja Trzyna - 15 slajdów', tag: { kind: 'label', text: 'UR', color: '#1B36AF' } },
-  { id: '2', title: 'Projekt Marchewka', tag: { kind: 'urgent' } },
-  { id: '3', title: 'Wyrzucić śmieci !!', tag: { kind: 'empty' } },
-  { id: '4', title: 'Jutro zabrać klucze!', tag: { kind: 'bell', color: colors.stat.event } },
-];
+// Kafelek Zadań i "najbliższy termin" ZASTĄPIONE realnymi danymi z `calendarStore`
+// (2026-11-01, user: "zadania które dodaję żeby pokazywały się już realnie na
+// dashboardzie") — patrz `dashboardTasks`/`nextDeadlineTask` w komponencie niżej.
+// Pokazują te same 4 stany systemu tagów (2026-10-27) co dawny mock, tylko liczone
+// z prawdziwych zadań: nazwany skrót (pierwszy tag), pilne (termin dziś/po terminie),
+// przypomnienie (ma termin w przyszłości), bez taga (ani jedno, ani drugie).
 const MOCK_FOOD_COLUMNS: BarColumn[] = [
   { label: '~ŚR', value: 843, display: '843', kind: 'average' },
   { label: 'MAJ', value: 940, display: '940', kind: 'bar' },
@@ -87,6 +87,38 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const s = makeS();
   const [wydatkiOpen, setWydatkiOpen] = useState(false);
+  const calendarTasks = useCalendarStore((st) => st.tasks);
+  const today = todayISO();
+
+  // Do 4 pozycji: najpierw z terminem (rosnąco), potem bez terminu (najnowsze
+  // pierwsze) — ten sam porządek co sekcje Teraz/Terminowe w tasks.tsx.
+  const dashboardTasks = useMemo<Task[]>(() => {
+    const pending = calendarTasks.filter((t) => t.status === 'pending');
+    const withDeadline = pending.filter((t) => t.deadline).sort((a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? ''));
+    const withoutDeadline = pending.filter((t) => !t.deadline).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return [...withDeadline, ...withoutDeadline].slice(0, 4).map((t) => {
+      const deadlineYmd = t.deadline?.slice(0, 10);
+      let tag: TaskTag;
+      if (deadlineYmd && deadlineYmd <= today) tag = { kind: 'urgent' };
+      else if (t.tags.length > 0) tag = { kind: 'label', text: t.tags[0], color: colors.accent.blue };
+      else if (deadlineYmd) tag = { kind: 'bell', color: colors.stat.event };
+      else tag = { kind: 'empty' };
+      return { id: t.id, title: t.title, tag };
+    });
+  }, [calendarTasks, today]);
+
+  const nextDeadlineTask = useMemo(
+    () => calendarTasks
+      .filter((t) => t.status === 'pending' && t.deadline)
+      .sort((a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? ''))[0],
+    [calendarTasks],
+  );
+  const daysUntilDeadline = useMemo(() => {
+    if (!nextDeadlineTask?.deadline) return null;
+    const d = nextDeadlineTask.deadline.slice(0, 10);
+    const diff = Math.round((new Date(`${d}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86400000);
+    return Math.max(0, diff);
+  }, [nextDeadlineTask, today]);
 
   return (
     <View style={[s.safe, { paddingTop: insets.top + spacing[2] }]}>
@@ -131,13 +163,13 @@ export default function DashboardScreen() {
       </View>
 
       <View style={[s.row, s.rowGap]}>
-        <TaskListTile position={getTilePosition(0, 2)} tasks={MOCK_TASKS} />
+        <TaskListTile position={getTilePosition(0, 2)} tasks={dashboardTasks} />
         <StatTile
           position={getTilePosition(1, 2)}
-          value="2"
+          value={daysUntilDeadline != null ? String(daysUntilDeadline) : '–'}
           unit="DNI"
           variant="event"
-          detail={'Projekt\nMarchewka'}
+          detail={nextDeadlineTask?.title ?? 'Brak terminów'}
         />
       </View>
 
