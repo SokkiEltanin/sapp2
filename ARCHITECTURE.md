@@ -42,7 +42,48 @@ Obszerna zakładka, popupy zależnie od klikniętego kafelka. Obejmuje:
 - **ĆWICZENIA** — superważne, do dopracowania, powiązane z roślinką (Pupil).
 - **KROKI** — z zegarka.
 - **WAGA**
-- **HUMOR**
+- **HUMOR — ZROBIONE (2026-10-31)**, patrz sekcja niżej.
+
+### Humor / Nastrój (user, 2026-10-31: "dodawanie humoru... taka siatka jak w sapp i
+opcjonalnym tekstem, zapisywanym w formie pamiętnika DZIEŃ DATA")
+- Port z sapp 1:1, kategorio-niezależne, już dobrze zaprojektowane: `types/mood.ts`
+  (`MoodEntry`: `mood`+`energy` 1-5, `note?`, `tags: string[]`), `components/mood/
+  MoodEnergyGrid.tsx` (siatka 5×5 nastrój×energia, jeden `Gesture.Pan()`, "circumplex
+  model of affect"), `utils/moodTags.ts` (56 presetów, sortowanie po trafności
+  nastrój/energia + pora dnia + recency). `store/moodStore.ts` — wzorzec `calendarStore`
+  (AsyncStorage, bez auto-Firestore jak sapp miało wbudowane — ta granica żyje gdzie
+  indziej w sapp2, patrz Finanse).
+- **Brak limitu wpisów/dzień** (jak w sapp) — UI liczy "ile już dziś" i tytułuje kolejne
+  check-iny "Humor 2. raz dziś" itd. — to NATURALNIE realizuje "raz, potem drugi raz
+  dziennie" z prośby usera, bez sztywnej reguły w danych.
+- **`MoodModal.tsx`** — JEDEN modal (pełnoekranowy, sapp2-stylowy, nie bottom-sheet jak
+  w sapp), przełącznik widoku w headerze: "Dodaj" (siatka+tagi+notatka) / "Pamiętnik"
+  (wpisy grupowane po dniu, nagłówek "DZIEŃ · {data po polsku}", notatki z check-inów
+  renderowane jak akapity dziennika). **Brak NOWEGO pola na "dziennik dnia"** — notatka
+  żyje na `MoodEntry.note` jak w sapp, "dopisać więcej o dniu" = kolejny check-in tego
+  dnia z własną notatką. Tap na wpis w Pamiętniku → edycja.
+  `GestureHandlerRootView`+RNGH `ScrollView` wewnątrz modala — **krytyczne**, nie
+  kosmetyka (port sapp's dwóch potwierdzonych na urządzeniu bugów: natywny `Modal`
+  portuje treść do OSOBNEJ hierarchii, poza jedynym `GestureHandlerRootView` w
+  `app/_layout.tsx` — bez własnego roota siatka nigdy nie łapie dotknięć).
+- **Wejście**: `app/(tabs)/daily.tsx`'s "Humor" wiersz — NOWY `LiveSectionRow`
+  (klikalny wariant `ComingSoonRow`, status po prawej zamiast "Wkrótce") zamiast
+  statycznego placeholdera, tap otwiera `MoodModal`.
+- **Świadomie NIE w tej rundzie**: przypomnienia rano/wieczorem (sapp ma
+  `scheduleDailyMoodReminder`/`scheduleMorningMoodReminder` — port wymaga najpierw
+  prostej (nie full-screen-alert) warstwy lokalnych notyfikacji, której sapp2 jeszcze
+  nie ma w tej formie), haptyka (czeka na `utils/haptics.ts`, Finanse Faza 2.6),
+  integracja z pet/quest/coins (sapp ma to end-to-end dla swojego zwierzaka — analog
+  dla przyszłej roślinki Pupila, patrz notatka niżej), sortowanie/eksport CSV,
+  wykresy/statystyki/achievementy nastroju (sapp's `app/(tabs)/mood.tsx` ma tego sporo —
+  dashboard-owa część, osobna decyzja czy/kiedy wchodzi do sapp2).
+- **Hak na przyszłość (roślinka/Pupil)**: user explicite poprosił o "dodatkowe punkty
+  dla roślinki" za opisanie dnia — roślinka jeszcze NIE istnieje (patrz §PUPIL/
+  ROŚLINKA), więc żadnych punktów/currency nie dodano teraz. Gdy roślinka powstanie,
+  najbliższy wzorzec do portowania to sapp's `utils/quests.ts`'s `d_mood`/`w_mood`/
+  `mo_mood` (coins+XP za check-in dziennie/tygodniowo/miesięcznie, anti-double-claim
+  przez `dayClaims` keyowane `${questId}:${date}`) + `petStore.claimDaily/claimWeekly/
+  claimMonthly` — NIE zaczynać od zera.
 
 ## ZADANIA [GE]
 

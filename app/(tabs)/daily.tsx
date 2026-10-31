@@ -1,29 +1,35 @@
+import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Droplet, Dumbbell, Footprints, Scale, Smile } from 'lucide-react-native';
 import { spacing, radius, themedStyles } from '@/theme';
+import { todayISO } from '@/utils/date';
+import { MOOD_EMOJIS } from '@/types/mood';
+import { useMoodStore } from '@/store/moodStore';
 import ComingSoonRow from '@/components/ui/ComingSoonRow';
+import LiveSectionRow from '@/components/ui/LiveSectionRow';
+import MoodModal from '@/components/mood/MoodModal';
 
-// Szkielet struktury (2026-10-29, user: "zacznij budować szkielet pod finanse,
-// kalendarz, zadania, itp", potwierdzone: lekka struktura wg ARCHITECTURE.md, bez
-// głębokiej logiki — ta wchodzi dopiero w ustalonej kolejności faz, Daily nie jest
-// nawet w tej kolejce jeszcze). Sekcje 1:1 z ARCHITECTURE.md §DAILY: ZDROWIE/
-// ĆWICZENIA/KROKI/WAGA/HUMOR. JEDZENIE świadomie POMINIĘTE — user: "nie sprawdzała
-// się w SAPP... zostawiamy potencjał/miejsce, NIE dodajemy jej teraz" — więc żadnej
-// karty tutaj, nie tylko wyłączonej.
-//
-// `accent` per-sekcja USUNIĘTY (2026-10-30, monochromatyczny redesign — patrz
-// ComingSoonRow.tsx) — odznaki ikon teraz neutralne, tak jak wszędzie indziej.
-const SECTIONS = [
+// Szkielet struktury (2026-10-29) + HUMOR podpięty jako pierwsza realna sekcja
+// (2026-10-31, user: "dodawanie humoru... z taką siatką jak w sapp"). Reszta sekcji
+// 1:1 z ARCHITECTURE.md §DAILY, wciąż "Wkrótce" — JEDZENIE świadomie POMINIĘTE (user:
+// "nie sprawdzała się w SAPP... zostawiamy potencjał/miejsce, NIE dodajemy jej teraz").
+const PLACEHOLDER_SECTIONS = [
   { key: 'zdrowie', label: 'Zdrowie', description: 'woda', icon: Droplet },
   { key: 'cwiczenia', label: 'Ćwiczenia', description: 'treningi, powiązane z Pupilem', icon: Dumbbell },
   { key: 'kroki', label: 'Kroki', description: 'z zegarka', icon: Footprints },
   { key: 'waga', label: 'Waga', icon: Scale },
-  { key: 'humor', label: 'Humor', icon: Smile },
 ] as const;
 
 export default function DailyScreen() {
   const s = makeS();
+  const entries = useMoodStore((st) => st.entries);
+  const [moodOpen, setMoodOpen] = useState(false);
+
+  const todayEntries = useMemo(() => entries.filter((e) => e.date === todayISO()), [entries]);
+  const lastToday = todayEntries[todayEntries.length - 1];
+  const humorStatus = lastToday ? `${MOOD_EMOJIS[lastToday.mood]} zapisane` : 'Zapisz →';
+
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
@@ -31,17 +37,20 @@ export default function DailyScreen() {
       </View>
       <ScrollView contentContainerStyle={s.scroll}>
         <View style={s.card}>
-          {SECTIONS.map((section, i) => (
+          <LiveSectionRow icon={Smile} label="Humor" status={humorStatus} onPress={() => setMoodOpen(true)} />
+          {PLACEHOLDER_SECTIONS.map((section, i) => (
             <ComingSoonRow
               key={section.key}
               icon={section.icon}
               label={section.label}
               description={'description' in section ? section.description : undefined}
-              isLast={i === SECTIONS.length - 1}
+              isLast={i === PLACEHOLDER_SECTIONS.length - 1}
             />
           ))}
         </View>
       </ScrollView>
+
+      <MoodModal visible={moodOpen} onClose={() => setMoodOpen(false)} />
     </SafeAreaView>
   );
 }

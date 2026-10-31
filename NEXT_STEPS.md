@@ -1497,3 +1497,52 @@ Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 105/105 zielone,
 wchodzą do bundla). Następny krok: Faza 2.3 (edycja produktów — nowy ekran +
 podpięcie `productMemory`) ALBO dociągnięcie gapów z tej rundy, do ustalenia z
 userem po teście na urządzeniu.
+
+## Daily — HUMOR zbudowany (2026-10-31)
+
+User po teście Finansów (odpowiedź na pytanie o doprecyzowanie): "humor" = nastrój
+(nie żarty) — chciał dodatkowej rundy obok Finansów: "dodawanie humoru (jeden raz
+potem drugi raz dziennie z taką siatką jak w sapp i opcjonalnym tekstem, zapisywanym
+tym razem w formie pamiętnika DZIEŃ DATA (można dopisać opisać dzień za dodatkowe
+punkty dla roślinki później)". Zbadane 1:1 w sapp (research-fork): kompletny,
+battle-tested system `MoodEntry`/siatka/tagi — portowany prawie bez zmian (pure logika/
+UI, kategorio-niezależne, zero redesignu danych potrzebne).
+
+Zrobione — patrz ARCHITECTURE.md §DAILY "Humor / Nastrój" po pełny opis:
+- `types/mood.ts`, `store/moodStore.ts`, `utils/moodTags.ts` (+ `__tests__/
+  moodTags.test.ts`, 19 testów portowanych 1:1) — czysta logika.
+- `components/mood/MoodEnergyGrid.tsx` — siatka 5×5 nastrój×energia, port 1:1
+  (gestykulacja/matematyka), bez `haptic`/`useColors` (nie istnieją jeszcze w sapp2 w
+  tej formie).
+- `components/mood/MoodModal.tsx` — NOWY, jeden pełnoekranowy modal z przełącznikiem
+  "Dodaj"/"Pamiętnik" (dzień-po-dniu, nagłówek "DZIEŃ · {data}"), zamiast sapp's
+  osobnego bottom-sheet check-inu + całego ekranu `app/(tabs)/mood.tsx` ze
+  statystykami/wykresami (ŚWIADOMIE nieportowane w tej rundzie — user prosił o samo
+  dodawanie+pamiętnik, nie dashboard).
+- `components/ui/LiveSectionRow.tsx` (NOWY) — klikalny wariant `ComingSoonRow`, Daily's
+  "Humor" nim zamieniony (status "{emoji} zapisane" / "Zapisz →").
+
+**Świadomie NIE w tej rundzie** (spisane też w ARCHITECTURE.md):
+- Przypomnienia rano/wieczorem (sapp ma dwa niezależne harmonogramy notyfikacji) —
+  sapp2 nie ma jeszcze prostej, lokalnej warstwy notyfikacji (tylko notifee full-screen
+  alert dla Zadań, inny mechanizm/zastosowanie) — osobne zadanie.
+- Haptyka — czeka na `utils/haptics.ts` (Finanse Faza 2.6, wspólne dla całej appki).
+- Punkty/currency dla roślinki za opis dnia — **roślinka jeszcze nie istnieje**
+  (§PUPIL/ROŚLINKA wciąż "pomysł do rozważenia"). Hak udokumentowany w ARCHITECTURE.md
+  (wzorzec do portowania gdy roślinka powstanie: sapp's `utils/quests.ts`'s
+  `d_mood`/`w_mood`/`mo_mood` + `petStore`'s `claimDaily/claimWeekly/claimMonthly`).
+- Statystyki/wykresy/achievementy nastroju (sapp's `app/(tabs)/mood.tsx`) — osobna,
+  większa decyzja, nie poproszona w tej rundzie.
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**:
+- Zakładka Daily → "Humor" wiersz → otwiera modal, siatka 5×5 REALNIE się przeciąga/
+  tapnie (to jest TEN element który w sapp dwa razy łapał buga z gestami wewnątrz
+  Modala — priorytet #1 do sprawdzenia).
+- Zapisanie check-inu (wymaga wybrania nastroju+energii) → zamyka modal, "Humor" na
+  Daily pokazuje emoji.
+- Zrobienie DRUGIEGO check-inu tego samego dnia → tytuł "Humor 2. raz dziś".
+- Przełącznik "Pamiętnik" w headerze → widać dzisiejsze wpisy pod "DZIEŃ · {data}",
+  notatka (jeśli wpisana) wyświetla się jako tekst. Tap na wpis → wraca do edycji.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 124/124 zielone (19 nowych),
+`npx expo export --platform android` bez błędów.
