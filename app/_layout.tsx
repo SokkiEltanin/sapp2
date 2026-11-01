@@ -16,6 +16,7 @@ import { colors } from '@/theme/colors';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { useNotifeeAlertLaunch } from '@/hooks/useNotifeeAlertLaunch';
 import { loadOwnName } from '@/utils/ownName';
+import { loadHapticsEnabled } from '@/utils/haptics';
 import { drainBankNotifications } from '@/services/bankNotificationDrain';
 import { useExpensesStore } from '@/store/expensesStore';
 
@@ -69,6 +70,10 @@ export default function RootLayout() {
   // Faza 2.5 (2026-11-01) — własne imię+nazwisko do wykrywania przelewów do siebie
   // (bankNotification.ts's `selfTransfer`), wczytane raz przy starcie.
   useEffect(() => { loadOwnName().catch(() => {}); }, []);
+
+  // Faza 2.6 (2026-11-01) — globalny przełącznik wibracji (utils/haptics.ts), wczytany
+  // raz przy starcie tak samo jak własne imię wyżej.
+  useEffect(() => { loadHapticsEnabled().catch(() => {}); }, []);
 
   // Osusza powiadomienia z banku przechwycone przez natywny nasłuch
   // (plugins/withBankNotificationListener.js) podczas gdy appka była zamknięta/w tle —

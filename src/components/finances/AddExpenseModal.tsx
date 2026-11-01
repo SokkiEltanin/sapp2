@@ -14,6 +14,7 @@ import {
   loadPriceMemory, savePriceMemory, saveFoodSubcatMemory, type PriceMemory,
 } from '@/utils/productMemory';
 import { buildProductCatalog } from '@/utils/productCatalog';
+import { haptic } from '@/utils/haptics';
 import type { Expense, ReceiptItem, PaymentMethod, FvBucket } from '@/types/finances';
 import ReceiptItemRow from './ReceiptItemRow';
 
@@ -176,10 +177,10 @@ export default function AddExpenseModal({
 
   const addTag = () => {
     const t = tagInput.trim();
-    if (t && !tags.includes(t)) setTags((prev) => [...prev, t]);
+    if (t && !tags.includes(t)) { haptic.tap(); setTags((prev) => [...prev, t]); }
     setTagInput('');
   };
-  const removeTag = (t: string) => setTags((prev) => prev.filter((x) => x !== t));
+  const removeTag = (t: string) => { haptic.tap(); setTags((prev) => prev.filter((x) => x !== t)); };
 
   const includedSum = round2(items.filter((it) => !it.excluded).reduce((sum, it) => sum + it.price, 0));
   const amount = items.length > 0 ? includedSum : (parseFloat(amountInput.replace(',', '.')) || 0);
@@ -188,6 +189,7 @@ export default function AddExpenseModal({
 
   const handleSave = () => {
     if (!canSave) return;
+    haptic.success();
     const now = new Date().toISOString();
     const shared = {
       type,

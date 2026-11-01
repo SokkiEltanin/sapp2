@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, Search, X,
   Info, Stethoscope, Wallet, Clock, Bell, Copy,
   LogIn, LogOut, User as UserIcon, Database, CalendarDays, AlertTriangle, Rocket,
-  BatteryWarning, AlarmClock, Landmark, Zap,
+  BatteryWarning, AlarmClock, Landmark, Zap, Vibrate,
 } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -21,6 +21,7 @@ import { calendarService } from '@/services/calendarService';
 import { googleCalendarService } from '@/services/googleCalendarService';
 import { todayISO } from '@/utils/date';
 import { useBankQueue } from '@/store/bankQueueStore';
+import { isHapticsEnabled, setHapticsEnabled, haptic } from '@/utils/haptics';
 
 // Build metadata wstrzyknięty przez CI (`.github/workflows/build.yml`, krok "Build
 // release APK") jako EXPO_PUBLIC_* — Expo inline'uje te zmienne w bundlu JS na etapie
@@ -69,13 +70,25 @@ function plCount(n: number, one: string, few: string, many: string) {
 // (`c.bg.elevated` + `c.text.secondary`), tak samo dla wszystkich kategorii/pozycji —
 // kolor nie niesie już znaczenia kategorii, tylko funkcjonalne akcenty (tagi zadań)
 // zostają kolorowe.
-function buildSections(email: string | null, bank: { enabled: boolean; autoAll: boolean; pending: number }): SettingsSection[] {
+function buildSections(email: string | null, bank: { enabled: boolean; autoAll: boolean; pending: number }, hapticsEnabled: boolean): SettingsSection[] {
   return [
   {
     id: 'konto', title: 'Konto', icon: UserIcon,
     items: [
       { kind: 'value', key: 'account-email', label: 'Zalogowano jako', description: 'konto google', icon: UserIcon, value: email ?? '—' },
       { kind: 'action', key: 'account-logout', label: 'Wyloguj', description: 'wyloguj z konta google', icon: LogOut },
+    ],
+  },
+  // Faza 2.6 (2026-11-01) — JEDEN globalny przełącznik, nie per-ekran (ustalone
+  // 2026-10-26, patrz ARCHITECTURE.md §Ogólne "Wibracje").
+  {
+    id: 'ogolne', title: 'Ogólne', icon: Vibrate,
+    items: [
+      {
+        kind: 'action', key: 'haptics-enabled', label: 'Wibracje',
+        description: hapticsEnabled ? 'WŁĄCZONE — stuknij, żeby wyłączyć' : 'wyłączone — stuknij, żeby włączyć',
+        icon: Vibrate,
+      },
     ],
   },
   {
@@ -176,9 +189,14 @@ export default function SettingsScreen() {
   const bankPending = useBankQueue((st) => st.pending.length);
   const setBankEnabled = useBankQueue((st) => st.setEnabled);
   const setBankAutoAll = useBankQueue((st) => st.setAutoAll);
+  // `isHapticsEnabled()` to zwykły, synchroniczny getter (utils/haptics.ts) — nie jest
+  // reaktywny sam w sobie, więc lokalny stan tutaj (ten sam wzorzec co `offset` w
+  // finances.tsx dla `getBalanceOffset()`), żeby opis w `buildSections` odświeżał się
+  // po tapie.
+  const [hapticsEnabled, setHapticsEnabledState] = useState(isHapticsEnabled());
   const sections = useMemo(
-    () => buildSections(user?.email ?? null, { enabled: bankEnabled, autoAll: bankAutoAll, pending: bankPending }),
-    [user?.email, bankEnabled, bankAutoAll, bankPending],
+    () => buildSections(user?.email ?? null, { enabled: bankEnabled, autoAll: bankAutoAll, pending: bankPending }, hapticsEnabled),
+    [user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled],
   );
 
   const handleLogout = async () => {
@@ -555,6 +573,12 @@ export default function SettingsScreen() {
   // (tylko 'action'/'value'), a dodawanie go dla jednego miejsca byłoby przerostem
   // formy nad treścią. Tap po prostu odwraca stan, opis w `buildSections` wyżej od razu
   // pokazuje nowy.
+  const toggleHaptics = () => {
+    haptic.tap(); // ostatni/pierwszy "spróbuj" — odpala się po STARYM stanie, więc buczy i przy włączaniu, i przy wyłączaniu
+    const next = !hapticsEnabled;
+    setHapticsEnabled(next).catch(() => {});
+    setHapticsEnabledState(next);
+  };
   const toggleBankEnabled = () => { setBankEnabled(!bankEnabled); append(bankEnabled ? 'Powiadomienia z banku: wyłączone.' : 'Powiadomienia z banku: włączone — przyznaj dostęp do powiadomień niżej.'); };
   const toggleBankAutoAll = () => { setBankAutoAll(!bankAutoAll); append(bankAutoAll ? 'Auto-dodawanie: wyłączone.' : 'Auto-dodawanie: włączone — płatności kartą księgują się bez przeglądu.'); };
   const openNotificationAccess = () => {
@@ -600,6 +624,7 @@ export default function SettingsScreen() {
     'bank-auto-all': toggleBankAutoAll,
     'bank-test': testBankCapture,
     'bank-review': () => router.push('/bank-review' as any),
+    'haptics-enabled': toggleHaptics,
   };
 
   const q = query.trim().toLowerCase();

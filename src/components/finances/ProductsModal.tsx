@@ -8,6 +8,7 @@ import { useExpensesStore } from '@/store/expensesStore';
 import { buildProductCatalog, findDuplicateCandidates, type ProductCatalogEntry } from '@/utils/productCatalog';
 import { loadNameAliases, saveNameAliases, saveFoodSubcatMemory } from '@/utils/productMemory';
 import { FOOD_SUBCATS, FOOD_SUBCAT_META } from '@/utils/food';
+import { haptic } from '@/utils/haptics';
 
 // Faza 2.3 (2026-11-01) — "jak złapie źle... wejść w produkty i edytować, ale dużo
 // ładniej zrobione niż w SAPie". Brak osobnego store'u "Produkty" — katalog jest
@@ -50,6 +51,7 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
   };
 
   const mergeInto = async (keep: ProductCatalogEntry, drop: ProductCatalogEntry) => {
+    haptic.success();
     const products = drop.rawNames.map((name) => ({ name }));
     const edited = Object.fromEntries(drop.rawNames.map((_, i) => [i, keep.label]));
     await saveNameAliases(products, edited);

@@ -6,6 +6,7 @@ import { spacing, radius, themedStyles } from '@/theme';
 import type { ReceiptItem } from '@/types/finances';
 import { FOOD_SUBCATS, FOOD_SUBCAT_META } from '@/utils/food';
 import { suggestSimilarName, priceFor, priceAnomaly, type PriceMemory } from '@/utils/productMemory';
+import { haptic } from '@/utils/haptics';
 
 // Zaokrąglenie DO WYŚWIETLENIA (user, 2026-11-01: "z owoców przeliczyło i
 // wywaliło dużo liczb po przecinku... max 3 po przecinku") — wagi (owoce/warzywa
@@ -84,7 +85,7 @@ export default function ReceiptItemRow({
   return (
     <View style={[s.row, item.kind === 'deposit' && s.rowDeposit, !included && s.rowExcluded]}>
       <View style={s.topLine}>
-        <TouchableOpacity onPress={() => onChange({ excluded: included })} hitSlop={8}>
+        <TouchableOpacity onPress={() => { haptic.tap(); onChange({ excluded: included }); }} hitSlop={8}>
           {included
             ? <CheckSquare size={18} color={colors.text.bright} />
             : <Square size={18} color={colors.text.muted} />}
@@ -174,7 +175,7 @@ export default function ReceiptItemRow({
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.pickerScroll}>
           <TouchableOpacity
             style={[s.pickerChip, !item.foodSubcat && s.pickerChipActive]}
-            onPress={() => { onChange({ foodSubcat: undefined }); setTagPickerOpen(false); }}
+            onPress={() => { haptic.tap(); onChange({ foodSubcat: undefined }); setTagPickerOpen(false); }}
           >
             <Text style={s.pickerChipLabel}>Brak</Text>
           </TouchableOpacity>
@@ -182,7 +183,7 @@ export default function ReceiptItemRow({
             <TouchableOpacity
               key={sc.tag}
               style={[s.pickerChip, item.foodSubcat === sc.tag && { backgroundColor: sc.color }]}
-              onPress={() => { onChange({ foodSubcat: sc.tag }); setTagPickerOpen(false); }}
+              onPress={() => { haptic.tap(); onChange({ foodSubcat: sc.tag }); setTagPickerOpen(false); }}
             >
               <Text style={[s.pickerChipLabel, item.foodSubcat === sc.tag && s.pickerChipLabelActive]}>{sc.label}</Text>
             </TouchableOpacity>

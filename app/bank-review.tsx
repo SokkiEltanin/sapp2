@@ -8,6 +8,7 @@ import { spacing, radius, themedStyles } from '@/theme';
 import { useBankQueue, type PendingBankTx } from '@/store/bankQueueStore';
 import { commitBankTx } from '@/services/bankCommit';
 import { loadMerchantMemory, setMerchantAuto, AUTO_THRESHOLD, type MerchantMemory } from '@/utils/merchantMemory';
+import { haptic } from '@/utils/haptics';
 
 // Port z sapp (app/bank-review.tsx), styl sapp2 (themedStyles, bez PressableScale/
 // haptyki/toastów — żadnego z nich appka jeszcze nie ma). Największa różnica: sapp ma
@@ -34,13 +35,14 @@ export default function BankReview() {
 
   const addTag = (p: PendingBankTx) => {
     const t = (tagDrafts[p.id] ?? '').trim();
-    if (t && !p.tags.includes(t)) update(p.id, { tags: [...p.tags, t] });
+    if (t && !p.tags.includes(t)) { haptic.tap(); update(p.id, { tags: [...p.tags, t] }); }
     setTagDrafts((d) => ({ ...d, [p.id]: '' }));
   };
-  const removeTag = (p: PendingBankTx, t: string) => update(p.id, { tags: p.tags.filter((x) => x !== t) });
+  const removeTag = (p: PendingBankTx, t: string) => { haptic.tap(); update(p.id, { tags: p.tags.filter((x) => x !== t) }); };
 
   const accept = async (p: PendingBankTx) => {
     if (submittingIds.has(p.id)) return;
+    haptic.success();
     setSubmittingIds((prev) => new Set(prev).add(p.id));
     try {
       const corrected = JSON.stringify([...p.tags].sort()) !== JSON.stringify([...p.suggestedTags].sort());
@@ -51,8 +53,8 @@ export default function BankReview() {
     }
   };
 
-  const reject = (p: PendingBankTx) => remove(p.id);
-  const revoke = (storeKey: string) => { setMerchantAuto(storeKey, false).then(reloadMem).catch(() => {}); };
+  const reject = (p: PendingBankTx) => { haptic.tap(); remove(p.id); };
+  const revoke = (storeKey: string) => { haptic.tap(); setMerchantAuto(storeKey, false).then(reloadMem).catch(() => {}); };
 
   // Sklepy, które awansowały na autopilota — pokazane żeby user mógł cofnąć zaufanie.
   const autoMerchants = useMemo(

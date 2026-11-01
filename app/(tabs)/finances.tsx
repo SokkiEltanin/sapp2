@@ -14,6 +14,7 @@ import { useExpensesStore } from '@/store/expensesStore';
 import { getBalanceOffset, setBalanceOffset, accountBalance } from '@/utils/balance';
 import { buildProductCatalog } from '@/utils/productCatalog';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
+import { haptic } from '@/utils/haptics';
 import { todayISO } from '@/utils/date';
 import type { Expense } from '@/types/finances';
 
@@ -60,6 +61,7 @@ export default function FinancesScreen() {
   const saveBalance = async () => {
     const real = parseFloat(balanceInput.replace(',', '.'));
     if (isFinite(real)) {
+      haptic.success();
       const netWithoutOffset = balance - offset;
       const newOffset = real - netWithoutOffset;
       await setBalanceOffset(newOffset);

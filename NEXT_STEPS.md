@@ -1889,6 +1889,29 @@ testów: `bankNotification`/`bankAmountMatch`/`bankNotificationDedup`/`bankCommi
 `npx expo export --platform android` bez błędów, `npx expo prebuild --platform
 android` generuje poprawny natywny serwis + wpis w manifeście.
 
+**CI zielone (run #71)** — natywny `Sapp2NotificationListener.kt` wygenerowany przez
+plugin skompilował się poprawnie w Gradle, APK gotowy.
+
+## Finanse — Faza 2.6 "Wibracje" UKOŃCZONA (2026-11-01)
+
+User: "dawaj dalej" po Fazie 2.5 → ostatni krok z planu Finansów. `utils/haptics.ts`
+(port z sapp, uproszczony pod lokalny AsyncStorage-flag zamiast sapp's
+`appSettings.ts`) + JEDEN globalny przełącznik w Ustawieniach → Ogólne (nowa sekcja).
+Wpięte w Finanse: toggle taga (AddExpenseModal, ReceiptItemRow — checkbox i chipy
+`foodSubcat`, bank-review.tsx), zatwierdź (AddExpenseModal zapis, bank-review
+akceptacja, kalibracja salda), połącz duplikat (ProductsModal).
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**:
+- Ustawienia → Ogólne → "Wibracje" → powinno buczeć przy tapie (i WŁ, i WYŁ pokazują
+  ten sam ostatni "potwierdzający" bzyk zanim się przełączy).
+- Z wibracjami włączonymi: w Finansach — zaznacz/odznacz checkbox pozycji paragonu,
+  dodaj/usuń tag, zapisz wydatek, zatwierdź płatność z banku, połącz duplikat w
+  Produktach — każde powinno dać krótki, wyczuwalny bzyk.
+- Wyłącz wibracje w Ustawieniach → te same akcje powinny być całkowicie ciche.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 164/164 zielone,
+`npx expo export --platform android` bez błędów.
+
 ## Dashboard — widget #JEDZENIE podpięty do realnych danych (2026-11-01)
 
 User: *"czemu na dashboardzie nie ma widgetu ostatniego tego na dole z wydatkami

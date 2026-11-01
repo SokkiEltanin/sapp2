@@ -412,10 +412,14 @@ banku... plus szablony wyłapywań")
    pętla (nasłuch → parser → kolejka → przegląd → zaksięgowanie), bez szablonów —
    patrz `### Powiadomienia z banku (Faza 2.5)` niżej po szczegóły i co świadomie
    odłożone.
-6. **Wibracje** (user: "zrób te wibracje") — port `utils/haptics.ts`, wpięte w
-   nowe interakcje Finansów (toggle taga, zatwierdź, połącz duplikat) — zgodnie z
-   już ustaloną zasadą w `ARCHITECTURE.md` §Ogólne ("NIE osobny przełącznik w UI,
-   wyciszamy per-ekran w kodzie jeśli trzeba").
+6. **Wibracje — ZROBIONE (2026-11-01, "dawaj dalej")**. `utils/haptics.ts` (port z
+   sapp, uproszczony: zamiast sapp's dużego `appSettings.ts` — lokalny,
+   AsyncStorage-cache'owany flag jak `ownName.ts`), JEDEN globalny przełącznik w
+   Ustawieniach → Ogólne (zgodnie z zasadą niżej w §Ogólne). Wpięte w "toggle taga"
+   (`AddExpenseModal`'s tagi, `ReceiptItemRow`'s checkbox+`foodSubcat` chipy,
+   `bank-review.tsx`'s tagi), "zatwierdź" (`AddExpenseModal.handleSave`,
+   `bank-review.tsx`'s accept, kalibracja salda w `finances.tsx`) i "połącz
+   duplikat" (`ProductsModal.mergeInto`).
 
 ### Powiadomienia z banku (Faza 2.5, 2026-11-01)
 
@@ -513,9 +517,12 @@ powiadomień (patrz niżej).
 
 ## Ogólne do appki (cross-cutting)
 
-- **Wibracje** — globalny toggle w Ustawieniach (moja rekomendacja: NIE per-ekran, patrz
-  rozmowa z 2026-10-26 — jeśli jakiś ekran okaże się zbyt "wibrujący", wyciszamy to w
-  kodzie tego ekranu, nie dodajemy osobnego przełącznika w UI).
+- **Wibracje — ZROBIONE (2026-11-01)** — JEDEN globalny toggle w Ustawieniach →
+  Ogólne (`utils/haptics.ts`), nie per-ekran (jeśli jakiś ekran okaże się zbyt
+  "wibrujący", wyciszamy to w kodzie tego ekranu, nie dodajemy osobnego
+  przełącznika w UI). Na razie wpięte tylko w Finanse (Faza 2.6, §FINANSE) —
+  kolejne ekrany (Zadania/Daily/Dashboard) dostają haptykę gdy ktoś realnie tam
+  doda nowe, warte potwierdzenia interakcje, nie z wyprzedzeniem.
 - **Powiadomienia** — do zaprojektowania: zwykłe vs. "ciekawsze" typy (full-screen
   przypomnienie blokujące do odhaczenia, jak budzik) + integracja z trybem focus
   Pupila/roślinki. Patrz rozmowa 2026-10-26 w historii sesji po szczegóły wykonalności
