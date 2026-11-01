@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
-import { Square, CheckSquare, Trash2, Tag as TagIcon } from 'lucide-react-native';
+import { Square, CheckSquare, Trash2, Tag as TagIcon, TriangleAlert } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import type { ReceiptItem } from '@/types/finances';
 import { FOOD_SUBCATS, FOOD_SUBCAT_META } from '@/utils/food';
+import { suggestSimilarName, priceFor, priceAnomaly, type PriceMemory } from '@/utils/productMemory';
 
 // Wiersz pozycji paragonu — współdzielony przez tryb "wklej paragon" (sparsowane
 // pozycje, część z nich `suspect` po `receiptParser.ts`) i "dodaj ręcznie" (świeże,
@@ -12,21 +13,46 @@ import { FOOD_SUBCATS, FOOD_SUBCAT_META } from '@/utils/food';
 // `suspect` — parser podejrzewa nagłówek/sumę, nie realny produkt), kosz z PRAWEJ —
 // ten sam układ co TaskRow (kosz/checkbox po przeciwnych stronach), żeby cała appka
 // czytała się tym samym językiem gestów.
+//
+// Podpowiedzi z pamięci produktowej (2026-11-01, zamyka gap z Fazy 2.2 — user:
+// "wpisuję nazwę... sugeruje... klikam"): `suggestSimilarName` sprawdzane na BLUR
+// pola nazwy (nie co klawisz — kosztowny fuzzy-match po całym katalogu), pasmo
+// niepewności [0.45, 0.60) — za blisko żeby zignorować, za daleko żeby auto-scalić,
+// user potwierdza jednym tapem. `priceAnomaly` ostrzega gdy cena jednostkowa jest
+// rażąco wyższa niż typowa dla tej nazwy (OCR złapał złą liczbę / wkradła się linia
+// SUMA) — nigdy dla niższej/promocyjnej ceny.
 export default function ReceiptItemRow({
   item,
   onChange,
   onDelete,
+  priceMemory = {},
+  knownNames = [],
 }: {
   item: ReceiptItem;
   onChange: (patch: Partial<ReceiptItem>) => void;
   onDelete: () => void;
+  priceMemory?: PriceMemory;
+  knownNames?: string[];
 }) {
   const s = makeS();
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [discountInput, setDiscountInput] = useState<string | null>(null);
+  const [nameSuggestion, setNameSuggestion] = useState<string | null>(null);
 
   const included = !item.excluded;
   const meta = item.foodSubcat ? FOOD_SUBCAT_META[item.foodSubcat] : undefined;
+  const priceFlag = item.kind !== 'deposit' ? priceAnomaly(item.unitPrice, priceFor(item.name, priceMemory)) : null;
+
+  const checkNameSuggestion = () => {
+    if (!item.name.trim()) { setNameSuggestion(null); return; }
+    setNameSuggestion(suggestSimilarName(item.name, knownNames));
+  };
+  const acceptSuggestion = () => {
+    if (!nameSuggestion) return;
+    const known = priceFor(nameSuggestion, priceMemory);
+    onChange({ name: nameSuggestion, ...(item.unitPrice === 0 && known ? { unitPrice: known.last, price: known.last * item.quantity } : {}) });
+    setNameSuggestion(null);
+  };
 
   const setNum = (field: 'quantity' | 'unitPrice' | 'price', raw: string) => {
     const n = parseFloat(raw.replace(',', '.'));
@@ -55,7 +81,8 @@ export default function ReceiptItemRow({
         </TouchableOpacity>
         <TextInput
           value={item.name}
-          onChangeText={(name) => onChange({ name })}
+          onChangeText={(name) => { onChange({ name }); if (nameSuggestion) setNameSuggestion(null); }}
+          onBlur={checkNameSuggestion}
           style={[s.nameInput, !included && s.textMuted]}
           placeholder="Nazwa produktu"
           placeholderTextColor={colors.text.muted}
@@ -64,6 +91,19 @@ export default function ReceiptItemRow({
           <Trash2 size={16} color={colors.text.muted} />
         </TouchableOpacity>
       </View>
+
+      {nameSuggestion && (
+        <TouchableOpacity style={s.suggestionRow} onPress={acceptSuggestion} activeOpacity={0.7}>
+          <Text style={s.suggestionText}>Czy to: <Text style={s.suggestionName}>{nameSuggestion}</Text>?</Text>
+        </TouchableOpacity>
+      )}
+
+      {priceFlag && (
+        <View style={s.anomalyRow}>
+          <TriangleAlert size={11} color={colors.accent.red} />
+          <Text style={s.anomalyText}>Zwykle ~{priceFlag.typical.toFixed(2)} zł — sprawdź cenę</Text>
+        </View>
+      )}
 
       <View style={s.numLine}>
         <TextInput
@@ -153,6 +193,11 @@ const makeS = themedStyles((c) => StyleSheet.create({
   topLine: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   nameInput: { flex: 1, fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary, paddingVertical: 2 },
   textMuted: { color: c.text.muted, textDecorationLine: 'line-through' },
+  suggestionRow: { paddingLeft: spacing[5], paddingBottom: 2 },
+  suggestionText: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted },
+  suggestionName: { fontFamily: 'Inter_900Black', color: c.text.bright },
+  anomalyRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: spacing[5], paddingBottom: 2 },
+  anomalyText: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.accent.red },
   numLine: { flexDirection: 'row', alignItems: 'center', gap: spacing[1], paddingLeft: spacing[5] },
   numInput: {
     fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.secondary,

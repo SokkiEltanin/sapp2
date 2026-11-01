@@ -206,15 +206,22 @@ ustalenia z 2026-10-26 (poniżej) WCIĄŻ obowiązują — ten plan je rozwija, 
   ujednolicony dodaj": pole paste + "+ Dodaj pozycję" operują na TEJ SAMEJ liście
   stanu, różni się tylko punkt startowy. Brak pozycji wcale → pole "Kwota" odkrywa
   się jako szybki wydatek bez rozbijania na produkty (czynsz, paliwo).
-- **Podpowiadanie produktu po nazwie** (user: "wpisuję nazwę... sugeruje... klikam,
-  cena się uzupełnia") = `productMemory.ts` — logika portowana (Faza 2.1), **ALE
-  jeszcze NIE podpięta do `AddExpenseModal`/`ReceiptItemRow`** (2026-10-31: pierwsza
-  wersja ekranu działa z czystym parserem, bez fuzzy-sugestii przy wpisywaniu nazwy,
-  bez pamięci wagi/ceny/anomalii) — **świadomy, śledzony gap, nie dead-end**: wpisanie
-  nazwy produktu na liście pozycji dziś NIE podpowiada nic, trzeba wpisać/sprawdzić
-  ręcznie. Do podpięcia: `suggestSimilarName()` (pasmo `0.45–0.60`) jako dropdown pod
-  polem nazwy w `ReceiptItemRow`, `priceFor`/`priceAnomaly` jako ostrzeżenie przy
-  nietypowej cenie, `weightFor` jako auto-uzupełnienie `weightKg`. Patrz NEXT_STEPS.md.
+- **Podpowiadanie produktu po nazwie — PODPIĘTE (2026-11-01)** (user: "wpisuję
+  nazwę... sugeruje... klikam, cena się uzupełnia"). W `AddExpenseModal.tsx`
+  (`runParse`): `canonicalProductName()` (aliasy + marki, np. "jezykicherry" →
+  "Jeżyki") naprawia nazwę OD RAZU, bez pytania — to twarde reguły, nie niepewne
+  sugestie; `applyFoodSubcatMemory()` jako FALLBACK dla pozycji, których słownik
+  słów-kluczowych (`receiptParser.ts`) nie rozpoznał wcale (nigdy nie nadpisuje
+  trafienia parsera). W `ReceiptItemRow.tsx`: `suggestSimilarName()` (pasmo
+  `0.45–0.60`) sprawdzane na BLUR pola nazwy → "Czy to: {nazwa}?" tap-to-accept
+  (auto-uzupełnia też `unitPrice` z `priceFor()` gdy pole było puste), `priceAnomaly()`
+  → ostrzeżenie "Zwykle ~X zł" przy rażąco wysokiej cenie jednostkowej. **Zapis
+  (`handleSave`) teraz REALNIE uczy pamięć** (`saveFoodSubcatMemory`/
+  `savePriceMemory`) — to był brakujący krok w Fazie 2.2: pamięć istniała, ale nic
+  jej nigdy nie zasilało, więc nigdy nic by się nie nauczyła. **Nadal NIE
+  podpięte**: `weightFor`/`parseWeightFromName` → auto-uzupełnienie `weightKg` (brak
+  pola wagi w `ReceiptItemRow`'s UI wcale — mniejszy priorytet, nie było w
+  bezpośredniej prośbie usera).
 - **Nadpisanie ceny/ilości/rabatu** (user: "kupiłem taniej... dodaj zniżkę, dodaj
   ilość") — pola już są w `ReceiptItem` (portowany typ): `price`/`quantity`/
   `unitPrice`/`discount`. UI: edytowalne inline na liście review, nie osobny ekran.
@@ -228,20 +235,32 @@ ustalenia z 2026-10-26 (poniżej) WCIĄŻ obowiązują — ten plan je rozwija, 
   (`app/(tabs)/index.tsx` → `WydatkiModal`), więc po porcie ten kafel przechodzi z
   mocka na realne dane bez zmiany struktury.
 
-### Edycja produktów (user: "jak złapie źle... wejść w produkty i edytować, ale
-dużo ładniej zrobione niż w SAPie")
-- Logika = `productMemory.ts` (jak wyżej) + grupowanie (`productGroupKey`/
-  `productGroupLabel` — grupuje "Serek wiejski lekki"/"Serek wiejski Pilos" pod
-  wspólny nagłówek "Serek"). **PORTOWAĆ logikę**, ale UI **NAPISAĆ OD ZERA** — sapp's
-  `app/products.tsx` to płaski ekran z wyśrodkowanym, ciasnym modalem (czyste
-  siatki chipów, zero hierarchii wizualnej) — user to explicite nazwał za
-  skromnym. sapp2: karty-wiersze (jak `TaskRow`), pełnoekranowy edytor albo bottom
-  sheet zamiast ciasnego centered-modala, czytelne grupowanie.
-- Wykrywanie duplikatów (pasmo podobieństwa `0.45–0.60`, jak `suggestSimilarName`)
-  — osobny krok "połącz/odrzuć" z opcją cofnięcia, ten sam mechanizm co w sapp,
-  wizualnie dociągnięty.
+### Edycja produktów — ZROBIONE (2026-11-01) (user: "jak złapie źle... wejść w
+produkty i edytować, ale dużo ładniej zrobione niż w SAPie")
+- **Brak osobnego store'u "Produkty"** — sapp2 nie przechowuje listy produktów,
+  katalog jest WIDOKIEM agregowanym z historii `Expense.receiptItems`
+  (`src/utils/productCatalog.ts`'s `buildProductCatalog(expenses, aliases)`):
+  grupowanie przez `productGroupKey`/`productGroupLabel` (1:1 z sapp — "Serek
+  wiejski lekki"/"Serek wiejski Pilos" → "Serek"), aliasy zastosowane PRZED
+  grupowaniem (`canonicalProductName`) żeby scalenie duplikatu odbiło się na
+  widoku NATYCHMIAST, bez przepisywania historycznych wydatków. Per wpis: ile razy
+  kupione, ostatnia/suma cen, dominująca `foodSubcat`.
+- **`ProductsModal.tsx`** (nowy, pełnoekranowy, wzorzec WydatkiModal) — karty-wiersze
+  (jak `TaskRow`), NIE ciasny centered-modal sapp's `app/products.tsx`. Szukajka,
+  tap na kartę rozwija edycję inline (nazwa → zapisuje alias przez
+  `saveNameAliases`, kategoria jedzenia → chipy z `food.ts`, zapisuje przez
+  `saveFoodSubcatMemory` dla WSZYSTKICH scalonych nazw grupy naraz).
+- **Wykrywanie duplikatów** — `findDuplicateCandidates()` (pasmo `0.45–0.60`,
+  `productNameSimilarity` między ETYKIETAMI już-pogrupowanych wpisów — łapie
+  literówkę/OCR-szum w PIERWSZYM tokenie, który inaczej dałby różny `groupKey` i
+  nigdy by się same nie zgrupowały). Baner "Możliwe duplikaty (N)" nad listą,
+  "Połącz" (zapisuje alias, scala przy następnym przeliczeniu katalogu) / "To
+  różne" (odrzuca na tę sesję, bez trwałego zapamiętywania odrzutu — lista i tak
+  skraca się realnymi scaleniami).
+- Wejście: `app/(tabs)/finances.tsx`'s "Obszary" → nowy, klikalny wiersz "Produkty"
+  (`LiveSectionRow`, status = liczba wpisów katalogu).
 - To PRZESĄDZA starą notatkę "POJAZDY / PRODUKTY — odłożone na koniec" — PRODUKTY
-  wchodzą TERAZ (explicit ask usera), POJAZDY zostają odłożone (nieporuszone w tej
+  weszły (explicit ask usera), POJAZDY zostają odłożone (nieporuszone w tej
   prośbie).
 
 ### Powiadomienia z banku + szablony (user: "w SAP mamy wyłapywanie powiadomień z
@@ -335,12 +354,16 @@ banku... plus szablony wyłapywań")
    (tymczasowo, do Fazy 4). **Celowo NIE w tej rundzie**: podpięcie `productMemory`
    (fuzzy-sugestie/pamięć wagi-ceny — patrz gap wyżej), saldo/popup Stałe-Zmienne-
    Jedzenie (Faza 4), haptyka (Faza 6).
-3. **Edycja produktów** — nowy, ładniejszy ekran (katalog + fuzzy-sugestie przy
-   wpisywaniu, wykrywanie duplikatów) — tu też podłączyć `productMemory` do
-   `AddExpenseModal` (gap z kroku 2), bo oba ekrany dzielą tę samą warstwę pamięci.
-4. **Przebudowa ekranu Finanse** — kafel salda, kafel "4 ostatnie" + pełny popup,
-   popup Stałe/Zmienne/Jedzenie (Jedzenie = pierwszy realny konsument
-   `FoodBreakdownCard`).
+3. **Edycja produktów — ZROBIONE (2026-11-01)**. `ProductsModal.tsx` (katalog
+   agregowany z historii, karty-wiersze, edycja nazwy/kategorii, wykrywanie
+   duplikatów) + `productMemory` PODPIĘTE do `AddExpenseModal`/`ReceiptItemRow`
+   (gap z kroku 2 zamknięty: aliasy/marki auto-apply, fuzzy-sugestia nazwy na blur,
+   ostrzeżenie o anomalii ceny, zapis UCZY pamięć przy każdym "Zapisz"). Szczegóły:
+   NEXT_STEPS.md "Faza 2.3 UKOŃCZONA". Nadal nie podpięte: pamięć wagi (brak pola
+   wagi w UI wcale).
+4. **Przebudowa ekranu Finanse** — kafel "4 ostatnie" + pełny popup, popup
+   Stałe/Zmienne/Jedzenie (Jedzenie = pierwszy realny konsument
+   `FoodBreakdownCard`). Kafel salda już realny od rundy poprawek 2026-11-01.
 5. **Powiadomienia z banku** — natywny listener + parser + szablony + kolejka +
    zaufanie/auto-akceptacja. Najbardziej ryzykowny, natywny kawałek — celowo na
    końcu, gdy reszta modelu danych/UI jest już sprawdzona.

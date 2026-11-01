@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Briefcase, Repeat, Plus } from 'lucide-react-native';
+import { Briefcase, Repeat, Plus, Package } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import ComingSoonRow from '@/components/ui/ComingSoonRow';
+import LiveSectionRow from '@/components/ui/LiveSectionRow';
 import AddExpenseModal from '@/components/finances/AddExpenseModal';
+import ProductsModal from '@/components/finances/ProductsModal';
 import { useExpensesStore } from '@/store/expensesStore';
 import { getBalanceOffset, setBalanceOffset, accountBalance } from '@/utils/balance';
+import { buildProductCatalog } from '@/utils/productCatalog';
 
 // Faza 2.2 (2026-10-31) — FAB "dodaj" podpięty (rozstrzygnięcie "Kolizja lewy dolny
 // róg" z NEXT_STEPS.md: ten sam wzorzec co Zadania, patrz tasks.tsx), "Ostatnie
@@ -26,6 +29,7 @@ export default function FinancesScreen() {
   const s = makeS();
   const expenses = useExpensesStore((st) => st.expenses);
   const [addOpen, setAddOpen] = useState(false);
+  const [productsOpen, setProductsOpen] = useState(false);
   const [offset, setOffset] = useState(0);
   const [editingBalance, setEditingBalance] = useState(false);
   const [balanceInput, setBalanceInput] = useState('');
@@ -50,6 +54,8 @@ export default function FinancesScreen() {
     () => [...expenses].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4),
     [expenses],
   );
+
+  const productCount = useMemo(() => buildProductCatalog(expenses).length, [expenses]);
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -84,6 +90,12 @@ export default function FinancesScreen() {
 
         <Text style={s.sectionTitle}>Obszary</Text>
         <View style={s.card}>
+          <LiveSectionRow
+            icon={Package}
+            label="Produkty"
+            status={productCount > 0 ? `${productCount}` : 'Zobacz →'}
+            onPress={() => setProductsOpen(true)}
+          />
           <ComingSoonRow icon={Briefcase} label="Praca" description="zmiany, godziny, wypłaty" />
           <ComingSoonRow icon={Repeat} label="Subskrypcje" description="cykliczne płatności" isLast />
         </View>
@@ -99,6 +111,7 @@ export default function FinancesScreen() {
       </TouchableOpacity>
 
       <AddExpenseModal visible={addOpen} onClose={() => setAddOpen(false)} />
+      <ProductsModal visible={productsOpen} onClose={() => setProductsOpen(false)} />
 
       <Modal visible={editingBalance} transparent animationType="fade" onRequestClose={() => setEditingBalance(false)}>
         <Pressable style={s.backdrop} onPress={() => setEditingBalance(false)}>

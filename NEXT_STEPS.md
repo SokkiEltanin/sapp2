@@ -1610,3 +1610,63 @@ terminów" gdy żadne zadanie go nie ma.
 
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 129/129 zielone (5 nowych —
 `balance.test.ts`), `npx expo export --platform android` bez błędów.
+
+## Finanse — Faza 2.3 UKOŃCZONA: edycja produktów + pamięć podpięta (2026-11-01)
+
+User: "dawaj dalej" po rundzie poprawek. Trzeci krok z "Kolejności budowy" —
+jednocześnie zamyka śledzony gap z Fazy 2.2 ("Podpowiadanie produktu po nazwie...
+PORTOWANE, ale NIE podpięte").
+
+Dodane:
+- `src/utils/productCatalog.ts` (nowy) — `buildProductCatalog(expenses, aliases)`
+  agreguje katalog produktów Z HISTORII (sapp2 nie ma osobnego store'u "Produkty"),
+  grupowanie `productGroupKey`/`productGroupLabel` (1:1 sapp), aliasy zastosowane
+  PRZED grupowaniem. `findDuplicateCandidates()` — pary wpisów w paśmie
+  `0.45–0.60` (literówka/OCR-szum w PIERWSZYM tokenie → inny `groupKey`, nie
+  grupuje się samo). `__tests__/productCatalog.test.ts` — 6 testów (w tym jeden
+  wymagający realnych par tekstowych znalezionych empirycznie, żeby faktycznie
+  wpadały w pasmo niepewności, nie tylko w teorii).
+- `src/components/finances/ProductsModal.tsx` (nowy) — pełnoekranowy katalog,
+  karty-wiersze (jak `TaskRow`, nie ciasny centered-modal sapp's
+  `app/products.tsx`), szukajka, baner "Możliwe duplikaty (N)" z Połącz/To różne,
+  tap na kartę → edycja inline (nazwa → `saveNameAliases`, kategoria jedzenia →
+  chipy z `food.ts` → `saveFoodSubcatMemory` dla całej scalonej grupy). Wejście:
+  `app/(tabs)/finances.tsx` → "Obszary" → nowy klikalny wiersz "Produkty"
+  (`LiveSectionRow`, status = liczba wpisów).
+- **`AddExpenseModal.tsx`/`ReceiptItemRow.tsx` — pamięć produktowa PODPIĘTA**
+  (dotąd portowana logika, ale nic jej nie wołało):
+  - `runParse()`: `canonicalProductName()` naprawia nazwę przez aliasy/marki OD
+    RAZU (twarda reguła, nie pytanie), `applyFoodSubcatMemory()` jako fallback
+    TYLKO dla pozycji których `receiptParser.ts`'s słownik słów-kluczowych nie
+    złapał wcale.
+  - `ReceiptItemRow`: na BLUR pola nazwy → `suggestSimilarName()` (pasmo
+    niepewności) → "Czy to: {nazwa}?" tap-to-accept, auto-uzupełnia też
+    `unitPrice` z `priceFor()` gdy pole było puste (user: "wpisuję nazwę...
+    sugeruje... klikam, cena się uzupełnia" — DOSŁOWNIE ten mechanizm).
+    `priceAnomaly()` → "Zwykle ~X zł" ostrzeżenie przy rażąco wysokiej cenie.
+  - **`handleSave()` teraz REALNIE uczy pamięć** (`saveFoodSubcatMemory`/
+    `savePriceMemory` dla finalnych pozycji) — to był kluczowy brakujący krok:
+    pamięć była portowana i czytana, ale NIC jej nigdy nie zapisywało, więc
+    nigdy by się nic nie nauczyła, niezależnie od tego jak dobre było UI.
+
+**Świadomie NIE w tej rundzie**: `weightFor`/`parseWeightFromName` (pamięć
+wagi) — `ReceiptItemRow` nie ma wcale pola na `weightKg` w UI, mniejszy priorytet,
+nie było w bezpośredniej prośbie usera. Odrzucone duplikaty w `ProductsModal` NIE
+są trwale pamiętane (tylko na czas sesji) — drobna niedoróbka, do rozważenia jeśli
+user zgłosi że te same pary wracają zbyt często.
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**:
+- Finanse → Obszary → "Produkty" → lista się wypełnia po zapisaniu wydatków z
+  pozycjami, tap na kartę → zmiana nazwy/kategorii zapisuje się i widać od razu.
+- Wklej ten sam paragon (albo bardzo podobny) dwa razy → druga pozycja z tą samą
+  nazwą produktu — wpisanie nazwy ręcznie (pozycja dodana przyciskiem "Dodaj
+  pozycję") powinno po `onBlur` zaproponować "Czy to: {znana nazwa}?".
+  Zaakceptowanie powinno uzupełnić cenę, jeśli pole było puste.
+  - Wpisanie bardzo wysokiej ceny dla znanego produktu (np. 10× typowej) →
+    ostrzeżenie "Zwykle ~X zł".
+- Scalenie dwóch podobnych produktów w "Produkty" (przez baner duplikatów albo
+  ręczną zmianę nazwy) → sprawdzić że następny paragon z tym produktem respektuje
+  nową, scaloną nazwę.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 135/135 zielone (6 nowych —
+`productCatalog.test.ts`), `npx expo export --platform android` bez błędów.

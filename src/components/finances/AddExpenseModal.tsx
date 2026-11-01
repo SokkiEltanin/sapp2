@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Modal, View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
@@ -9,6 +9,11 @@ import { todayISO, ymd } from '@/utils/date';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { parseReceiptText } from '@/utils/receiptParser';
 import { useExpensesStore } from '@/store/expensesStore';
+import {
+  loadNameAliases, canonicalProductName, loadFoodSubcatMemory, applyFoodSubcatMemory,
+  loadPriceMemory, savePriceMemory, saveFoodSubcatMemory, type PriceMemory,
+} from '@/utils/productMemory';
+import { buildProductCatalog } from '@/utils/productCatalog';
 import type { Expense, ReceiptItem, PaymentMethod, FvBucket } from '@/types/finances';
 import ReceiptItemRow from './ReceiptItemRow';
 
@@ -46,8 +51,25 @@ const PAYER_CHOICES: { key: 'me' | 'partner'; label: string }[] = [
 
 export default function AddExpenseModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const s = makeS();
+  const expenses = useExpensesStore((st) => st.expenses);
   const addExpense = useExpensesStore((st) => st.addExpense);
   const kb = useKeyboardHeight();
+
+  // Pamięć produktowa (Faza 2.1, dotąd nieużywana — zamykany gap z Faza 2.2, user:
+  // "wpisuję nazwę... sugeruje... klikam, cena się uzupełnia"). Wczytywana raz na
+  // otwarcie modala: aliasy nazw (2026-10-31 scalenia z `ProductsModal`), pamięć
+  // podkategorii jedzenia, pamięć cen (anomalie w `ReceiptItemRow`), znane nazwy
+  // (katalog, do `suggestSimilarName` w `ReceiptItemRow`).
+  const [aliases, setAliases] = useState<Record<string, string>>({});
+  const [priceMemory, setPriceMemory] = useState<PriceMemory>({});
+  const [foodSubcatMemory, setFoodSubcatMemory] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!visible) return;
+    loadNameAliases().then(setAliases);
+    loadPriceMemory().then(setPriceMemory);
+    loadFoodSubcatMemory().then(setFoodSubcatMemory);
+  }, [visible]);
+  const knownNames = useMemo(() => buildProductCatalog(expenses, aliases).map((p) => p.label), [expenses, aliases]);
 
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [pasteText, setPasteText] = useState('');
@@ -75,11 +97,24 @@ export default function AddExpenseModal({ visible, onClose }: { visible: boolean
 
   // Rdzeń rozpoznawania, wspólny dla ręcznego "Rozpoznaj" i szybkiej wklejki ze
   // schowka (patrz `handlePasteFromClipboard` niżej) — żeby nie duplikować logiki.
+  // Pamięć nauczona z poprzednich paragonów podpięta TUTAJ (nie było jej wcale w
+  // Fazie 2.2): `canonicalProductName` naprawia nazwę przez znane aliasy/marki
+  // (np. "jezykicherry" → "Jeżyki") OD RAZU, bez pytania — to są TWARDE zasady,
+  // nie niepewne sugestie. `applyFoodSubcatMemory` to tylko FALLBACK dla pozycji,
+  // których słownik słów-kluczowych (`receiptParser.ts`) nie rozpoznał wcale —
+  // nigdy nie nadpisuje trafienia, które parser już znalazł.
   const runParse = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
     const r = parseReceiptText(trimmed);
-    setItems(r.items.map((it) => ({ ...it, excluded: it.suspect ?? false })));
+    const names = r.items.map((it) => canonicalProductName(it.name, aliases));
+    const fallbackSubcats = applyFoodSubcatMemory(names, foodSubcatMemory);
+    setItems(r.items.map((it, i) => ({
+      ...it,
+      name: names[i],
+      foodSubcat: it.foodSubcat ?? fallbackSubcats[i],
+      excluded: it.suspect ?? false,
+    })));
     if (r.storeName) setStoreName(r.storeName);
     if (r.date) setDate(r.date);
     setParsedTotal(r.total);
@@ -137,6 +172,14 @@ export default function AddExpenseModal({ visible, onClose }: { visible: boolean
       updatedAt: now,
     };
     addExpense(expense);
+    // Zapis = moment nauki (było całkowicie brakujące w Fazie 2.2 — pamięć
+    // istniała, ale nic jej nigdy nie zasilało). Tylko pozycje z realną nazwą/
+    // ceną, kaucje pominięte (nie są "produktem" o typowej cenie).
+    const realItems = items.filter((it) => it.name.trim() && it.kind !== 'deposit');
+    if (realItems.length > 0) {
+      saveFoodSubcatMemory(realItems.map((it) => ({ name: it.name, foodSubcat: it.foodSubcat })));
+      savePriceMemory(realItems.filter((it) => it.unitPrice > 0).map((it) => ({ name: it.name, unitPrice: it.unitPrice })));
+    }
     handleClose();
   };
 
@@ -241,6 +284,8 @@ export default function AddExpenseModal({ visible, onClose }: { visible: boolean
                     item={it}
                     onChange={(patch) => updateItem(idx, patch)}
                     onDelete={() => removeItem(idx)}
+                    priceMemory={priceMemory}
+                    knownNames={knownNames}
                   />
                 ))}
                 {items.length > 0 && (
