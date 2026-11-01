@@ -18,6 +18,111 @@ Oznaczenia głębokości nawigacji:
 - **PE** — Pod Ekran (`>`, jeden poziom głębiej)
 - **PPE** — Pod Pod Ekran (`>>`, dwa poziomy głębiej)
 
+## REDESIGN RDZENIA UI — "Sokki App Design" (Faza 3, 2026-11-01)
+
+User: *"UZNAJ TEN DESIGN JAKO ABSOLUTNY CORE NASZEJ APK SAPP2 zacznij przebudowe"* —
+pełny spec HTML (tokeny/zasady/komponenty/ekrany/logika) zapisany w repo jako
+**`design/app-design.html`** (dokładnie ten plik, otwórz w przeglądarce — każdy ekran
+klikalny, to ŹRÓDŁO PRAWDY dla kolejnych faz, nie ten opis). To w dużej mierze
+FORMALIZUJE kierunek, w który appka już szła (monochromatyczny audyt Dashboardu
+2026-10-30, "#D6D6D6 to domyślny biały", "tło = perfect BLACK" — user używał już
+tych sformułowań wcześniej) — nie przypadkowy zwrot o 180°.
+
+**Zakres tej rundy = FUNDAMENT (tokeny + fonty + biblioteka komponentów bazowych +
+infrastruktura bottom-sheet), NIE przebudowa samych ekranów.** Ekrany
+(Dashboard/Daily/Finanse/Zadania/Ustawienia) idą jako kolejne, osobne fazy
+(3.2, 3.3, …), ten sam rytm co Finanse (2.1→2.7) — zbyt duży, nietestowalny skok
+żeby robić to w jednej rundzie bez weryfikacji między krokami.
+
+**Trzy decyzje zakresu podjęte SAMODZIELNIE (do korekty na życzenie)**:
+1. **Spec = warstwa WIZUALNA/interakcji, NIE mandat na model danych.** Mockup ma
+   przykładowe dane ze sztywną `category` per transakcja (`c:'Rozrywka'`) i parser
+   bankowy po słowie-kluczowym z wyciągu — to jest DEMO-treść do zrobienia mockupu
+   konkretnym, nie żądanie przywrócenia sztywnych kategorii (user sam je odrzucił,
+   patrz redesign modelu niżej w §FINANSE) ani zastąpienia już działającego,
+   przetestowanego nasłuchu powiadomień bankowych (Faza 2.5) parserem wyciągu.
+   Realne dane/logika (tagi, nasłuch banku, receiptItems) ZOSTAJĄ — nowe komponenty
+   renderują je, nie zastępują.
+2. **Metryki zdrowia (Sen/Kroki/Tętno/Waga/Woda, Galaxy Watch/Health Connect) —
+   ŚWIADOMIE ODŁOŻONE jako osobna, duża faza.** Appka NIE MA jeszcze żadnej
+   integracji Health Connect — to byłby nowy natywny moduł/uprawnienia/sync, nie
+   "tylko UI". Dopóki nie zbudowane: te kafle renderują się jako `ComingSoonRow`-owy
+   placeholder (ten sam wzorzec co Subskrypcje/Praca/Pojazdy), NIE fałszywe dane.
+3. **Bottom-sheet zastępuje `Modal`/dedykowane route PO EKRANIE, nie wszystkie
+   naraz.** `AppBottomSheet` (patrz niżej) ma TEN SAM zewnętrzny kontrakt
+   (`visible`/`onClose`/`children`) co `WydatkiModal`/`TransactionsModal`/
+   `FoodCategoryItemsModal`/`AddExpenseModal` — migracja każdego popupu to zamiana
+   JEDNEGO wrappera, nie przepisanie logiki. Dashboard jako pierwszy (najbardziej
+   szczegółowo opisany w spec), reszta w kolejności faz.
+
+**OTWARTE DLA USERA (nie zdecydowane za niego)**: zakładka **Pupil** (5. ikona w
+obecnym navbarze, `TabBar.tsx`) NIE WYSTĘPUJE w nav ze spec (tam: ustawienia osobno +
+4 ikony: Dashboard/Daily/Finanse/Zadania). Nav NIE został ruszony w tej rundzie — to
+realna decyzja produktowa (usunąć/schować/zostawić Pupil), nie coś do zgadnięcia.
+
+### Fundament — ZROBIONE (Faza 3.1, 2026-11-01)
+
+- **Nowe zależności**: `@gorhom/bottom-sheet` (^5.2.14), `expo-blur` (~15.0.8) —
+  `react-native-reanimated`/`react-native-gesture-handler` appka już miała (zero
+  nowego ryzyka tam). `app/_layout.tsx` owinięte w `GestureHandlerRootView` +
+  `BottomSheetModalProvider` (wymóg biblioteki, montowane RAZ na szczycie drzewa,
+  obejmuje też ekran spinnera logowania).
+- **Tokeny** (`src/theme/colors.ts`) — WYRÓWNANE do dokładnych hexów ze spec gdzie
+  się różniły (`text.bright`→`#F2F2F2`, `text.muted`→`#6E6E6E`, `accent.green`→
+  `#22C55E`; `bg.primary`/`bg.card`/`text.primary` już były identyczne). Nowe grupy:
+  `colors.ui` (`in`/`in2`/`line`/`dim`/`ur`/`urTxt` — tła wierszy/chipów, obrysy,
+  JEDYNY realnie kolorowy akcent w systemie), `colors.sleep` (fazy snu, gotowe na
+  Health Connect później). `colors.accent`/`colors.stat` ZOSTAJĄ na razie (~14 miejsc
+  użycia) — wymierają screen-po-screenie przy migracji, nie wyrywane teraz.
+- **Promienie** (`src/theme/index.ts`) — `radius.tile/inner/sheet/btn/chip` (18/10/
+  28/16/12) dodane obok istniejących `sm/md/lg/xl/full`. `spacing` (indeksowany,
+  `spacing[2]=8`/`spacing[3]=12`) już pokrywał `S{screenX,gap,tilePad}` ze spec 1:1 —
+  zero nowych tokenów odstępu potrzebnych.
+- **Fonty** — dodane `Inter_600SemiBold`/`Inter_800ExtraBold` (miała
+  200/400/500/700/900) w `app/_layout.tsx`'s `useFonts`.
+- **Biblioteka komponentów** (`src/components/design/`, NOWY folder — sibling
+  `dashboard/finances/mood/tasks/ui`): `Tile` (kontener kafla, scale-on-press przez
+  `Pressable` z `react-native-gesture-handler` — NIE zwykły RN `Pressable`, żeby
+  współpracował z gesture-context otwartego sheeta; warianty `default/hot/static`,
+  pulsująca kropka na `hot` odtworzona jako rozchodzący się pierścień, nie CSS
+  box-shadow), `StatTile` (liczba/jednostka/etykieta, identyczna struktura),
+  `Row` (dawne "Item" ze spec — wiersz listy, opcjonalny `sublabel` dla 2-liniowych
+  transakcji w Finanse), `Tag` (warianty `default/ur/fr/jd/alarm` — dzwonek z
+  lucide), `PricePill` (wydatek=wypełniony, przychód=obrys zielony), `Segmented`
+  (zakładki Teraz/Terminowe/Bez terminu z licznikiem), `ChipRow` (wariant zawijający
+  i poziomo-scrollowalny z fade — `expo-linear-gradient`, appka już go miała,
+  odtwarza CSS `mask-image` którego RN nie ma), `StackBar` (proporcjonalny pasek +
+  legenda), `Bars` (słupkowy wykres kolumnowy, `Math.max(1,...)` na mianowniku to
+  obowiązek wołającego, jak już w `foodStats.ts`).
+- **`AppBottomSheet`** (`src/components/design/AppBottomSheet.tsx`) — `visible`/
+  `onClose`/`children`, WEWNĄTRZ `BottomSheetModal` (nie plain `BottomSheet` — portal
+  poza drzewem wołającego ekranu). `detached`+`bottomInset` (jedyny sposób w v5 na
+  pływający sheet z marginesem z KAŻDEJ strony, nie tylko z góry — spec:
+  `left/right/bottom:8px`). `enableDynamicSizing`+`maxDynamicContentSize`=78%
+  wysokości ekranu. Backdrop: `BottomSheetBackdrop` + `BlurView` (`expo-blur`) + 60%
+  czarny, dziecko nad dzieckiem (blur nie steruje przezroczystością tła, tylko
+  rozmyciem pod nim).
+- **Żaden ekran jeszcze NIE używa** tych komponentów — to czysto addytywna,
+  nieużywana-jeszcze warstwa, zero wizualnej zmiany na ekranach do następnej fazy.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone (bez zmian w
+testach — nowa warstwa to czyste komponenty UI, nic do testowania jednostkowo na
+tym etapie), `npx expo export --platform android` bez błędów (fonty 600/800
+spakowane), `npx expo prebuild --platform android` generuje poprawny natywny projekt
+z nowymi zależnościami (zero nowych wpisów w `app.json`'s `plugins` — `expo-blur`/
+`@gorhom/bottom-sheet` autolinkują się bez config-pluginu).
+
+**Następne fazy (3.2+)** — screen-po-screenie, kolejność do ustalenia z userem,
+proponowana: Dashboard (najbardziej szczegółowo opisany w spec) → Nav (dopasować
+ikony/rozstrzygnąć Pupil) → Daily (w tym `MoodPad` — 2D drag energia×przyjemność,
+ZASTĘPUJE obecną siatkę 3×3 "Humor/Nastrój", `react-native-gesture-handler`+
+`reanimated` już są) → Finanse (bottom-sheet-yfikacja istniejących popupów na
+`AppBottomSheet`, bez zmiany modelu danych) → Zadania (`WeekStrip`, `Segmented`
+zamiast obecnego UI) → Ustawienia. "Bezpieczne wydatki"/"Najbliższe 48h"/"Płatności
+cykliczne" potrzebują nowego store'a (`bills`) który jeszcze nie istnieje (dziś
+`ComingSoonRow` dla Subskrypcji/Pracy) — osobna, uczciwa faza, nie udawana na kaflach
+Dashboardu Fazy 3.2.
+
 ## DASHBOARD [GE]
 
 Kliknięcie w kafelek przenosi na powiązaną zakładkę GE z kontekstem, np. kafelek SEN →

@@ -2066,3 +2066,40 @@ Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone (6 nowych
 testów: `expenseId`/`undoBankHistoryEntry` w `bankCommit.test.ts`, `items` w
 `wydatkiData.test.ts`), `npx expo export --platform android` bez błędów (w tym
 nowy route `app/bank-history.tsx`).
+
+## Redesign rdzenia UI — Faza 3.1 "Fundament" UKOŃCZONA (2026-11-01)
+
+User podesłał pełny spec HTML (`design/app-design.html`, skopiowany do repo z
+uploadu) i napisał: *"UZNAJ TEN DESIGN JAKO ABSOLUTNY CORE NASZEJ APK SAPP2 zacznij
+przebudowe"*. Pełny opis zakresu/decyzji w ARCHITECTURE.md §"REDESIGN RDZENIA UI
+(Faza 3)" — tu tylko skrót + checklist.
+
+**Zakres tej rundy = fundament, NIE ekrany.** Żaden ekran się jeszcze wizualnie nie
+zmienił — to nowe, nieużywane jeszcze tokeny/fonty/komponenty/bottom-sheet, gotowe
+pod kolejne fazy (3.2 Dashboard, potem Nav/Daily/Finanse/Zadania/Ustawienia).
+
+Co powstało: `@gorhom/bottom-sheet`+`expo-blur` (nowe zależności, zero nowych
+wpisów w `app.json` plugins), `GestureHandlerRootView`+`BottomSheetModalProvider`
+w `app/_layout.tsx`, tokeny wyrównane do spec w `colors.ts`/`theme/index.ts`, fonty
+600/800 dodane, 9 nowych komponentów w `src/components/design/` (Tile/StatTile/Row/
+Tag/PricePill/Segmented/ChipRow/StackBar/Bars) + `AppBottomSheet` (ten sam kontrakt
+`visible`/`onClose`/`children` co istniejące modale — migracja = zamiana wrappera).
+
+**Dwie otwarte decyzje dla usera** (nie zgadywane, patrz ARCHITECTURE.md):
+1. Zakładka **Pupil** nie występuje w nav ze spec (tam tylko 4 ikony + ustawienia) —
+   nav NIE został ruszony, czeka na decyzję: usunąć / schować / zostawić.
+2. Metryki zdrowia (Sen/Kroki/Tętno/Waga/Woda, Galaxy Watch/Health Connect) nie
+   istnieją w appce — odłożone jako osobna, duża faza (nowy natywny moduł), kafle
+   dostaną `ComingSoonRow`-placeholder przy Fazie 3.2, nie fałszywe dane.
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**: nic wizualnie widocznego jeszcze (fundament
+bez ekranów) — ale warto zweryfikować, że appka w ogóle startuje i działa normalnie
+po dodaniu `GestureHandlerRootView`/`BottomSheetModalProvider` (nawigacja między
+zakładkami, otwieranie istniejących modali/alertów typu `alert-test`) — te dwa
+providery owijają CAŁĄ appkę, więc regresja tutaj uderzyłaby wszędzie, nie w jeden
+ekran.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone (bez zmian —
+nowa warstwa to czyste UI-komponenty, nic do testu jednostkowego na tym etapie),
+`npx expo export --platform android` bez błędów, `npx expo prebuild --platform
+android` generuje poprawny natywny projekt z nowymi zależnościami.
