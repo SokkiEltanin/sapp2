@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Modal, View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { X, Receipt, Banknote, ClipboardPaste, Plus, ChevronDown, ChevronUp, Trash2 } from 'lucide-react-native';
+import { X, Receipt, Banknote, ClipboardPaste, Plus, ChevronDown, ChevronUp, Trash2, CalendarDays } from 'lucide-react-native';
+import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { todayISO, ymd } from '@/utils/date';
@@ -182,6 +183,23 @@ export default function AddExpenseModal({
   };
   const removeTag = (t: string) => { haptic.tap(); setTags((prev) => prev.filter((x) => x !== t)); };
 
+  // Kalendarz (2026-11-01, user: "nie dodałeś kalendarza jak klikam w transakcjach") —
+  // data MIAŁA dotąd tylko "Dziś"/"Wczoraj" + statyczną odznakę, bez sposobu wybrania
+  // DOWOLNEGO dnia — realny problem przy edycji starszej transakcji (zaimportowanej z
+  // banku albo dodanej z opóźnieniem). Natywny Androidowy picker (imperatywne API,
+  // nie komponent inline — tak działa `DateTimePickerAndroid` w przeciwieństwie do iOS),
+  // zero własnego UI kalendarza do budowania/utrzymywania.
+  const openDatePicker = () => {
+    haptic.tap();
+    DateTimePickerAndroid.open({
+      value: new Date(`${date}T12:00:00`),
+      mode: 'date',
+      onChange: (event, selected) => {
+        if (event.type === 'set' && selected) setDate(ymd(selected));
+      },
+    });
+  };
+
   const includedSum = round2(items.filter((it) => !it.excluded).reduce((sum, it) => sum + it.price, 0));
   const amount = items.length > 0 ? includedSum : (parseFloat(amountInput.replace(',', '.')) || 0);
   const mismatch = usedPaste && parsedTotal > 0 && Math.abs(includedSum - parsedTotal) > 0.01;
@@ -305,13 +323,16 @@ export default function AddExpenseModal({
                   <TouchableOpacity
                     key={opt.key}
                     style={[s.chip, date === opt.v && s.chipActive]}
-                    onPress={() => setDate(opt.v)}
+                    onPress={() => { haptic.tap(); setDate(opt.v); }}
                     activeOpacity={0.7}
                   >
                     <Text style={[s.chipLabel, date === opt.v && s.chipLabelActive]}>{opt.label}</Text>
                   </TouchableOpacity>
                 ))}
-                <View style={s.dateBadge}><Text style={s.dateBadgeLabel}>{date}</Text></View>
+                <TouchableOpacity style={s.dateBadge} onPress={openDatePicker} activeOpacity={0.7}>
+                  <CalendarDays size={13} color={colors.text.secondary} />
+                  <Text style={s.dateBadgeLabel}>{date}</Text>
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -545,8 +566,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
   chipActive: { backgroundColor: c.text.bright, borderColor: c.text.bright },
   chipLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   chipLabelActive: { color: c.bg.primary },
-  dateBadge: { paddingHorizontal: spacing[2], paddingVertical: 4 },
-  dateBadgeLabel: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: c.text.muted },
+  dateBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: spacing[2], paddingVertical: 6, borderRadius: radius.full,
+    backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default,
+  },
+  dateBadgeLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
 
   itemsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[2] },
   addItemBtn: {

@@ -1912,6 +1912,37 @@ akceptacja, kalibracja salda), połącz duplikat (ProductsModal).
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 164/164 zielone,
 `npx expo export --platform android` bez błędów.
 
+## Poprawki po teście na urządzeniu (2026-11-01, runda 3)
+
+User po kolejnym teście: "1. Nie dodałeś kalendarza jak klikam w transakcjach, 2. W
+alarmach jest problem że otwiera się czasami ekran 2 razy, i nadal nie ma dźwięku
+zaraz przetestuję jeszcze na oled".
+
+1. **Kalendarz w edycji transakcji** — `AddExpenseModal.tsx`'s pole "Data" miało
+   tylko "Dziś"/"Wczoraj" + statyczną odznakę, bez sposobu wybrania dowolnego dnia.
+   Dodany `@react-native-community/datetimepicker` (nowa natywna zależność),
+   odznaka daty jest teraz tappable i otwiera systemowy picker Androida.
+2. **Alarm otwierał się czasem dwa razy** — `useNotifeeAlertLaunch.ts` używał
+   `router.push` zamiast `router.replace`. `sendNotifeeAlert`'s test z
+   `includeInstant=true` wysyła DWA powiadomienia na jeden tap (natychmiastowe +
+   opóźnione), każde z tym samym `data.route` — oba osobno potrafiły odpalić
+   nawigację i nałożyć się na stosie. `replace` naprawia to (szczyt stosu się
+   podmienia, nie dubluje).
+3. **Dźwięk w alertach — wciąż bez zmian w kodzie** (user sam to zaznaczył, idzie
+   testować OLED dalej) — jak opisane w poprzedniej rundzie, to prawdopodobnie coś
+   po stronie urządzenia (głośność powiadomień/dostęp "Nie przeszkadzać"), nie
+   kolejny blind-guess w kodzie dopóki nie ma nowego sygnału z urządzenia.
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**:
+- Finanse → tap na transakcję → pole "Data" → tap na odznakę z datą → powinien
+  otworzyć się systemowy kalendarz, wybór dowolnego dnia działa.
+- Alerty → uruchom dowolny test notifee → alarm powinien otworzyć się RAZ, nie
+  dwa razy nałożone na siebie.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 164/164 zielone,
+`npx expo export --platform android` bez błędów, `npx expo prebuild --platform
+android` generuje poprawny projekt z nowym datetimepicker-pluginem.
+
 ## Dashboard — widget #JEDZENIE podpięty do realnych danych (2026-11-01)
 
 User: *"czemu na dashboardzie nie ma widgetu ostatniego tego na dole z wydatkami

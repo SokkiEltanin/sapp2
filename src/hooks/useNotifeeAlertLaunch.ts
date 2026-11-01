@@ -14,6 +14,14 @@ import { useRouter } from 'expo-router';
 // app/_layout.tsx — natywny moduł, zero w Expo Go), więc rejestrujemy go tutaj,
 // w efekcie montowanym raz przy starcie appki — pokrywa przypadek appki w tle
 // (nie zabitej), czyli dokładnie to co user przetestował.
+//
+// `router.replace` NIE `router.push` (2026-11-01, user: "czasami ekran otwiera się
+// 2 razy") — `sendNotifeeAlert` z `includeInstant=true` wysyła DWA powiadomienia na
+// jeden tap (natychmiastowe + opóźnione), oba z tym samym `data:{route:'alert-test'}`.
+// Każde z nich osobno potrafi odpalić `onForegroundEvent`/`onBackgroundEvent` — z
+// `push` to dwa NIEZALEŻNE wpisy na stosie nawigacji (user widzi alarm, "Wyłącz",
+// a pod spodem drugi, identyczny ekran). `replace` podmienia bieżący szczyt stosu
+// zamiast go nakładać, więc powtórne wywołania zlewają się w JEDEN ekran.
 export function useNotifeeAlertLaunch() {
   const router = useRouter();
 
@@ -28,7 +36,7 @@ export function useNotifeeAlertLaunch() {
 
         const goToAlert = (data: Record<string, string | object | number> | undefined) => {
           if (typeof data?.route === 'string' && data.route === 'alert-test') {
-            router.push('/alert-test');
+            router.replace('/alert-test');
           }
         };
 

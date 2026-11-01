@@ -44,7 +44,8 @@
             "targetSdkVersion": 35
           }
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ]
   }
 }

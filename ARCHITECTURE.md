@@ -252,6 +252,15 @@ ustalenia z 2026-10-26 (poniżej) WCIĄŻ obowiązują — ten plan je rozwija, 
   podpięte**: `weightFor`/`parseWeightFromName` → auto-uzupełnienie `weightKg` (brak
   pola wagi w `ReceiptItemRow`'s UI wcale — mniejszy priorytet, nie było w
   bezpośredniej prośbie usera).
+- **Kalendarz przy edycji daty — DODANE (2026-11-01, user: "nie dodałeś kalendarza
+  jak klikam w transakcjach")**. Pole "Data" w `AddExpenseModal.tsx` miało TYLKO
+  chipy "Dziś"/"Wczoraj" + statyczną odznakę z wartością — żadnego sposobu wybrania
+  DOWOLNEGO dnia, realny problem przy edycji starszej/zaimportowanej transakcji.
+  `@react-native-community/datetimepicker` (nowa zależność, natywny Androidowy
+  picker przez imperatywne `DateTimePickerAndroid.open()` — tak działa ten pakiet na
+  Androidzie, inaczej niż inline-komponent na iOS) — zero własnego kalendarza do
+  budowania/utrzymywania. Odznaka daty jest teraz tappable (ikona + wartość),
+  otwiera systemowy picker.
 - **Nadpisanie ceny/ilości/rabatu** (user: "kupiłem taniej... dodaj zniżkę, dodaj
   ilość") — pola już są w `ReceiptItem` (portowany typ): `price`/`quantity`/
   `unitPrice`/`discount`. UI: edytowalne inline na liście review, nie osobny ekran.
@@ -548,6 +557,15 @@ powiadomień (patrz niżej).
   urządzenia (głośność powiadomień/dzwonka wyciszona, albo brak ręcznie przyznanego
   dostępu "Nie przeszkadzać" mimo `bypassDnd` w kodzie), nie kod — do zweryfikowania
   na urządzeniu przed kolejną próbą w kodzie.
+  **Fix (2026-11-01, user: "czasami ekran otwiera się 2 razy")** —
+  `useNotifeeAlertLaunch.ts`'s `goToAlert` zmienione z `router.push` na
+  `router.replace`. Root cause: `sendNotifeeAlert` z `includeInstant=true` wysyła
+  DWA powiadomienia na jeden tap (natychmiastowe + opóźnione), oba z tym samym
+  `data:{route:'alert-test'}` — każde osobno mogło odpalić
+  `onForegroundEvent`/`onBackgroundEvent` i osobno zepchnąć nowy wpis na stos
+  nawigacji (`push`), więc user widział dwa nałożone na siebie ekrany alarmu.
+  `replace` podmienia szczyt stosu zamiast go nakładać — powtórne wywołania zlewają
+  się w jeden ekran.
 - **Logowanie (wymagane od razu)** — 2026-10-28, user: "wymagaj logowania Google od
   razu". W przeciwieństwie do sapp (sesja anonimowa cały czas, Google Sign-in tam
   tylko dla Google Calendar API, nigdy nie dotyka Firebase Auth), sapp2 NIE wpuszcza
