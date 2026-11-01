@@ -2,12 +2,12 @@ import { useMemo, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import { ChevronLeft, Check, X, Landmark, Zap, Sparkles, AlertTriangle, Plus } from 'lucide-react-native';
+import { ChevronLeft, Check, X, Landmark, Zap, Sparkles, AlertTriangle, Plus, BookmarkPlus, History } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { useBankQueue, type PendingBankTx } from '@/store/bankQueueStore';
 import { commitBankTx } from '@/services/bankCommit';
-import { loadMerchantMemory, setMerchantAuto, AUTO_THRESHOLD, type MerchantMemory } from '@/utils/merchantMemory';
+import { loadMerchantMemory, saveMerchant, setMerchantAuto, AUTO_THRESHOLD, type MerchantMemory } from '@/utils/merchantMemory';
 import { haptic } from '@/utils/haptics';
 
 // Port z sapp (app/bank-review.tsx), styl sapp2 (themedStyles, bez PressableScale/
@@ -25,7 +25,7 @@ const curLabel = (cur?: string) => (!cur || cur === 'PLN') ? 'zł' : cur;
 
 export default function BankReview() {
   const s = makeS();
-  const { pending, update, remove } = useBankQueue();
+  const { pending, update, remove, updateHistoryEntry } = useBankQueue();
   const [mem, setMem] = useState<MerchantMemory>({});
   const [tagDrafts, setTagDrafts] = useState<Record<string, string>>({});
   const [submittingIds, setSubmittingIds] = useState<Set<string>>(new Set());
@@ -47,7 +47,11 @@ export default function BankReview() {
     try {
       const corrected = JSON.stringify([...p.tags].sort()) !== JSON.stringify([...p.suggestedTags].sort());
       const res = await commitBankTx(p, { corrected });
-      if (res.ok) { reloadMem(); remove(p.id); }
+      if (res.ok) {
+        updateHistoryEntry(p.id, { tags: p.tags, matched: res.matched, expenseId: res.expenseId });
+        reloadMem();
+        remove(p.id);
+      }
     } finally {
       setSubmittingIds((prev) => { if (!prev.has(p.id)) return prev; const next = new Set(prev); next.delete(p.id); return next; });
     }
@@ -55,6 +59,21 @@ export default function BankReview() {
 
   const reject = (p: PendingBankTx) => { haptic.tap(); remove(p.id); };
   const revoke = (storeKey: string) => { haptic.tap(); setMerchantAuto(storeKey, false).then(reloadMem).catch(() => {}); };
+
+  // "Stwórz szablon z tego" (2026-11-01, user: "stworzyć szablon z wyłapanych") —
+  // zamiast budować DRUGI, równoległy mechanizm dopasowywania (sapp miał tu osobny
+  // bankRulesStore/"szablony powiadomień"), przyspiesza ISTNIEJĄCY mechanizm
+  // zaufania sprzedawcy: normalnie sklep awansuje na automat po AUTO_THRESHOLD
+  // czystych akceptacjach — tu user jawnie, jednym tapem, nadaje go OD RAZU z
+  // aktualnie ustawionymi tagami. Kolejna płatność z tego sklepu (ten sam storeKey)
+  // już go złapie i zaksięguje automatycznie — to jest "szablon" w słowniku appki.
+  const createTemplate = (p: PendingBankTx) => {
+    haptic.success();
+    saveMerchant(p.storeKey, { tags: p.tags, name: p.store })
+      .then(() => setMerchantAuto(p.storeKey, true))
+      .then(reloadMem)
+      .catch(() => {});
+  };
 
   // Sklepy, które awansowały na autopilota — pokazane żeby user mógł cofnąć zaufanie.
   const autoMerchants = useMemo(
@@ -69,7 +88,9 @@ export default function BankReview() {
           <ChevronLeft size={22} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={s.title}>Płatności z banku</Text>
-        <View style={{ width: 36 }} />
+        <TouchableOpacity onPress={() => router.push('/bank-history' as any)} style={s.backBtn} hitSlop={8}>
+          <History size={20} color={colors.text.primary} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
@@ -161,13 +182,19 @@ export default function BankReview() {
                       <Text style={s.trustAuto}>Sklep na automacie — kolejne dodam sam</Text>
                     </View>
                   ) : (
-                    <View style={s.trustRow}>
-                      <Sparkles size={13} color={colors.text.muted} />
-                      <Text style={s.trustText}>Zaufanie {accepts}/{AUTO_THRESHOLD} → automat</Text>
-                      <View style={s.trustBar}>
-                        <View style={[s.trustFill, { width: `${Math.min(100, (accepts / AUTO_THRESHOLD) * 100)}%` }]} />
+                    <>
+                      <View style={s.trustRow}>
+                        <Sparkles size={13} color={colors.text.muted} />
+                        <Text style={s.trustText}>Zaufanie {accepts}/{AUTO_THRESHOLD} → automat</Text>
+                        <View style={s.trustBar}>
+                          <View style={[s.trustFill, { width: `${Math.min(100, (accepts / AUTO_THRESHOLD) * 100)}%` }]} />
+                        </View>
                       </View>
-                    </View>
+                      <TouchableOpacity style={s.templateBtn} onPress={() => createTemplate(p)} activeOpacity={0.8}>
+                        <BookmarkPlus size={13} color={colors.text.secondary} />
+                        <Text style={s.templateBtnText}>Stwórz szablon z tego (automat od razu)</Text>
+                      </TouchableOpacity>
+                    </>
                   )}
                 </>
               )}
@@ -259,6 +286,11 @@ const makeS = themedStyles((c) => StyleSheet.create({
   trustAuto: { fontSize: 11.5, fontFamily: 'Inter_900Black', color: c.accent.green },
   trustBar: { flex: 1, height: 5, borderRadius: 3, backgroundColor: c.border.default, overflow: 'hidden', marginLeft: 4 },
   trustFill: { height: '100%', borderRadius: 3, backgroundColor: c.accent.green },
+  templateBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: spacing[2],
+    paddingVertical: 8, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, backgroundColor: c.bg.elevated,
+  },
+  templateBtnText: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
 
   trusted: { marginTop: spacing[4], backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default, padding: spacing[4] },
   trustedHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },

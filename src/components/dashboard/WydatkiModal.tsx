@@ -5,6 +5,7 @@ import { X } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import FoodBreakdownCard, { type FoodWeek, type FoodCategory } from './FoodBreakdownCard';
+import FoodCategoryItemsModal from './FoodCategoryItemsModal';
 import FixedBreakdownCard from './FixedBreakdownCard';
 import VariableBreakdownCard from './VariableBreakdownCard';
 import type { FixedItem, FixedDeviation, VariableContributor } from '@/utils/fixedVariable';
@@ -55,6 +56,9 @@ export default function WydatkiModal({
 }) {
   const s = makeS();
   const [tab, setTab] = useState<WydatkiTab>(initialTab);
+  // Drill-down popup "co się na to złożyło" (2026-11-01) STACKUJE się na wierchu
+  // tego modala, zamiast go zamykać — ten sam wzorzec co TransactionsModal.
+  const [selectedCategory, setSelectedCategory] = useState<FoodCategory | null>(null);
 
   useEffect(() => {
     if (visible) setTab(initialTab);
@@ -109,10 +113,17 @@ export default function WydatkiModal({
               previousTotal={food.previousTotal}
               weeks={food.weeks}
               categories={food.categories}
+              onSelectCategory={setSelectedCategory}
             />
           )}
         </ScrollView>
       </SafeAreaView>
+      <FoodCategoryItemsModal
+        visible={!!selectedCategory}
+        onClose={() => setSelectedCategory(null)}
+        month={month}
+        category={selectedCategory}
+      />
     </Modal>
   );
 }

@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, Search, X,
   Info, Stethoscope, Wallet, Clock, Bell, Copy,
   LogIn, LogOut, User as UserIcon, Database, CalendarDays, AlertTriangle, Rocket,
-  BatteryWarning, AlarmClock, Landmark, Zap, Vibrate, ShieldCheck,
+  BatteryWarning, AlarmClock, Landmark, Zap, Vibrate, ShieldCheck, History,
 } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -138,9 +138,9 @@ function buildSections(email: string | null, bank: { enabled: boolean; autoAll: 
   // "najbardziej ryzykowny, natywny kawałek" z ARCHITECTURE.md §FINANSE) daje jej
   // pierwszą realną zawartość: włącznik auto-przechwytu płatności z banku (natywny
   // NotificationListenerService, patrz plugins/withBankNotificationListener.js) +
-  // link do kolejki przeglądu (app/bank-review.tsx). Szablony powiadomień/dopasowania
-  // (sapp miał to jako osobny krok dodany PO działającym MVP) świadomie odłożone —
-  // patrz NEXT_STEPS.md.
+  // link do kolejki przeglądu (app/bank-review.tsx). Faza 2.7 (2026-11-01, user:
+  // "historia żebym mógł cofnąć albo stworzyć szablon") dodaje "Historia i szablony"
+  // (app/bank-history.tsx) — cofnij/"Stwórz szablon" opisane tam i w bank-review.tsx.
   {
     id: 'finanse', title: 'Finanse', icon: Wallet,
     items: [
@@ -157,6 +157,7 @@ function buildSections(email: string | null, bank: { enabled: boolean; autoAll: 
         { kind: 'switch' as const, tier: 'sub' as const, key: 'bank-auto-all', label: 'Dodawaj automatycznie', description: 'każda płatność kartą księguje się bez przeglądu', icon: Zap, value: bank.autoAll },
         { kind: 'action' as const, tier: 'sub' as const, key: 'bank-test', label: 'Sprawdź teraz (diagnostyka)', description: 'czy nasłuch w ogóle coś odbiera — log na dole ekranu', icon: Stethoscope },
         { kind: 'action' as const, tier: 'sub' as const, key: 'bank-review', label: 'Płatności do zatwierdzenia', description: bank.pending > 0 ? `${bank.pending} czeka — stuknij, żeby przejrzeć` : 'pusto — nic nie czeka na zatwierdzenie', icon: Rocket },
+        { kind: 'action' as const, tier: 'sub' as const, key: 'bank-history', label: 'Historia i szablony', description: 'co już złapaliśmy — cofnij błędną pozycję albo zapisz sklep jako szablon', icon: History },
       ] : []),
     ],
   },
@@ -631,6 +632,7 @@ export default function SettingsScreen() {
     'bank-auto-all': toggleBankAutoAll,
     'bank-test': testBankCapture,
     'bank-review': () => router.push('/bank-review' as any),
+    'bank-history': () => router.push('/bank-history' as any),
     'haptics-enabled': toggleHaptics,
   };
 

@@ -29,7 +29,10 @@ describe('wydatkiData — computeWydatkiData', () => {
     expect(data.fixed.previousTotal).toBe('950 zł');
     expect(data.fixed.items).toEqual([{ label: 'Czynsz', amount: 1000 }]);
     expect(data.food.total).toBe('200 zł');
-    expect(data.food.categories).toEqual([{ label: 'Pieczywo', amount: 200, color: expect.any(String) }]);
+    expect(data.food.categories).toEqual([{
+      label: 'Pieczywo', amount: 200, color: expect.any(String),
+      items: [{ expenseId: '3', date: '2026-08-04', storeName: undefined, name: 'Chleb', price: 200, quantity: 1 }],
+    }]);
     expect(data.variable.total).toBe('60 zł');
     expect(data.variable.top).toEqual([{ label: 'Kino', amount: 60 }]);
   });

@@ -1854,8 +1854,8 @@ pamięć sprzedawcy) → `bankQueueStore.ts` (kolejka) → `bankAutoProcess.ts`
 `merchantMemory`). Ręczny przegląd: nowy route `app/bank-review.tsx`. Ustawienia →
 Finanse: włącznik, link do "Dostęp do powiadomień" (systemowy ekran), "Dodawaj
 automatycznie", "Sprawdź teraz (diagnostyka)", link do przeglądu z licznikiem
-oczekujących. Świadomie ODŁOŻONE: szablony powiadomień (bankRulesStore/UI), integracja
-z Subskrypcjami/Pracą/wypłatą (te ekrany jeszcze nie istnieją w sapp2).
+oczekujących. Świadomie ODŁOŻONE: integracja z Subskrypcjami/Pracą/wypłatą (te ekrany
+jeszcze nie istnieją w sapp2). Historia/cofnięcie/szablony → patrz Faza 2.7 niżej.
 
 **TO JEDYNA funkcja w tej rundzie sesji, której CI/`tsc`/`jest`/`expo export` NIE
 mogą realnie zweryfikować** — sprawdzają tylko że kod się kompiluje i że
@@ -2012,3 +2012,57 @@ słupka bez tego floora.
 
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 135/135 zielone,
 `npx expo export --platform android` bez błędów.
+
+## Finanse — Faza 2.7 "Historia, cofnięcie, szablony" UKOŃCZONA (2026-11-01)
+
+User po Fazie 2.5/2.6, dwuczęściowe zgłoszenie: *"1. Okej ale mam nadzieję ze
+zrobiles w zatwierdzeniu historie żebym mógł cofnąć albo stworzyć szablon z
+wylapanych nie? 2. Jak kilkam w jedzenie nie mam tam robite na taki na popupie jak
+w sap na dahsbordzie"*. Pełne szczegóły w ARCHITECTURE.md §FINANSE "Historia,
+cofnięcie, szablony (Faza 2.7)" i §DASHBOARD "Drill-down kategorii jedzenia".
+
+**Część 1 — historia/cofnij/szablon** (bank-review.tsx, nowy `app/bank-history.tsx`):
+- `bankQueueStore.ts`'s `history` istniał od Fazy 2.5, ale nigdy nie był wyświetlany
+  i nie niósł `expenseId`/`matched` — teraz dopisywane PO commicie, napędzają "Cofnij".
+- "Cofnij" (`bankCommit.ts`'s `undoBankHistoryEntry`) — nowy wydatek → usuwa go
+  całkiem; scalony z istniejącym → tylko odpina `bankMatched`, nie usuwa.
+- "Stwórz szablon z tego" — NIE drugi mechanizm dopasowywania (sapp's
+  `bankRulesStore` zostaje nieportowany) — fast-track `merchantMemory`
+  (`saveMerchant`+`setMerchantAuto` od razu, pomija `AUTO_THRESHOLD`). Przycisk w
+  `bank-review.tsx` (karta, gdy sprzedawca jeszcze nie `auto`) i w nowym
+  `app/bank-history.tsx` (per wpis, też na już-zaksięgowanych — czyli dokładnie
+  "z wyłapanych").
+- Wejście: Ustawienia → Finanse → "Historia i szablony" (`tier:'sub'`), + ikona w
+  nagłówku `bank-review.tsx`.
+
+**Część 2 — drill-down #JEDZENIE** (`FoodBreakdownCard.tsx`, nowy
+`FoodCategoryItemsModal.tsx`): wiersze kategorii w popupie "Wydatki" → zakładka
+Jedzenie miały strzałkę ">" od szkieletu (2026-10-30), ale były dekoracją, bo dane
+wtedy były mockiem. Teraz realne (Faza 2.4), więc stuknięcie w kategorię (np.
+"Pieczywo") otwiera popup z konkretnymi pozycjami paragonów złożonymi na nią w
+danym miesiącu — drugi modal STACKUJĄCY SIĘ na `WydatkiModal`, nie zamykający go.
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**:
+1. Zaakceptuj płatność z banku w "Płatności do zatwierdzenia" → otwórz "Historia i
+   szablony" (Ustawienia → Finanse, albo ikona w nagłówku przeglądu) → wpis powinien
+   się tam pojawić z tagami jakie faktycznie ustawiłeś (nie podpowiedzią).
+2. "Cofnij" na tym wpisie → wydatek powinien zniknąć z Finansów/"Ostatnie
+   transakcje", wpis w historii zostaje (wyszarzony, "cofnięte"), bez "Cofnij" drugi
+   raz.
+3. "Cofnij" na wpisie który był SCALONY z już istniejącym wydatkiem (dodanym
+   ręcznie wcześniej, ta sama kwota/dzień/sklep) → ten wydatek powinien ZOSTAĆ (nie
+   zniknąć), tylko traci oznaczenie "złapane z banku".
+4. "Stwórz szablon z tego" (w przeglądzie LUB w historii) → sprzedawca powinien od
+   razu pokazać "Sklep na automacie" przy następnej płatności, bez czekania na 5
+   akceptacji.
+5. Dashboard (albo Finanse) → kafelek #JEDZENIE → popup "Wydatki" → zakładka
+   Jedzenie → stuknij w kategorię z pozycjami (np. "Pieczywo") → powinna otworzyć
+   się lista konkretnych produktów/kwot/dat złożonych na tę kategorię w tym miesiącu,
+   suma na górze zgodna z kwotą na liście kategorii pod spodem.
+6. "Wyczyść" w nagłówku Historii → czyści log (bez dialogu potwierdzenia, appka tego
+   nigdzie nie robi) — nie dotyka już zaksięgowanych wydatków, tylko log.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone (6 nowych
+testów: `expenseId`/`undoBankHistoryEntry` w `bankCommit.test.ts`, `items` w
+`wydatkiData.test.ts`), `npx expo export --platform android` bez błędów (w tym
+nowy route `app/bank-history.tsx`).

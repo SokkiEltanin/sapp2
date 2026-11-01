@@ -26,7 +26,11 @@ export async function processAutoBankQueue(): Promise<number> {
     let done = 0;
     for (const p of auto) {
       const r = await commitBankTx(p, { corrected: false });
-      if (r.ok) { useBankQueue.getState().remove(p.id); done++; }
+      if (r.ok) {
+        useBankQueue.getState().updateHistoryEntry(p.id, { matched: r.matched, expenseId: r.expenseId });
+        useBankQueue.getState().remove(p.id);
+        done++;
+      }
     }
     return done;
   } finally {

@@ -6,11 +6,14 @@ import { useBankQueue } from '@/store/bankQueueStore';
 
 // Port z sapp (src/services/bankIngest.ts), adaptacja do modelu sapp2 bez sztywnej
 // kategorii: sapp miał `guessCategory()` (słownik sklep→kategoria) jako ostateczny
-// fallback i `useBankRules`/szablony usera jako pośredni krok — oba pominięte w tej
-// rundzie (sapp2 nie ma `ExpenseCategory`; szablony to osobna, odłożona funkcja, patrz
-// NEXT_STEPS.md). Nierozpoznany sprzedawca dostaje puste `tags: []` — user otaguje
-// ręcznie w przeglądzie, od tego momentu `merchantMemory` się uczy, dokładnie jak każdy
-// inny wydatek w tej appce.
+// fallback i `useBankRules` jako OSOBNY, równoległy mechanizm dopasowywania wzorców —
+// pominięty (sapp2 nie ma `ExpenseCategory`). "Szablon" (2026-11-01, user: "stworzyć
+// szablon z wyłapanych") w sapp2 NIE jest drugim mechanizmem dopasowywania — to
+// jednorazowy fast-track TEGO SAMEGO `merchantMemory` poniżej (bank-review.tsx/
+// bank-history.tsx: "Stwórz szablon" = `saveMerchant`+`setMerchantAuto` od razu,
+// zamiast czekać na AUTO_THRESHOLD czystych akceptacji). Nierozpoznany sprzedawca
+// dostaje puste `tags: []` — user otaguje ręcznie w przeglądzie, od tego momentu
+// `merchantMemory` się uczy, dokładnie jak każdy inny wydatek w tej appce.
 //
 // Zamienia JEDNO powiadomienie push z banku w zakolejkowaną, wstępnie otagowaną
 // płatność. Bezpieczne do wołania bez zamontowanych komponentów (zustand + AsyncStorage

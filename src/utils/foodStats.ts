@@ -60,19 +60,39 @@ export function foodByWeekOfMonth(expenses: Expense[], today: Date = new Date())
   return weeks.map((v, i) => ({ label: `T${i + 1}`, value: Math.round(v) }));
 }
 
-export interface FoodCategoryBar { label: string; amount: number; color: string }
+// Jedna pozycja paragonu wchodząca w skład kategorii — do popupu drill-down
+// (FoodCategoryItemsModal), 2026-11-01, user: "jak klikam w jedzenie nie mam tam
+// zrobione na takie na popupie jak w sap na dashboardzie" — w sapp stuknięcie w
+// kategorię w popupie "Wydatki" otwierało listę KONKRETNYCH pozycji, nie było
+// czystą dekoracją.
+export interface FoodCategoryItem {
+  expenseId: string;
+  date: string; // YYYY-MM-DD
+  storeName?: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+export interface FoodCategoryBar { label: string; amount: number; color: string; items: FoodCategoryItem[] }
 
 // Rozkład jedzenia per `foodSubcat` (opcjonalnie zawężony do jednego miesiąca,
 // `YYYY-MM`) — suma CEN POZYCJI (nie całych wydatków, bo jeden paragon miesza
 // jedzeniowe i nie-jedzeniowe pozycje), pomija wykluczone/kaucje/bez kategorii.
+// Zbiera też same pozycje (`items`) w tej samej przebiegówce — jedno źródło
+// prawdy dla sumy kafla I listy drill-down pod spodem, żeby nigdy się nie rozjechały.
 export function foodByCategory(expenses: Expense[], monthFilterKey?: string): FoodCategoryBar[] {
   const sums = new Map<string, number>();
+  const items = new Map<string, FoodCategoryItem[]>();
   for (const e of expenses) {
     if (e.type !== 'expense') continue;
     if (monthFilterKey && monthKeyOf(e.date) !== monthFilterKey) continue;
     for (const it of e.receiptItems ?? []) {
       if (it.excluded || it.kind === 'deposit' || !it.foodSubcat) continue;
       sums.set(it.foodSubcat, (sums.get(it.foodSubcat) ?? 0) + it.price);
+      const list = items.get(it.foodSubcat) ?? [];
+      list.push({ expenseId: e.id, date: e.date, storeName: e.storeName, name: it.name, price: it.price, quantity: it.quantity });
+      items.set(it.foodSubcat, list);
     }
   }
   return [...sums.entries()]
@@ -80,6 +100,7 @@ export function foodByCategory(expenses: Expense[], monthFilterKey?: string): Fo
       label: FOOD_SUBCAT_META[tag]?.label ?? tag,
       amount: Math.round(amount),
       color: FOOD_SUBCAT_META[tag]?.color ?? '#8A8A8A',
+      items: (items.get(tag) ?? []).sort((a, b) => b.date.localeCompare(a.date) || b.price - a.price),
     }))
     .sort((a, b) => b.amount - a.amount);
 }

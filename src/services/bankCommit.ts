@@ -3,7 +3,7 @@ import { findMatchingExpense, findMatchingIncome, sameLocalDay, localDayKey, amo
 import { withLock } from '@/utils/asyncLock';
 import { recordMerchantAccept, MerchantInfo } from '@/utils/merchantMemory';
 import { rememberPaycheckSender } from '@/utils/paycheckSenders';
-import { PendingBankTx } from '@/store/bankQueueStore';
+import { PendingBankTx, useBankQueue, type BankIngestHistoryEntry } from '@/store/bankQueueStore';
 import type { Expense } from '@/types/finances';
 
 // Port z sapp (src/services/bankCommit.ts), ZMNIEJSZONY do tego co sapp2 faktycznie ma:
@@ -23,6 +23,7 @@ export interface CommitResult {
   ok: boolean;
   matched: boolean;        // scalono z już dodanym wydatkiem, zamiast dodać nowy
   merchant?: MerchantInfo; // zaktualizowane zaufanie (cleanAccepts/auto)
+  expenseId?: string;      // do historii/"Cofnij" (patrz bankQueueStore.ts)
 }
 
 // Zamienia JEDNĄ potwierdzoną płatność z banku w prawdziwy wydatek: jeśli pasujący
@@ -54,20 +55,21 @@ export async function commitBankTx(
         && !!e.date && sameLocalDay(new Date(e.date).getTime(), pTimeIn));
       if (alreadyIncome) {
         if (!alreadyIncome.bankMatched) st.updateExpense(alreadyIncome.id, { bankMatched: true, updatedAt: now });
-        return { ok: true, matched: true };
+        return { ok: true, matched: true, expenseId: alreadyIncome.id };
       }
       const dup = findMatchingIncome(p, st.expenses);
       if (dup) {
         st.updateExpense(dup.id, { bankMatched: true, updatedAt: now });
-        return { ok: true, matched: true };
+        return { ok: true, matched: true, expenseId: dup.id };
       }
+      const newIncomeId = genId();
       st.addExpense({
-        id: genId(), type: 'income', amount: p.amount, date: p.dateISO,
+        id: newIncomeId, type: 'income', amount: p.amount, date: p.dateISO,
         note: p.store || 'Przychód', tags: p.isPaycheck ? ['wypłata'] : [],
         paymentMethod: 'card', bankMatched: true, source, createdAt: now, updatedAt: now,
       });
       if (p.isPaycheck) rememberPaycheckSender(p.storeKey).catch(() => {});
-      return { ok: true, matched: false };
+      return { ok: true, matched: false, expenseId: newIncomeId };
     }
 
     // Dedup: redostarczone/powtórnie osuszone powiadomienie NIE może zaksięgować tej
@@ -85,15 +87,18 @@ export async function commitBankTx(
       && storeMatches(e));
     if (already) {
       if (!already.bankMatched) st.updateExpense(already.id, { bankMatched: true, updatedAt: now });
-      return { ok: true, matched: true };
+      return { ok: true, matched: true, expenseId: already.id };
     }
 
     const match = findMatchingExpense(p, st.expenses);
+    let expenseId: string;
     if (match) {
       st.updateExpense(match.id, { bankMatched: true, updatedAt: now });
+      expenseId = match.id;
     } else {
+      expenseId = genId();
       st.addExpense({
-        id: genId(), type: 'expense', amount: p.amount, date: p.dateISO,
+        id: expenseId, type: 'expense', amount: p.amount, date: p.dateISO,
         note: p.store || (p.selfTransfer ? 'Przelew na oszczędności' : 'Płatność'),
         tags: p.tags ?? [],
         ...(p.store ? { storeName: p.store } : {}),
@@ -105,6 +110,27 @@ export async function commitBankTx(
     if (opts?.learn !== false) {
       merchant = await recordMerchantAccept(p.storeKey, { tags: p.tags ?? [], name: p.store, corrected: !!opts?.corrected });
     }
-    return { ok: true, matched: !!match, merchant };
+    return { ok: true, matched: !!match, merchant, expenseId };
   });
+}
+
+// "Cofnij" w historii (2026-11-01, user: "mam nadzieję że zrobiłeś w zatwierdzeniu
+// historię żebym mógł cofnąć") — para do `commitBankTx`. `matched:false` (commit
+// DODAŁ nowy wydatek) → cofnięcie go usuwa całkiem. `matched:true` (commit tylko
+// SCALIŁ z już istniejącym wydatkiem, ustawiając `bankMatched`) → cofnięcie NIE
+// usuwa tego wydatku (istniał niezależnie od powiadomienia z banku, mógł być dodany
+// ręcznie) — tylko odpina `bankMatched`, żeby znowu mógł dopasować się do powiadomienia
+// później. Nie "oducza" pamięci sprzedawcy (merchantMemory) — to by wymagało wiedzieć
+// czy user zaakceptował tego sprzedawcy inne płatności w międzyczasie, osobny,
+// nieproszony problem.
+export async function undoBankHistoryEntry(entry: BankIngestHistoryEntry): Promise<boolean> {
+  if (!entry.expenseId) return false;
+  const st = useExpensesStore.getState();
+  if (entry.matched) {
+    st.updateExpense(entry.expenseId, { bankMatched: false, updatedAt: new Date().toISOString() });
+  } else {
+    st.deleteExpense(entry.expenseId);
+  }
+  useBankQueue.getState().updateHistoryEntry(entry.id, { undone: true });
+  return true;
 }

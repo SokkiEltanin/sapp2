@@ -32,6 +32,7 @@ export interface BankIngestHistoryEntry {
   id: string;
   at: number;
   store: string;
+  storeKey: string; // do "Stwórz szablon z tego" (merchantMemory) i do odrzucenia z poziomu historii
   amount: number;
   currency: string;
   direction: 'in' | 'out';
@@ -40,6 +41,15 @@ export interface BankIngestHistoryEntry {
   isPaycheck?: boolean;
   auto: boolean;
   flagReason?: string;
+  // Dopisywane PO commicie (bank-review.tsx/bankAutoProcess.ts), nie przy enqueue —
+  // `tags` tu to tagi w momencie zatwierdzenia (user mógł je poprawić), nie podpowiedź
+  // z chwili złapania powiadomienia. `expenseId` + `matched` napędzają "Cofnij"
+  // (2026-11-01, user: "mam nadzieję że zrobiłeś w zatwierdzeniu historię żebym mógł
+  // cofnąć"): `matched:true` = scalono z już istniejącym wydatkiem (cofnięcie tylko
+  // odpina `bankMatched`), `matched:false` = dodano nowy (cofnięcie usuwa go całkiem).
+  expenseId?: string;
+  matched?: boolean;
+  undone?: boolean;
 }
 
 interface BankQueueState {
@@ -64,6 +74,7 @@ interface BankQueueState {
   remove: (id: string) => void;
   clear: () => void;
   clearHistory: () => void;
+  updateHistoryEntry: (id: string, patch: Partial<BankIngestHistoryEntry>) => void;
 }
 
 export const useBankQueue = create<BankQueueState>()(
@@ -100,7 +111,7 @@ export const useBankQueue = create<BankQueueState>()(
           pending: [{ ...tx, id, addedAt: at }, ...s.pending],
           history: [
             {
-              id, at, store: tx.store, amount: tx.amount, currency: tx.currency,
+              id, at, store: tx.store, storeKey: tx.storeKey, amount: tx.amount, currency: tx.currency,
               direction: tx.direction, tags: tx.tags, matchedSource: tx.matchedSource,
               isPaycheck: tx.isPaycheck, auto: !!tx.auto, flagReason: tx.flagReason,
             },
@@ -113,6 +124,9 @@ export const useBankQueue = create<BankQueueState>()(
       remove: (id) => set((s) => ({ pending: s.pending.filter((p) => p.id !== id) })),
       clear: () => set({ pending: [] }),
       clearHistory: () => set({ history: [] }),
+      updateHistoryEntry: (id, patch) => set((s) => ({
+        history: s.history.map((h) => (h.id === id ? { ...h, ...patch } : h)),
+      })),
     }),
     { name: 'bank-queue-v1', storage: createJSONStorage(() => AsyncStorage) },
   ),

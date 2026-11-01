@@ -1,22 +1,22 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Utensils, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
+import type { FoodCategoryItem } from '@/utils/foodStats';
 
 // Szkielet "Jedzenie — rozkład wydatków" (2026-10-30, user podesłał screenshot
 // analogicznego widoku z sapp: "musimy na dashbordzie w naszym stylu dodać takie coś
 // — tylko teraz pewnie szkielet tego żeby nie zapomnieć, pasujący ile tam miejsca
 // tyle weźmie ten widget" + "zapiszmy żeby wrócić jak zrobimy parser paragonów").
 //
-// CELOWO na MOCK danych, NIE podpięty pod żaden store — appka nie ma jeszcze
-// parsera paragonów ani kategoryzacji wydatków (Faza 2, patrz NEXT_STEPS.md), więc
-// nie ma z czego realnie tego policzyć. Cel tego kafla to ZAREZERWOWAĆ właściwą
-// ilość miejsca na Dashboardzie (żeby layout się nie przesunął, gdy to zostanie
-// podpięte pod prawdziwe dane) i zapisać dokładny kształt, nie dostarczyć działającą
-// funkcję. Dlatego: przełącznik Tygodnie/Dni/Miesiące i wiersze kategorii (strzałka
-// ">" w oryginale = "stuknij by sprawdzić produkty") są NIEINTERAKTYWNE — żadna z
-// tych funkcji jeszcze nie istnieje, nie udajemy klikalności której nie ma (ten sam
-// powód co ComingSoonRow).
+// 2026-11-01 (user: "jak klikam w jedzenie nie mam tam zrobione na popupie jak w
+// sap na dashboardzie") — wiersze kategorii NIE są już mockiem/dekoracją: dane są
+// realne (Faza 2.4, `foodByCategory`), więc strzałka ">" teraz faktycznie otwiera
+// `FoodCategoryItemsModal` z konkretnymi pozycjami paragonów przez `onSelectCategory`
+// (stan drill-down popupu żyje w WydatkiModal.tsx, wspólnym rodzicu). Przełącznik
+// Tygodnie/Dni/Miesiące WCIĄŻ nieinteraktywny (zakres zawsze "ten miesiąc") — osobna,
+// nieproszona jeszcze funkcja, nie udajemy klikalności której nie ma (ten sam powód
+// co ComingSoonRow).
 //
 // Kolory kropek/pasków per-kategoria ZOSTAJĄ (nie monochromatyczne) — to funkcjonalny
 // legend-akcent rozróżniający wiele pozycji na liście, dokładnie ta sama zasada co
@@ -26,7 +26,7 @@ import { spacing, radius, themedStyles } from '@/theme';
 const PERIOD_TABS = ['Tygodnie', 'Dni', 'Miesiące'] as const;
 
 export type FoodWeek = { label: string; value: number };
-export type FoodCategory = { label: string; amount: number; color: string };
+export type FoodCategory = { label: string; amount: number; color: string; items: FoodCategoryItem[] };
 
 export default function FoodBreakdownCard({
   month,
@@ -35,6 +35,7 @@ export default function FoodBreakdownCard({
   previousTotal,
   weeks,
   categories,
+  onSelectCategory,
 }: {
   month: string;
   total: string;
@@ -42,6 +43,7 @@ export default function FoodBreakdownCard({
   previousTotal: string;
   weeks: FoodWeek[];
   categories: FoodCategory[];
+  onSelectCategory: (category: FoodCategory) => void;
 }) {
   const s = makeS();
   // `Math.max(1, ...)` — jak w FoodBarsTile, zapobiega `NaN%` wysokości/szerokości
@@ -86,7 +88,7 @@ export default function FoodBreakdownCard({
 
       <View style={s.categories}>
         {categories.map((c) => (
-          <View key={c.label} style={s.categoryRow}>
+          <TouchableOpacity key={c.label} style={s.categoryRow} onPress={() => onSelectCategory(c)} activeOpacity={0.7}>
             <View style={[s.dot, { backgroundColor: c.color }]} />
             <Text style={s.categoryLabel} numberOfLines={1}>{c.label}</Text>
             <View style={s.categoryBarTrack}>
@@ -94,7 +96,7 @@ export default function FoodBreakdownCard({
             </View>
             <Text style={s.categoryAmount}>{c.amount} zł</Text>
             <ChevronRight size={14} color={colors.text.muted} />
-          </View>
+          </TouchableOpacity>
         ))}
       </View>
     </View>

@@ -55,6 +55,20 @@ Przy pustych/zerowych miesiącach (nowy użytkownik, brak paragonów) `FoodBarsT
 słupków — bez tego realne (możliwie zerowe) dane dawały `NaN%` tam, gdzie mock
 (zawsze >0) nigdy tego nie ujawniał.
 
+**Drill-down kategorii jedzenia — ZROBIONE (2026-11-01)**, user: "jak klikam w
+jedzenie nie mam tam zrobione na popupie jak w sap na dashboardzie" — wiersze
+kategorii w `FoodBreakdownCard` miały strzałkę ">" od samego początku (szkielet z
+2026-10-30), ale były czystą dekoracją ("nie udajemy klikalności której nie ma",
+bo dane były wtedy mockiem). Teraz dane są realne, więc stuknięcie faktycznie
+otwiera `FoodCategoryItemsModal.tsx` — drugi popup STACKUJĄCY SIĘ na
+`WydatkiModal` (ten sam wzorzec co `TransactionsModal`→`AddExpenseModal`, drugi
+modal nie zamyka pierwszego pod spodem), z konkretnymi pozycjami paragonów
+złożonymi na tę kategorię w danym miesiącu. `foodByCategory` (utils/foodStats.ts)
+zbiera listę pozycji (`FoodCategoryItem[]`) W TYM SAMYM przebiegu co liczy sumę —
+jedno przejście po wydatkach, zero szansy by suma kafla i lista drill-down się
+rozjechały. Przełącznik Tygodnie/Dni/Miesiące WCIĄŻ nieinteraktywny (osobna,
+nieproszona jeszcze funkcja).
+
 **Kafel Zadań + "najbliższy termin" — PODPIĘTE do realnych danych (2026-11-01)**,
 user: "zadania które dodaję żeby pokazywały się już realnie na dashboardzie" — oba
 czytały wcześniej `MOCK_TASKS`/sztywne "2 DNI". Teraz w `app/(tabs)/index.tsx`:
@@ -429,6 +443,10 @@ banku... plus szablony wyłapywań")
    `bank-review.tsx`'s tagi), "zatwierdź" (`AddExpenseModal.handleSave`,
    `bank-review.tsx`'s accept, kalibracja salda w `finances.tsx`) i "połącz
    duplikat" (`ProductsModal.mergeInto`).
+7. **Historia, cofnięcie, szablony — ZROBIONE (2026-11-01, user: "mam nadzieję że
+   zrobiłeś w zatwierdzeniu historię żebym mógł cofnąć albo stworzyć szablon z
+   wyłapanych")** — zamyka ostatni gap z Fazy 2.5. Patrz
+   `### Historia, cofnięcie, szablony (Faza 2.7)` niżej.
 
 ### Powiadomienia z banku (Faza 2.5, 2026-11-01)
 
@@ -467,11 +485,11 @@ otwiera systemowy ekran, `Linking.sendIntent`) — appka nie może tego zrobić 
   krytycznej ścieżce. To też usunęło całą klasę UX-complexity z sapp's
   `bank-review.tsx` (multi-tap guard + spinner na 10s Firestore timeout) — commit
   jest praktycznie natychmiastowy.
-- **Szablony powiadomień (`bankRulesStore`/UI w Ustawieniach) — ODŁOŻONE**. To była
-  w SAMYM sapp funkcja dodana PO działającym MVP (2026-09-08, długo po pierwszej
-  wersji), nie część fundamentu — nierozpoznany sprzedawca dostaje puste `tags: []`,
-  user otaguje raz ręcznie w przeglądzie, od tego momentu `merchantMemory` się uczy.
-  Kompletna, nie-dziurawa pętla bez szablonów; szablony to czysty dodatek na później.
+- **Szablony powiadomień (`bankRulesStore`/osobny mechanizm dopasowywania) —
+  ŚWIADOMIE NIE PORTOWANE, ale "szablon" jako FUNKCJA jest zrobiony inaczej, patrz
+  `### Historia, cofnięcie, szablony (Faza 2.7)` niżej**. Nierozpoznany sprzedawca
+  dostaje puste `tags: []`, user otaguje raz ręcznie w przeglądzie, od tego momentu
+  `merchantMemory` się uczy — kompletna, nie-dziurawa pętla nawet bez tego kroku.
 - **Subskrypcje / Praca / przypomnienie o wypłacie — POMINIĘTE CAŁKOWICIE**. sapp's
   `bankCommit.ts` auto-opłacał subskrypcje (`subscriptionsStore`/`subscriptionAuto`),
   oznaczał "payday handled" i dopisywał prefiks z pracy (`workStore`) — żaden z tych
@@ -499,6 +517,47 @@ funkcja w tej rundzie sesji wymagająca prawdziwego urządzenia + prawdziwego
 powiadomienia z banku do realnej weryfikacji (CI/`tsc`/`jest`/`expo export` sprawdzają
 tylko że kod się kompiluje i plugin generuje poprawny natywny kod — nie że nasłuch
 faktycznie łapie powiadomienia na danym telefonie/OEM).
+
+### Historia, cofnięcie, szablony (Faza 2.7, 2026-11-01)
+
+User po teście Fazy 2.5: *"mam nadzieję że zrobiłeś w zatwierdzeniu historię żebym
+mógł cofnąć albo stworzyć szablon z wyłapanych"* — `bankQueueStore.history` już
+istniał (log do wglądu od samego początku Fazy 2.5), ale NIGDZIE nie był
+wyświetlany i nie niósł wystarczająco danych żeby cofnąć zatwierdzenie. Ten krok
+zamyka obie dziury bez dodawania drugiego, równoległego mechanizmu dopasowywania.
+
+- **`BankIngestHistoryEntry` rozszerzony**: `storeKey` (do "Stwórz szablon"/dopasowania
+  z poziomu historii), `expenseId`/`matched` (dopisywane PO commicie w
+  `bank-review.tsx`'s `accept`/`bankAutoProcess.ts`, NIE przy `enqueue` — w tym
+  momencie wydatek jeszcze nie istnieje), `undone` (ustawiane przez `undoBankHistoryEntry`).
+  Nowa akcja store'a: `updateHistoryEntry(id, patch)`.
+- **"Cofnij"** — `services/bankCommit.ts`'s `undoBankHistoryEntry(entry)`, para do
+  `commitBankTx`. `matched:false` (commit DODAŁ nowy wydatek) → usuwa go całkiem
+  (`deleteExpense`). `matched:true` (commit tylko SCALIŁ z już istniejącym wydatkiem)
+  → NIE usuwa tego wydatku (mógł być dodany ręcznie, niezależnie od banku) — tylko
+  odpina `bankMatched`. Nie "oducza" `merchantMemory` (osobny, nieproszony problem:
+  wymagałoby wiedzieć czy user zaakceptował inne płatności tego sprzedawcy w
+  międzyczasie). Ekran: `app/bank-history.tsx`, przycisk "Cofnij" per wpis (tylko gdy
+  `expenseId` ustawione i jeszcze nie `undone`).
+- **"Stwórz szablon z tego"** — ŚWIADOMIE NIE jest drugim, równoległym mechanizmem
+  dopasowywania (sapp's `bankRulesStore` zostaje nieportowany). To jednorazowy
+  fast-track ISTNIEJĄCEGO `merchantMemory`: `saveMerchant(storeKey, {tags, name})` +
+  `setMerchantAuto(storeKey, true)` od razu, zamiast czekać na `AUTO_THRESHOLD`
+  czystych akceptacji. Przycisk w `bank-review.tsx` (na karcie, widoczny gdy sprzedawca
+  jeszcze nie jest `auto`) ORAZ w `app/bank-history.tsx` (per wpis, działa też na
+  pozycjach już zaksięgowanych wcześniej — "z wyłapanych"). Następna płatność z tego
+  samego `storeKey` już łapie się w `bankIngest.ts`'s istniejącej ścieżce
+  `matchedSource:'learned'`, zero nowego kodu dopasowywania.
+- **`app/bank-history.tsx`** (nowy route) — lista `bankQueueStore.history` (najnowsze
+  pierwsze), per wpis: sklep/kwota/data/tagi/flagi, "Cofnij" + "Stwórz szablon",
+  "Wyczyść" w nagłówku (`clearHistory()`, bez dialogu potwierdzenia — appka
+  konsekwentnie nie ma żadnych `Alert.alert`-confirmów, usuwanie jest zawsze
+  bezpośrednie, patrz `AddExpenseModal`'s delete). Wejście: Ustawienia → Finanse →
+  "Historia i szablony" (`tier:'sub'`, obok "Płatności do zatwierdzenia"), też
+  ikona-link w nagłówku `bank-review.tsx`.
+- **Drill-down w `FoodBreakdownCard`** (DASHBOARD/Wydatki popup, nie bank) — osobna,
+  niezależna poprawka w tej samej rundzie (user: "jak klikam w jedzenie nie mam tam
+  zrobione na popupie jak w sap na dashboardzie"), patrz §DASHBOARD.
 
 **PRACA / SUBSKRYPCJE** [PE] — bez zmian względem wcześniejszego ustalenia (niżej),
 wciąż osobne, mniejsze podekrany. **POJAZDY** [PE] — wciąż odłożone.
