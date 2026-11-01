@@ -8,6 +8,7 @@ import {
   ChevronLeft, ChevronRight, Search, X,
   Info, Stethoscope, Wallet, Clock, Bell, Copy,
   LogIn, LogOut, User as UserIcon, Database, CalendarDays, AlertTriangle, Rocket,
+  BatteryWarning, AlarmClock,
 } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -108,6 +109,8 @@ function buildSections(email: string | null): SettingsSection[] {
       { kind: 'action', key: 'alert-notifee', label: 'Notifee (bez przycisku)', description: 'powiadomienia alert notification pelny ekran budzik', icon: Rocket },
       { kind: 'action', key: 'alert-notifee-buttons', label: 'Notifee (Tak/Nie)', description: 'powiadomienia alert notification pelny ekran budzik przyciski akcji', icon: Rocket },
       { kind: 'action', key: 'alert-notifee-5min', label: 'Notifee za 5 min (test OLED)', description: 'sprawdza czy ekran faktycznie sie wybudza z glebokiego usypiania, nie tylko gra w ciemno', icon: Rocket },
+      { kind: 'action', key: 'alert-battery', label: 'Optymalizacja baterii', description: 'sprawdza i prosi o wylaczenie — najczestsza przyczyna ciszy po dlugim opoznieniu', icon: BatteryWarning },
+      { kind: 'action', key: 'alert-exact-alarm', label: 'Dokladne alarmy', description: 'otwiera systemowe ustawienia "Alarmy i przypomnienia" wymagane dla terminowego budzenia', icon: AlarmClock },
     ],
   },
   {
@@ -270,8 +273,15 @@ export default function SettingsScreen() {
           shouldSetBadge: false,
         }),
       });
-      await Notifications.setNotificationChannelAsync('alerts-max', {
-        name: 'Alerty (test)',
+      // `-v2` (2026-11-01, user: "nie słychać dźwięku w żadnym" z czterech testów) —
+      // ten kanał NIGDY wcześniej nie był wersjonowany, w odróżnieniu od notifee
+      // niżej (`alerts-fullscreen-v3`, bumpowany dwa razy po dokładnie tym objawie).
+      // Kanały na Androidzie są NIEMUTOWALNE po utworzeniu — jeśli 'alerts-max'
+      // powstał w którejś WCZEŚNIEJSZEJ rundzie testów (przed tym jak `sound`
+      // wylądował w konfiguracji), telefon trzyma się tamtej, cichej rejestracji na
+      // zawsze, niezależnie od aktualnego kodu. Nowe id usuwa tę możliwość.
+      await Notifications.setNotificationChannelAsync('alerts-max-v2', {
+        name: 'Alerty (test) v2',
         importance: Notifications.AndroidImportance.MAX,
         sound: 'default',
         vibrationPattern: [0, 500, 250, 500],
@@ -290,7 +300,7 @@ export default function SettingsScreen() {
           sound: 'default',
           priority: Notifications.AndroidNotificationPriority.MAX,
         },
-        trigger: { channelId: 'alerts-max' },
+        trigger: { channelId: 'alerts-max-v2' },
       });
       append('Wysłano — oceń jak wygląda/brzmi na urządzeniu.');
     } catch (e: any) {
@@ -348,6 +358,28 @@ export default function SettingsScreen() {
       append(`Zgoda na powiadomienia: status=${settings.authorizationStatus}`);
       if (settings.authorizationStatus < AuthorizationStatus.AUTHORIZED) {
         throw new Error('Brak zgody na powiadomienia');
+      }
+      // Diagnostyka dla długich opóźnień (2026-11-01, user: "ten OLED ni dziala" —
+      // test za 5s działał, test za 5 MIN nie) — `allowWhileIdle` prosi system o
+      // dokładny alarm, ale na Androidzie 12+ to NIE jest automatycznie
+      // gwarantowane: jeśli optymalizacja baterii jest WŁĄCZONA dla appki, system
+      // może cicho zdegradować/opóźnić alarm podczas Doze, zamiast go odrzucić z
+      // błędem — dokładnie taki objaw ("log pokazuje sukces, nic nie przychodzi po
+      // czasie") jak zgłoszony. Tylko LOGUJEMY tutaj (nie blokujemy testu) — fix to
+      // osobne przyciski "Optymalizacja baterii"/"Dokładne alarmy" niżej w Alertach,
+      // bo to decyzja/zgoda usera w systemowych ustawieniach, nie coś co appka może
+      // cicho włączyć sama.
+      if (delayMs >= 60000) {
+        try {
+          const batteryRestricted = await notifee.isBatteryOptimizationEnabled();
+          if (batteryRestricted) {
+            append('UWAGA: optymalizacja baterii WŁĄCZONA dla appki — to najczęstsza przyczyna ciszy po dłuższym opóźnieniu. Użyj "Optymalizacja baterii" w Alertach, potem powtórz ten test.');
+          } else {
+            append('Optymalizacja baterii: appka już wykluczona, ok.');
+          }
+        } catch {
+          // starszy Android (<23) albo niedostępne — pomijamy diagnostykę, nie test.
+        }
       }
       // UWAGA: kanał na Androidzie jest NIEMUTOWALNY po utworzeniu — build #29 rzucał
       // błąd walidacji na starym `vibrationPattern` W TRAKCIE `createChannel`, co mogło
@@ -450,6 +482,45 @@ export default function SettingsScreen() {
     }
   };
 
+  // Dwa jednorazowe przyciski do wykluczenia najczęstszej, device-side przyczyny
+  // "log mówi sukces, nic nie przychodzi po czasie" na Androidzie 12+ (patrz
+  // komentarz w `sendNotifeeAlert` przy diagnostyce `isBatteryOptimizationEnabled`):
+  // obie zgody appka może tylko POPROSIĆ o nie (systemowy dialog/ekran), nie
+  // włączyć sama. `openPowerManagerSettings` (OEM-specific, np. MIUI "autostart")
+  // tylko gdy notifee rozpoznaje DANY telefon (`getPowerManagerInfo().activity` —
+  // na czystym Androidzie/Pixelu zwykle `null`, wtedy nie ma co pokazywać, nie błąd.
+  const checkBatteryOptimization = async () => {
+    append('Optymalizacja baterii: sprawdzam…');
+    try {
+      const notifeeModule = await import('@notifee/react-native');
+      const notifee = notifeeModule.default;
+      const restricted = await notifee.isBatteryOptimizationEnabled();
+      if (restricted) {
+        append('WŁĄCZONA — otwieram systemowy dialog, zgódź się na "Zezwól"/"Nie optymalizuj".');
+        await notifee.openBatteryOptimizationSettings();
+      } else {
+        append('Appka już jest wykluczona z optymalizacji baterii — to nie jest przyczyna.');
+      }
+      const powerInfo = await notifee.getPowerManagerInfo();
+      if (powerInfo.activity) {
+        append(`Ten telefon (${powerInfo.manufacturer}) ma dodatkowy menadżer energii — otwieram jego ustawienia (np. "autostart"), włącz appkę tam też.`);
+        await notifee.openPowerManagerSettings();
+      }
+    } catch (e: any) {
+      append(`Błąd: ${String(e?.message ?? e)}`);
+    }
+  };
+
+  const openExactAlarmSettings = async () => {
+    append('Otwieram systemowe "Alarmy i przypomnienia" — włącz dla Sapp2, jeśli wyłączone.');
+    try {
+      const notifeeModule = await import('@notifee/react-native');
+      await notifeeModule.default.openAlarmPermissionSettings();
+    } catch (e: any) {
+      append(`Błąd: ${String(e?.message ?? e)}`);
+    }
+  };
+
   const handlers: Record<string, () => void> = {
     'account-logout': handleLogout,
     google: testGoogleSignIn,
@@ -460,6 +531,8 @@ export default function SettingsScreen() {
     'alert-notifee': () => sendNotifeeAlert(false),
     'alert-notifee-buttons': () => sendNotifeeAlert(true),
     'alert-notifee-5min': () => sendNotifeeAlert(false, 5 * 60 * 1000, false),
+    'alert-battery': checkBatteryOptimization,
+    'alert-exact-alarm': openExactAlarmSettings,
   };
 
   const q = query.trim().toLowerCase();

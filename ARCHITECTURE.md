@@ -100,6 +100,14 @@ opcjonalnym tekstem, zapisywanym w formie pamiętnika DZIEŃ DATA")
 - **Wejście**: `app/(tabs)/daily.tsx`'s "Humor" wiersz — NOWY `LiveSectionRow`
   (klikalny wariant `ComingSoonRow`, status po prawej zamiast "Wkrótce") zamiast
   statycznego placeholdera, tap otwiera `MoodModal`.
+- **Kolejność sekcji "Dodaj" ODWRÓCONA (2026-11-01)**, user: "mam być wygodnie
+  wpisywać... jak to jest na górze ekranu wszystko" — siatka (jedyny element
+  wymagający przeciągania kciukiem) siedziała NAJWYŻEJ w scrollu, najdalej od
+  naturalnej pozycji kciuka przy trzymaniu telefonu jedną ręką. Teraz: tagi →
+  notatka → siatka, siatka na SAMYM DOLE tuż nad przyciskiem "Zapisz" — ten sam
+  "bliżej kciuka" priorytet co FAB wklejania paragonu w `AddExpenseModal`
+  (patrz §FINANSE). `MoodEnergyGrid.tsx` sam w sobie bez zmian, przeniesiony
+  tylko w kolejności renderu w `MoodModal.tsx`.
 - **Świadomie NIE w tej rundzie**: przypomnienia rano/wieczorem (sapp ma
   `scheduleDailyMoodReminder`/`scheduleMorningMoodReminder` — port wymaga najpierw
   prostej (nie full-screen-alert) warstwy lokalnych notyfikacji, której sapp2 jeszcze
@@ -428,6 +436,26 @@ powiadomień (patrz niżej).
   Pupila/roślinki. Patrz rozmowa 2026-10-26 w historii sesji po szczegóły wykonalności
   (Android full-screen intent — wymaga więcej niż goły `expo-notifications`,
   prawdopodobnie `notifee` albo custom native code).
+  Sandbox testowy w `app/settings.tsx` sekcja "Alerty" (`app/alert-test.tsx` + `src/
+  hooks/useNotifeeAlertLaunch.ts` + `plugins/withFullScreenAlert.js`/`src/services/
+  lockScreen.ts`) — 4 warianty testowe + **2 przyciski diagnostyczne (2026-11-01)**:
+  "Optymalizacja baterii" (`notifee.isBatteryOptimizationEnabled`/
+  `openBatteryOptimizationSettings`/`openPowerManagerSettings` dla OEM-specific
+  autostart) i "Dokładne alarmy" (`notifee.openAlarmPermissionSettings`) — dodane po
+  tym jak test "za 5 min (OLED)" nie odpalił się w ogóle, mimo że identyczny
+  mechanizm za 5s działał: na Androidzie 12+ `allowWhileIdle` NIE gwarantuje
+  dokładnego alarmu jeśli appka ma włączoną optymalizację baterii — system cicho
+  degraduje/opóźnia zamiast rzucić błędem, więc log pokazuje "sukces" mimo że nic
+  finalnie nie przyjdzie. Obie zgody appka może tylko POPROSIĆ o (systemowy
+  dialog/ekran), nie włączyć sama — stąd przyciski, nie automatyczny fix w kodzie.
+  Kanał `expo-notifications` 'alerts-max' zbumpowany do `alerts-max-v2` (brak
+  dźwięku zgłoszony przez usera — ten kanał, w odróżnieniu od notifee'owego, nigdy
+  wcześniej nie był wersjonowany, mimo że kanały są niemutowalne po utworzeniu).
+  **Nadal nierozwiązane**: brak dźwięku w wariantach notifee mimo dwukrotnego już
+  bumpowania kanału (`-v3`) — najbardziej prawdopodobna przyczyna to coś PO stronie
+  urządzenia (głośność powiadomień/dzwonka wyciszona, albo brak ręcznie przyznanego
+  dostępu "Nie przeszkadzać" mimo `bypassDnd` w kodzie), nie kod — do zweryfikowania
+  na urządzeniu przed kolejną próbą w kodzie.
 - **Logowanie (wymagane od razu)** — 2026-10-28, user: "wymagaj logowania Google od
   razu". W przeciwieństwie do sapp (sesja anonimowa cały czas, Google Sign-in tam
   tylko dla Google Calendar API, nigdy nie dotyka Firebase Auth), sapp2 NIE wpuszcza

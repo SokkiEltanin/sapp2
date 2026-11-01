@@ -1737,6 +1737,66 @@ Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 135/135 zielone (6 nowych �
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 135/135 zielone,
 `npx expo export --platform android` bez błędów.
 
+## Alerty (test OLED/dźwięk) + Humor (ergonomia kciuka) — 2026-11-01
+
+Po teście na urządzeniu (4 screenshoty) user: Expo MAX i oba warianty notifee
+(bez przycisku / Tak-Nie) działają — pełny ekran pokazuje się poprawnie. ALE:
+1. "Notifee za 5 min (test OLED)" **nie zadziałał w ogóle** mimo że identyczny
+   mechanizm za 5s działa.
+2. **Brak dźwięku we WSZYSTKICH wariantach**.
+3. Pytanie: appka nie pytała o zgodę na powiadomienia — czy to normalne? TAK,
+   `app.json` ma `POST_NOTIFICATIONS` poprawnie zadeklarowane, zgoda była już
+   przyznana w którejś z wcześniejszych rund testowych na tym urządzeniu — brak
+   ponownego promptu jest oczekiwany, nie błąd.
+
+Dla (1): dodane dwa przyciski diagnostyczne w Ustawienia → Alerty:
+"Optymalizacja baterii" i "Dokładne alarmy" (oba przez wbudowane API notifee,
+zero nowej zależności) — otwierają systemowe ekrany zgody, które TYLKO user może
+zaakceptować (appka nie może tego włączyć sama). Dodatkowo `sendNotifeeAlert`
+dla opóźnień ≥60s teraz LOGUJE ostrzeżenie jeśli optymalizacja baterii jest
+włączona, zamiast cicho "udawać sukces". To najbardziej prawdopodobna przyczyna:
+na Androidzie 12+ dokładny alarm (`allowWhileIdle`) bez wykluczenia z
+optymalizacji baterii może zostać cicho zdegradowany/opóźniony przez system,
+mimo że `createTriggerNotification` nie rzuca błędem.
+
+Dla (2): kanał `expo-notifications` ('alerts-max' → `alerts-max-v2`) nigdy
+wcześniej nie był wersjonowany mimo że kanały są niemutowalne po utworzeniu —
+możliwe że stary, sprzed-konfiguracji-dźwięku kanał siedział cicho na
+urządzeniu. Kanał notifee (`alerts-fullscreen-v3`) już był bumpowany DWA razy
+wcześniej po tym samym objawie i nadal cicho — **to NIE jest naprawione**,
+najbardziej prawdopodobna przyczyna to coś po stronie urządzenia (głośność
+powiadomień/dzwonka wyciszona w systemie, albo "Dostęp Nie przeszkadzać" nie
+przyznany appce ręcznie — `bypassDnd` w kodzie samo tego nie załatwia).
+
+**DO SPRAWDZENIA NA URZĄDZENIU** (zanim kolejna próba w kodzie — już dwa razy
+zgadywaliśmy "kanał" bez skutku):
+- Głośność POWIADOMIEŃ (nie multimediów) w systemowych ustawieniach dźwięku —
+  czy jest > 0.
+- Ustawienia → Aplikacje → Sapp2 → Powiadomienia → kanał "Alerty pełnoekranowe
+  (test) v3" → czy DŹWIĘK jest tam ręcznie ustawiony na "Brak".
+- Ustawienia → Aplikacje → Specjalny dostęp → Nie przeszkadzać → czy Sapp2 ma
+  tam zgodę.
+- Po "Optymalizacja baterii"/"Dokładne alarmy" z Ustawień → powtórz test OLED
+  za 5 min, zablokuj ekran, poczekaj pełne 5 min.
+
+## Humor — siatka nastroju/energii przesunięta niżej (2026-11-01)
+
+User (ironicznie, nawiązując do wcześniejszej prośby "bliżej kciuka" przy
+paragonach): *"ja mam być wygodnie wpisywać i ogarniać jak to jest na górze
+ekranu wszystko"* — siatka 5×5 (jedyny element wymagający przeciągania kciukiem)
+siedziała najwyżej w scrollu "Dodaj", najdalej od naturalnej pozycji kcioba przy
+trzymaniu telefonu jedną ręką. Kolejność w `MoodModal.tsx` odwrócona: tagi →
+notatka → siatka, siatka teraz tuż nad przyciskiem "Zapisz" (najbliżej kciuka,
+ten sam priorytet co FAB wklejania paragonu w Finansach). `MoodEnergyGrid.tsx`
+bez zmian, tylko kolejność renderu w rodzicu.
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**:
+- Humor → "Dodaj" → siatka powinna być NA DOLE (tuż nad "Zapisz"), tagi i
+  notatka wyżej — sprawdź czy wygodniej się tym posługiwać jedną ręką.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 135/135 zielone,
+`npx expo export --platform android` bez błędów.
+
 ## Dashboard — widget #JEDZENIE podpięty do realnych danych (2026-11-01)
 
 User: *"czemu na dashboardzie nie ma widgetu ostatniego tego na dole z wydatkami

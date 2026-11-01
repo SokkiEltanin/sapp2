@@ -132,9 +132,15 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
 
             {view === 'checkin' ? (
               <>
+                {/* Kolejność sekcji ODWRÓCONA (2026-11-01, user: "mam być wygodnie
+                    wpisywać... jak to jest na górze ekranu wszystko" — siatka,
+                    jedyny element wymagający przeciągania kciukiem, siedziała
+                    NAJWYŻEJ, najdalej od naturalnej pozycji kciuka przy trzymaniu
+                    telefonu jedną ręką; tagi/notatka to pojedyncze taty/pisanie,
+                    mniej wymagające precyzji). Teraz: tagi → notatka → siatka, tuż
+                    nad przyciskiem "Zapisz" — ten sam "bliżej kciuka" priorytet co
+                    FAB wklejania paragonu w AddExpenseModal. */}
                 <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-                  <MoodEnergyGrid mood={mood} energy={energy} onChange={(m, e) => { setMood(m); setEnergy(e); }} />
-
                   <View style={s.section}>
                     <Text style={s.sectionLabel}>Co czujesz?</Text>
                     <View style={s.tagsRow}>
@@ -177,6 +183,8 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
                       textAlignVertical="top"
                     />
                   </View>
+
+                  <MoodEnergyGrid mood={mood} energy={energy} onChange={(m, e) => { setMood(m); setEnergy(e); }} />
                 </ScrollView>
 
                 <View style={s.footer}>
