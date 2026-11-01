@@ -72,16 +72,18 @@ export default function StatTile(props: StatTileProps) {
               </Text>
             ) : (
               // `numberOfLines`: 2 TYLKO gdy etykieta ma jawny `\n` (np. "DZIENNIE\n#JEDZENIE"
-              // w Finansach — to CELOWY dwuwiersz). Dla zwykłej jednowyrazowej nazwy
-              // kategorii (WODA/SŁODYCZE/ĆWICZENIA) wymuszamy 1 linię, żeby
-              // `adjustsFontSizeToFit` ZMNIEJSZAŁ czcionkę zamiast zawijać do brzydkiego
-              // drugiego wiersza z jedną sierotą-literą (user: "ĆWICZENIA wypierdzielaj
-              // się dziwnie", 2026-10-27).
+              // w Finansach — to CELOWY dwuwiersz).
+              //
+              // BEZ `adjustsFontSizeToFit` (2026-11-01, user: "ujednolić w streaku czcionki
+              // wszystkie pod wielkość napisu ĆWICZENIA") — auto-shrink skalował KAŻDY
+              // label NIEZALEŻNIE względem WŁASNEJ długości, więc krótkie "WODA" renderowało
+              // się dużo większe niż długie "ĆWICZENIA" w sąsiednim kaflu tego samego
+              // rzędu — niekonsekwentne mimo że to te same kafle w tym samym stylu. Jedna,
+              // stała wielkość (`s.label`'s fontSize, dociągnięta tak żeby "ĆWICZENIA" i tak
+              // się mieściło) zamiast per-kafel auto-skalowania.
               <Text
                 style={s.label}
                 numberOfLines={props.label.includes('\n') ? 2 : 1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.5}
               >
                 {props.label}
               </Text>
@@ -123,9 +125,11 @@ const makeS = themedStyles((c) => StyleSheet.create({
     textAlign: 'center',
     marginTop: -4,
   },
+  // fontSize dociągnięty żeby najdłuższy label w rzędzie ("ĆWICZENIA", 9 znaków)
+  // mieścił się BEZ auto-shrink — patrz komentarz przy użyciu wyżej.
   label: {
     fontFamily: 'Inter_900Black',
-    fontSize: 16,
+    fontSize: 11,
     textAlign: 'center',
     color: c.text.secondary,
   },

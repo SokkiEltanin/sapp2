@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Modal, View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { X, Receipt, Banknote, ClipboardPaste, Plus, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { X, Receipt, Banknote, ClipboardPaste, Plus, ChevronDown, ChevronUp, Trash2 } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { todayISO, ymd } from '@/utils/date';
@@ -49,10 +49,21 @@ const PAYER_CHOICES: { key: 'me' | 'partner'; label: string }[] = [
   { key: 'partner', label: 'Olesia' },
 ];
 
-export default function AddExpenseModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+export default function AddExpenseModal({
+  visible, onClose, editingExpense,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  // Edycja istniejącej transakcji (2026-11-01, user: "jak klikam w finanse w
+  // wydatek to nie ma edycji" — ten sam modal co dodawanie, tylko wstępnie
+  // wypełniony i zapisujący przez `updateExpense`, zero duplikacji formularza.
+  editingExpense?: Expense | null;
+}) {
   const s = makeS();
   const expenses = useExpensesStore((st) => st.expenses);
   const addExpense = useExpensesStore((st) => st.addExpense);
+  const updateExpense = useExpensesStore((st) => st.updateExpense);
+  const deleteExpense = useExpensesStore((st) => st.deleteExpense);
   const kb = useKeyboardHeight();
 
   // Pamięć produktowa (Faza 2.1, dotąd nieużywana — zamykany gap z Faza 2.2, user:
@@ -93,7 +104,30 @@ export default function AddExpenseModal({ visible, onClose }: { visible: boolean
     setPayer('me'); setPaidOpen(false); setFvChoice('auto'); setTags([]); setTagInput('');
   };
 
+  // Wypełnienie formularza przy otwarciu w trybie edycji — `editingExpense` jest
+  // propem rodzica, więc to NIE konflikt z `reset()` (woła tylko `handleClose`,
+  // który i tak zamyka modal — rodzic czyści swój `editingExpense` osobno).
+  useEffect(() => {
+    if (!visible || !editingExpense) return;
+    setType(editingExpense.type);
+    setItems(editingExpense.receiptItems ?? []);
+    setStoreName(editingExpense.storeName ?? '');
+    setNote(editingExpense.note ?? '');
+    setAmountInput(editingExpense.amount.toFixed(2));
+    setDate(editingExpense.date);
+    setPaymentMethod(editingExpense.paymentMethod ?? 'card');
+    setPayer(editingExpense.payer ?? 'me');
+    setFvChoice(editingExpense.fvOverride ?? 'auto');
+    setTags(editingExpense.tags ?? []);
+    setUsedPaste(editingExpense.source === 'receipt');
+  }, [visible, editingExpense]);
+
   const handleClose = () => { reset(); onClose(); };
+
+  const handleDelete = () => {
+    if (editingExpense) deleteExpense(editingExpense.id);
+    handleClose();
+  };
 
   // Rdzeń rozpoznawania, wspólny dla ręcznego "Rozpoznaj" i szybkiej wklejki ze
   // schowka (patrz `handlePasteFromClipboard` niżej) — żeby nie duplikować logiki.
@@ -155,8 +189,7 @@ export default function AddExpenseModal({ visible, onClose }: { visible: boolean
   const handleSave = () => {
     if (!canSave) return;
     const now = new Date().toISOString();
-    const expense: Expense = {
-      id: genId(),
+    const shared = {
       type,
       amount,
       date,
@@ -164,14 +197,16 @@ export default function AddExpenseModal({ visible, onClose }: { visible: boolean
       storeName: type === 'expense' && storeName.trim() ? storeName.trim() : undefined,
       tags,
       receiptItems: type === 'expense' && items.length > 0 ? items : undefined,
-      source: usedPaste ? 'receipt' : 'manual',
       fvOverride: type === 'expense' && fvChoice !== 'auto' ? fvChoice : null,
       paymentMethod: type === 'expense' ? paymentMethod : undefined,
       payer: type === 'expense' && payer !== 'me' ? payer : undefined,
-      createdAt: now,
-      updatedAt: now,
     };
-    addExpense(expense);
+    if (editingExpense) {
+      updateExpense(editingExpense.id, { ...shared, updatedAt: now });
+    } else {
+      const expense: Expense = { id: genId(), ...shared, source: usedPaste ? 'receipt' : 'manual', createdAt: now, updatedAt: now };
+      addExpense(expense);
+    }
     // Zapis = moment nauki (było całkowicie brakujące w Fazie 2.2 — pamięć
     // istniała, ale nic jej nigdy nie zasilało). Tylko pozycje z realną nazwą/
     // ceną, kaucje pominięte (nie są "produktem" o typowej cenie).
@@ -194,10 +229,19 @@ export default function AddExpenseModal({ visible, onClose }: { visible: boolean
             wędrował razem z resztą treści, nie chował się pod klawiaturą. */}
         <View style={[s.flex1, { paddingBottom: kb }]}>
           <View style={s.header}>
-            <Text style={s.title}>{type === 'expense' ? 'Nowy wydatek' : 'Nowy przychód'}</Text>
-            <TouchableOpacity onPress={handleClose} hitSlop={8} style={s.closeBtn}>
-              <X size={18} color={colors.text.secondary} />
-            </TouchableOpacity>
+            <Text style={s.title}>
+              {editingExpense ? 'Edytuj' : 'Nowy'} {type === 'expense' ? 'wydatek' : 'przychód'}
+            </Text>
+            <View style={s.headerActions}>
+              {editingExpense && (
+                <TouchableOpacity onPress={handleDelete} hitSlop={8} style={s.closeBtn}>
+                  <Trash2 size={16} color={colors.accent.red} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={handleClose} hitSlop={8} style={s.closeBtn}>
+                <X size={18} color={colors.text.secondary} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
@@ -428,7 +472,7 @@ export default function AddExpenseModal({ visible, onClose }: { visible: boolean
               <Text style={s.footerAmount}>{amount.toFixed(2)} zł</Text>
             </View>
             <TouchableOpacity style={[s.saveBtn, !canSave && s.btnDisabled]} onPress={handleSave} disabled={!canSave} activeOpacity={0.7}>
-              <Text style={s.saveLabel}>Zapisz</Text>
+              <Text style={s.saveLabel}>{editingExpense ? 'Zaktualizuj' : 'Zapisz'}</Text>
             </TouchableOpacity>
           </View>
 
@@ -451,6 +495,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
     paddingHorizontal: spacing[4], paddingVertical: spacing[3],
   },
   title: { fontSize: 20, fontFamily: 'Inter_900Black', color: c.text.primary },
+  headerActions: { flexDirection: 'row', gap: spacing[2] },
   closeBtn: {
     width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
     backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default,

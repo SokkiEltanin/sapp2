@@ -1670,3 +1670,69 @@ user zgłosi że te same pary wracają zbyt często.
 
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 135/135 zielone (6 nowych —
 `productCatalog.test.ts`), `npx expo export --platform android` bez błędów.
+
+## Runda poprawek 2 (2026-11-01) — 6 zgłoszeń po teście na urządzeniu
+
+1. **Finanse → edycja transakcji** — "Ostatnie transakcje" były statycznym
+   `View`em, tap nie robił nic. `AddExpenseModal` dostał nowy opcjonalny prop
+   `editingExpense?: Expense | null`: gdy ustawiony, formularz wypełnia się z
+   istniejącego wydatku, nagłówek "Edytuj wydatek/przychód" + kosz (usuwa przez
+   `deleteExpense`), "Zapisz" → "Zaktualizuj" (woła `updateExpense` zamiast
+   `addExpense`). `app/(tabs)/finances.tsx`: wiersz transakcji teraz
+   `TouchableOpacity`, tap ustawia `editingExpense` i otwiera TEN SAM modal co
+   FAB — zero duplikacji formularza.
+2. **Dashboard, kafel Zadań — wiersze się rozciągały** — `TaskListTile`'s
+   wiersze miały `flex: 1`, więc z REALNYMI danymi (często <4 zadania, nie
+   zawsze równo 4 jak w starym mocku) rozciągały się żeby wypełnić cały kafel —
+   2 zadania wyglądały ~2× grubsze niż powinny. Zmienione na STAŁĄ wysokość
+   (23.5 — przeliczone 1:1 z komentarza który już był w kodzie przy chipie
+   taga, TILE_ROW_HEIGHT=120 minus paddingi/odstępy /4) — teraz zawsze ten sam
+   rozmiar wiersza, reszta kafla pod nimi po prostu pusta gdy <4 zadania.
+   Usunięty też `adjustsFontSizeToFit` z tytułu zadania (user: "zawsze stały
+   tekst, który ewentualnie znika") — tytuł ma teraz STAŁY rozmiar czcionki,
+   za długi obcina się wielokropkiem (`numberOfLines={1}`), nie kurczy się.
+3. **StatTile — niekonsekwentne rozmiary etykiet w streaku** — `label` miał
+   `adjustsFontSizeToFit`, więc KAŻDY kafel skalował czcionkę niezależnie
+   względem WŁASNEJ treści — krótkie "WODA" renderowało się wyraźnie większe
+   niż długie "ĆWICZENIA" w tym samym rzędzie. Usunięty auto-shrink, fontSize
+   zmniejszony na stały `11` (dociągnięty tak żeby "ĆWICZENIA" mieściło się
+   bez kurczenia) — teraz wszystkie etykiety tego samego typu renderują się w
+   JEDNYM, stałym rozmiarze.
+4. **Kalendarz, widok miesiąca — tap dnia wywalał z powrotem do tygodnia** —
+   `MonthViewModal`'s `selectDay` zamykał SAM SIEBIE przy wyborze dnia, więc po
+   zamknięciu `DayDetailModal` user widział pod spodem WIDOK TYGODNIA (jedyny
+   zamontowany). Fix: `MonthViewModal` NIE zamyka się już przy wyborze dnia —
+   oba modale (ten + `DayDetailModal`) to niezależne `Modal`-e, mogą być
+   widoczne naraz jeden na drugim, więc po zamknięciu szczegółów dnia user
+   wraca do MIESIĄCA, tak jak już działało dla tygodnia. Kolory lekko
+   poprawione (user: "zbyt szarawiaste") — domyślny kolor chipa wydarzenia bez
+   przypisanego koloru zmieniony z płaskiego szarego na `accent.blue`,
+   obwódka na komórce "dziś", jaśniejsze etykiety dni tygodnia.
+5. **ReceiptItemRow — pole nazwy nie wyglądało jak edytowalne** — BYŁO już
+   edytowalnym `TextInput`em, ale bez tła/obwódki wyglądało jak zwykły,
+   statyczny tekst (w odróżnieniu od pól liczbowych niżej, które MIAŁY tło) —
+   user: "nie mogę edytować... jak kliknę chcę mieć edycję". Dodane to samo
+   tło/obwódka co pola liczbowe, teraz wizualnie oczywiste że to pole do
+   kliknięcia.
+6. **Zaokrąglanie liczb pozycji paragonu** — wagowe produkty (owoce/warzywa)
+   czasem dawały długie, zaszumione floaty po przeliczeniu. Dodana funkcja
+   `round(n, dp)` w `ReceiptItemRow.tsx`: `quantity` zaokrąglane do 3 miejsc
+   (waga w kg), `unitPrice`/`price` do 2 (złotówki) — i przy EDYCJI (w `setNum`)
+   i przy WYŚWIETLANIU (defensywnie, na wszelki wypadek gdyby coś długiego
+   przeszło inną ścieżką).
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**:
+- Finanse → tap na transakcję z listy → otwiera się wypełniony formularz,
+  zmiana czegokolwiek + "Zaktualizuj" → zmiana widoczna na liście. Kosz w
+  nagłówku → usuwa i wraca.
+- Dashboard → kafel Zadań z 1-3 realnymi zadaniami → wiersze powinny być
+  SMUKŁE (nie grube), reszta kafla pusta/czarna pod nimi.
+- Streak (rząd 1 Dashboardu) → WODA/SŁODYCZE/ĆWICZENIA powinny mieć teksty
+  tej samej wielkości.
+- Zadania → otwórz miesiąc → kliknij dzień → zamknij szczegóły dnia →
+  powinieneś wrócić do WIDOKU MIESIĄCA, nie tygodnia.
+- Paragon z owocami/warzywami na wagę → cena/ilość powinny mieć max 2-3 miejsca
+  po przecinku, nie długi ciąg cyfr.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 135/135 zielone,
+`npx expo export --platform android` bez błędów.

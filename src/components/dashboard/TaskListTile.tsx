@@ -66,13 +66,17 @@ function TagChip({ tag }: { tag: TaskTag }) {
   );
 }
 
+// `numberOfLines` BEZ `adjustsFontSizeToFit` (2026-11-01, user: "zawsze stały
+// tekst, który ewentualnie znika" — ten sam tekst-rozmiar w KAŻDYM wierszu,
+// za długi tytuł obcina się wielokropkiem, NIE kurczy czcionkę per-wiersz
+// (auto-shrink robił różne wiersze różnej wielkości tekstu naraz, niekonsekwentnie).
 function TaskRow({ task, isLast }: { task: Task; isLast: boolean }) {
   const s = makeS();
   return (
     <View style={[s.row, !isLast && s.rowGap]}>
       <View style={s.rowContent}>
         <TagChip tag={task.tag} />
-        <Text style={s.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
+        <Text style={s.title} numberOfLines={1}>
           {task.title}
         </Text>
       </View>
@@ -113,7 +117,15 @@ const makeS = themedStyles((c) => StyleSheet.create({
   // przycina pierwszy/ostatni wiersz do właściwego kształtu automatycznie. Tło wiersza
   // PŁASKIE `c.bg.card` (2026-10-30, redesign — usunięty kolorowany gradient fade, patrz
   // komentarz przy imporcie).
-  row: { flex: 1, borderRadius: 10, overflow: 'hidden', backgroundColor: c.bg.card },
+  //
+  // WYSOKOŚĆ STAŁA, nie `flex: 1` (2026-11-01, user: "zjebałeś zadania kafelek...
+  // mają być od góry stałe wymiary kafelków nie rozciągnięte" — z realnymi danymi
+  // liczba zadań bywa <4, a `flex:1` rozciągał WIERSZE żeby wypełnić cały kafel,
+  // więc 2 zadania wyglądały 2× za grube. Stała wysokość = ten sam rozmiar wiersza
+  // niezależnie od tego ile zadań akurat jest, reszta kafla pod nimi zostaje po
+  // prostu pusta/przezroczysta. Liczona 1:1 jak TaskRow.tsx's komentarz przy chipie:
+  // (TILE_ROW_HEIGHT=120 − padding kafla 4×2 − 3 odstępy 6px) / 4 ≈ 23.5.
+  row: { height: 23.5, borderRadius: 10, overflow: 'hidden', backgroundColor: c.bg.card },
   rowGap: { marginBottom: 6 },
   rowContent: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing[2],

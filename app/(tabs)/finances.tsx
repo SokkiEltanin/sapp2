@@ -11,6 +11,7 @@ import ProductsModal from '@/components/finances/ProductsModal';
 import { useExpensesStore } from '@/store/expensesStore';
 import { getBalanceOffset, setBalanceOffset, accountBalance } from '@/utils/balance';
 import { buildProductCatalog } from '@/utils/productCatalog';
+import type { Expense } from '@/types/finances';
 
 // Faza 2.2 (2026-10-31) — FAB "dodaj" podpięty (rozstrzygnięcie "Kolizja lewy dolny
 // róg" z NEXT_STEPS.md: ten sam wzorzec co Zadania, patrz tasks.tsx), "Ostatnie
@@ -29,6 +30,7 @@ export default function FinancesScreen() {
   const s = makeS();
   const expenses = useExpensesStore((st) => st.expenses);
   const [addOpen, setAddOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [productsOpen, setProductsOpen] = useState(false);
   const [offset, setOffset] = useState(0);
   const [editingBalance, setEditingBalance] = useState(false);
@@ -75,7 +77,12 @@ export default function FinancesScreen() {
             <Text style={s.empty}>Brak transakcji — dodaj pierwszą przyciskiem +.</Text>
           ) : (
             recent.map((e, i) => (
-              <View key={e.id} style={[s.txRow, i < recent.length - 1 && s.txRowDivider]}>
+              <TouchableOpacity
+                key={e.id}
+                style={[s.txRow, i < recent.length - 1 && s.txRowDivider]}
+                onPress={() => setEditingExpense(e)}
+                activeOpacity={0.7}
+              >
                 <View style={s.txInfo}>
                   <Text style={s.txNote} numberOfLines={1}>{e.storeName || e.note || (e.type === 'income' ? 'Przychód' : 'Wydatek')}</Text>
                   <Text style={s.txDate}>{e.date}</Text>
@@ -83,7 +90,7 @@ export default function FinancesScreen() {
                 <Text style={[s.txAmount, e.type === 'income' && s.txAmountIncome]}>
                   {e.type === 'income' ? '+' : '−'}{e.amount.toFixed(2)} zł
                 </Text>
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </View>
@@ -110,7 +117,11 @@ export default function FinancesScreen() {
         <Plus size={22} color={colors.bg.primary} />
       </TouchableOpacity>
 
-      <AddExpenseModal visible={addOpen} onClose={() => setAddOpen(false)} />
+      <AddExpenseModal
+        visible={addOpen || !!editingExpense}
+        onClose={() => { setAddOpen(false); setEditingExpense(null); }}
+        editingExpense={editingExpense}
+      />
       <ProductsModal visible={productsOpen} onClose={() => setProductsOpen(false)} />
 
       <Modal visible={editingBalance} transparent animationType="fade" onRequestClose={() => setEditingBalance(false)}>

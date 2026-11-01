@@ -71,7 +71,14 @@ export default function MonthViewModal({
 
   const shiftMonth = (delta: number) => setMonthCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
   const jumpToToday = () => { setMonthCursor(new Date()); onSelectDate(today); };
-  const selectDay = (dateYMD: string) => { onSelectDate(dateYMD); onOpenDay(dateYMD); onClose(); };
+  // NIE zamyka modala miesiąca (2026-11-01, user: "po kliknięciu w dzień... wywala
+  // mi z powrotem do tyg[odnia]" — zamykanie tego popupu przy wyborze dnia
+  // oznaczało że po zamknięciu `DayDetailModal` user widział z powrotem WIDOK
+  // TYGODNIA pod spodem, bo to jedyny co zostawał zamontowany. Oba modale (ten i
+  // `DayDetailModal`) są niezależnymi `Modal`-ami — mogą być widoczne naraz, jeden
+  // na drugim — więc zostawiamy ten otwarty, user wraca do miesiąca po zamknięciu
+  // szczegółów dnia, tak jak w tygodniu.
+  const selectDay = (dateYMD: string) => { onSelectDate(dateYMD); onOpenDay(dateYMD); };
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
@@ -112,13 +119,13 @@ export default function MonthViewModal({
                 const overflow = dayEvents.length - MAX_CHIPS_PER_CELL;
                 return (
                   <TouchableOpacity key={j} style={s.cellSlot} onPress={() => selectDay(dateYMD)} activeOpacity={0.7}>
-                    <View style={[s.cell, isSelected && s.cellSelected]}>
+                    <View style={[s.cell, isToday && s.cellToday, isSelected && s.cellSelected]}>
                       <View style={[s.dayNumWrap, isToday && s.dayNumToday]}>
                         <Text style={[s.dayNum, isToday && s.dayNumTextToday]}>{d.getDate()}</Text>
                       </View>
                       <View style={s.chips}>
                         {dayEvents.slice(0, MAX_CHIPS_PER_CELL).map((ev) => (
-                          <View key={ev.id} style={[s.chip, { backgroundColor: ev.color ?? colors.chart.muted }]}>
+                          <View key={ev.id} style={[s.chip, { backgroundColor: ev.color ?? colors.accent.blue }]}>
                             <Text style={s.chipLabel} numberOfLines={1}>{ev.title}</Text>
                           </View>
                         ))}
@@ -152,12 +159,19 @@ const makeS = themedStyles((c) => StyleSheet.create({
   },
 
   weekLabelRow: { flexDirection: 'row', paddingHorizontal: spacing[3] + 2 },
-  weekLabel: { flex: 1, textAlign: 'center', fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase' },
+  // `text.secondary` zamiast `text.muted` (2026-11-01, user: "popraw kolory pod
+  // nasz motyw bo sa chyba zbyt szarawiaste") — odrobinę więcej kontrastu na tle
+  // czystej czerni, ten sam zabieg co `cellToday`/akcentowe chipy niżej.
+  weekLabel: { flex: 1, textAlign: 'center', fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.secondary, textTransform: 'uppercase' },
 
   scroll: { paddingHorizontal: spacing[3], paddingBottom: spacing[6] },
   weekRow: { flexDirection: 'row' },
   cellSlot: { flex: 1, minHeight: 86, padding: 2 },
   cell: { flex: 1, borderRadius: radius.md, padding: 4, gap: 3 },
+  // Subtelna, jaśniejsza obwódka dla "dziś" (zamiast tylko białego kółka na numerze
+  // dnia, łatwo zgubionego przy przewijaniu) — user: "popraw kolory... zbyt
+  // szarawiaste".
+  cellToday: { borderWidth: 1, borderColor: c.text.bright + '55' },
   cellSelected: { backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default },
   dayNumWrap: { width: 20, height: 20, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
   dayNumToday: { backgroundColor: c.text.bright },

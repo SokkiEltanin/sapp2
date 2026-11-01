@@ -7,6 +7,16 @@ import type { ReceiptItem } from '@/types/finances';
 import { FOOD_SUBCATS, FOOD_SUBCAT_META } from '@/utils/food';
 import { suggestSimilarName, priceFor, priceAnomaly, type PriceMemory } from '@/utils/productMemory';
 
+// Zaokrąglenie DO WYŚWIETLENIA (user, 2026-11-01: "z owoców przeliczyło i
+// wywaliło dużo liczb po przecinku... max 3 po przecinku") — wagi (owoce/warzywa
+// na sztuki/kg) i ceny-po-przeliczeniu bywają długimi floatami (szum
+// zmiennoprzecinkowy z dzielenia przy parsowaniu wagi). `quantity` = 3 miejsca
+// (waga w kg potrzebuje tej precyzji), `unitPrice`/`price` = 2 (złotówki/grosze).
+const round = (n: number, dp: number): number => {
+  const f = 10 ** dp;
+  return Math.round(n * f) / f;
+};
+
 // Wiersz pozycji paragonu — współdzielony przez tryb "wklej paragon" (sparsowane
 // pozycje, część z nich `suspect` po `receiptParser.ts`) i "dodaj ręcznie" (świeże,
 // puste pozycje). Checkbox z LEWEJ = "licz się do sumy" (odznaczony domyślnie dla
@@ -57,10 +67,10 @@ export default function ReceiptItemRow({
   const setNum = (field: 'quantity' | 'unitPrice' | 'price', raw: string) => {
     const n = parseFloat(raw.replace(',', '.'));
     const v = isNaN(n) ? 0 : n;
-    if (field === 'price') { onChange({ price: v }); return; }
-    const quantity = field === 'quantity' ? v : item.quantity;
-    const unitPrice = field === 'unitPrice' ? v : item.unitPrice;
-    onChange({ quantity, unitPrice, price: Math.round(quantity * unitPrice * 100) / 100 });
+    if (field === 'price') { onChange({ price: round(v, 2) }); return; }
+    const quantity = round(field === 'quantity' ? v : item.quantity, 3);
+    const unitPrice = round(field === 'unitPrice' ? v : item.unitPrice, 2);
+    onChange({ quantity, unitPrice, price: round(quantity * unitPrice, 2) });
   };
 
   const submitDiscount = () => {
@@ -107,21 +117,21 @@ export default function ReceiptItemRow({
 
       <View style={s.numLine}>
         <TextInput
-          value={String(item.quantity)}
+          value={String(round(item.quantity, 3))}
           onChangeText={(v) => setNum('quantity', v)}
           keyboardType="decimal-pad"
           style={s.numInput}
         />
         <Text style={s.numSep}>×</Text>
         <TextInput
-          value={String(item.unitPrice)}
+          value={String(round(item.unitPrice, 2))}
           onChangeText={(v) => setNum('unitPrice', v)}
           keyboardType="decimal-pad"
           style={s.numInput}
         />
         <Text style={s.numSep}>=</Text>
         <TextInput
-          value={String(item.price)}
+          value={String(round(item.price, 2))}
           onChangeText={(v) => setNum('price', v)}
           keyboardType="decimal-pad"
           style={[s.numInput, s.priceInput]}
@@ -191,7 +201,14 @@ const makeS = themedStyles((c) => StyleSheet.create({
   rowDeposit: { opacity: 0.75 },
   rowExcluded: { opacity: 0.45 },
   topLine: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  nameInput: { flex: 1, fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary, paddingVertical: 2 },
+  // Tło/obwódka jak `numInput` (2026-11-01, user: "nie mogę edytować poszczególnych
+  // co złapało, jak kliknę chcę mieć edycję" — pole BYŁO już edytowalne, ale bez
+  // żadnego tła/ramki wyglądało jak zwykły, statyczny tekst, nie coś klikalnego).
+  nameInput: {
+    flex: 1, fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary,
+    backgroundColor: c.bg.card, borderRadius: radius.sm, borderWidth: 1, borderColor: c.border.default,
+    paddingHorizontal: spacing[2], paddingVertical: 4,
+  },
   textMuted: { color: c.text.muted, textDecorationLine: 'line-through' },
   suggestionRow: { paddingLeft: spacing[5], paddingBottom: 2 },
   suggestionText: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted },
