@@ -121,9 +121,12 @@ po pełny opis co realne/co stub.
 **Faza 3.4 (Finanse, główny ekran) — ZROBIONA (2026-11-01, "dawaj skończ
 wszystko")**, patrz §FINANSE niżej. Popupy świadomie bez zmian (ciąg dalej).
 
-**Następne fazy (3.5+)** — Zadania (`WeekStrip`, `Segmented` zamiast obecnego UI)
-→ Ustawienia → bottom-sheet-yfikacja istniejących popupów Finansów (osobna,
-jeszcze nieumówiona faza, patrz §FINANSE). "Płatności cykliczne" (store `bills`,
+**Faza 3.5 (Zadania) — ZROBIONA (2026-11-01, "dawaj skończ wszystko")**, patrz
+§ZADANIA niżej.
+
+**Następne fazy (3.6+)** — Ustawienia → bottom-sheet-yfikacja istniejących
+popupów Finansów/Zadań (osobna, jeszcze nieumówiona faza, patrz §FINANSE).
+"Płatności cykliczne" (store `bills`,
 odblokuje pełne "Bezpieczne wydatki"/"Najbliższe 48h" z Fazy 3.2 i "Praca"/
 "Najbliższa opłata" z Fazy 3.4) potrzebuje osobnej, uczciwej fazy — dziś stub
 `Tile` w miejsce Subskrypcji/Pracy/bills, nie udawane na żadnym ekranie.
@@ -262,6 +265,22 @@ opcjonalnym tekstem, zapisywanym w formie pamiętnika DZIEŃ DATA")
   claimMonthly` — NIE zaczynać od zera.
 
 ## ZADANIA [GE]
+
+**Przebudowany na nowy system komponentów (Faza 3.5, 2026-11-01)** — układ z
+`design/app-design.html`'s `#tasks` (4 kolumny, `grid-template-rows: auto auto
+1fr`): WeekStrip → agenda wybranego dnia (glance, max 3) → lista zadań (JEDEN
+aktywny `Segmented` segment naraz, + przycisk "+" INLINE przy segmencie — nie
+floating FAB jak wcześniej, spec pokazuje przycisk w tej samej karcie co lista).
+Ekran PRZESTAŁ być `ScrollView`-owy (był kolejnym, po Daily, głównym ekranem ze
+scrollem).
+
+**`WeekMonthCalendar.tsx`/`TaskRow.tsx`/`DayDetailModal.tsx` BEZ ZMIAN** — już
+matchowały spec koncepcyjnie (7-kolumnowy tydzień z chipami wydarzeń per dzień =
+dokładnie `WeekStrip`). Widok miesiąca (popup) to realna, poza-spec funkcja
+zachowana — ten sam traktowanie co "Produkty" w Finansach. `AddTaskCard.tsx` —
+kontrakt bez zmian, ale teraz OPAKOWANY w `Modal` (wzorzec balance-edit z
+finances.tsx) zamiast inline-renderować się w scrollu, który już nie istnieje —
+otwiera go teraz przycisk "+" przy `Segmented`, nie floating FAB.
 
 **UI zbudowane (2026-10-30, Faza 1b)** — `app/(tabs)/tasks.tsx` + 3 komponenty w
 `src/components/tasks/`:

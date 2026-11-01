@@ -2226,3 +2226,30 @@ konsumentem).
 
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone, `npx expo
 export --platform android` bez błędów.
+
+## Redesign rdzenia UI — Faza 3.5 "Zadania" UKOŃCZONA (2026-11-01)
+
+User: "dawaj skończ wszystko". Zadania przebudowane na nowy grid (był kolejnym,
+po Daily, głównym ekranem ze scrollem — teraz nieprzewijalny). WeekStrip →
+agenda wybranego dnia (glance max 3, tap→pełny popup) → lista zadań (JEDEN
+segment naraz, `Segmented` Teraz/Terminowe/Bez terminu + przycisk "+" inline
+przy segmencie, zamiast floating FAB).
+
+`WeekMonthCalendar.tsx`/`TaskRow.tsx`/`DayDetailModal.tsx` bez zmian (już
+matchowały spec). `AddTaskCard.tsx` teraz w `Modal` (wzorzec balance-edit z
+Finansów) zamiast inline w scrollu.
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**:
+- Zadania nie powinny się scrollować.
+- Tap na dzień w WeekStrip → zmienia agendę (rząd 2) ORAZ otwiera pełny popup
+  dnia (bez zmian funkcjonalnych).
+- Segmented (Teraz/Terminowe/Bez terminu) → przełącza listę w rzędzie 3,
+  liczniki przy etykietach powinny być realne.
+- "+" przy segmencie → otwiera formularz dodawania w modalu (wcześniej:
+  inline w scrollu) — dodanie zadania powinno działać identycznie jak
+  wcześniej, tylko w innym kontenerze.
+- `FitList` na liście zadań — dociąga tyle wierszy ile się zmieści (ten sam
+  test jak Dashboard/Finanse).
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone, `npx expo
+export --platform android` bez błędów.

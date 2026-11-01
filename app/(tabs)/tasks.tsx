@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, X } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
+import Tile from '@/components/design/Tile';
+import Row from '@/components/design/Row';
+import Segmented from '@/components/design/Segmented';
+import FitList from '@/components/design/FitList';
 import { useCalendarStore } from '@/store/calendarStore';
 import { todayISO } from '@/utils/date';
 import { eventCoversDay, type Task } from '@/types/calendar';
@@ -13,32 +17,19 @@ import TaskRow from '@/components/tasks/TaskRow';
 import AddTaskCard from '@/components/tasks/AddTaskCard';
 import DayDetailModal from '@/components/tasks/DayDetailModal';
 
-// Faza 1b (2026-10-30, user: "Kalendarza tez nie ogarnąłeś... w zakladce nie widac
-// niczego ani zadan ani kalendarza podpiętego") — REALNE UI podpięte pod `calendarStore`
-// (warstwa danych z Fazy 1a, już przetestowana w Ustawieniach → Diagnostyka → "Sync
-// kalendarza"), nie szkielet/zaślepka. Zadania (CRUD) — offline-first, leci TYLKO przez
-// `useCalendarStore` (AsyncStorage, persystuje między uruchomieniami appki) — ŚWIADOMIE
-// bez auto-synchronizacji ZAPISÓW do Firestore/Google Calendar przy każdej akcji z tego
-// ekranu (pełen dwukierunkowy sync przy każdym CRUD to oddzielny kawałek pracy — patrz
-// NEXT_STEPS.md). Kalendarz (widok) — ODCZYT z Google Calendar JEST automatyczny (patrz
-// `useEffect`/`fetchEvents` niżej, dodane 2026-10-30 po tym jak user zauważył brak
-// eventów) — to jednokierunkowe pociąganie do wyświetlenia, nie pełny sync zapisu.
+// Faza 3.5 (2026-11-01, "dawaj skończ wszystko") — Zadania przebudowane na nowy
+// grid, układ z design/app-design.html's `#tasks` (4 kolumny, `grid-template-rows:
+// auto auto 1fr`): WeekStrip → agenda wybranego dnia → lista zadań (JEDEN
+// aktywny segment na raz, `Segmented` Teraz/Terminowe/Bez terminu, + przycisk
+// inline, NIE floating FAB jak wcześniej — spec pokazuje przycisk "+" PRZY
+// segmencie, w tej samej karcie co lista, nie pływający w rogu).
 //
-// Kategoryzacja TERAZ/TERMINOWE/BEZTERMINOWE — jedno pole `deadline` napędza wszystko
-// (patrz AddTaskCard.tsx): `deadline <= dziś` → TERAZ (aktywne/zaległe), `deadline` w
-// przyszłości → TERMINOWE, brak `deadline` → BEZTERMINOWE. `status: 'done'` znika z
-// listy (checkbox w TaskRow) — brak osobnej sekcji "ukończone" na razie, jeśli user
-// zechce historię ukończonych zadań to osobna, świadoma decyzja, nie zgadywanie teraz.
-const SECTIONS = [
-  { key: 'teraz', title: 'Teraz', hint: 'Brak aktywnych zadań na dziś.' },
-  { key: 'terminowe', title: 'Terminowe', hint: 'Brak zadań z terminem.' },
-  { key: 'bezterminowe', title: 'Bezterminowe', hint: 'Brak zadań bez terminu.' },
-] as const;
-
-function genId(): string {
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-}
-
+// `WeekMonthCalendar.tsx`/`TaskRow.tsx`/`DayDetailModal.tsx` BEZ ZMIAN — już
+// matchują spec koncepcyjnie (7-kolumnowy tydzień z chipami wydarzeń = dokładnie
+// `WeekStrip`; miesiąc-popup to realna, poza-spec funkcja zachowana jak
+// "Produkty" w Finansach). `AddTaskCard.tsx` — kontrakt `visible`/`onClose` bez
+// zmian, ale teraz OPAKOWANY w `Modal` (ten sam wzorzec co balance-edit w
+// finances.tsx) zamiast inline-renderować się w scrollu, który już nie istnieje.
 export default function TasksScreen() {
   const s = makeS();
   const tasks = useCalendarStore((st) => st.tasks);
@@ -53,18 +44,8 @@ export default function TasksScreen() {
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [detailDate, setDetailDate] = useState<string | null>(null);
+  const [segment, setSegment] = useState<'teraz' | 'terminowe' | 'bezterminowe'>('teraz');
 
-  // Pociąganie realnych wydarzeń z Google Calendar (2026-10-30, user: "nie widzę
-  // żadnych eventow w kalendarzu zaciagnietych z googla jak wcześniej w sapp") — brakowało
-  // tego w ogóle, `gcalEvents` w `calendarStore` nigdy nie było wypełniane poza ręcznym
-  // testem w Diagnostyce (który od razu kasuje swój event). Login appki
-  // (`src/services/googleAuth.ts`) już prosi o scope `calendar.events`, więc token do
-  // odczytu powinien być dostępny bez dodatkowego logowania. Cichy fallback do pustej
-  // listy gdy brak tokenu (np. appka nigdy nie miała świeżej natywnej sesji Google) —
-  // `googleCalendarService.fetchEvents` już to obsługuje, nic dodatkowego tu nie trzeba.
-  // `gcalEvents` CELOWO nie jest trwałe w AsyncStorage (`calendarStore` partialize) —
-  // zawsze świeże przy wejściu na ekran, nie przy starcie appki (Dashboard jeszcze nie
-  // czyta prawdziwych eventów).
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -77,12 +58,6 @@ export default function TasksScreen() {
   const today = todayISO();
   const allEvents = useMemo(() => [...events, ...gcalEvents], [events, gcalEvents]);
 
-  // Kafelki wydarzeń NA ŻĄDANIE, nie na stałe pod kalendarzem (2026-10-30, user
-  // podesłał Samsung Calendar: "dopiero po kliknięciu w dzień niech się otwiera jak
-  // tam... a tak to zadania pod spodem tylko bo one są ważne") — `detailDate` ustawia
-  // WeekMonthCalendar'owy `onOpenDay`, modal pokazuje się tylko gdy niepuste. Sort:
-  // wydarzenia bez konkretnej godziny (`startTime` puste → '') najpierw, potem
-  // rosnąco po czasie, tak samo jak sapp's `MonthModal`.
   const detailDateEvents = useMemo(
     () => (detailDate
       ? allEvents
@@ -91,6 +66,19 @@ export default function TasksScreen() {
       : []),
     [allEvents, detailDate],
   );
+
+  // Agenda inline (glance, max 3) dla dnia WYBRANEGO w WeekStrip — tap na wiersz
+  // albo na cały kafel otwiera `DayDetailModal` z pełną listą (ten sam podział
+  // "podgląd na ekranie / pełny popup" co Dashboard robi dla Jedzenia.
+  const agendaDate = selectedDate || today;
+  const agendaEvents = useMemo(
+    () => allEvents
+      .filter((e) => eventCoversDay(e, agendaDate))
+      .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? '')),
+    [allEvents, agendaDate],
+  );
+  const agendaDateObj = new Date(`${agendaDate}T00:00:00`);
+  const agendaLabel = agendaDateObj.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
 
   const buckets = useMemo(() => {
     const pending = tasks.filter((t) => t.status === 'pending');
@@ -108,6 +96,8 @@ export default function TasksScreen() {
     bezterminowe.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return { teraz, terminowe, bezterminowe };
   }, [tasks, today]);
+
+  const activeList = buckets[segment];
 
   const handleAdd = (input: { title: string; tags: string[]; deadline?: string }) => {
     const now = new Date().toISOString();
@@ -132,7 +122,9 @@ export default function TasksScreen() {
       <View style={s.header}>
         <Text style={s.title}>Zadania</Text>
       </View>
-      <ScrollView contentContainerStyle={s.scroll}>
+
+      <View style={s.content}>
+        {/* Rząd 1 (auto): WeekStrip — komponent bez zmian */}
         <WeekMonthCalendar
           events={allEvents}
           selectedDate={selectedDate}
@@ -140,52 +132,64 @@ export default function TasksScreen() {
           onOpenDay={setDetailDate}
         />
 
-        <AddTaskCard visible={composerOpen} onAdd={handleAdd} onClose={() => setComposerOpen(false)} />
+        {/* Rząd 2 (auto): agenda wybranego dnia, glance max 3 */}
+        <Tile style={s.agendaTile} variant="static">
+          <TouchableOpacity style={s.capRow} onPress={() => setDetailDate(agendaDate)} activeOpacity={0.6}>
+            <Text style={s.capLabel} numberOfLines={1}>{agendaLabel.toUpperCase()}</Text>
+            <Text style={s.capUnit}>{agendaEvents.length} wydarz.</Text>
+          </TouchableOpacity>
+          {agendaEvents.length === 0 ? (
+            <Text style={s.emptyInline}>Wolne</Text>
+          ) : (
+            agendaEvents.slice(0, 3).map((ev) => (
+              <Row
+                key={ev.id}
+                height={36}
+                onPress={() => setDetailDate(agendaDate)}
+                left={<View style={[s.bar4, { backgroundColor: ev.color ?? colors.chart.muted }]} />}
+                label={ev.title}
+                right={ev.startTime ? <Text style={s.agendaTime}>{ev.startTime}</Text> : undefined}
+              />
+            ))
+          )}
+        </Tile>
 
-        {SECTIONS.map((section) => {
-          const list = buckets[section.key];
-          return (
-            <View key={section.key} style={s.section}>
-              <Text style={s.sectionTitle}>
-                {section.title}{list.length > 0 ? ` (${list.length})` : ''}
-              </Text>
-              <View style={s.card}>
-                {list.length === 0 ? (
-                  <Text style={s.empty}>{section.hint}</Text>
-                ) : (
-                  list.map((t, i) => (
-                    <TaskRow
-                      key={t.id}
-                      task={t}
-                      isLast={i === list.length - 1}
-                      onToggleDone={handleToggleDone}
-                      onDelete={deleteTask}
-                    />
-                  ))
-                )}
-              </View>
-            </View>
-          );
-        })}
-      </ScrollView>
+        {/* Rząd 3 (flex): lista zadań (jeden segment) + Segmented + "+" */}
+        <Tile style={[s.listTile, s.rowFlex1]} variant="static">
+          <FitList
+            data={activeList}
+            itemHeight={56}
+            gap={spacing[1]}
+            keyExtractor={(t) => t.id}
+            empty={<Text style={s.emptyInline}>Pusto</Text>}
+            renderItem={(t) => (
+              <TaskRow key={t.id} task={t} isLast onToggleDone={handleToggleDone} onDelete={deleteTask} />
+            )}
+          />
+          <View style={s.bottomRow}>
+            <Segmented
+              options={[
+                { key: 'teraz', label: 'Teraz', count: buckets.teraz.length },
+                { key: 'terminowe', label: 'Terminowe', count: buckets.terminowe.length },
+                { key: 'bezterminowe', label: 'Bez terminu', count: buckets.bezterminowe.length },
+              ]}
+              activeKey={segment}
+              onChange={(k) => setSegment(k as typeof segment)}
+            />
+            <TouchableOpacity style={s.addBtn} onPress={() => setComposerOpen(true)} activeOpacity={0.8}>
+              <Plus size={18} color={colors.bg.primary} />
+            </TouchableOpacity>
+          </View>
+        </Tile>
+      </View>
 
-      {/* FAB zamiast pełnoszerokościowego przycisku "+ Nowe zadanie" w scrollu
-          (2026-10-30, user: "zależy nam na przestrzeni... chcę mieć zamiast tam
-          przycisk w prawym nad navbarem") — pływa nad zawartością w rogu ekranu, nie
-          zajmuje stałego miejsca na liście. `bottom`/`right` liczone względem TEGO
-          ekranu (SafeAreaView), NIE całego okna — TabBar w app/(tabs)/_layout.tsx
-          jest osobnym, sąsiednim elementem flex pod `<Tabs>`, więc "dół ekranu" tutaj
-          już kończy się TUŻ NAD navbarem, bez potrzeby doliczania jego wysokości. */}
-      <TouchableOpacity
-        style={s.fab}
-        onPress={() => setComposerOpen((v) => !v)}
-        activeOpacity={0.8}
-        accessibilityLabel={composerOpen ? 'Zamknij dodawanie zadania' : 'Nowe zadanie'}
-      >
-        {composerOpen
-          ? <X size={22} color={colors.bg.primary} />
-          : <Plus size={22} color={colors.bg.primary} />}
-      </TouchableOpacity>
+      <Modal visible={composerOpen} transparent animationType="fade" onRequestClose={() => setComposerOpen(false)}>
+        <Pressable style={s.backdrop} onPress={() => setComposerOpen(false)}>
+          <Pressable style={s.composerWrap} onPress={(e) => e.stopPropagation()}>
+            <AddTaskCard visible onAdd={handleAdd} onClose={() => setComposerOpen(false)} />
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <DayDetailModal
         visible={!!detailDate}
@@ -197,26 +201,33 @@ export default function TasksScreen() {
   );
 }
 
+function genId(): string {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
 const makeS = themedStyles((c) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.bg.primary },
   header: { paddingHorizontal: spacing[4], paddingVertical: spacing[3] },
-  title: { fontSize: 22, fontFamily: 'Inter_900Black', color: c.text.primary },
-  scroll: { paddingHorizontal: spacing[4], paddingBottom: spacing[8] },
-  section: { marginBottom: spacing[4] },
-  sectionTitle: {
-    fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.secondary,
-    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing[2],
+  title: { fontSize: 22, fontFamily: 'Inter_900Black', letterSpacing: -0.5, color: c.text.bright },
+  content: { flex: 1, paddingHorizontal: spacing[3], gap: spacing[2] },
+  rowFlex1: { flex: 1 },
+
+  capRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  capLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.4, color: c.text.primary, flex: 1, marginRight: spacing[2] },
+  capUnit: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
+
+  agendaTile: { gap: spacing[1] },
+  emptyInline: { fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', paddingVertical: spacing[2] },
+  bar4: { width: 3, height: 14, borderRadius: 2, flexShrink: 0 },
+  agendaTime: { fontSize: 10.5, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },
+
+  listTile: { gap: spacing[2] },
+  bottomRow: { flexDirection: 'row', gap: spacing[2], alignItems: 'center' },
+  addBtn: {
+    width: 48, height: 48, borderRadius: radius.btn, backgroundColor: c.text.bright,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  fab: {
-    position: 'absolute', right: spacing[4], bottom: spacing[4],
-    width: 52, height: 52, borderRadius: radius.full, backgroundColor: c.text.bright,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
-    elevation: 6,
-  },
-  card: {
-    backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default,
-    overflow: 'hidden',
-  },
-  empty: { fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.muted, padding: spacing[4], textAlign: 'center' },
+
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: spacing[4] },
+  composerWrap: {},
 }));
