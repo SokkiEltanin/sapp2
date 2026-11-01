@@ -12,9 +12,8 @@ import { spacing, themedStyles } from '@/theme';
 import { useCalendarStore } from '@/store/calendarStore';
 import { useExpensesStore } from '@/store/expensesStore';
 import { todayISO } from '@/utils/date';
-import {
-  foodByMonth, foodDailyAverageThisMonth, foodByWeekOfMonth, foodByCategory, MONTH_FULL,
-} from '@/utils/foodStats';
+import { foodByMonth, foodDailyAverageThisMonth } from '@/utils/foodStats';
+import { useWydatkiData } from '@/hooks/useWydatkiData';
 
 // Pierwsze cztery rzędy prawdziwego Dashboardu (2026-10-26) wg mockupów usera:
 // rząd 1 — STREAK WODA > STREAK SŁODYCZE > INCOMING EVENT > STREAK ĆWICZENIA (kafle
@@ -53,9 +52,13 @@ import {
 // renderowały stałe MOCK_FOOD_* z 2026-10-30 i nigdy nie reagowały na realnie
 // dodawane paragony, co czytało się jako "nie ma go"). Teraz liczone z
 // `useExpensesStore` przez `utils/foodStats.ts` (oparte na `fvSplitOf`, patrz
-// ARCHITECTURE.md §FINANSE) — patrz `foodColumns`/`wydatki` w komponencie niżej.
+// ARCHITECTURE.md §FINANSE) — patrz `foodColumns`/`wydatkiData` w komponencie niżej.
 // Popup `WydatkiModal` wciąż otwiera się tapem w ISTNIEJĄCY kafel "#JEDZENIE",
 // Dashboard sam nadal się NIE scrolluje — zero nowego elementu, tylko realne dane.
+// Faza 2.4 (2026-11-01) — `wydatki` useMemo ZASTĄPIONY wspólnym `useWydatkiData`
+// (patrz `hooks/useWydatkiData.ts`/`utils/wydatkiData.ts`) — ten sam modal
+// (teraz z 3-way tabem Stałe/Zmienne/Jedzenie) otwiera się TERAZ też z Finansów,
+// `initialTab="food"` tutaj zachowuje dokładnie poprzednie zachowanie tego wejścia.
 function formatPlnOneDecimal(n: number): string {
   return n.toFixed(1).replace('.', ',');
 }
@@ -86,24 +89,7 @@ export default function DashboardScreen() {
     return bars;
   }, [expenses, now]);
 
-  const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const prevMonthDate = useMemo(() => new Date(now.getFullYear(), now.getMonth() - 1, 1), [now]);
-  const prevMonthKey = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
-
-  const wydatki = useMemo(() => {
-    const categories = foodByCategory(expenses, thisMonthKey);
-    const thisTotal = categories.reduce((a, c) => a + c.amount, 0);
-    const prevTotal = foodByCategory(expenses, prevMonthKey).reduce((a, c) => a + c.amount, 0);
-    const changePercent = prevTotal > 0 ? Math.round(((thisTotal - prevTotal) / prevTotal) * 100) : (thisTotal > 0 ? 100 : 0);
-    return {
-      month: MONTH_FULL[now.getMonth()],
-      total: `${thisTotal} zł`,
-      changePercent,
-      previousTotal: `${prevTotal} zł`,
-      weeks: foodByWeekOfMonth(expenses, now),
-      categories,
-    };
-  }, [expenses, now, thisMonthKey, prevMonthKey]);
+  const wydatkiData = useWydatkiData(expenses, now);
 
   // Do 4 pozycji: najpierw z terminem (rosnąco), potem bez terminu (najnowsze
   // pierwsze) — ten sam porządek co sekcje Teraz/Terminowe w tasks.tsx.
@@ -206,12 +192,11 @@ export default function DashboardScreen() {
       <WydatkiModal
         visible={wydatkiOpen}
         onClose={() => setWydatkiOpen(false)}
-        month={wydatki.month}
-        total={wydatki.total}
-        changePercent={wydatki.changePercent}
-        previousTotal={wydatki.previousTotal}
-        weeks={wydatki.weeks}
-        categories={wydatki.categories}
+        month={wydatkiData.month}
+        initialTab="food"
+        food={wydatkiData.food}
+        fixed={wydatkiData.fixed}
+        variable={wydatkiData.variable}
       />
     </View>
   );

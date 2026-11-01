@@ -1,24 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Briefcase, Repeat, Plus, Package } from 'lucide-react-native';
+import { Briefcase, Repeat, Plus, Package, ChevronRight, Wallet } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import ComingSoonRow from '@/components/ui/ComingSoonRow';
 import LiveSectionRow from '@/components/ui/LiveSectionRow';
 import AddExpenseModal from '@/components/finances/AddExpenseModal';
 import ProductsModal from '@/components/finances/ProductsModal';
+import TransactionsModal from '@/components/finances/TransactionsModal';
+import WydatkiModal from '@/components/dashboard/WydatkiModal';
 import { useExpensesStore } from '@/store/expensesStore';
 import { getBalanceOffset, setBalanceOffset, accountBalance } from '@/utils/balance';
 import { buildProductCatalog } from '@/utils/productCatalog';
+import { useWydatkiData } from '@/hooks/useWydatkiData';
+import { todayISO } from '@/utils/date';
 import type { Expense } from '@/types/finances';
 
 // Faza 2.2 (2026-10-31) — FAB "dodaj" podpięty (rozstrzygnięcie "Kolizja lewy dolny
 // róg" z NEXT_STEPS.md: ten sam wzorzec co Zadania, patrz tasks.tsx), "Ostatnie
-// transakcje" czyta TERAZ realnie z `expensesStore` (max 4, najnowsze pierwsze) —
-// WYŁĄCZNIE żeby zapis z nowego AddExpenseModal miał widzialny efekt do testowania
-// na urządzeniu. Pełna lista/popup Stałe-Zmienne-Jedzenie to Faza 2.4 ("Przebudowa
-// ekranu Finanse") — świadomie NIE teraz, ten ekran zostaje tymczasowym szkieletem.
+// transakcje" czyta realnie z `expensesStore` (max 4, najnowsze pierwsze).
 //
 // Saldo — PODPIĘTE realnie (2026-11-01, user: "chcę saldo żeby odzwierciedlało ile
 // mam na koncie w banku") — `accountBalance()` (utils/balance.ts) liczy offset +
@@ -26,15 +27,30 @@ import type { Expense } from '@/types/finances';
 // jest prawdą; gotówka i płatności Olesi nigdy go nie ruszają. Offset ustawiany
 // tapem w kafel — bez tego appka nie zna realnego punktu startowego (nigdy nie
 // prosiliśmy usera o stan konta na starcie), więc domyślnie 0 aż user go skalibruje.
+//
+// Faza 2.4 — "Przebudowa ekranu Finanse" — ZROBIONE (2026-11-01, user: "dawaj" na
+// plan). Ekran PRZESTAJE być `ScrollView`-owym szkieletem: zgodnie z ustaleniem
+// "Dashboard (i teraz Finanse) NIGDY nie dostają scrolla" (ARCHITECTURE.md
+// §FINANSE), "Ostatnie transakcje" pokazuje TYLKO 4 pozycje, tap na nagłówek
+// sekcji → `TransactionsModal` (pełna, przeszukiwalna lista w popupie). Nowy
+// wiersz "Stałe / Zmienne / Jedzenie" w "Obszary" otwiera ten sam `WydatkiModal`
+// co Dashboard (teraz z 3-way tabem, patrz tamten plik), `initialTab="fixed"` —
+// dane dla OBU wejść (Dashboard i tu) liczy jedno miejsce, `useWydatkiData`.
 export default function FinancesScreen() {
   const s = makeS();
   const expenses = useExpensesStore((st) => st.expenses);
   const [addOpen, setAddOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [productsOpen, setProductsOpen] = useState(false);
+  const [transactionsOpen, setTransactionsOpen] = useState(false);
+  const [wydatkiOpen, setWydatkiOpen] = useState(false);
   const [offset, setOffset] = useState(0);
   const [editingBalance, setEditingBalance] = useState(false);
   const [balanceInput, setBalanceInput] = useState('');
+
+  const today = todayISO();
+  const now = useMemo(() => new Date(), [today]);
+  const wydatkiData = useWydatkiData(expenses, now);
 
   useEffect(() => { getBalanceOffset().then(setOffset); }, []);
 
@@ -64,14 +80,27 @@ export default function FinancesScreen() {
       <View style={s.header}>
         <Text style={s.title}>Finanse</Text>
       </View>
-      <ScrollView contentContainerStyle={s.scroll}>
+      <View style={s.content}>
         <TouchableOpacity style={s.balanceCard} onPress={openEditBalance} activeOpacity={0.8}>
           <Text style={s.balanceLabel}>Saldo</Text>
           <Text style={[s.balanceValue, { color: colors.text.bright }]}>{balance.toFixed(2)} zł</Text>
           <Text style={s.balanceHint}>tapnij, żeby skalibrować</Text>
         </TouchableOpacity>
 
-        <Text style={s.sectionTitle}>Ostatnie transakcje</Text>
+        <TouchableOpacity
+          style={s.sectionTitleRow}
+          onPress={() => setTransactionsOpen(true)}
+          activeOpacity={0.6}
+          disabled={expenses.length === 0}
+        >
+          <Text style={s.sectionTitle}>Ostatnie transakcje</Text>
+          {expenses.length > 0 && (
+            <View style={s.sectionTitleAction}>
+              <Text style={s.sectionTitleActionLabel}>Zobacz wszystkie</Text>
+              <ChevronRight size={13} color={colors.text.muted} />
+            </View>
+          )}
+        </TouchableOpacity>
         <View style={s.card}>
           {recent.length === 0 ? (
             <Text style={s.empty}>Brak transakcji — dodaj pierwszą przyciskiem +.</Text>
@@ -98,6 +127,12 @@ export default function FinancesScreen() {
         <Text style={s.sectionTitle}>Obszary</Text>
         <View style={s.card}>
           <LiveSectionRow
+            icon={Wallet}
+            label="Stałe / Zmienne / Jedzenie"
+            status="Zobacz →"
+            onPress={() => setWydatkiOpen(true)}
+          />
+          <LiveSectionRow
             icon={Package}
             label="Produkty"
             status={productCount > 0 ? `${productCount}` : 'Zobacz →'}
@@ -106,7 +141,7 @@ export default function FinancesScreen() {
           <ComingSoonRow icon={Briefcase} label="Praca" description="zmiany, godziny, wypłaty" />
           <ComingSoonRow icon={Repeat} label="Subskrypcje" description="cykliczne płatności" isLast />
         </View>
-      </ScrollView>
+      </View>
 
       <TouchableOpacity
         style={s.fab}
@@ -123,6 +158,21 @@ export default function FinancesScreen() {
         editingExpense={editingExpense}
       />
       <ProductsModal visible={productsOpen} onClose={() => setProductsOpen(false)} />
+      <TransactionsModal
+        visible={transactionsOpen}
+        onClose={() => setTransactionsOpen(false)}
+        expenses={expenses}
+        onSelect={(e) => setEditingExpense(e)}
+      />
+      <WydatkiModal
+        visible={wydatkiOpen}
+        onClose={() => setWydatkiOpen(false)}
+        month={wydatkiData.month}
+        initialTab="fixed"
+        food={wydatkiData.food}
+        fixed={wydatkiData.fixed}
+        variable={wydatkiData.variable}
+      />
 
       <Modal visible={editingBalance} transparent animationType="fade" onRequestClose={() => setEditingBalance(false)}>
         <Pressable style={s.backdrop} onPress={() => setEditingBalance(false)}>
@@ -159,7 +209,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.bg.primary },
   header: { paddingHorizontal: spacing[4], paddingVertical: spacing[3] },
   title: { fontSize: 22, fontFamily: 'Inter_900Black', color: c.text.primary },
-  scroll: { paddingHorizontal: spacing[4], paddingBottom: spacing[8], gap: spacing[2] },
+  content: { flex: 1, paddingHorizontal: spacing[4] },
   balanceCard: {
     backgroundColor: c.bg.card, borderRadius: radius.xl, borderWidth: 1, borderColor: c.border.default,
     alignItems: 'center', paddingVertical: spacing[5], marginBottom: spacing[4],
@@ -174,6 +224,9 @@ const makeS = themedStyles((c) => StyleSheet.create({
     fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.secondary,
     textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing[2], marginTop: spacing[2],
   },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionTitleAction: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: spacing[2] },
+  sectionTitleActionLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted },
   card: {
     backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default,
     overflow: 'hidden', marginBottom: spacing[4],

@@ -1797,6 +1797,46 @@ bez zmian, tylko kolejność renderu w rodzicu.
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 135/135 zielone,
 `npx expo export --platform android` bez błędów.
 
+## Finanse — Faza 2.4 "Przebudowa ekranu" UKOŃCZONA (2026-11-01)
+
+User: "dawaj" na zaproponowany plan Fazy 2.4. Zrobione:
+
+1. **Ekran Finanse przestał się scrollować** — zgodnie z ustaloną zasadą
+   "Dashboard (i teraz Finanse) nigdy nie dostają scrolla" (była to świadomie
+   odłożona różnica od tymczasowego szkieletu z Fazy 2.2).
+2. **`TransactionsModal.tsx` (nowy)** — pełnoekranowy popup z wyszukiwarką
+   (sklep/notatka/tag), pełna lista WSZYSTKICH transakcji. Otwiera się tapem na
+   nagłówek "Ostatnie transakcje" (sekcja na ekranie dalej pokazuje tylko 4).
+   Tap na wiersz w popupie → edycja (ten sam `AddExpenseModal`), lista pod spodem
+   NIE zamyka się (poprawiony wcześniej wzorzec z `MonthViewModal`).
+3. **`WydatkiModal.tsx` dostał 3-way segmented tab Stałe/Zmienne/Jedzenie** —
+   wcześniej pokazywał TYLKO Jedzenie. Nowe karty `FixedBreakdownCard.tsx`
+   (rachunki stałe + odznaka odchylenia gdy nietypowy skok vs. własna historia) i
+   `VariableBreakdownCard.tsx` (top 5 zmiennych wydatków miesiąca). Ten sam modal
+   otwiera się TERAZ z dwóch miejsc: Dashboard (kafel "#JEDZENIE",
+   `initialTab="food"`) i nowy wiersz "Stałe / Zmienne / Jedzenie" w Finansach
+   → "Obszary" (`initialTab="fixed"`).
+4. **`utils/wydatkiData.ts`/`hooks/useWydatkiData.ts` (nowe)** — jedno miejsce
+   liczące dane dla WSZYSTKICH trzech kubłów dla obu ekranów, żeby Dashboard i
+   Finanse nie rozjeżdżały się w definicji "ten miesiąc"/"zmiana %". Logika
+   bucketowania (`fixedBreakdown`/`fixedDeviations`/`topVariableContributors`)
+   istniała w `fixedVariable.ts` od Fazy 2.1 z testami — to pierwsze realne
+   podpięcie pod UI.
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**:
+- Finanse → ekran nie powinien się scrollować (balans + 4 ostatnie transakcje +
+  Obszary mieszczą się na ekranie).
+- "Ostatnie transakcje" → tap na nagłówek sekcji (nie na wiersz) → pełna lista z
+  wyszukiwarką. Tap na wiersz tam → edycja, po zamknięciu wracasz do listy.
+- "Obszary" → "Stałe / Zmienne / Jedzenie" → popup z 3 zakładkami, zawartość
+  zgadza się z realnie dodanymi wydatkami (rachunki w Stałe, resztę w Zmienne,
+  jedzenie w Jedzenie — tak jak w AddExpenseModal przy dodawaniu).
+- Dashboard → kafel "#JEDZENIE" → ten sam popup, ale otwiera się na zakładce
+  Jedzenie, z resztą dwóch zakładek też dostępnych przez tapnięcie.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 137/137 zielone (2 nowe testy
+`wydatkiData.test.ts`), `npx expo export --platform android` bez błędów.
+
 ## Dashboard — widget #JEDZENIE podpięty do realnych danych (2026-11-01)
 
 User: *"czemu na dashboardzie nie ma widgetu ostatniego tego na dole z wydatkami

@@ -391,9 +391,23 @@ banku... plus szablony wyłapywań")
    ostrzeżenie o anomalii ceny, zapis UCZY pamięć przy każdym "Zapisz"). Szczegóły:
    NEXT_STEPS.md "Faza 2.3 UKOŃCZONA". Nadal nie podpięte: pamięć wagi (brak pola
    wagi w UI wcale).
-4. **Przebudowa ekranu Finanse** — kafel "4 ostatnie" + pełny popup, popup
-   Stałe/Zmienne/Jedzenie (Jedzenie = pierwszy realny konsument
-   `FoodBreakdownCard`). Kafel salda już realny od rundy poprawek 2026-11-01.
+4. **Przebudowa ekranu Finanse — ZROBIONE (2026-11-01)**. Ekran PRZESTAŁ być
+   `ScrollView`-owym szkieletem — teraz, jak Dashboard, NIGDY się nie scrolluje.
+   "Ostatnie transakcje" dalej TYLKO 4 pozycje, tap na nagłówek sekcji →
+   `TransactionsModal.tsx` (nowy, pełnoekranowy popup, przeszukiwalna pełna lista,
+   tap na wiersz → edycja przez ISTNIEJĄCY `AddExpenseModal`, bez zamykania listy
+   pod spodem — ten sam wzorzec co `MonthViewModal`+`DayDetailModal`). Nowy wiersz
+   "Stałe / Zmienne / Jedzenie" w "Obszary" otwiera `WydatkiModal.tsx`, który dostał
+   3-way segmented tab (Stałe/Zmienne/Jedzenie) ZAMIAST pokazywania tylko Jedzenia —
+   WSPÓLNY punkt wejścia z Dashboardu (kafel "DZIENNIE #JEDZENIE",
+   `initialTab="food"`) i Finansów (`initialTab="fixed"`), dane dla wszystkich
+   trzech kubłów liczy jedno miejsce: `utils/wydatkiData.ts`/`hooks/
+   useWydatkiData.ts` (`fixedBreakdown`/`fixedDeviations`/`topVariableContributors`
+   z `fixedVariable.ts`, już przetestowane od Fazy 2.1 — tylko teraz pierwszy raz
+   realnie podpięte pod UI). Nowe karty `FixedBreakdownCard.tsx`/
+   `VariableBreakdownCard.tsx` — bliźniaki `FoodBreakdownCard.tsx`, bez wykresu
+   tygodniowego (rachunki/zmienne nie mają sensownego podziału na tygodnie jak
+   jedzenie). Kafel salda już realny od rundy poprawek 2026-11-01.
 5. **Powiadomienia z banku** — natywny listener + parser + szablony + kolejka +
    zaufanie/auto-akceptacja. Najbardziej ryzykowny, natywny kawałek — celowo na
    końcu, gdy reszta modelu danych/UI jest już sprawdzona.
