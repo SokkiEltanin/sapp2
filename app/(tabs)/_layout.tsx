@@ -4,7 +4,7 @@ import TabBar, { TABS } from '@/components/ui/TabBar';
 import { colors } from '@/theme/colors';
 
 const ROUTES: Record<string, string> = {
-  index: '/', daily: '/daily', tasks: '/tasks', finances: '/finances', pupil: '/pupil',
+  index: '/', daily: '/daily', tasks: '/tasks', finances: '/finances',
 };
 
 // BUG (2026-10-28, user: "jak klikam to nic się nie dzieje") — `ROUTES['index']` to
@@ -20,8 +20,9 @@ function activeKey(pathname: string): string {
   return found?.key ?? 'index';
 }
 
-// 5 korzeni, tap-only (patrz komentarz w TabBar.tsx) — `animation: 'none'` jest tu
-// CELOWE, nie przeoczone: to jest dokładnie ta decyzja o której rozmawialiśmy.
+// 4 korzenie, tap-only (patrz komentarz w TabBar.tsx — Pupil usunięty, Faza 3.1) —
+// `animation: 'none'` jest tu CELOWE, nie przeoczone: to jest dokładnie ta decyzja o
+// której rozmawialiśmy.
 export default function TabsLayout() {
   const pathname = usePathname();
   const active = activeKey(pathname);

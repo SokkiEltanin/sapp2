@@ -16,7 +16,7 @@ import MoodModal from '@/components/mood/MoodModal';
 // "nie sprawdzała się w SAPP... zostawiamy potencjał/miejsce, NIE dodajemy jej teraz").
 const PLACEHOLDER_SECTIONS = [
   { key: 'zdrowie', label: 'Zdrowie', description: 'woda', icon: Droplet },
-  { key: 'cwiczenia', label: 'Ćwiczenia', description: 'treningi, powiązane z Pupilem', icon: Dumbbell },
+  { key: 'cwiczenia', label: 'Ćwiczenia', description: 'treningi', icon: Dumbbell },
   { key: 'kroki', label: 'Kroki', description: 'z zegarka', icon: Footprints },
   { key: 'waga', label: 'Waga', icon: Scale },
 ] as const;

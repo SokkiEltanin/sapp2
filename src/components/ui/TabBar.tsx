@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { View, TouchableOpacity, Animated, Easing, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LayoutDashboard, Flame, Wallet, CheckSquare, PawPrint, Settings } from 'lucide-react-native';
+import { LayoutDashboard, Flame, Wallet, CheckSquare, Settings } from 'lucide-react-native';
 import { spacing, radius, themedStyles } from '@/theme';
 
 // Pasek zakładek — WŁASNY komponent (nie domyślny `Tabs` UI) dla pełnej kontroli nad
@@ -23,11 +23,9 @@ import { spacing, radius, themedStyles } from '@/theme';
 // skoro są wizualnie w pełni rozdzielone).
 //
 // Kolejność i pozycja (2026-10-26, NEXT_STEPS.md) — klaster ściśnięty do PRAWEJ
-// krawędzi, nie pełna szerokość: prawy skraj = najbliżej kciuka = najkrótszy ruch, więc
-// najczęściej używany ekran (Pupil) jest skrajnie po prawej, najrzadziej używany
-// (Dashboard — i tak zawsze pierwszy po starcie appki) najdalej. "Notatki" z pierwotnej
-// notatki w NEXT_STEPS.md zastąpione realnie istniejącym "Zadania" (ten sam slot w
-// kolejności częstości).
+// krawędzi, nie pełna szerokość: prawy skraj = najbliżej kciuka = najkrótszy ruch.
+// "Notatki" z pierwotnej notatki w NEXT_STEPS.md zastąpione realnie istniejącym
+// "Zadania" (ten sam slot w kolejności częstości).
 //
 // `label` zostaje w danych (accessibility), ale NIE renderuje się już jako tekst pod
 // ikoną — reference: tylko ikony, bez etykiet ("nie sugeruj się ilością [ikon w ich
@@ -35,12 +33,16 @@ import { spacing, radius, themedStyles } from '@/theme';
 // koloruje aktywnej ikony kolorem sekcji, tylko BIAŁA odznaka + ciemna ikona (patrz
 // `iconBadgeActive` niżej — `#FFFFFF` dosłownie, nie `c.text.primary`, user: "miało
 // być białe tło a nie ma").
+//
+// `pupil` USUNIĘTY CAŁKOWICIE (Faza 3.1, 2026-11-01, user: "usuwamy pupila zupełnie
+// go nie będzie zakładka odpada" — nav ze design/app-design.html ma tylko te 4 ikony
+// + ustawienia osobno, bez 5. zakładki). `app/(tabs)/pupil.tsx` USUNIĘTY, nie
+// pozostawiony jako martwy, nienawigowalny route.
 export const TABS = [
   { key: 'index', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'daily', label: 'Daily', icon: Flame },
   { key: 'finances', label: 'Finanse', icon: Wallet },
   { key: 'tasks', label: 'Zadania', icon: CheckSquare },
-  { key: 'pupil', label: 'Pupil', icon: PawPrint },
 ] as const;
 
 type TabIconProps = {

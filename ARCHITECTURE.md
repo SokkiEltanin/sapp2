@@ -9,9 +9,9 @@ patrz NEXT_STEPS.md). **Zadania ma teraz realne UI** (kalendarz tydzień↔miesi
 CRUD listy, offline-first przez `calendarStore`, patrz sekcja ZADANIA niżej) —
 widget na pulpit JESZCZE NIE zrobiony. Daily/Finanse wciąż mają **lekki szkielet
 struktury** (layout, sekcje, nagłówki — bez głębokiej logiki) — kolejność faz:
-Zadania UI (zrobione) → widget → Finanse+parsery → Praca/Daily. Pupil — wciąż tylko
-placeholder, bo jego mechanika ("roślinka") jest dopiero pomysłem do zaprojektowania,
-nie ma jeszcze struktury do zeszkieletowania.
+Zadania UI (zrobione) → widget → Finanse+parsery → Praca/Daily. *(Ten akapit jest z
+2026-10-30, mocno nieaktualny co do Daily/Finanse — patrz NEXT_STEPS.md dla
+faktycznego stanu. Pupil USUNIĘTY całkowicie, Faza 3.1 — patrz §PUPIL niżej.)*
 
 Oznaczenia głębokości nawigacji:
 - **GE** — Główny Ekran (jeden z 5 w navbarze)
@@ -55,10 +55,10 @@ infrastruktura bottom-sheet), NIE przebudowa samych ekranów.** Ekrany
    JEDNEGO wrappera, nie przepisanie logiki. Dashboard jako pierwszy (najbardziej
    szczegółowo opisany w spec), reszta w kolejności faz.
 
-**OTWARTE DLA USERA (nie zdecydowane za niego)**: zakładka **Pupil** (5. ikona w
-obecnym navbarze, `TabBar.tsx`) NIE WYSTĘPUJE w nav ze spec (tam: ustawienia osobno +
-4 ikony: Dashboard/Daily/Finanse/Zadania). Nav NIE został ruszony w tej rundzie — to
-realna decyzja produktowa (usunąć/schować/zostawić Pupil), nie coś do zgadnięcia.
+**Decyzje usera (od razu po Fazie 3.1)**: zakładka **Pupil** USUNIĘTA CAŁKOWICIE
+("usuwamy pupila zupełnie go nie będzie zakładka odpada" — patrz §PUPIL). Metryki
+zdrowia POTWIERDZONE jako osobna, odłożona faza (opcja 1 z dwóch zaproponowanych) —
+`ComingSoonRow` dla nich w Fazie 3.2, nie fałszywe dane.
 
 ### Fundament — ZROBIONE (Faza 3.1, 2026-11-01)
 
@@ -113,8 +113,8 @@ z nowymi zależnościami (zero nowych wpisów w `app.json`'s `plugins` — `expo
 `@gorhom/bottom-sheet` autolinkują się bez config-pluginu).
 
 **Następne fazy (3.2+)** — screen-po-screenie, kolejność do ustalenia z userem,
-proponowana: Dashboard (najbardziej szczegółowo opisany w spec) → Nav (dopasować
-ikony/rozstrzygnąć Pupil) → Daily (w tym `MoodPad` — 2D drag energia×przyjemność,
+proponowana: Dashboard (najbardziej szczegółowo opisany w spec, Pupil już usunięty
+z Nav — patrz §PUPIL) → Daily (w tym `MoodPad` — 2D drag energia×przyjemność,
 ZASTĘPUJE obecną siatkę 3×3 "Humor/Nastrój", `react-native-gesture-handler`+
 `reanimated` już są) → Finanse (bottom-sheet-yfikacja istniejących popupów na
 `AppBottomSheet`, bez zmiany modelu danych) → Zadania (`WeekStrip`, `Segmented`
@@ -681,12 +681,16 @@ wciąż osobne, mniejsze podekrany. **POJAZDY** [PE] — wciąż odłożone.
   rekomendowano w "Kolizja lewy dolny róg" (`NEXT_STEPS.md`) — ten sam wzorzec już
   sprawdzony w Zadaniach.
 
-## PUPIL / ROŚLINKA [GE]
+## PUPIL — USUNIĘTY (Faza 3.1, 2026-11-01)
 
-Nazwa do wymyślenia. Mechanika do zaprojektowania od zera (patrz `NEXT_STEPS.md` —
-pomysł "roślinka zamiast bossów"), w tym **tryb focus**: aktywne pomodoro do zadania →
-roślinka rośnie szybciej. Do przemyślenia/przedyskutowania jak połączyć z systemem
-powiadomień (patrz niżej).
+Zakładka CAŁKOWICIE usunięta (user: "usuwamy pupila zupełnie go nie będzie zakładka
+odpada" — nav ze `design/app-design.html` ma tylko Dashboard/Daily/Finanse/Zadania +
+Ustawienia, bez 5. ikony). `app/(tabs)/pupil.tsx` i `src/components/ui/
+PlaceholderScreen.tsx` (jego jedyny konsument) usunięte z repo, `TabBar.tsx`/
+`app/(tabs)/_layout.tsx`'s `ROUTES` zaktualizowane do 4 korzeni. Mechanika
+"roślinka zamiast bossów" (była tu opisana, patrz NEXT_STEPS.md "Pomysł do
+rozważenia" — teraz oznaczony jako nieaktualny) nigdy nie wyszła poza etap pomysłu,
+więc nie ma nic do migracji/zachowania.
 
 ## Ogólne do appki (cross-cutting)
 

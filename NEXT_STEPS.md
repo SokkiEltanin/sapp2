@@ -9,27 +9,26 @@ aktualizuj po skończeniu/odkryciu czegoś nowego (patrz `CLAUDE.md`).
   (wtedy belka pewnie lustrzanie do lewej krawędzi — do dopracowania przy budowie).
   Navbar sam (prawa belka + Ustawienia w lewym dolnym rogu) już zbudowany, patrz niżej.
 
-## Pomysł do rozważenia: redesign Pupila (roślinka zamiast bossów)
+## NIEAKTUALNE: pomysł redesignu Pupila (roślinka zamiast bossów) — zakładka USUNIĘTA
 
-User (2026-10-26): obecny Pupil (walki z bossami, mapa kampanii) jest "za bardzo grą,
-za mało odzwierciedla rzeczywistość tego co robię" — raczej do wywalenia. Zakładka
-zostaje, ale inna mechanika:
+Ten pomysł (2026-10-26, poniżej w oryginalnej treści dla historii) stał się moot
+2026-11-01: user, przy Fazie 3.1 redesignu rdzenia UI, zdecydował "usuwamy pupila
+zupełnie go nie będzie zakładka odpada" — `app/(tabs)/pupil.tsx` i cały navbar-wpis
+usunięte z repo (patrz ARCHITECTURE.md §PUPIL, NEXT_STEPS.md "Redesign rdzenia UI").
+Mechanika "roślinka" nigdy nie wyszła poza etap pomysłu, nic do migracji.
 
-- Start: ziarenko/sadzonka.
-- Podlewanie wodą i nawożenie — surowce (woda, nawóz) zdobywane z questów/zadań,
-  ćwiczeń, picia wody itp. (czyli z realnej aktywności w apce, nie z abstrakcyjnego
-  "many/staminy" jak w obecnym Pupilu).
-- Jak roślinka dorośnie — trafia do "ogródka", można zacząć hodować kolejną, inną.
-- Unikalne nasionka do odblokowania: za streaki, za coiny (do przemyślenia jaka
-  waluta/mechanika).
-- Rezygnacja z bossów, mapy kampanii, walk — to wszystko zostaje tylko jako
-  historia/inspiracja w `sapp`, nie jest kopiowane 1:1.
-- **Tryb focus (2026-10-26):** aktywne pomodoro do zadania → roślinka rośnie szybciej.
-  Do przemyślenia razem z systemem powiadomień (patrz "Do zrobienia" niżej).
+<details><summary>Oryginalna treść (2026-10-26), tylko dla historii</summary>
 
-Status: pomysł zgłoszony, NIE zdecydowany ostatecznie ("nie wiem do pomyślenia").
-Wracamy do tego jak dojdziemy do budowania Pupila konkretnie — nie blokuje obecnej
-pracy nad nawigacją/stylem.
+User: obecny Pupil (walki z bossami, mapa kampanii) jest "za bardzo grą, za mało
+odzwierciedla rzeczywistość tego co robię" — raczej do wywalenia. Zakładka zostaje,
+ale inna mechanika: start od ziarenka/sadzonki; podlewanie wodą i nawożenie —
+surowce zdobywane z questów/zadań/ćwiczeń/picia wody (z realnej aktywności w apce,
+nie z abstrakcyjnego "many/staminy"); dorosła roślinka → "ogródek", hodowanie
+kolejnej; unikalne nasionka za streaki/coiny; rezygnacja z bossów/mapy
+kampanii/walk (zostają tylko jako historia/inspiracja w `sapp`). Tryb focus:
+aktywne pomodoro do zadania → roślinka rośnie szybciej.
+
+</details>
 
 ## Referencje designu
 
@@ -2085,12 +2084,32 @@ w `app/_layout.tsx`, tokeny wyrównane do spec w `colors.ts`/`theme/index.ts`, f
 Tag/PricePill/Segmented/ChipRow/StackBar/Bars) + `AppBottomSheet` (ten sam kontrakt
 `visible`/`onClose`/`children` co istniejące modale — migracja = zamiana wrappera).
 
-**Dwie otwarte decyzje dla usera** (nie zgadywane, patrz ARCHITECTURE.md):
-1. Zakładka **Pupil** nie występuje w nav ze spec (tam tylko 4 ikony + ustawienia) —
-   nav NIE został ruszony, czeka na decyzję: usunąć / schować / zostawić.
-2. Metryki zdrowia (Sen/Kroki/Tętno/Waga/Woda, Galaxy Watch/Health Connect) nie
-   istnieją w appce — odłożone jako osobna, duża faza (nowy natywny moduł), kafle
+**Dwie decyzje od usera, OD RAZU po Fazie 3.1** (patrz ARCHITECTURE.md):
+1. Zakładka **Pupil** → "usuwamy pupila zupełnie go nie będzie zakładka odpada" —
+   USUNIĘTA tego samego dnia (`app/(tabs)/pupil.tsx` + `PlaceholderScreen.tsx`
+   skasowane, `TabBar.tsx`/`_layout.tsx` zejście na 4 korzenie). Patrz niżej.
+2. Metryki zdrowia — "odłóż na osobną fazę (polecam)", potwierdzone. Kafle
    dostaną `ComingSoonRow`-placeholder przy Fazie 3.2, nie fałszywe dane.
+
+## Pupil usunięty całkowicie (2026-11-01)
+
+Natychmiastowa realizacja decyzji #1 wyżej. Usunięte: `app/(tabs)/pupil.tsx` (route),
+`src/components/ui/PlaceholderScreen.tsx` (jedyny konsument, teraz osierocony).
+Zmienione: `TabBar.tsx`'s `TABS` (4 wpisy, bez `pupil`/`PawPrint`), `app/(tabs)/
+_layout.tsx`'s `ROUTES` (bez wpisu `pupil`), drobne odświeżenie nieaktualnych
+komentarzy wzmiankujących Pupila w `daily.tsx`/`colors.ts`/ARCHITECTURE.md.
+NIE dotknięte (świadomie, osobna decyzja na przyszłość jeśli w ogóle potrzebna):
+hooki na "przyszłą roślinkę/Pupila" głębiej w ekranie Ćwiczeń (punkty za
+ukończone treningi — nieużywana, ale niezepsuta infrastruktura, patrz
+ARCHITECTURE.md §ĆWICZENIA).
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**: navbar ma teraz 4 ikony (Dashboard/Daily/
+Finanse/Zadania) + Ustawienia osobno, bez Pupila — sprawdź że nic nie próbuje
+nawigować na `/pupil` (powinno dawać 404 expo-router, nie crash) i że pasek wygląda
+OK z czterema ikonami (mogą się trochę poszerzyć/wycentrować inaczej niż z pięcioma).
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone, `npx expo
+export --platform android` bez błędów.
 
 **DO PRZETESTOWANIA NA URZĄDZENIU**: nic wizualnie widocznego jeszcze (fundament
 bez ekranów) — ale warto zweryfikować, że appka w ogóle startuje i działa normalnie

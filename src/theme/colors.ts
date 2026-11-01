@@ -44,7 +44,9 @@ export const colors = {
     orange: '#FB923C', // Daily
     // `#22C55E` — wyrównane do `ok` z design/app-design.html (Faza 3.1, było `#2AC68F`).
     green: '#22C55E',  // Finanse
-    red: '#EF4444',    // Pupil
+    // `red` BYŁ oznaczony jako "Pupil" — zakładka usunięta (Faza 3.1, 2026-11-01),
+    // kolor zostaje jako ogólny błąd/alarm/usuń (bank-review/alert-test/AddExpenseModal).
+    red: '#EF4444',
     purple: '#A78BFA',
   },
   // Kolory kategorii — UŻYWANE TYLKO jako małe, funkcjonalne akcenty (np. tagi
