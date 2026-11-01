@@ -118,12 +118,15 @@ po pełny opis co realne/co stub.
 **Faza 3.3 (Daily) — ZROBIONA (2026-11-01, "dawaj skończ wszystko")**, patrz
 §DAILY wyżej.
 
-**Następne fazy (3.4+)** — Finanse (bottom-sheet-yfikacja istniejących popupów na
-`AppBottomSheet`, bez zmiany modelu danych) → Zadania (`WeekStrip`, `Segmented`
-zamiast obecnego UI) → Ustawienia. "Płatności cykliczne" (store `bills`, odblokuje
-pełne "Bezpieczne wydatki"/"Najbliższe 48h" z Fazy 3.2) potrzebuje osobnej,
-uczciwej fazy — dziś
-`ComingSoonRow` dla Subskrypcji/Pracy, nie udawane na kaflach Dashboardu.
+**Faza 3.4 (Finanse, główny ekran) — ZROBIONA (2026-11-01, "dawaj skończ
+wszystko")**, patrz §FINANSE niżej. Popupy świadomie bez zmian (ciąg dalej).
+
+**Następne fazy (3.5+)** — Zadania (`WeekStrip`, `Segmented` zamiast obecnego UI)
+→ Ustawienia → bottom-sheet-yfikacja istniejących popupów Finansów (osobna,
+jeszcze nieumówiona faza, patrz §FINANSE). "Płatności cykliczne" (store `bills`,
+odblokuje pełne "Bezpieczne wydatki"/"Najbliższe 48h" z Fazy 3.2 i "Praca"/
+"Najbliższa opłata" z Fazy 3.4) potrzebuje osobnej, uczciwej fazy — dziś stub
+`Tile` w miejsce Subskrypcji/Pracy/bills, nie udawane na żadnym ekranie.
 
 ## DASHBOARD [GE]
 
@@ -312,6 +315,26 @@ googleCalendarService.ts` + `src/utils/googleCalendarMap.ts` (Google Calendar RE
 wyżej.
 
 ## FINANSE [GE]
+
+**Przebudowany na nowy system komponentów (Faza 3.4, 2026-11-01)** — główny ekran
+(nie popupy, patrz niżej) na układzie z `design/app-design.html`'s `#fin` (4
+kolumny, `grid-template-rows: auto auto auto auto 1fr`): Saldo (+realne miesięczne
+wpływy/wydatki pod liczbą) → Podział (`StackBar`, Stałe/Jedzenie/Zmienne) →
+Jedzenie · kategorie (`StackBar`, top 3 + "+N" w legendzie, link do "Produkty" w
+nagłówku — ta realna funkcja nie jest w spec, dostała mały link żeby nie zginąć)
+→ Praca + Najbliższa opłata (stub `Tile`, s2+s2 — store'a "bills"/godzin z
+kalendarza wciąż nie ma) → Ostatnie transakcje (flex, `FitList`+`Row`+`PricePill`,
+2-liniowe wiersze jak w spec). Dane BEZ ZMIAN (ten sam `useWydatkiData`/
+`accountBalance`/`useExpensesStore` co wcześniej) — czysto wizualny przebudowanie
+głównego ekranu.
+
+**POPUPY (AddExpenseModal/ProductsModal/TransactionsModal/WydatkiModal,
+balance-edit) ŚWIADOMIE BEZ ZMIAN** — wciąż `Modal`, NIE `AppBottomSheet`.
+Bottom-sheet-yfikacja istniejących, złożonych popupów (5 różnych modali, każdy z
+własną logiką) to osobna, jeszcze nieumówiona faza — zbyt duże ryzyko robić to w
+tej samej rundzie co przebudowa głównego ekranu. `ComingSoonRow`/`LiveSectionRow`
+(stary wzorzec listy "Obszary") USUNIĘTE Z REPO CAŁKOWICIE — po przebudowie
+Finansów nic ich już nie importowało (Daily zrzucił je w Fazie 3.3).
 
 **Faza 2 — plan pełny (2026-10-31)**, rozpisany po tym jak user poprosił: "przejrzyj
 sobie całego SAPa... zaprojektuj to wszystko... napisz jak masz zamiar to zrobić".

@@ -2193,3 +2193,36 @@ tekst zamiast `MOOD_EMOJIS`/`ENERGY_EMOJIS`).
 
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone, `npx expo
 export --platform android` bez błędów.
+
+## Redesign rdzenia UI — Faza 3.4 "Finanse" UKOŃCZONA (2026-11-01)
+
+User: "dawaj skończ wszystko". Główny ekran Finansów (NIE popupy, patrz niżej)
+na nowym gridzie: Saldo (+realne miesięczne wpływy/wydatki) → Podział (`StackBar`
+Stałe/Jedzenie/Zmienne) → Jedzenie · kategorie (`StackBar`, link "Produkty" w
+nagłówku) → Praca+Najbliższa opłata (stub, store "bills" nie istnieje) → Ostatnie
+transakcje (flex, `FitList`, 2-liniowe wiersze). Dane bez zmian, czysto wizualny
+przebudowanie.
+
+**Popupy ŚWIADOMIE bez zmian** (AddExpenseModal/ProductsModal/TransactionsModal/
+WydatkiModal/balance-edit) — wciąż `Modal`, nie `AppBottomSheet`. To osobna,
+jeszcze nieumówiona faza (5 różnych, złożonych modali, zbyt duże ryzyko robić w
+tej samej rundzie).
+
+`ComingSoonRow`/`LiveSectionRow` USUNIĘTE z repo (po przebudowie Finansów nic ich
+już nie importowało — Daily zrzucił je w Fazie 3.3, Finanse były ostatnim
+konsumentem).
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**:
+- Saldo — tap wciąż otwiera kalibrację (bez zmian funkcjonalnych), liczba +
+  miesięczne wpływy/wydatki pod nią powinny być realne.
+- Podział/Jedzenie-kategorie — tap na pasek otwiera `WydatkiModal` (bez zmian),
+  pasek proporcji powinien wizualnie odpowiadać liczbom w legendzie.
+- "Produkty" — mały link w nagłówku kafla Jedzenie-kategorie, powinien wciąż
+  otwierać `ProductsModal`.
+- Ostatnie transakcje — `FitList` dociąga tyle wierszy ile się zmieści (ten sam
+  test jak w Fazie 3.2 na Dashboardzie), tap na wiersz wciąż otwiera edycję.
+- FAB "+" i kalibracja salda (inline modal) — bez zmian, powinny działać jak
+  wcześniej.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone, `npx expo
+export --platform android` bez błędów.

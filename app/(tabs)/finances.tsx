@@ -1,42 +1,50 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Briefcase, Repeat, Plus, Package, ChevronRight, Wallet } from 'lucide-react-native';
+import { Plus, Package, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
-import ComingSoonRow from '@/components/ui/ComingSoonRow';
-import LiveSectionRow from '@/components/ui/LiveSectionRow';
+import Tile from '@/components/design/Tile';
+import Row from '@/components/design/Row';
+import PricePill from '@/components/design/PricePill';
+import StackBar from '@/components/design/StackBar';
+import FitList from '@/components/design/FitList';
 import AddExpenseModal from '@/components/finances/AddExpenseModal';
 import ProductsModal from '@/components/finances/ProductsModal';
 import TransactionsModal from '@/components/finances/TransactionsModal';
 import WydatkiModal from '@/components/dashboard/WydatkiModal';
 import { useExpensesStore } from '@/store/expensesStore';
-import { getBalanceOffset, setBalanceOffset, accountBalance } from '@/utils/balance';
+import { getBalanceOffset, setBalanceOffset, accountBalance, affectsBalance } from '@/utils/balance';
 import { buildProductCatalog } from '@/utils/productCatalog';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
 import { haptic } from '@/utils/haptics';
 import { todayISO } from '@/utils/date';
 import type { Expense } from '@/types/finances';
 
-// Faza 2.2 (2026-10-31) — FAB "dodaj" podpięty (rozstrzygnięcie "Kolizja lewy dolny
-// róg" z NEXT_STEPS.md: ten sam wzorzec co Zadania, patrz tasks.tsx), "Ostatnie
-// transakcje" czyta realnie z `expensesStore` (max 4, najnowsze pierwsze).
+// Faza 3.4 (2026-11-01, "dawaj skończ wszystko") — Finanse przebudowane na nowy
+// system komponentów, układ z design/app-design.html's `#fin` (4 kolumny,
+// `grid-template-rows: auto auto auto auto 1fr`): Saldo → Podział (StackBar) →
+// Jedzenie kategorie (StackBar) → Praca+Najbliższa opłata (stub, s2+s2) →
+// Ostatnie transakcje (fill, 2-liniowe wiersze, `FitList`).
 //
-// Saldo — PODPIĘTE realnie (2026-11-01, user: "chcę saldo żeby odzwierciedlało ile
-// mam na koncie w banku") — `accountBalance()` (utils/balance.ts) liczy offset +
-// wpływy/wydatki gdzie `affectsBalance()` (karta/BLIK/przelew, zapłacone przez "ja")
-// jest prawdą; gotówka i płatności Olesi nigdy go nie ruszają. Offset ustawiany
-// tapem w kafel — bez tego appka nie zna realnego punktu startowego (nigdy nie
-// prosiliśmy usera o stan konta na starcie), więc domyślnie 0 aż user go skalibruje.
+// POPUPY (AddExpenseModal/ProductsModal/TransactionsModal/WydatkiModal, balance-edit)
+// ŚWIADOMIE BEZ ZMIAN — wciąż `Modal`, NIE `AppBottomSheet`. Bottom-sheet-yfikacja
+// istniejących, złożonych popupów to osobna, odłożona faza (ARCHITECTURE.md
+// §"REDESIGN RDZENIA UI", "Następne fazy") — ryzyko migrowania 5 różnych modali w
+// tej samej rundzie co przebudowa głównego ekranu byłoby nieproporcjonalne.
 //
-// Faza 2.4 — "Przebudowa ekranu Finanse" — ZROBIONE (2026-11-01, user: "dawaj" na
-// plan). Ekran PRZESTAJE być `ScrollView`-owym szkieletem: zgodnie z ustaleniem
-// "Dashboard (i teraz Finanse) NIGDY nie dostają scrolla" (ARCHITECTURE.md
-// §FINANSE), "Ostatnie transakcje" pokazuje TYLKO 4 pozycje, tap na nagłówek
-// sekcji → `TransactionsModal` (pełna, przeszukiwalna lista w popupie). Nowy
-// wiersz "Stałe / Zmienne / Jedzenie" w "Obszary" otwiera ten sam `WydatkiModal`
-// co Dashboard (teraz z 3-way tabem, patrz tamten plik), `initialTab="fixed"` —
-// dane dla OBU wejść (Dashboard i tu) liczy jedno miejsce, `useWydatkiData`.
+// "Produkty" (pamięć cen, realna funkcja) NIE WYSTĘPUJE w spec — zamiast ją
+// wyrzucić, dostała mały link w nagłówku kafla "Jedzenie · kategorie" (ten sam
+// kafel skąd sensownie się do niej trafia). "Praca"/"Najbliższa opłata" = uczciwy
+// stub (appka nie ma store'a "bills"/godzin z kalendarza, patrz ARCHITECTURE.md
+// §FINANSE "Kolejność budowy" — Subskrypcje/Praca wciąż nieistniejące).
+function parseZl(s: string): number {
+  return parseInt(s.replace(/[^\d]/g, ''), 10) || 0;
+}
+function fmtAmount(n: number): string {
+  return Math.abs(n).toFixed(2).replace('.', ',');
+}
+
 export default function FinancesScreen() {
   const s = makeS();
   const expenses = useExpensesStore((st) => st.expenses);
@@ -56,6 +64,15 @@ export default function FinancesScreen() {
   useEffect(() => { getBalanceOffset().then(setOffset); }, []);
 
   const balance = useMemo(() => accountBalance(expenses, offset), [expenses, offset]);
+  const monthKey = today.slice(0, 7);
+  const monthIncome = useMemo(
+    () => expenses.filter((e) => e.type === 'income' && affectsBalance(e) && e.date.slice(0, 7) === monthKey).reduce((a, e) => a + e.amount, 0),
+    [expenses, monthKey],
+  );
+  const monthExpense = useMemo(
+    () => expenses.filter((e) => e.type === 'expense' && affectsBalance(e) && e.date.slice(0, 7) === monthKey).reduce((a, e) => a + e.amount, 0),
+    [expenses, monthKey],
+  );
 
   const openEditBalance = () => { setBalanceInput(balance.toFixed(2)); setEditingBalance(true); };
   const saveBalance = async () => {
@@ -71,78 +88,130 @@ export default function FinancesScreen() {
   };
 
   const recent = useMemo(
-    () => [...expenses].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4),
+    () => [...expenses].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [expenses],
   );
-
   const productCount = useMemo(() => buildProductCatalog(expenses).length, [expenses]);
+
+  const split = useMemo(() => {
+    const fixed = parseZl(wydatkiData.fixed.total);
+    const food = parseZl(wydatkiData.food.total);
+    const variable = parseZl(wydatkiData.variable.total);
+    return [
+      { value: Math.max(fixed, 0.001), color: colors.text.primary, label: 'Stałe' },
+      { value: Math.max(food, 0.001), color: '#8A8A8A', label: 'Jedzenie' },
+      { value: Math.max(variable, 0.001), color: '#3F3F3F', label: 'Zmienne' },
+    ];
+  }, [wydatkiData]);
+  const splitTotal = split.reduce((a, s2) => a + s2.value, 0);
+
+  const foodCats = wydatkiData.food.categories;
+  const foodTotal = parseZl(wydatkiData.food.total);
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
         <Text style={s.title}>Finanse</Text>
+        <Text style={s.headerMonth}>{wydatkiData.month.toUpperCase()} {now.getFullYear()}</Text>
       </View>
+
       <View style={s.content}>
-        <TouchableOpacity style={s.balanceCard} onPress={openEditBalance} activeOpacity={0.8}>
-          <Text style={s.balanceLabel}>Saldo</Text>
-          <Text style={[s.balanceValue, { color: colors.text.bright }]}>{balance.toFixed(2)} zł</Text>
-          <Text style={s.balanceHint}>tapnij, żeby skalibrować</Text>
-        </TouchableOpacity>
+        {/* Rząd 1: Saldo */}
+        <Tile style={s.balanceTile} onPress={openEditBalance}>
+          <View style={s.capRow}>
+            <Text style={s.capLabel}>SALDO</Text>
+            <Text style={s.capUnit}>stuknij, by skalibrować</Text>
+          </View>
+          <Text style={s.balanceNum}>{balance.toFixed(2)} <Text style={s.balanceCur}>PLN</Text></Text>
+          <View style={s.balanceSumRow}>
+            <Text style={s.balanceIn}>+{fmtAmount(monthIncome)}</Text>
+            <Text style={s.balanceOut}>−{fmtAmount(monthExpense)}</Text>
+          </View>
+        </Tile>
 
-        <TouchableOpacity
-          style={s.sectionTitleRow}
-          onPress={() => setTransactionsOpen(true)}
-          activeOpacity={0.6}
-          disabled={expenses.length === 0}
-        >
-          <Text style={s.sectionTitle}>Ostatnie transakcje</Text>
-          {expenses.length > 0 && (
-            <View style={s.sectionTitleAction}>
-              <Text style={s.sectionTitleActionLabel}>Zobacz wszystkie</Text>
-              <ChevronRight size={13} color={colors.text.muted} />
-            </View>
-          )}
-        </TouchableOpacity>
-        <View style={s.card}>
-          {recent.length === 0 ? (
-            <Text style={s.empty}>Brak transakcji — dodaj pierwszą przyciskiem +.</Text>
+        {/* Rząd 2: Podział */}
+        <Tile style={[s.wideTile, s.rowGap]} onPress={() => setWydatkiOpen(true)}>
+          <View style={s.capRow}>
+            <Text style={s.capLabel}>PODZIAŁ</Text>
+            <Text style={s.capUnit}>{splitTotal} PLN</Text>
+          </View>
+          <View style={s.barSpace}>
+            <StackBar segments={split} height={10} legend={split} />
+          </View>
+        </Tile>
+
+        {/* Rząd 3: Jedzenie kategorie */}
+        <Tile style={[s.wideTile, s.rowGap]} variant="static">
+          <View style={s.capRow}>
+            <Text style={s.capLabel}>JEDZENIE · KATEGORIE</Text>
+            <TouchableOpacity onPress={() => setProductsOpen(true)} style={s.productsLink} hitSlop={6}>
+              <Package size={11} color={colors.text.muted} />
+              <Text style={s.productsLinkLabel}>Produkty {productCount > 0 ? `(${productCount})` : ''}</Text>
+            </TouchableOpacity>
+          </View>
+          {foodCats.length === 0 ? (
+            <Text style={s.emptyInline}>Brak jedzenia w tym miesiącu</Text>
           ) : (
-            recent.map((e, i) => (
-              <TouchableOpacity
-                key={e.id}
-                style={[s.txRow, i < recent.length - 1 && s.txRowDivider]}
-                onPress={() => setEditingExpense(e)}
-                activeOpacity={0.7}
-              >
-                <View style={s.txInfo}>
-                  <Text style={s.txNote} numberOfLines={1}>{e.storeName || e.note || (e.type === 'income' ? 'Przychód' : 'Wydatek')}</Text>
-                  <Text style={s.txDate}>{e.date}</Text>
-                </View>
-                <Text style={[s.txAmount, e.type === 'income' && s.txAmountIncome]}>
-                  {e.type === 'income' ? '+' : '−'}{e.amount.toFixed(2)} zł
-                </Text>
-              </TouchableOpacity>
-            ))
+            <TouchableOpacity onPress={() => setWydatkiOpen(true)} activeOpacity={0.7} style={s.barSpace}>
+              <StackBar
+                segments={foodCats.map((c) => ({ value: c.amount, color: c.color }))}
+                height={10}
+                legend={foodCats.slice(0, 3).map((c) => ({ value: c.amount, color: c.color, label: c.label }))}
+                extra={Math.max(0, foodCats.length - 3)}
+              />
+              <Text style={s.foodTotalHint}>{foodTotal} PLN</Text>
+            </TouchableOpacity>
           )}
+        </Tile>
+
+        {/* Rząd 4: Praca + Najbliższa opłata (stub) */}
+        <View style={[s.row, s.rowGap]}>
+          <Tile style={s.stubTile}>
+            <Text style={s.capLabel}>PRACA</Text>
+            <Text style={s.stubNum}>—</Text>
+            <Text style={s.stubHint}>wkrótce — kalendarz</Text>
+          </Tile>
+          <Tile style={s.stubTile}>
+            <Text style={s.capLabel}>NAJBLIŻSZA OPŁATA</Text>
+            <Text style={s.stubNum}>—</Text>
+            <Text style={s.stubHint}>wkrótce — rachunki</Text>
+          </Tile>
         </View>
 
-        <Text style={s.sectionTitle}>Obszary</Text>
-        <View style={s.card}>
-          <LiveSectionRow
-            icon={Wallet}
-            label="Stałe / Zmienne / Jedzenie"
-            status="Zobacz →"
-            onPress={() => setWydatkiOpen(true)}
+        {/* Rząd 5 (flex): Ostatnie transakcje */}
+        <Tile style={[s.wideTile, s.rowGap, s.rowFlex1]} variant="static">
+          <TouchableOpacity
+            style={s.capRow}
+            onPress={() => setTransactionsOpen(true)}
+            activeOpacity={0.6}
+            disabled={expenses.length === 0}
+          >
+            <Text style={s.capLabel}>OSTATNIE TRANSAKCJE</Text>
+            {expenses.length > 0 && (
+              <View style={s.seeAllRow}>
+                <Text style={s.capUnit}>wszystkie</Text>
+                <ChevronRight size={12} color={colors.text.muted} />
+              </View>
+            )}
+          </TouchableOpacity>
+          <FitList
+            data={recent}
+            itemHeight={44}
+            gap={spacing[1]}
+            keyExtractor={(e) => e.id}
+            empty={<Text style={s.emptyInline}>Brak transakcji — dodaj pierwszą przyciskiem +</Text>}
+            renderItem={(e) => (
+              <Row
+                key={e.id}
+                height={44}
+                onPress={() => setEditingExpense(e)}
+                label={e.storeName || e.note || (e.type === 'income' ? 'Przychód' : 'Wydatek')}
+                sublabel={e.date}
+                right={<PricePill amount={fmtAmount(e.amount)} income={e.type === 'income'} />}
+              />
+            )}
           />
-          <LiveSectionRow
-            icon={Package}
-            label="Produkty"
-            status={productCount > 0 ? `${productCount}` : 'Zobacz →'}
-            onPress={() => setProductsOpen(true)}
-          />
-          <ComingSoonRow icon={Briefcase} label="Praca" description="zmiany, godziny, wypłaty" />
-          <ComingSoonRow icon={Repeat} label="Subskrypcje" description="cykliczne płatności" isLast />
-        </View>
+        </Tile>
       </View>
 
       <TouchableOpacity
@@ -209,42 +278,37 @@ export default function FinancesScreen() {
 
 const makeS = themedStyles((c) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.bg.primary },
-  header: { paddingHorizontal: spacing[4], paddingVertical: spacing[3] },
-  title: { fontSize: 22, fontFamily: 'Inter_900Black', color: c.text.primary },
-  content: { flex: 1, paddingHorizontal: spacing[4] },
-  balanceCard: {
-    backgroundColor: c.bg.card, borderRadius: radius.xl, borderWidth: 1, borderColor: c.border.default,
-    alignItems: 'center', paddingVertical: spacing[5], marginBottom: spacing[4],
-  },
-  balanceLabel: { fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  // `colors.text.bright` (2026-10-30, redesign Dashboardu na monochromatyczny) —
-  // zamiast `colors.stat.finanse`, spójnie z dużymi liczbami kafli Dashboardu
-  // (StatTile.tsx).
-  balanceValue: { fontSize: 36, fontFamily: 'Inter_900Black', marginTop: spacing[1] },
-  balanceHint: { fontSize: 10, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[1] },
-  sectionTitle: {
-    fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.secondary,
-    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing[2], marginTop: spacing[2],
-  },
-  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitleAction: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: spacing[2] },
-  sectionTitleActionLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted },
-  card: {
-    backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default,
-    overflow: 'hidden', marginBottom: spacing[4],
-  },
-  empty: { fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.muted, padding: spacing[4], textAlign: 'center' },
+  header: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: spacing[4], paddingVertical: spacing[3] },
+  title: { fontSize: 22, fontFamily: 'Inter_900Black', letterSpacing: -0.5, color: c.text.bright },
+  headerMonth: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted, letterSpacing: 0.4 },
+  content: { flex: 1, paddingHorizontal: spacing[3] },
 
-  txRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing[3], paddingVertical: spacing[3],
-  },
-  txRowDivider: { borderBottomWidth: 1, borderBottomColor: c.border.subtle },
-  txInfo: { flex: 1, marginRight: spacing[2] },
-  txNote: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary },
-  txDate: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 2 },
-  txAmount: { fontSize: 14, fontFamily: 'Inter_900Black', color: c.text.bright },
-  txAmountIncome: { color: c.accent.green },
+  row: { flexDirection: 'row', gap: spacing[2] },
+  rowGap: { marginTop: spacing[2] },
+  rowFlex1: { flex: 1 },
+  wideTile: { width: '100%' },
+
+  capRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  capLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.4, color: c.text.primary },
+  capUnit: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
+  seeAllRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+
+  balanceTile: {},
+  balanceNum: { fontSize: 32, fontFamily: 'Inter_900Black', letterSpacing: -0.8, color: c.text.bright, marginTop: spacing[2] },
+  balanceCur: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  balanceSumRow: { flexDirection: 'row', gap: spacing[4], marginTop: spacing[2] },
+  balanceIn: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.accent.green },
+  balanceOut: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.muted },
+
+  barSpace: { marginTop: spacing[3] },
+  productsLink: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  productsLinkLabel: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
+  foodTotalHint: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: spacing[2], textAlign: 'right' },
+  emptyInline: { fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', marginTop: spacing[3] },
+
+  stubTile: { flex: 1, gap: 4 },
+  stubNum: { fontSize: 22, fontFamily: 'Inter_800ExtraBold', color: c.text.bright, marginTop: spacing[1] },
+  stubHint: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
 
   fab: {
     position: 'absolute', right: spacing[4], bottom: spacing[4],
