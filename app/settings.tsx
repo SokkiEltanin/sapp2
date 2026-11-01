@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ComponentType } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, BackHandler, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, BackHandler, Platform, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, Search, X,
   Info, Stethoscope, Wallet, Clock, Bell, Copy,
   LogIn, LogOut, User as UserIcon, Database, CalendarDays, AlertTriangle, Rocket,
-  BatteryWarning, AlarmClock,
+  BatteryWarning, AlarmClock, Landmark, Zap,
 } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -20,6 +20,7 @@ import { GOOGLE_WEB_CLIENT_ID, signOutGoogle } from '@/services/googleAuth';
 import { calendarService } from '@/services/calendarService';
 import { googleCalendarService } from '@/services/googleCalendarService';
 import { todayISO } from '@/utils/date';
+import { useBankQueue } from '@/store/bankQueueStore';
 
 // Build metadata wstrzyknięty przez CI (`.github/workflows/build.yml`, krok "Build
 // release APK") jako EXPO_PUBLIC_* — Expo inline'uje te zmienne w bundlu JS na etapie
@@ -68,7 +69,7 @@ function plCount(n: number, one: string, few: string, many: string) {
 // (`c.bg.elevated` + `c.text.secondary`), tak samo dla wszystkich kategorii/pozycji —
 // kolor nie niesie już znaczenia kategorii, tylko funkcjonalne akcenty (tagi zadań)
 // zostają kolorowe.
-function buildSections(email: string | null): SettingsSection[] {
+function buildSections(email: string | null, bank: { enabled: boolean; autoAll: boolean; pending: number }): SettingsSection[] {
   return [
   {
     id: 'konto', title: 'Konto', icon: UserIcon,
@@ -113,10 +114,30 @@ function buildSections(email: string | null): SettingsSection[] {
       { kind: 'action', key: 'alert-exact-alarm', label: 'Dokladne alarmy', description: 'otwiera systemowe ustawienia "Alarmy i przypomnienia" wymagane dla terminowego budzenia', icon: AlarmClock },
     ],
   },
+  // Sekcja "Finanse" miała dotąd tylko statyczne "W budowie" — stałe od Fazy 2.1,
+  // zanim appka miała cokolwiek finansowego do wystawienia. Faza 2.5 (2026-11-01,
+  // "najbardziej ryzykowny, natywny kawałek" z ARCHITECTURE.md §FINANSE) daje jej
+  // pierwszą realną zawartość: włącznik auto-przechwytu płatności z banku (natywny
+  // NotificationListenerService, patrz plugins/withBankNotificationListener.js) +
+  // link do kolejki przeglądu (app/bank-review.tsx). Szablony powiadomień/dopasowania
+  // (sapp miał to jako osobny krok dodany PO działającym MVP) świadomie odłożone —
+  // patrz NEXT_STEPS.md.
   {
     id: 'finanse', title: 'Finanse', icon: Wallet,
     items: [
-      { kind: 'value', key: 'finanse-soon', label: 'Wkrótce', description: 'parser paragonów budżety limity kategorie', icon: Clock, value: 'W budowie' },
+      {
+        kind: 'action', key: 'bank-enabled', label: 'Powiadomienia z banku',
+        description: bank.enabled
+          ? 'WŁĄCZONE — płatności kartą/przelewy łapane automatycznie'
+          : 'wyłączone — stuknij, żeby zacząć łapać płatności z Pekao/PKO automatycznie',
+        icon: Landmark,
+      },
+      ...(bank.enabled ? [
+        { kind: 'action' as const, key: 'bank-notif-access', label: 'Dostęp do powiadomień', description: 'otwiera systemowy ekran — przyznaj Sapp2 RAZ, inaczej nasłuch nic nie złapie', icon: Bell },
+        { kind: 'action' as const, key: 'bank-auto-all', label: 'Dodawaj automatycznie', description: bank.autoAll ? 'WŁĄCZONE — każda płatność kartą księguje się bez przeglądu' : 'wyłączone — nowy sprzedawca czeka na Twoje zatwierdzenie, potem uczy się sam', icon: Zap },
+        { kind: 'action' as const, key: 'bank-test', label: 'Sprawdź teraz (diagnostyka)', description: 'czy nasłuch w ogóle coś odbiera — log na dole ekranu', icon: Stethoscope },
+        { kind: 'action' as const, key: 'bank-review', label: 'Płatności do zatwierdzenia', description: bank.pending > 0 ? `${bank.pending} czeka — stuknij, żeby przejrzeć` : 'pusto — nic nie czeka na zatwierdzenie', icon: Rocket },
+      ] : []),
     ],
   },
   ];
@@ -150,7 +171,15 @@ export default function SettingsScreen() {
   // Ekran Ustawień żyje WYŁĄCZNIE pod bramką logowania (app/_layout.tsx) — `user` tu
   // jest więc zawsze ustawiony, ale `?? null` i tak jest bezpieczne dla typów i dla
   // ułamka sekundy między wylogowaniem a przekierowaniem bramki na /login.
-  const sections = useMemo(() => buildSections(user?.email ?? null), [user?.email]);
+  const bankEnabled = useBankQueue((st) => st.enabled);
+  const bankAutoAll = useBankQueue((st) => st.autoAll);
+  const bankPending = useBankQueue((st) => st.pending.length);
+  const setBankEnabled = useBankQueue((st) => st.setEnabled);
+  const setBankAutoAll = useBankQueue((st) => st.setAutoAll);
+  const sections = useMemo(
+    () => buildSections(user?.email ?? null, { enabled: bankEnabled, autoAll: bankAutoAll, pending: bankPending }),
+    [user?.email, bankEnabled, bankAutoAll, bankPending],
+  );
 
   const handleLogout = async () => {
     append('Wylogowywanie…');
@@ -521,6 +550,39 @@ export default function SettingsScreen() {
     }
   };
 
+  // Faza 2.5 (2026-11-01) — przełączniki (enabled/autoAll) jako zwykłe 'action' itemy,
+  // nie prawdziwy switch — settings.tsx nie ma typu/renderera dla kontrolki switch
+  // (tylko 'action'/'value'), a dodawanie go dla jednego miejsca byłoby przerostem
+  // formy nad treścią. Tap po prostu odwraca stan, opis w `buildSections` wyżej od razu
+  // pokazuje nowy.
+  const toggleBankEnabled = () => { setBankEnabled(!bankEnabled); append(bankEnabled ? 'Powiadomienia z banku: wyłączone.' : 'Powiadomienia z banku: włączone — przyznaj dostęp do powiadomień niżej.'); };
+  const toggleBankAutoAll = () => { setBankAutoAll(!bankAutoAll); append(bankAutoAll ? 'Auto-dodawanie: wyłączone.' : 'Auto-dodawanie: włączone — płatności kartą księgują się bez przeglądu.'); };
+  const openNotificationAccess = () => {
+    Linking.sendIntent('android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS').catch(() => {
+      append('Nie udało się otworzyć ustawień — znajdź "Dostęp do powiadomień" ręcznie w Ustawieniach → Aplikacje.');
+    });
+  };
+  const testBankCapture = async () => {
+    append('Sprawdzam przechwyt powiadomień z banku…');
+    try {
+      const { peekBankCapture, drainBankNotifications } = await import('@/services/bankNotificationDrain');
+      const peek = await peekBankCapture();
+      const queued = await drainBankNotifications();
+      if (!peek.fileExists || peek.count === 0) {
+        if (peek.seen.length === 0) {
+          append('Nasłuch NIC nie odbiera (nawet z innych apek) — sprawdź "Dostęp do powiadomień" i baterię Sapp2.');
+        } else {
+          append(`Nasłuch działa, ale nic nie wyglądało na płatność bankową. Widziane apki: ${peek.seen.join(', ')}`);
+        }
+      } else {
+        append(`Przechwycono ${peek.count} powiadomień. ${queued > 0 ? `Dodano ${queued} do zatwierdzenia.` : 'Żadne nie wyglądało na nową płatność.'}`);
+        peek.samples.forEach((s) => append(`• ${s}`));
+      }
+    } catch (e: any) {
+      append(`Błąd diagnostyki: ${String(e?.message ?? e)}`);
+    }
+  };
+
   const handlers: Record<string, () => void> = {
     'account-logout': handleLogout,
     google: testGoogleSignIn,
@@ -533,6 +595,11 @@ export default function SettingsScreen() {
     'alert-notifee-5min': () => sendNotifeeAlert(false, 5 * 60 * 1000, false),
     'alert-battery': checkBatteryOptimization,
     'alert-exact-alarm': openExactAlarmSettings,
+    'bank-enabled': toggleBankEnabled,
+    'bank-notif-access': openNotificationAccess,
+    'bank-auto-all': toggleBankAutoAll,
+    'bank-test': testBankCapture,
+    'bank-review': () => router.push('/bank-review' as any),
   };
 
   const q = query.trim().toLowerCase();

@@ -1837,6 +1837,58 @@ User: "dawaj" na zaproponowany plan Fazy 2.4. Zrobione:
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 137/137 zielone (2 nowe testy
 `wydatkiData.test.ts`), `npx expo export --platform android` bez błędów.
 
+## Finanse — Faza 2.5 "Powiadomienia z banku" UKOŃCZONA (2026-11-01)
+
+User: "dawaj dalej" po Fazie 2.4 → kolejny, ostatni nieruszony krok z planu Finansów
+(ARCHITECTURE.md §FINANSE "Kolejność budowy"), świadomie opisany jako "najbardziej
+ryzykowny, natywny kawałek, celowo na końcu". Port z sapp (ten sam user, te same
+banki: Pekao PeoPay/Pekao24 + PKO BP IKO), ADAPTOWANY do sapp2's modelu bez
+kategorii i offline-first zapisu — pełne szczegóły adaptacji w
+ARCHITECTURE.md § "Powiadomienia z banku (Faza 2.5)".
+
+Skrót co powstało: natywny `NotificationListenerService`
+(`plugins/withBankNotificationListener.js`) → `bankNotificationDrain.ts` (czyta przy
+każdym foreground) → `bankIngest.ts`/`utils/bankNotification.ts` (parsuje, dopasowuje
+pamięć sprzedawcy) → `bankQueueStore.ts` (kolejka) → `bankAutoProcess.ts`
+(auto-zatwierdza zaufanych) → `bankCommit.ts` (zapisuje `Expense`, dedup, uczy
+`merchantMemory`). Ręczny przegląd: nowy route `app/bank-review.tsx`. Ustawienia →
+Finanse: włącznik, link do "Dostęp do powiadomień" (systemowy ekran), "Dodawaj
+automatycznie", "Sprawdź teraz (diagnostyka)", link do przeglądu z licznikiem
+oczekujących. Świadomie ODŁOŻONE: szablony powiadomień (bankRulesStore/UI), integracja
+z Subskrypcjami/Pracą/wypłatą (te ekrany jeszcze nie istnieją w sapp2).
+
+**TO JEDYNA funkcja w tej rundzie sesji, której CI/`tsc`/`jest`/`expo export` NIE
+mogą realnie zweryfikować** — sprawdzają tylko że kod się kompiluje i że
+config-plugin generuje poprawny natywny Kotlin/manifest (zweryfikowane lokalnie przez
+`npx expo prebuild` — plik `Sapp2NotificationListener.kt` i wpis `<service>` w
+AndroidManifest.xml wygenerowane poprawnie). Czy nasłuch FAKTYCZNIE łapie
+powiadomienia na tym konkretnym telefonie/OEM da się sprawdzić tylko na urządzeniu.
+
+**DO PRZETESTOWANIA NA URZĄDZENIU** (w tej kolejności):
+1. Ustawienia → Finanse → "Powiadomienia z banku" → włącz.
+2. "Dostęp do powiadomień" → otwiera systemowy ekran → znajdź Sapp2 → włącz
+   (jednorazowo, bez tego nasłuch nic nie dostanie).
+3. Jeśli telefon ma agresywny battery-saver (Samsung/Xiaomi itp.) — to ten sam
+   problem co w Alertach (patrz runda "Alerty: diagnostyka baterii/alarmów" wyżej):
+   użyj "Optymalizacja baterii" w Alertach, żeby appka nie usypiała nasłuchu.
+4. Zapłać czymkolwiek kartą/BLIK-iem (albo poczekaj na przelew) → powinno przyjść
+   powiadomienie z Pekao/PKO.
+5. "Sprawdź teraz (diagnostyka)" w Ustawieniach → powinno pokazać "Przechwycono N
+   powiadomień" + czy coś trafiło do kolejki. Jeśli "nasłuch NIC nie odbiera" —
+   krok 2 nie zadziałał albo OEM usypia usługę (krok 3).
+6. "Płatności do zatwierdzenia" → karta z kwotą/sklepem/tagami → edytuj tagi →
+   Zatwierdź → sprawdź że wydatek pojawił się w "Ostatnie transakcje" na Finanse.
+7. Zapłać w TYM SAMYM sklepie jeszcze 4 razy (albo edytuj pamięć ręcznie) — po 5
+   czystych akceptacjach sprzedawca powinien przejść na automat (patrz "Zaufanie
+   N/5" na karcie, potem "Sklep na automacie" przy kolejnej płatności).
+8. Jeśli bank przyśle przelew przychodzący (nie kartowy) — sprawdź że trafia jako
+   przychód, nie wydatek, z opcją "To wypłata z pracy".
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 164/164 zielone (27 nowych
+testów: `bankNotification`/`bankAmountMatch`/`bankNotificationDedup`/`bankCommit`),
+`npx expo export --platform android` bez błędów, `npx expo prebuild --platform
+android` generuje poprawny natywny serwis + wpis w manifeście.
+
 ## Dashboard — widget #JEDZENIE podpięty do realnych danych (2026-11-01)
 
 User: *"czemu na dashboardzie nie ma widgetu ostatniego tego na dole z wydatkami

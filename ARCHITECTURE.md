@@ -408,13 +408,84 @@ banku... plus szablony wyłapywań")
    `VariableBreakdownCard.tsx` — bliźniaki `FoodBreakdownCard.tsx`, bez wykresu
    tygodniowego (rachunki/zmienne nie mają sensownego podziału na tygodnie jak
    jedzenie). Kafel salda już realny od rundy poprawek 2026-11-01.
-5. **Powiadomienia z banku** — natywny listener + parser + szablony + kolejka +
-   zaufanie/auto-akceptacja. Najbardziej ryzykowny, natywny kawałek — celowo na
-   końcu, gdy reszta modelu danych/UI jest już sprawdzona.
+5. **Powiadomienia z banku — ZROBIONE (2026-11-01, user: "dawaj dalej")**, PODSTAWOWA
+   pętla (nasłuch → parser → kolejka → przegląd → zaksięgowanie), bez szablonów —
+   patrz `### Powiadomienia z banku (Faza 2.5)` niżej po szczegóły i co świadomie
+   odłożone.
 6. **Wibracje** (user: "zrób te wibracje") — port `utils/haptics.ts`, wpięte w
    nowe interakcje Finansów (toggle taga, zatwierdź, połącz duplikat) — zgodnie z
    już ustaloną zasadą w `ARCHITECTURE.md` §Ogólne ("NIE osobny przełącznik w UI,
    wyciszamy per-ekran w kodzie jeśli trzeba").
+
+### Powiadomienia z banku (Faza 2.5, 2026-11-01)
+
+Port z sapp (`bankNotification.ts`/`bankQueueStore.ts`/`bankIngest.ts`/
+`bankCommit.ts`/`bankAutoProcess.ts`/`bankNotificationDrain.ts`/
+`withBankNotificationListener.js`), ADAPTOWANY (nie 1:1 — sapp2 brakuje kilku
+podsystemów które sapp's `bankCommit.ts` zakładał, patrz niżej). Dostrojony pod Bank
+Pekao S.A. (PeoPay/Pekao24) + PKO BP (IKO) — te same banki co w sapp, ten sam user.
+
+**Mechanizm** (identyczny jak sapp): natywny `NotificationListenerService`
+(`Sapp2NotificationListener.kt`, wstrzyknięty przez
+`plugins/withBankNotificationListener.js` — ten sam wzorzec config-pluginu co
+`withFullScreenAlert.js`) filtruje powiadomienia apek bankowych i dopisuje
+`{title,text,pkg,time}` do pliku JSON w `filesDir` (= expo-file-system's
+`documentDirectory`). `services/bankNotificationDrain.ts` czyta/czyści ten plik przy
+każdym wejściu appki na pierwszy plan (`app/_layout.tsx`), przepuszcza przez
+`bankIngest.ts` (parsuje przez `utils/bankNotification.ts`, dopasowuje pamięć
+sprzedawcy) → `store/bankQueueStore.ts` (kolejka do przeglądu) →
+`services/bankAutoProcess.ts` (auto-zatwierdza zaufanych sprzedawców) →
+`services/bankCommit.ts` (zamienia w prawdziwy `Expense`, dedup, uczy
+`merchantMemory`). Przegląd ręczny: `app/bank-review.tsx` (nowy route, nie modal —
+jak `settings.tsx`), wejście z Ustawień → Finanse → "Płatności do zatwierdzenia".
+User musi RAZ ręcznie przyznać "Dostęp do powiadomień" (przycisk w Ustawieniach
+otwiera systemowy ekran, `Linking.sendIntent`) — appka nie może tego zrobić sama.
+
+**Adaptacje vs sapp** (żadna NIE jest przeoczeniem, wszystkie świadome):
+- **Kategoria → tagi**: sapp pamiętał `category: ExpenseCategory` per sprzedawca/
+  transakcję — sapp2 nie ma `ExpenseCategory` w ogóle (patrz redesign kategorii na
+  początku tego pliku), więc wszędzie `tags: string[]`. Ten sam wzorzec już
+  zastosowany w `merchantMemory.ts` (portowane w Fazie 2.1, czekało dokładnie na tę
+  rundę).
+- **Offline-first, zapis SYNCHRONICZNY**: sapp's `bankCommit.ts` pisał do Firestore
+  NAJPIERW (`await expensesService.add()`), dopiero potem lokalnie — sapp2 jest
+  celowo offline-first (ta sama zasada co `AddExpenseModal.tsx`), więc
+  `useExpensesStore.getState().addExpense()` bezpośrednio, zero awaited network w
+  krytycznej ścieżce. To też usunęło całą klasę UX-complexity z sapp's
+  `bank-review.tsx` (multi-tap guard + spinner na 10s Firestore timeout) — commit
+  jest praktycznie natychmiastowy.
+- **Szablony powiadomień (`bankRulesStore`/UI w Ustawieniach) — ODŁOŻONE**. To była
+  w SAMYM sapp funkcja dodana PO działającym MVP (2026-09-08, długo po pierwszej
+  wersji), nie część fundamentu — nierozpoznany sprzedawca dostaje puste `tags: []`,
+  user otaguje raz ręcznie w przeglądzie, od tego momentu `merchantMemory` się uczy.
+  Kompletna, nie-dziurawa pętla bez szablonów; szablony to czysty dodatek na później.
+- **Subskrypcje / Praca / przypomnienie o wypłacie — POMINIĘTE CAŁKOWICIE**. sapp's
+  `bankCommit.ts` auto-opłacał subskrypcje (`subscriptionsStore`/`subscriptionAuto`),
+  oznaczał "payday handled" i dopisywał prefiks z pracy (`workStore`) — żaden z tych
+  trzech podsystemów nie istnieje w sapp2 (wciąż `ComingSoonRow` w Finanse →
+  Obszary). Gdy/jeśli powstaną, ich bank-integracja wraca jako osobna, świadoma
+  runda — nie teraz.
+- **Waluta obca — ZAWSZE do ręcznego przeglądu**. sapp miał `plnOverride`/
+  `originalAmount`/`originalCurrency` na `Expense` (user ręcznie wpisywał przeliczoną
+  kwotę PLN w `bank-review.tsx`) — sapp2's `Expense` nie ma tych pól. Płatność w
+  obcej walucie dostaje `flagReason`, nigdy nie auto-księguje się; po zatwierdzeniu
+  kwota wchodzi TAK JAK PODANA (bez przeliczenia) — user widzi walutę w karcie
+  przeglądu i może ręcznie poprawić kwotę przed zatwierdzeniem.
+- **Przelew własny (Revolut/inne konto) — ZAWSZE do ręcznego przeglądu**.
+  `fixedVariable.ts`'s `FvBucket` ma tylko `fixed`/`variable`/`food`, bez
+  sapp's pseudo-kategorii `'transfer'` wykluczonej ze statystyk wydatków. Zamiast
+  rozszerzać `FvBucket` dla jednego, wąskiego przypadku, przelew własny dostaje
+  `flagReason` i tag `'przelew własny'` — user może ręcznie ustawić `fvOverride` po
+  dodaniu, jeśli chce go wykluczyć z sum Stałe/Zmienne/Jedzenie.
+- **Toasty — brak** (sapp2 nie ma jeszcze systemu toastów, żaden inny ekran go nie
+  używa) — znikająca kolejka + log diagnostyczny w Ustawieniach (reużyty istniejący
+  `append()`) to dotychczasowy sposób dawania feedbacku w tej appce.
+
+**NEXT_STEPS.md** ma pełną listę "do przetestowania na urządzeniu" — to JEDYNA
+funkcja w tej rundzie sesji wymagająca prawdziwego urządzenia + prawdziwego
+powiadomienia z banku do realnej weryfikacji (CI/`tsc`/`jest`/`expo export` sprawdzają
+tylko że kod się kompiluje i plugin generuje poprawny natywny kod — nie że nasłuch
+faktycznie łapie powiadomienia na danym telefonie/OEM).
 
 **PRACA / SUBSKRYPCJE** [PE] — bez zmian względem wcześniejszego ustalenia (niżej),
 wciąż osobne, mniejsze podekrany. **POJAZDY** [PE] — wciąż odłożone.

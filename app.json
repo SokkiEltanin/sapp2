@@ -34,6 +34,7 @@
       "expo-font",
       "expo-notifications",
       "./plugins/withFullScreenAlert.js",
+      "./plugins/withBankNotificationListener.js",
       [
         "expo-build-properties",
         {

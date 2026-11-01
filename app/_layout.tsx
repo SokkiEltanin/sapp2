@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, AppState } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -15,6 +15,9 @@ import {
 import { colors } from '@/theme/colors';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { useNotifeeAlertLaunch } from '@/hooks/useNotifeeAlertLaunch';
+import { loadOwnName } from '@/utils/ownName';
+import { drainBankNotifications } from '@/services/bankNotificationDrain';
+import { useExpensesStore } from '@/store/expensesStore';
 
 // ŚWIADOMIE bez importu @react-native-google-signin/google-signin tutaj — to natywny
 // moduł, Expo Go go nie ma, a import na poziomie modułu (nie wołanie funkcji) wywaliłby
@@ -62,6 +65,26 @@ export default function RootLayout() {
   // Deep-link z pełnoekranowego alertu notifee na dedykowany ekran alarmu (patrz
   // app/alert-test.tsx) — patrz komentarz w src/hooks/useNotifeeAlertLaunch.ts.
   useNotifeeAlertLaunch();
+
+  // Faza 2.5 (2026-11-01) — własne imię+nazwisko do wykrywania przelewów do siebie
+  // (bankNotification.ts's `selfTransfer`), wczytane raz przy starcie.
+  useEffect(() => { loadOwnName().catch(() => {}); }, []);
+
+  // Osusza powiadomienia z banku przechwycone przez natywny nasłuch
+  // (plugins/withBankNotificationListener.js) podczas gdy appka była zamknięta/w tle —
+  // przy zimnym starcie + za każdym wejściem na pierwszy plan. Zakolejkowane pozycje są
+  // potem auto-zatwierdzane (zaufani sprzedawcy) albo czekają na ręczny przegląd
+  // (app/bank-review.tsx). Drenaż, POTEM auto-commit — ale tylko gdy `expenses` już są
+  // załadowane (dopasowywanie do istniejących wydatków inaczej nie ma czego porównać;
+  // najbliższe wejście na Finanse i tak odpali to ponownie przez fokus ekranu).
+  useEffect(() => {
+    const drainThenAuto = () => drainBankNotifications()
+      .then(() => { if (useExpensesStore.getState().expenses.length > 0) return import('@/services/bankAutoProcess').then((m) => m.processAutoBankQueue()); })
+      .catch(() => {});
+    const t = setTimeout(drainThenAuto, 1500);
+    const sub = AppState.addEventListener('change', (state) => { if (state === 'active') drainThenAuto(); });
+    return () => { clearTimeout(t); sub.remove(); };
+  }, []);
 
   // W przeciwieństwie do fontów, TEGO jednego czekania appka nie może "ignorować" —
   // pierwszy render musi wiedzieć czy pokazać ekrany, czy /login, inaczej zalogowany
