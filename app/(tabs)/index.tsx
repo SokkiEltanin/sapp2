@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import StatTile, { getTilePosition } from '@/components/dashboard/StatTile';
-import FactTile from '@/components/dashboard/FactTile';
-import SleepTile from '@/components/dashboard/SleepTile';
-import TaskListTile, { type Task, type TaskTag } from '@/components/dashboard/TaskListTile';
-import FoodBarsTile, { type BarColumn } from '@/components/dashboard/FoodBarsTile';
+import { AlertTriangle } from 'lucide-react-native';
+import Tile from '@/components/design/Tile';
+import StatTile from '@/components/design/StatTile';
+import Row from '@/components/design/Row';
+import PricePill from '@/components/design/PricePill';
+import Bars from '@/components/design/Bars';
+import FitList from '@/components/design/FitList';
 import WydatkiModal from '@/components/dashboard/WydatkiModal';
 import { colors } from '@/theme/colors';
 import { spacing, themedStyles } from '@/theme';
@@ -14,179 +16,269 @@ import { useExpensesStore } from '@/store/expensesStore';
 import { todayISO } from '@/utils/date';
 import { foodByMonth, foodDailyAverageThisMonth } from '@/utils/foodStats';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
+import { getBalanceOffset, accountBalance, affectsBalance } from '@/utils/balance';
+import type { CalendarEvent } from '@/types/calendar';
 
-// Pierwsze cztery rzędy prawdziwego Dashboardu (2026-10-26) wg mockupów usera:
-// rząd 1 — STREAK WODA > STREAK SŁODYCZE > INCOMING EVENT > STREAK ĆWICZENIA (kafle
-// statystyk — pogoda wywalona, zastąpiona streakiem ćwiczeń, ten sam kafelek co
-// WODA/SŁODYCZE); rząd 2 — CIEKAWOSTKA > SEN (kafle z dodatkowym wzorem koncentrycznym
-// w tle); rząd 3 — ZADANIA (3/4 szerokości) > NAJBLIŻSZY TERMIN (1/4, patrz niżej);
-// rząd 4 — FINANSE (1/4, kafel statystyk) > wykres wydatków na jedzenie per miesiąc
-// (3/4). Dane na sztywno (mock) — jeszcze nie podpięte do żadnego store'a, tylko
-// weryfikacja stylu na urządzeniu.
+// Faza 3.2 (2026-11-01, "dawaj" po Fazie 3.1) — Dashboard przebudowany na nowy
+// system komponentów z design/app-design.html (Tile/StatTile/Row/PricePill/Bars/
+// FitList), zgodnie z jego gridem (4 kolumny, grid-template-rows:
+// `auto 96px auto 1fr 1.3fr`) i KOLEJNOŚCIĄ kafelków. Stary `src/components/
+// dashboard/{StatTile,FactTile,SleepTile,TaskListTile,FoodBarsTile,
+// PatternTileBackground,tilePosition}.*` USUNIĘTE — po przełączeniu index.tsx na
+// nowe komponenty nic już ich nie importowało.
 //
-// Kafelek obok Zadań (2026-10-30, user: "tam gdzie lvl27 kafelek przy zadaniach
-// robimy tak jak na górze mamy z tym 27 min do, tylko na zadania, np 2 dni, do
-// końca, i nazwa zadania") — placeholder LevelTile/Pupil ZASTĄPIONY tym samym
-// wzorcem co kafelek "INCOMING EVENT" w rzędzie 1 (StatTile `variant="event"`,
-// wartość+jednostka+detail), tylko licząc czas do najbliższego terminu zadania
-// zamiast do eventu. Zero nowego komponentu — to dokładnie ten sam `StatTile`,
-// inne dane. `LevelTile.tsx` USUNIĘTY (nic już go nie używa) — koncept
-// Pupil/poziomu wraca jako osobna, świadoma decyzja, nie jako martwy plik tutaj.
-//
-// MONOCHROMATYCZNY REDESIGN (2026-10-30) — user podesłał dokładny SVG-referencję:
-// "wywaliłem gradienty i poprawiłem monochromatyczność... taki styl przyjmujemy dla
-// całej aplikacji". Wszystkie gradienty tła (per-kategoria, po skosie/pionowe) oraz
-// kolorowanie dużych liczb/etykiet/ikon kaflom `accent`-em USUNIĘTE — patrz
-// StatTile.tsx/PatternTileBackground.tsx/FactTile.tsx/SleepTile.tsx/FoodBarsTile.tsx/
-// TaskListTile.tsx. Jedyny kolor który ZOSTAŁ to funkcjonalne akcenty (np. kolor
-// chipa taga w MOCK_TASKS niżej) — dokładnie jak w referencyjnym SVG, gdzie jedynym
-// nie-neutralnym elementem był niebieski chip "UR".
-// Kafelek Zadań i "najbliższy termin" ZASTĄPIONE realnymi danymi z `calendarStore`
-// (2026-11-01, user: "zadania które dodaję żeby pokazywały się już realnie na
-// dashboardzie") — patrz `dashboardTasks`/`nextDeadlineTask` w komponencie niżej.
-// Pokazują te same 4 stany systemu tagów (2026-10-27) co dawny mock, tylko liczone
-// z prawdziwych zadań: nazwany skrót (pierwszy tag), pilne (termin dziś/po terminie),
-// przypomnienie (ma termin w przyszłości), bez taga (ani jedno, ani drugie).
-// Rząd 4 (Finanse/#JEDZENIE) PRZESTAŁ być mock (2026-11-01, user: "czemu na
-// dashboardzie nie ma widgetu... z wydatkami jedzenie" — kafle BYŁY, ale wciąż
-// renderowały stałe MOCK_FOOD_* z 2026-10-30 i nigdy nie reagowały na realnie
-// dodawane paragony, co czytało się jako "nie ma go"). Teraz liczone z
-// `useExpensesStore` przez `utils/foodStats.ts` (oparte na `fvSplitOf`, patrz
-// ARCHITECTURE.md §FINANSE) — patrz `foodColumns`/`wydatkiData` w komponencie niżej.
-// Popup `WydatkiModal` wciąż otwiera się tapem w ISTNIEJĄCY kafel "#JEDZENIE",
-// Dashboard sam nadal się NIE scrolluje — zero nowego elementu, tylko realne dane.
-// Faza 2.4 (2026-11-01) — `wydatki` useMemo ZASTĄPIONY wspólnym `useWydatkiData`
-// (patrz `hooks/useWydatkiData.ts`/`utils/wydatkiData.ts`) — ten sam modal
-// (teraz z 3-way tabem Stałe/Zmienne/Jedzenie) otwiera się TERAZ też z Finansów,
-// `initialTab="food"` tutaj zachowuje dokładnie poprzednie zachowanie tego wejścia.
-function formatPlnOneDecimal(n: number): string {
-  return n.toFixed(1).replace('.', ',');
+// Co jest REALNE, a co stub — żadnego kafla nie udaje danych, których appka nie
+// zbiera (patrz ARCHITECTURE.md §"REDESIGN RDZENIA UI", decyzje #1/#2):
+// - Woda/Słodycze/Trening (streaki) — appka NIE ma jeszcze żadnego store'a
+//   nawyków/odhaczania dni. Stary Dashboard renderował tu SZTYWNE mocki ("74"/"4"/
+//   "12") jako jeśli realne — to był pre-existing problem, nie mój wybór, i
+//   naprawiony tutaj: `StatTile` bez `onPress` (nieinteraktywna), wartość "—",
+//   `unit="WKRÓTCE"`. Zbudowanie realnego licznika to osobna, świadoma faza
+//   (potrzebuje: co liczy się jako "dzień czysty", UI odznaczania, store).
+// - Sen — Health Connect nieistniejący (Faza 3, decyzja #2) — ten sam stub.
+// - "Siłownia"/hot-tile — ZREALIZOWANE z prawdziwych wydarzeń kalendarza
+//   (`calendarStore`'s `events`+`gcalEvents`, już realne od Fazy 1 kalendarza):
+//   najbliższe nadchodzące wydarzenie z godziną startu; "hot" (odwrócone
+//   kolory+pulsująca kropka) gdy zaczyna się w ciągu 90 minut.
+// - Ciekawostka — realna, statyczna lista + rotacja po dniu roku (deterministyczna,
+//   nie losowa — to samo info cały dzień), tap = następna (bez popupu na razie,
+//   bottom-sheet-yfikacja popupów to kolejna faza).
+// - Jedzenie PLN/dzień, #JedzeniePerMiesiąc, Ostatnie transakcje — bez zmian w
+//   danych (już realne, `foodStats.ts`/`useExpensesStore`), tylko nowy wygląd.
+// - Bezpieczne wydatki — UPROSZCZONA, ale REALNA wersja: appka nie ma jeszcze
+//   store'a "płatności cykliczne/bills" (patrz ARCHITECTURE.md), więc liczone
+//   jako saldo (`utils/balance.ts`, realne) / dni do końca miesiąca, BEZ
+//   odjęcia nieopłaconych rachunków (bo appka nie wie o żadnych). Jawnie
+//   uproszczone, nie fałszywe — gdy store rachunków powstanie, odjęcie wraca.
+// - Najbliższe 48h — REALNY merge wydarzeń kalendarza + terminów zadań
+//   (oba już istniejące store'y), bez płatności cyklicznych (jak wyżej, nie
+//   istnieją). Sortowane po czasie, max tyle wierszy ile się zmieści (`FitList`).
+const FACTS = [
+  'Mózg zużywa jedną piątą energii twojego organizmu',
+  'Grafen jest ok. 200× wytrzymalszy od stali przy tej samej masie',
+  'Atom złota ma średnicę ok. 0,3 nm',
+  'GaAs przewodzi elektrony ok. 6× szybciej niż krzem',
+];
+
+function dayOfYear(d: Date): number {
+  const start = new Date(d.getFullYear(), 0, 0);
+  return Math.floor((d.getTime() - start.getTime()) / 86400000);
+}
+
+function fmtAmount(n: number): string {
+  return Math.abs(n).toFixed(2).replace('.', ',');
+}
+
+function eventStart(e: CalendarEvent): Date | null {
+  if (!e.startTime) return null;
+  const dayKey = (e.date || '').slice(0, 10);
+  const [h, mi] = e.startTime.split(':').map(Number);
+  const d = new Date(`${dayKey}T00:00:00`);
+  d.setHours(h, mi, 0, 0);
+  return d;
+}
+function eventEnd(e: CalendarEvent, start: Date): Date {
+  if (!e.endTime) return start;
+  const [h, mi] = e.endTime.split(':').map(Number);
+  const d = new Date(start);
+  d.setHours(h, mi, 0, 0);
+  return d;
 }
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const s = makeS();
   const [wydatkiOpen, setWydatkiOpen] = useState(false);
+  const [factIndex, setFactIndex] = useState<number | null>(null);
+  const [offset, setOffset] = useState(0);
   const calendarTasks = useCalendarStore((st) => st.tasks);
+  const calendarEvents = useCalendarStore((st) => st.events);
+  const gcalEvents = useCalendarStore((st) => st.gcalEvents);
   const expenses = useExpensesStore((st) => st.expenses);
   const today = todayISO();
   const now = useMemo(() => new Date(), [today]);
 
+  useEffect(() => { getBalanceOffset().then(setOffset); }, []);
+  useEffect(() => { setFactIndex(dayOfYear(now) % FACTS.length); }, [now]);
+
   const dailyFoodAvg = useMemo(() => foodDailyAverageThisMonth(expenses, now), [expenses, now]);
-
-  const foodColumns = useMemo<BarColumn[]>(() => {
-    const months = foodByMonth(expenses, 4, now);
-    const avg = months.length > 0 ? Math.round(months.reduce((a, m) => a + m.value, 0) / months.length) : 0;
-    const bars: BarColumn[] = [{ label: '~ŚR', value: avg, display: String(avg), kind: 'average' }];
-    months.forEach((m, i) => {
-      bars.push({
-        label: m.label.toUpperCase(),
-        value: m.value,
-        display: String(m.value),
-        kind: i === months.length - 1 ? 'highlight' : 'bar',
-      });
-    });
-    return bars;
-  }, [expenses, now]);
-
   const wydatkiData = useWydatkiData(expenses, now);
 
-  // Do 4 pozycji: najpierw z terminem (rosnąco), potem bez terminu (najnowsze
-  // pierwsze) — ten sam porządek co sekcje Teraz/Terminowe w tasks.tsx.
-  const dashboardTasks = useMemo<Task[]>(() => {
-    const pending = calendarTasks.filter((t) => t.status === 'pending');
-    const withDeadline = pending.filter((t) => t.deadline).sort((a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? ''));
-    const withoutDeadline = pending.filter((t) => !t.deadline).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    return [...withDeadline, ...withoutDeadline].slice(0, 4).map((t) => {
-      const deadlineYmd = t.deadline?.slice(0, 10);
-      let tag: TaskTag;
-      if (deadlineYmd && deadlineYmd <= today) tag = { kind: 'urgent' };
-      else if (t.tags.length > 0) tag = { kind: 'label', text: t.tags[0], color: colors.accent.blue };
-      else if (deadlineYmd) tag = { kind: 'bell', color: colors.stat.event };
-      else tag = { kind: 'empty' };
-      return { id: t.id, title: t.title, tag };
-    });
-  }, [calendarTasks, today]);
+  const foodMonths = useMemo(() => foodByMonth(expenses, 4, now), [expenses, now]);
+  const foodMax = Math.max(1, ...foodMonths.map((m) => m.value));
 
-  const nextDeadlineTask = useMemo(
-    () => calendarTasks
-      .filter((t) => t.status === 'pending' && t.deadline)
-      .sort((a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? ''))[0],
-    [calendarTasks],
+  // Scalone wydarzenia kalendarza (lokalne + Google) — te same dwie listy, których
+  // Zadania/Kalendarz już używają gdzie indziej w appce.
+  const allEvents = useMemo(() => [...calendarEvents, ...gcalEvents], [calendarEvents, gcalEvents]);
+
+  const upcomingEvent = useMemo(() => {
+    const list = allEvents
+      .map((e) => {
+        const start = eventStart(e);
+        if (!start) return null;
+        const end = e.endTime ? eventEnd(e, start) : start;
+        return { e, start, end };
+      })
+      .filter((x): x is { e: CalendarEvent; start: Date; end: Date } => !!x && x.end.getTime() > now.getTime())
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+    return list[0] ?? null;
+  }, [allEvents, now]);
+  const minutesToEvent = upcomingEvent ? Math.round((upcomingEvent.start.getTime() - now.getTime()) / 60000) : null;
+  const isHotEvent = minutesToEvent !== null && minutesToEvent <= 90;
+
+  // Saldo = realne (utils/balance.ts), ale "bezpieczne wydatki" bez odjęcia
+  // nieopłaconych rachunków cyklicznych — appka nie ma jeszcze tego store'a.
+  const balance = useMemo(() => accountBalance(expenses, offset), [expenses, offset]);
+  const daysLeftInMonth = useMemo(() => {
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return Math.max(1, lastDay - now.getDate() + 1);
+  }, [now]);
+  const safePerDay = balance / daysLeftInMonth;
+  const todaySpend = useMemo(
+    () => expenses
+      .filter((e) => e.type === 'expense' && affectsBalance(e) && e.date.slice(0, 10) === today)
+      .reduce((a, e) => a + e.amount, 0),
+    [expenses, today],
   );
-  const daysUntilDeadline = useMemo(() => {
-    if (!nextDeadlineTask?.deadline) return null;
-    const d = nextDeadlineTask.deadline.slice(0, 10);
-    const diff = Math.round((new Date(`${d}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86400000);
-    return Math.max(0, diff);
-  }, [nextDeadlineTask, today]);
+
+  const recentExpenses = useMemo(
+    () => [...expenses].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
+    [expenses],
+  );
+
+  type TimelineEntry = { key: string; at: Date; title: string; color: string; badge: 'event-hot' | 'task' | null };
+  const timeline48h = useMemo<TimelineEntry[]>(() => {
+    const limit = new Date(now.getTime() + 48 * 3600000);
+    const out: TimelineEntry[] = [];
+    for (const e of allEvents) {
+      const start = eventStart(e);
+      if (!start || start < now || start > limit) continue;
+      out.push({ key: `e_${e.id}`, at: start, title: e.title, color: e.color || colors.ui.in2, badge: (start.getTime() - now.getTime()) / 60000 <= 60 ? 'event-hot' : null });
+    }
+    for (const t of calendarTasks) {
+      if (t.status !== 'pending' || !t.deadline) continue;
+      const at = new Date(t.deadline);
+      if (at < now || at > limit) continue;
+      out.push({ key: `t_${t.id}`, at, title: t.title, color: colors.accent.red, badge: 'task' });
+    }
+    return out.sort((a, b) => a.at.getTime() - b.at.getTime());
+  }, [allEvents, calendarTasks, now]);
 
   return (
     <View style={[s.safe, { paddingTop: insets.top + spacing[2] }]}>
+      {/* Rząd 1 (auto): streaki + hot event — auto=content-sized */}
       <View style={s.row}>
-        <StatTile
-          position={getTilePosition(0, 4)}
-          value="74"
-          unit="DNI"
-          label="WODA"
-        />
-        <StatTile
-          position={getTilePosition(1, 4)}
-          value="4"
-          unit="DNI"
-          label="SŁODYCZE"
-        />
-        <StatTile
-          position={getTilePosition(2, 4)}
-          value="27"
-          unit="MINUT"
-          variant="event"
-          detail={'[JD] 15:00\n-21:00 (6h)'}
-        />
-        <StatTile
-          position={getTilePosition(3, 4)}
-          value="12"
-          unit="DNI"
-          label="ĆWICZENIA"
-        />
+        <StatTile value="—" unit="WKRÓTCE" label="WODA" />
+        <StatTile value="—" unit="WKRÓTCE" label="SŁODYCZE" />
+        <StatTile value="—" unit="WKRÓTCE" label="TRENING" />
+        {upcomingEvent ? (
+          <StatTile
+            value={isHotEvent ? ((minutesToEvent ?? 0) <= 0 ? 'TERAZ' : String(minutesToEvent)) : upcomingEvent.start.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
+            unit={isHotEvent ? `MIN · ${upcomingEvent.start.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}` : 'START'}
+            label={upcomingEvent.e.title}
+            variant={isHotEvent ? 'hot' : 'default'}
+            pulse={isHotEvent}
+          />
+        ) : (
+          <StatTile value="—" unit="BRAK" label="WYDARZENIA" />
+        )}
       </View>
 
-      <View style={[s.row, s.rowGap]}>
-        <FactTile
-          position={getTilePosition(0, 2)}
-          text="Mózg zużywa jedną piątą energii twojego organizmu"
-        />
-        <SleepTile
-          position={getTilePosition(1, 2)}
-          duration="7h 50m"
-          window="23:05 - 06:06"
-        />
+      {/* Rząd 2 (96px): Ciekawostka + Sen (stub) */}
+      <View style={[s.row, s.rowGap, s.row96]}>
+        <Tile style={s.factTile} onPress={() => setFactIndex((i) => ((i ?? 0) + 1) % FACTS.length)}>
+          <Text style={s.factText} numberOfLines={3}>{FACTS[factIndex ?? 0]}</Text>
+        </Tile>
+        <Tile style={s.sleepTile}>
+          <Text style={s.sleepNum}>—</Text>
+          <Text style={s.sleepUnit}>SNU · WKRÓTCE</Text>
+        </Tile>
       </View>
 
-      <View style={[s.row, s.rowGap]}>
-        <TaskListTile position={getTilePosition(0, 2)} tasks={dashboardTasks} />
-        <StatTile
-          position={getTilePosition(1, 2)}
-          value={daysUntilDeadline != null ? String(daysUntilDeadline) : '–'}
-          unit="DNI"
-          variant="event"
-          detail={nextDeadlineTask?.title ?? 'Brak terminów'}
-        />
-      </View>
-
+      {/* Rząd 3 (auto): Jedzenie PLN/dzień + #JedzeniePerMiesiąc */}
       <View style={[s.row, s.rowGap]}>
         <StatTile
-          position={getTilePosition(0, 2)}
-          value={formatPlnOneDecimal(dailyFoodAvg)}
-          unit="PLN"
-          label={'DZIENNIE\n#JEDZENIE'}
+          value={dailyFoodAvg.toFixed(1).replace('.', ',')}
+          unit="PLN/DZIEŃ"
+          label="JEDZENIE"
           onPress={() => setWydatkiOpen(true)}
         />
-        <FoodBarsTile
-          position={getTilePosition(1, 2)}
-          title="#JedzeniePerMiesiąc"
-          columns={foodColumns}
-        />
+        <Tile style={s.monthTile} onPress={() => setWydatkiOpen(true)}>
+          <View style={s.capRow}>
+            <Text style={s.capLabel}>#JEDZENIEPERMIESIĄC</Text>
+            <Text style={s.capUnit}>PLN</Text>
+          </View>
+          <View style={s.monthVals}>
+            {foodMonths.map((m, i) => (
+              <Text key={m.key} style={[s.monthVal, i === foodMonths.length - 1 && s.monthValOn]}>{m.value}</Text>
+            ))}
+          </View>
+          <Bars
+            data={foodMonths.map((m) => ({ value: m.value, label: m.label }))}
+            max={foodMax}
+            activeIndex={foodMonths.length - 1}
+            height={44}
+          />
+        </Tile>
+      </View>
+
+      {/* Rząd 4 (1fr): Ostatnie transakcje + Bezpieczne wydatki */}
+      <View style={[s.row, s.rowGap, s.rowFlex1]}>
+        <Tile style={s.txTile} variant="static">
+          <Text style={s.capLabelStandalone}>OSTATNIE TRANSAKCJE</Text>
+          <FitList
+            data={recentExpenses}
+            itemHeight={40}
+            gap={spacing[1]}
+            keyExtractor={(e) => e.id}
+            empty={<Text style={s.emptyText}>Brak transakcji</Text>}
+            renderItem={(e) => (
+              <Row
+                key={e.id}
+                label={e.note || e.storeName || (e.type === 'income' ? 'Przychód' : 'Płatność')}
+                right={<PricePill amount={fmtAmount(e.amount)} income={e.type === 'income'} />}
+              />
+            )}
+          />
+        </Tile>
+        <Tile style={s.safeTile} onPress={() => setWydatkiOpen(true)}>
+          <View>
+            <Text style={s.safeNum}>{Math.round(safePerDay)}</Text>
+            <Text style={s.sleepUnit}>PLN / DZIEŃ</Text>
+          </View>
+          <View>
+            <View style={s.safeBarTrack}>
+              <View style={[s.safeBarFill, { width: `${Math.min(100, (todaySpend / Math.max(1, safePerDay)) * 100)}%`, backgroundColor: todaySpend > safePerDay ? colors.accent.red : colors.text.primary }]} />
+            </View>
+            <Text style={[s.safeToday, todaySpend > safePerDay && s.safeTodayOver]}>dziś {Math.round(todaySpend)}</Text>
+          </View>
+        </Tile>
+      </View>
+
+      {/* Rząd 5 (1.3fr, najwyższy): Najbliższe 48h */}
+      <View style={[s.row, s.rowGap, s.rowFlex13]}>
+        <Tile style={s.timelineTile} variant="static">
+          <View style={s.capRow}>
+            <Text style={s.capLabelStandalone}>NAJBLIŻSZE 48H</Text>
+            <Text style={s.capUnit}>{timeline48h.length} razem</Text>
+          </View>
+          <FitList
+            data={timeline48h}
+            itemHeight={40}
+            gap={spacing[1]}
+            keyExtractor={(x) => x.key}
+            empty={<Text style={s.emptyText}>Spokój — nic w ciągu 48h</Text>}
+            renderItem={(x) => (
+              <Row
+                key={x.key}
+                left={<View style={[s.bar4, { backgroundColor: x.color }]} />}
+                label={x.title}
+                sublabel={x.at.toLocaleDateString('pl-PL', { weekday: 'short' }) + ' ' + x.at.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
+                right={x.badge === 'task' ? <AlertTriangle size={14} color={colors.accent.red} /> : undefined}
+              />
+            )}
+          />
+        </Tile>
       </View>
 
       <WydatkiModal
@@ -203,12 +295,39 @@ export default function DashboardScreen() {
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
-  // Dashboard WRACA do nieprzewijalnego ekranu (2026-10-31, user: "mieliśmy robić
-  // nieskrollowalny ekran żeby nie było chaosu" — ScrollView dodany w poprzedniej
-  // rundzie dla pełnej `FoodBreakdownCard` był błędem, usunięty razem z tamtym
-  // kaflem; szczegóły żyją teraz w `WydatkiModal`, osobnym popupie z WŁASNYM
-  // scrollem). Stałe 4 rzędy zawsze mieszczą się na ekranie, jak przed tą zmianą.
   safe: { flex: 1, backgroundColor: c.bg.primary, paddingHorizontal: spacing[3] },
-  row: { flexDirection: 'row', gap: spacing[1] },
-  rowGap: { marginTop: spacing[1] },
+  row: { flexDirection: 'row', gap: spacing[2] },
+  rowGap: { marginTop: spacing[2] },
+  row96: { height: 96 },
+  rowFlex1: { flex: 1 },
+  rowFlex13: { flex: 1.3 },
+
+  factTile: { flex: 1, justifyContent: 'center', paddingHorizontal: spacing[3] },
+  factText: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.primary, lineHeight: 17, textAlign: 'center' },
+
+  sleepTile: { flex: 1, justifyContent: 'center' },
+  sleepNum: { fontSize: 30, fontFamily: 'Inter_800ExtraBold', letterSpacing: -1.2, color: c.text.bright },
+  sleepUnit: { fontSize: 9, fontFamily: 'Inter_600SemiBold', letterSpacing: 1.2, color: c.text.muted, textTransform: 'uppercase', marginTop: 4 },
+
+  monthTile: { flex: 3 },
+  capRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  capLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.4, color: c.text.primary },
+  capLabelStandalone: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.4, color: c.text.primary, marginBottom: spacing[2] },
+  capUnit: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
+  monthVals: { flexDirection: 'row', gap: spacing[1], marginTop: spacing[2], marginBottom: spacing[1] },
+  monthVal: { flex: 1, textAlign: 'center', fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: c.text.muted },
+  monthValOn: { color: c.text.bright },
+
+  txTile: { flex: 3 },
+  emptyText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', marginTop: spacing[2] },
+
+  safeTile: { flex: 1, justifyContent: 'space-between' },
+  safeNum: { fontSize: 26, fontFamily: 'Inter_800ExtraBold', letterSpacing: -1, color: c.text.bright },
+  safeBarTrack: { height: 4, borderRadius: 999, backgroundColor: c.ui.in2, overflow: 'hidden', marginBottom: 5 },
+  safeBarFill: { height: '100%', borderRadius: 999 },
+  safeToday: { fontSize: 10, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  safeTodayOver: { color: c.accent.red },
+
+  timelineTile: { flex: 1 },
+  bar4: { width: 3, height: 20, borderRadius: 2, flexShrink: 0 },
 }));

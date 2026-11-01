@@ -2122,3 +2122,44 @@ Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone (bez zmian 
 nowa warstwa to czyste UI-komponenty, nic do testu jednostkowego na tym etapie),
 `npx expo export --platform android` bez błędów, `npx expo prebuild --platform
 android` generuje poprawny natywny projekt z nowymi zależnościami.
+
+## Redesign rdzenia UI — Faza 3.2 "Dashboard" UKOŃCZONA (2026-11-01)
+
+User: "dawaj" po Fazie 3.1 (fundament) + decyzjach o Pupilu/Health Connect.
+Dashboard przebudowany na nowy system komponentów (`Tile`/`StatTile`/`Row`/
+`PricePill`/`Bars`/`FitList`), układ 1:1 z `design/app-design.html`'s `#dash`.
+Pełny opis co realne/co stub w ARCHITECTURE.md §DASHBOARD — skrót: Woda/Słodycze/
+Trening/Sen = stub "Wkrótce" (brak store'a nawyków/Health Connect, uczciwie
+nieinteraktywne); hot-event-tile/Ciekawostka/Jedzenie/#JedzeniePerMiesiąc/Ostatnie
+transakcje/Bezpieczne wydatki (uproszczone, bez rachunków cyklicznych)/Najbliższe
+48h = REALNE dane z istniejących store'ów (kalendarz, wydatki, saldo).
+
+Stare komponenty Dashboardu USUNIĘTE (po przełączeniu nic ich już nie
+importowało): `src/components/dashboard/{StatTile,FactTile,SleepTile,
+TaskListTile,FoodBarsTile,PatternTileBackground,tilePosition}.*`. Nowy
+`src/components/design/FitList.tsx` — generyczny "lista pokazuje tyle ile się
+zmieści" (`onLayout`→`Math.floor`→`slice`, CLAUDE.md regl #1), użyty w "Ostatnie
+transakcje"/"Najbliższe 48h" zamiast sztywnego "pierwsze 4".
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**:
+- Dashboard musi się WCIĄŻ NIE scrollować, na różnych wysokościach ekranu/z
+  włączonymi dużymi czcionkami systemowymi (to jest pierwszy prawdziwy test
+  `FitList` na prawdziwym urządzeniu — w symulacji/eksporcie liczy się tylko że
+  się kompiluje, nie że dociąga poprawną liczbę wierszy).
+- "Ostatnie transakcje"/"Najbliższe 48h" — powinny pokazać TYLE wierszy ile się
+  zmieści w danym rzędzie, bez ucinania w połowie wiersza i bez nadmiarowego
+  odstępu pod listą.
+- Hot-event-tile — jeśli masz dziś/wkrótce wydarzenie w kalendarzu (lokalnym lub
+  Google), powinno się pojawić z odwróconymi kolorami + pulsującą kropką gdy
+  zaczyna się w ciągu 90 min, inaczej neutralny kafel z godziną startu. Brak
+  wydarzeń → "BRAK WYDARZENIA", nie crash.
+- Ciekawostka — tap cyklicznie zmienia tekst (4 fakty w kółko), ta sama
+  ciekawostka przy ponownym wejściu na Dashboard tego samego dnia.
+- Bezpieczne wydatki — liczba powinna być saldo/dni-do-końca-miesiąca (bez
+  rachunków, bo ich jeszcze nie ma), pasek czerwony gdy dzisiejsze wydatki
+  przekroczą ten limit.
+- Jedzenie PLN/dzień, #JedzeniePerMiesiąc, tap→`WydatkiModal` — bez zmian
+  funkcjonalnych względem wcześniejszych rund, tylko nowy wygląd.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone, `npx expo
+export --platform android` bez błędów.

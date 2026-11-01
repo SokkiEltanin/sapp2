@@ -112,76 +112,79 @@ spakowane), `npx expo prebuild --platform android` generuje poprawny natywny pro
 z nowymi zależnościami (zero nowych wpisów w `app.json`'s `plugins` — `expo-blur`/
 `@gorhom/bottom-sheet` autolinkują się bez config-pluginu).
 
-**Następne fazy (3.2+)** — screen-po-screenie, kolejność do ustalenia z userem,
-proponowana: Dashboard (najbardziej szczegółowo opisany w spec, Pupil już usunięty
-z Nav — patrz §PUPIL) → Daily (w tym `MoodPad` — 2D drag energia×przyjemność,
-ZASTĘPUJE obecną siatkę 3×3 "Humor/Nastrój", `react-native-gesture-handler`+
-`reanimated` już są) → Finanse (bottom-sheet-yfikacja istniejących popupów na
-`AppBottomSheet`, bez zmiany modelu danych) → Zadania (`WeekStrip`, `Segmented`
-zamiast obecnego UI) → Ustawienia. "Bezpieczne wydatki"/"Najbliższe 48h"/"Płatności
-cykliczne" potrzebują nowego store'a (`bills`) który jeszcze nie istnieje (dziś
-`ComingSoonRow` dla Subskrypcji/Pracy) — osobna, uczciwa faza, nie udawana na kaflach
-Dashboardu Fazy 3.2.
+**Faza 3.2 (Dashboard) — ZROBIONA (2026-11-01, "dawaj")**, patrz §DASHBOARD wyżej
+po pełny opis co realne/co stub.
+
+**Następne fazy (3.3+)** — screen-po-screenie, kolejność do ustalenia z userem,
+proponowana: Daily (w tym `MoodPad` — 2D drag energia×przyjemność, ZASTĘPUJE
+obecną siatkę 3×3 "Humor/Nastrój", `react-native-gesture-handler`+`reanimated`
+już są) → Finanse (bottom-sheet-yfikacja istniejących popupów na `AppBottomSheet`,
+bez zmiany modelu danych) → Zadania (`WeekStrip`, `Segmented` zamiast obecnego UI)
+→ Ustawienia. "Płatności cykliczne" (store `bills`, odblokuje pełne "Bezpieczne
+wydatki"/"Najbliższe 48h" z Fazy 3.2) potrzebuje osobnej, uczciwej fazy — dziś
+`ComingSoonRow` dla Subskrypcji/Pracy, nie udawane na kaflach Dashboardu.
 
 ## DASHBOARD [GE]
 
-Kliknięcie w kafelek przenosi na powiązaną zakładkę GE z kontekstem, np. kafelek SEN →
-`DAILY`, od razu pokazując sen z dziś + historię + średnią. Edycja danych (dopisanie
-wody/snu ręcznie itp.) — **odłożone**, na razie budujemy same ekrany/nawigację.
+**Przebudowany na nowy system komponentów (Faza 3.2, 2026-11-01)** — patrz
+§"REDESIGN RDZENIA UI" wyżej. Poniższy opis to AKTUALNA struktura; starszy opis
+(4 stałe rzędy, `getTilePosition`/`StatTile.tsx`/`MOCK_TASKS`) jest historią,
+te komponenty USUNIĘTE z repo.
 
-**NIEprzewijalny, celowo** (user: "mieliśmy robić nieskrollowalny ekran żeby nie było
-chaosu") — zawsze dokładnie 4 stałe rzędy (`getTilePosition`), nic więcej. Kafel
-"DZIENNIE #JEDZENIE" (rząd 4) jest tappable (`StatTile`'owy `onPress`) i otwiera
-`WydatkiModal.tsx` — pełnoekranowy popup z WŁASNYM scrollem, zawierający
-`FoodBreakdownCard.tsx`. Szczegółowa treść żyje w popupach, NIGDY na stałe na samym
-Dashboardzie — jeśli coś nowego nie mieści się w 4 rzędach, idzie do osobnego
-modala, nie wydłuża głównego ekranu.
+**NIEprzewijalny, celowo** (bez zmian od 2026-10-31) — 5 rzędów o układzie
+DOKŁADNIE jak w `design/app-design.html`'s `#dash` (4 kolumny, `grid-template-rows:
+auto 96px auto 1fr 1.3fr`, w RN: `View flexDirection:'column'`, rzędy 1-3 content-
+sized, rzędy 4-5 `flex:1`/`flex:1.3`). Listy w rzędach 4-5 używają `FitList`
+(`src/components/design/FitList.tsx`) — mierzą realną dostępną wysokość przez
+`onLayout` i docinają dane do tego co się zmieści, zero sztywnego "pierwsze 4"
+(CLAUDE.md regl #1, dosłowny przepis `onLayout→Math.floor(h/rowH)→slice`).
 
-**Rząd 4 (Finanse/#JEDZENIE) PODPIĘTY do realnych danych (2026-11-01)**, user:
-"czemu na dashboardzie nie ma widgetu... z wydatkami jedzenie" — kafle fizycznie
-BYŁY, ale wciąż renderowały `MOCK_FOOD_*` z 2026-10-30 (zawsze "823 zł" niezależnie
-od realnie dodawanych paragonów), co czytało się jako "nie ma go". Nowy
-`src/utils/foodStats.ts` liczy wszystko na `fvSplitOf` (NIE goły `foodAmountOf` —
-patrz §FINANSE "Stałe/Zmienne/Jedzenie"), bo to jedyna funkcja respektująca
-`fvOverride`/rachunki stałe:
-- `foodByMonth(expenses, count, today)` → ostatnie `count` miesięcy jedzenia
-  (oparte na `fixedVariableMonths`, nie duplikuje grupowania miesięcy) → słupki
-  `FoodBarsTile` (kolumna "~ŚR" = średnia tych miesięcy, ostatni miesiąc =
-  `kind:'highlight'`).
-- `foodDailyAverageThisMonth` → wartość StatTile "DZIENNIE #JEDZENIE" (suma
-  bieżącego miesiąca / dzień miesiąca).
-- `foodByWeekOfMonth` → 5 słupków T1-T5 w `WydatkiModal` (dni miesiąca dzielone po
-  7, nie realne tygodnie kalendarzowe — wystarczająco dla wykresu orientacyjnego).
-- `foodByCategory(expenses, monthKey?)` → rozkład per `foodSubcat` (suma CEN
-  POZYCJI paragonu, nie całych wydatków) → kategorie w `WydatkiModal` + `total`/
-  `previousTotal`/`changePercent` (bieżący miesiąc vs poprzedni).
-Przy pustych/zerowych miesiącach (nowy użytkownik, brak paragonów) `FoodBarsTile`/
-`FoodBreakdownCard` mają teraz `Math.max(1, ...)` floor na dzielnikach wysokości
-słupków — bez tego realne (możliwie zerowe) dane dawały `NaN%` tam, gdzie mock
-(zawsze >0) nigdy tego nie ujawniał.
+**Rząd 1** — 3× `StatTile` streak (Woda/Słodycze/Trening) + hot event tile.
+**Rząd 2 (96px)** — Ciekawostka + Sen.
+**Rząd 3** — Jedzenie PLN/dzień (`StatTile`, tap→`WydatkiModal`) + #JedzeniePerMiesiąc
+(`Bars`, tap→`WydatkiModal`).
+**Rząd 4 (flex:1)** — Ostatnie transakcje (`FitList`+`Row`+`PricePill`) + Bezpieczne
+wydatki.
+**Rząd 5 (flex:1.3, najwyższy)** — Najbliższe 48h (`FitList`+`Row`).
 
-**Drill-down kategorii jedzenia — ZROBIONE (2026-11-01)**, user: "jak klikam w
-jedzenie nie mam tam zrobione na popupie jak w sap na dashboardzie" — wiersze
-kategorii w `FoodBreakdownCard` miały strzałkę ">" od samego początku (szkielet z
-2026-10-30), ale były czystą dekoracją ("nie udajemy klikalności której nie ma",
-bo dane były wtedy mockiem). Teraz dane są realne, więc stuknięcie faktycznie
-otwiera `FoodCategoryItemsModal.tsx` — drugi popup STACKUJĄCY SIĘ na
-`WydatkiModal` (ten sam wzorzec co `TransactionsModal`→`AddExpenseModal`, drugi
-modal nie zamyka pierwszego pod spodem), z konkretnymi pozycjami paragonów
-złożonymi na tę kategorię w danym miesiącu. `foodByCategory` (utils/foodStats.ts)
-zbiera listę pozycji (`FoodCategoryItem[]`) W TYM SAMYM przebiegu co liczy sumę —
-jedno przejście po wydatkach, zero szansy by suma kafla i lista drill-down się
-rozjechały. Przełącznik Tygodnie/Dni/Miesiące WCIĄŻ nieinteraktywny (osobna,
-nieproszona jeszcze funkcja).
+**Co jest realne, co stub — ŻADEN kafel nie udaje danych których appka nie zbiera**
+(decyzje #1/#2 z Fazy 3.1, zastosowane konkretnie tutaj):
+- **Woda/Słodycze/Trening (streaki) — STUB, naprawiony pre-existing problem.**
+  Stary Dashboard renderował tu SZTYWNE liczby ("74"/"4"/"12") jak gdyby realne —
+  appka nie ma i nigdy nie miała store'a nawyków/odhaczania dni. Teraz: `StatTile`
+  bez `onPress` (nieinteraktywna), `value="—"`, `unit="WKRÓTCE"`. Realny licznik to
+  osobna, świadoma faza (potrzebuje: co liczy się jako "dzień czysty", UI
+  odznaczania, nowy store) — nie zgadywana teraz.
+- **Sen — STUB** (Health Connect nieistniejący, decyzja #2 z Fazy 3.1).
+- **Hot event tile — REALNE.** Najbliższe nadchodzące wydarzenie z
+  `calendarStore`'s `events`+`gcalEvents` (scalone, oba już realne od Fazy 1
+  kalendarza) z godziną startu; `variant="hot"` (odwrócone kolory + pulsująca
+  kropka) gdy start ≤90 min od teraz, licznik minut ("TERAZ" gdy już trwa). Brak
+  nadchodzących wydarzeń → neutralny kafel "BRAK WYDARZENIA", nie fałszywy mock.
+- **Ciekawostka — REALNE.** Statyczna lista 4 faktów (z mockupu), wybór
+  deterministyczny po dniu roku (`dayOfYear(now) % FACTS.length` — ta sama
+  ciekawostka cały dzień, nie losowa przy każdym wejściu), tap = następna (lokalny
+  stan, bez popupu na razie — bottom-sheet-yfikacja popupów to inna faza).
+- **Jedzenie PLN/dzień, #JedzeniePerMiesiąc, Ostatnie transakcje — REALNE, bez
+  zmian w danych** (`utils/foodStats.ts`/`useExpensesStore`, od wcześniejszych
+  rund), tylko nowy wygląd (`StatTile`/`Bars`/`Row`+`PricePill`).
+- **Bezpieczne wydatki — REALNE, ale UPROSZCZONE.** `utils/balance.ts`'s
+  `accountBalance()` (realne saldo) / dni do końca miesiąca — BEZ odjęcia
+  nieopłaconych płatności cyklicznych, bo appka nie ma jeszcze store'a "bills"
+  (patrz Finanse §Kolejność budowy — Subskrypcje/Praca wciąż `ComingSoonRow`).
+  Pasek pod liczbą porównuje DZISIEJSZE realne wydatki (`affectsBalance`-
+  filtrowane) do tego limitu, czerwony gdy przekroczony. Gdy store rachunków
+  powstanie, odjęcie wraca — to jawne uproszczenie, nie fałszywe dane.
+- **Najbliższe 48h — REALNE.** Merge `calendarStore`'s wydarzeń (start w oknie
+  teraz→+48h) i zadań z terminem w tym oknie (`status:'pending'`), sortowane po
+  czasie. Płatności cykliczne NIE wchodzą do merge'a (jak wyżej, store nie
+  istnieje) — gdy powstanie, dołącza się jako trzeci typ wpisu.
 
-**Kafel Zadań + "najbliższy termin" — PODPIĘTE do realnych danych (2026-11-01)**,
-user: "zadania które dodaję żeby pokazywały się już realnie na dashboardzie" — oba
-czytały wcześniej `MOCK_TASKS`/sztywne "2 DNI". Teraz w `app/(tabs)/index.tsx`:
-`dashboardTasks` (do 4 zadań z `useCalendarStore`, z terminem rosnąco → bez terminu
-najnowsze pierwsze, tag per zadanie: pilne=termin≤dziś, nazwany skrót=pierwszy tag,
-dzwonek=termin w przyszłości, puste=żadne) i `nextDeadlineTask`/`daysUntilDeadline`
-(najbliższy nieukończony termin ze WSZYSTKICH zadań, nie tylko tych 4 widocznych w
-kaflu). Mock USUNIĘTY całkiem — pusta lista zadań = pusty kafel, nie placeholder.
+Kliknięcie w kafelek z danymi finansowymi otwiera `WydatkiModal.tsx` (bez zmian —
+pełnoekranowy `Modal`, NIE jeszcze `AppBottomSheet`; bottom-sheet-yfikacja istnieją-
+cych popupów Finansów to kolejna, osobna faza, patrz §"REDESIGN RDZENIA UI"
+"Następne fazy"). Streaki/Sen są NIEINTERAKTYWNE (brak `onPress` → `Tile` renderuje
+się jako plain `View`, nie `Pressable` — zero udawanej klikalności).
 
 ## DAILY [GE]
 
