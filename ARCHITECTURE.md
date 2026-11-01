@@ -526,6 +526,35 @@ powiadomień (patrz niżej).
 
 ## Ogólne do appki (cross-cutting)
 
+- **Ustawienia — przeprojektowany wygląd wierszy (2026-11-01)**, user zrzutem
+  ekranu sekcji Finanse: "nie rozróżniam nazwy kategorii od podkategorii, oraz jak
+  coś jest pozwoleniem żeby miało symbol... albo toggle jak w ustawieniach
+  telefonów". `SettingsItem` (`app/settings.tsx`) ma teraz, obok `'action'`/`'value'`:
+  - **`kind: 'switch'`** — prawdziwy natywny `Switch` z `react-native` (ten sam
+    wygląd co systemowe Ustawienia Androida, zero własnego kafelka) dla stanów
+    które appka faktycznie zna i kontroluje: `haptics-enabled`, `bank-enabled`,
+    `bank-auto-all`. Cały wiersz jest tappable (woła ten sam handler co `Switch`
+    bezpośrednio), nie tylko sam suwak.
+  - **`permission: true`** (tylko na `'action'`) — odznaka "Zgoda" + ikona tarczy
+    (`ShieldCheck`) przy akcjach prowadzących do EKRANU SYSTEMOWEGO (dostęp do
+    powiadomień, optymalizacja baterii, dokładne alarmy) — appka nie ma jak
+    programowo sprawdzić/zmienić stan takiego uprawnienia bez nowego natywnego
+    modułu (do rozważenia później, nie teraz — to był świadomy wybór niższego
+    ryzyka niż dorzucanie kolejnego natywnego modułu w tej samej rundzie), więc
+    wizualne oznaczenie zamiast udawanego/mylącego stanu.
+  - **`tier: 'sub'`** — wcięty, mniejszy wiersz pod rodzicem (np. 4 wiersze pod
+    "Powiadomienia z banku", widoczne tylko gdy włączony) — odpowiada na "nie
+    rozróżniam kategorii od podkategorii".
+  - **`item.description` NARESZCIE się renderuje** jako podtytuł pod etykietą —
+    wcześniej istniało WYŁĄCZNIE do wyszukiwania (dopasowanie tekstu w pasku
+    szukania), nigdy nie było widoczne na ekranie, mimo że dla wielu wierszy
+    niosło realny stan ("WŁĄCZONE"/"N czeka" itp.) — to był WIĘKSZY powód "nie
+    widzę różnicy między wierszami" niż sam brak wcięcia. Zasada na przyszłość:
+    `description` ZAWSZE jest widoczne, pisz je z myślą o tym, nie tylko pod kątem
+    wyszukiwarki.
+  Wzorzec do naśladowania przy nowych sekcjach: prawdziwy toggle → `kind:'switch'`,
+  prowadzi do systemowego ekranu zgody → `permission: true`, zależy od innego
+  wiersza wyżej → `tier: 'sub'` (i warunkowe dodanie do listy jak już robi Finanse).
 - **Wibracje — ZROBIONE (2026-11-01)** — JEDEN globalny toggle w Ustawieniach →
   Ogólne (`utils/haptics.ts`), nie per-ekran (jeśli jakiś ekran okaże się zbyt
   "wibrujący", wyciszamy to w kodzie tego ekranu, nie dodajemy osobnego
@@ -539,7 +568,9 @@ powiadomień (patrz niżej).
   prawdopodobnie `notifee` albo custom native code).
   Sandbox testowy w `app/settings.tsx` sekcja "Alerty" (`app/alert-test.tsx` + `src/
   hooks/useNotifeeAlertLaunch.ts` + `plugins/withFullScreenAlert.js`/`src/services/
-  lockScreen.ts`) — 4 warianty testowe + **2 przyciski diagnostyczne (2026-11-01)**:
+  lockScreen.ts`) — 4 warianty testowe, oba diagnostyczne przyciski niżej oznaczone
+  `permission: true` (patrz "Ustawienia — przeprojektowany wygląd wierszy" niżej) —
+  **2 przyciski diagnostyczne (2026-11-01)**:
   "Optymalizacja baterii" (`notifee.isBatteryOptimizationEnabled`/
   `openBatteryOptimizationSettings`/`openPowerManagerSettings` dla OEM-specific
   autostart) i "Dokładne alarmy" (`notifee.openAlarmPermissionSettings`) — dodane po

@@ -1943,6 +1943,39 @@ Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 164/164 zielone,
 `npx expo export --platform android` bez błędów, `npx expo prebuild --platform
 android` generuje poprawny projekt z nowym datetimepicker-pluginem.
 
+## Ustawienia — stopniowany układ + toggle/odznaka zgody (2026-11-01)
+
+User zrzutem ekranu sekcji Finanse: "nie rozróżniam nazwy kategorii od
+podkategorii, oraz jak coś jest pozwoleniem żeby miało symbol albo było jakoś
+oznaczone że to zgoda albo miało toggle jak w ustawieniach telefonów".
+
+Przeprojektowany `app/settings.tsx` (pełne szczegóły w ARCHITECTURE.md §Ogólne
+"Ustawienia — przeprojektowany wygląd wierszy"):
+- Prawdziwe przełączniki (`Switch` z react-native, wygląd 1:1 jak w systemowych
+  Ustawieniach) dla: Wibracje, Powiadomienia z banku, Dodawaj automatycznie.
+- Odznaka "Zgoda" + ikona tarczy przy wierszach prowadzących do ekranu
+  systemowego (Dostęp do powiadomień, Optymalizacja baterii, Dokładne alarmy) —
+  appka nie potrafi sprawdzić prawdziwego stanu tych uprawnień bez nowego
+  natywnego modułu, więc to oznaczenie, nie udawany toggle.
+- Wiersze zależne od innego ustawienia (4 pozycje pod "Powiadomienia z banku")
+  są teraz wcięte i mniejsze — widać że są "pod" rodzicem, nie na tym samym
+  poziomie.
+- Podtytuły (`description`) WRESZCIE są widoczne pod każdą etykietą — wcześniej
+  istniały tylko do wyszukiwania, nigdy się nie renderowały, co był większy
+  powód "nie widzę różnicy między wierszami" niż sam brak wcięcia.
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**:
+- Ustawienia → Finanse → "Powiadomienia z banku" powinno wyglądać jak
+  prawdziwy przełącznik (suwak), nie przycisk. Po włączeniu pod spodem
+  pojawiają się 4 mniejsze, wcięte wiersze.
+- "Dostęp do powiadomień" / Alerty → "Optymalizacja baterii"/"Dokładne alarmy"
+  powinny mieć małą niebieską odznakę "Zgoda" przy nazwie.
+- Pod każdą nazwą ustawienia powinien być widoczny krótki opis/stan (np.
+  "łap płatności kartą/przelewy z Pekao i PKO automatycznie").
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 164/164 zielone,
+`npx expo export --platform android` bez błędów.
+
 ## Dashboard — widget #JEDZENIE podpięty do realnych danych (2026-11-01)
 
 User: *"czemu na dashboardzie nie ma widgetu ostatniego tego na dole z wydatkami

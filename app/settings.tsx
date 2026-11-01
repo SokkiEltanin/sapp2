@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ComponentType } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, BackHandler, Platform, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, BackHandler, Platform, Linking, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, Search, X,
   Info, Stethoscope, Wallet, Clock, Bell, Copy,
   LogIn, LogOut, User as UserIcon, Database, CalendarDays, AlertTriangle, Rocket,
-  BatteryWarning, AlarmClock, Landmark, Zap, Vibrate,
+  BatteryWarning, AlarmClock, Landmark, Zap, Vibrate, ShieldCheck,
 } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -37,9 +37,15 @@ const BUILD_INFO = {
 
 type Icon = ComponentType<{ size?: number; color?: string }>;
 
+// `tier: 'sub'` (2026-11-01, user: "nie rozróżniam nazwy kategorii od podkategorii")
+// — wcina/zmniejsza wiersz, żeby było widać że zależy od rodzica nad nim (np.
+// przełączniki widoczne TYLKO gdy "Powiadomienia z banku" jest włączone). `permission`
+// oznacza wiersz prowadzący do ekranu zgody systemowej (nie zwykłe ustawienie appki) —
+// odznaka "Zgoda" + ikona tarczy, żeby user widział od razu co to za rodzaj akcji.
 type SettingsItem =
-  | { kind: 'action'; key: string; label: string; description: string; icon: Icon }
-  | { kind: 'value'; key: string; label: string; description: string; icon: Icon; value: string };
+  | { kind: 'action'; key: string; label: string; description: string; icon: Icon; tier?: 'sub'; permission?: boolean }
+  | { kind: 'value'; key: string; label: string; description: string; icon: Icon; value: string; tier?: 'sub' }
+  | { kind: 'switch'; key: string; label: string; description: string; icon: Icon; value: boolean; tier?: 'sub' };
 
 type SettingsSection = { id: string; title: string; icon: Icon; items: SettingsItem[] };
 
@@ -85,9 +91,9 @@ function buildSections(email: string | null, bank: { enabled: boolean; autoAll: 
     id: 'ogolne', title: 'Ogólne', icon: Vibrate,
     items: [
       {
-        kind: 'action', key: 'haptics-enabled', label: 'Wibracje',
-        description: hapticsEnabled ? 'WŁĄCZONE — stuknij, żeby wyłączyć' : 'wyłączone — stuknij, żeby włączyć',
-        icon: Vibrate,
+        kind: 'switch', key: 'haptics-enabled', label: 'Wibracje',
+        description: 'krótki bzyk przy tapie/zatwierdzeniu w Finansach',
+        icon: Vibrate, value: hapticsEnabled,
       },
     ],
   },
@@ -123,8 +129,8 @@ function buildSections(email: string | null, bank: { enabled: boolean; autoAll: 
       { kind: 'action', key: 'alert-notifee', label: 'Notifee (bez przycisku)', description: 'powiadomienia alert notification pelny ekran budzik', icon: Rocket },
       { kind: 'action', key: 'alert-notifee-buttons', label: 'Notifee (Tak/Nie)', description: 'powiadomienia alert notification pelny ekran budzik przyciski akcji', icon: Rocket },
       { kind: 'action', key: 'alert-notifee-5min', label: 'Notifee za 5 min (test OLED)', description: 'sprawdza czy ekran faktycznie sie wybudza z glebokiego usypiania, nie tylko gra w ciemno', icon: Rocket },
-      { kind: 'action', key: 'alert-battery', label: 'Optymalizacja baterii', description: 'sprawdza i prosi o wylaczenie — najczestsza przyczyna ciszy po dlugim opoznieniu', icon: BatteryWarning },
-      { kind: 'action', key: 'alert-exact-alarm', label: 'Dokladne alarmy', description: 'otwiera systemowe ustawienia "Alarmy i przypomnienia" wymagane dla terminowego budzenia', icon: AlarmClock },
+      { kind: 'action', key: 'alert-battery', label: 'Optymalizacja baterii', description: 'sprawdza i prosi o wylaczenie — najczestsza przyczyna ciszy po dlugim opoznieniu', icon: BatteryWarning, permission: true },
+      { kind: 'action', key: 'alert-exact-alarm', label: 'Dokladne alarmy', description: 'otwiera systemowe ustawienia "Alarmy i przypomnienia" wymagane dla terminowego budzenia', icon: AlarmClock, permission: true },
     ],
   },
   // Sekcja "Finanse" miała dotąd tylko statyczne "W budowie" — stałe od Fazy 2.1,
@@ -139,17 +145,18 @@ function buildSections(email: string | null, bank: { enabled: boolean; autoAll: 
     id: 'finanse', title: 'Finanse', icon: Wallet,
     items: [
       {
-        kind: 'action', key: 'bank-enabled', label: 'Powiadomienia z banku',
-        description: bank.enabled
-          ? 'WŁĄCZONE — płatności kartą/przelewy łapane automatycznie'
-          : 'wyłączone — stuknij, żeby zacząć łapać płatności z Pekao/PKO automatycznie',
-        icon: Landmark,
+        kind: 'switch', key: 'bank-enabled', label: 'Powiadomienia z banku',
+        description: 'łap płatności kartą/przelewy z Pekao i PKO automatycznie',
+        icon: Landmark, value: bank.enabled,
       },
+      // `tier: 'sub'` (2026-11-01, user: "nie rozróżniam nazwy kategorii od
+      // podkategorii") — te 4 wiersze istnieją/mają sens TYLKO gdy wyłącznik wyżej
+      // jest włączony, więc wizualnie są wcięte/zmniejszone pod nim, nie na równi.
       ...(bank.enabled ? [
-        { kind: 'action' as const, key: 'bank-notif-access', label: 'Dostęp do powiadomień', description: 'otwiera systemowy ekran — przyznaj Sapp2 RAZ, inaczej nasłuch nic nie złapie', icon: Bell },
-        { kind: 'action' as const, key: 'bank-auto-all', label: 'Dodawaj automatycznie', description: bank.autoAll ? 'WŁĄCZONE — każda płatność kartą księguje się bez przeglądu' : 'wyłączone — nowy sprzedawca czeka na Twoje zatwierdzenie, potem uczy się sam', icon: Zap },
-        { kind: 'action' as const, key: 'bank-test', label: 'Sprawdź teraz (diagnostyka)', description: 'czy nasłuch w ogóle coś odbiera — log na dole ekranu', icon: Stethoscope },
-        { kind: 'action' as const, key: 'bank-review', label: 'Płatności do zatwierdzenia', description: bank.pending > 0 ? `${bank.pending} czeka — stuknij, żeby przejrzeć` : 'pusto — nic nie czeka na zatwierdzenie', icon: Rocket },
+        { kind: 'action' as const, tier: 'sub' as const, permission: true, key: 'bank-notif-access', label: 'Dostęp do powiadomień', description: 'ekran systemowy — przyznaj Sapp2 RAZ, inaczej nasłuch nic nie złapie', icon: Bell },
+        { kind: 'switch' as const, tier: 'sub' as const, key: 'bank-auto-all', label: 'Dodawaj automatycznie', description: 'każda płatność kartą księguje się bez przeglądu', icon: Zap, value: bank.autoAll },
+        { kind: 'action' as const, tier: 'sub' as const, key: 'bank-test', label: 'Sprawdź teraz (diagnostyka)', description: 'czy nasłuch w ogóle coś odbiera — log na dole ekranu', icon: Stethoscope },
+        { kind: 'action' as const, tier: 'sub' as const, key: 'bank-review', label: 'Płatności do zatwierdzenia', description: bank.pending > 0 ? `${bank.pending} czeka — stuknij, żeby przejrzeć` : 'pusto — nic nie czeka na zatwierdzenie', icon: Rocket },
       ] : []),
     ],
   },
@@ -667,22 +674,65 @@ export default function SettingsScreen() {
 
   const headerTitle = query ? 'Szukaj' : activeSection ? activeSection.title : 'Ustawienia';
 
+  // Przeprojektowane (2026-11-01, user zrzutem ekranu Finansów: "nie rozróżniam
+  // nazwy kategorii od podkategorii, oraz jak coś jest pozwoleniem żeby miało
+  // symbol... albo toggle jak w ustawieniach telefonów"):
+  // - `description` WRESZCIE się renderuje jako podtytuł — wcześniej istniało TYLKO
+  //   do wyszukiwania (`item.description.toLowerCase().includes(q)` niżej), nigdy
+  //   nie było widoczne na ekranie, mimo że dla wielu wierszy niosło stan ("WŁĄCZONE"
+  //   itp.) — to był większy powód "nie widzę różnicy między wierszami" niż sam brak
+  //   wcięcia.
+  // - `kind: 'switch'` → prawdziwy natywny `Switch` z react-native (dokładnie ten
+  //   wygląd co systemowe Ustawienia Androida, za darmo, zero własnego kafelka do
+  //   rysowania) dla stanów które appka faktycznie zna i kontroluje (wibracje,
+  //   powiadomienia z banku, auto-dodawanie).
+  // - `permission: true` → odznaka "Zgoda" + ikona tarczy przy akcjach prowadzących
+  //   do EKRANU SYSTEMOWEGO (dostęp do powiadomień, bateria, dokładne alarmy) — to
+  //   NIE są prawdziwe switche (appka nie ma jak programowo sprawdzić/zmienić stanu
+  //   uprawnienia Androida bez nowego natywnego modułu), ale wizualnie jasne że to
+  //   inny rodzaj wiersza niż zwykłe ustawienie appki.
+  // - `tier: 'sub'` → wcięty, mniejszy wiersz pod rodzicem (np. 4 wiersze pod
+  //   "Powiadomienia z banku", widoczne tylko gdy włączony) — "stopniowany" układ.
   const renderItem = (item: SettingsItem, isLast: boolean) => {
     const Icon = item.icon;
+    const sub = item.tier === 'sub';
+    const isPermission = item.kind === 'action' && !!item.permission;
     const inner = (
       <>
-        <View style={s.itemIcon}>
-          <Icon size={16} color={colors.text.secondary} />
+        <View style={[s.itemIcon, sub && s.itemIconSub, isPermission && s.itemIconPermission]}>
+          <Icon size={sub ? 14 : 16} color={isPermission ? colors.accent.blue : colors.text.secondary} />
         </View>
-        <Text style={s.itemLabel}>{item.label}</Text>
+        <View style={s.itemTextCol}>
+          <View style={s.itemLabelRow}>
+            <Text style={[s.itemLabel, sub && s.itemLabelSub]} numberOfLines={1}>{item.label}</Text>
+            {isPermission && (
+              <View style={s.permissionBadge}>
+                <ShieldCheck size={10} color={colors.accent.blue} />
+                <Text style={s.permissionBadgeLabel}>Zgoda</Text>
+              </View>
+            )}
+          </View>
+          {!!item.description && (
+            <Text style={[s.itemDescription, sub && s.itemDescriptionSub]} numberOfLines={2}>{item.description}</Text>
+          )}
+        </View>
         {item.kind === 'value' && <Text style={s.itemValue} numberOfLines={1}>{item.value}</Text>}
+        {item.kind === 'switch' && (
+          <Switch
+            value={item.value}
+            onValueChange={() => handlers[item.key]?.()}
+            trackColor={{ false: colors.border.default, true: colors.accent.green }}
+            thumbColor="#FFFFFF"
+          />
+        )}
+        {item.kind === 'action' && <ChevronRight size={15} color={colors.text.muted} />}
       </>
     );
     if (item.kind === 'value') {
-      return <View key={item.key} style={[s.item, !isLast && s.itemDivider]}>{inner}</View>;
+      return <View key={item.key} style={[s.item, sub && s.itemSub, !isLast && s.itemDivider]}>{inner}</View>;
     }
     return (
-      <TouchableOpacity key={item.key} style={[s.item, !isLast && s.itemDivider]} onPress={handlers[item.key]} activeOpacity={0.7}>
+      <TouchableOpacity key={item.key} style={[s.item, sub && s.itemSub, !isLast && s.itemDivider]} onPress={() => handlers[item.key]?.()} activeOpacity={0.7}>
         {inner}
       </TouchableOpacity>
     );
@@ -807,9 +857,23 @@ const makeS = themedStyles((c) => StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: spacing[3],
     paddingHorizontal: spacing[3], paddingVertical: spacing[3],
   },
+  // "Stopniowany" układ (2026-11-01) — wcięty + gęstszy wiersz pod rodzicem.
+  itemSub: { paddingLeft: spacing[3] + spacing[5], paddingVertical: spacing[2] },
   itemDivider: { borderBottomWidth: 1, borderBottomColor: c.border.subtle },
   itemIcon: { width: 32, height: 32, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.elevated },
-  itemLabel: { flex: 1, fontSize: 13.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  itemIconSub: { width: 24, height: 24 },
+  itemIconPermission: { backgroundColor: `${c.accent.blue}1A`, borderWidth: 1, borderColor: `${c.accent.blue}55` },
+  itemTextCol: { flex: 1, gap: 1 },
+  itemLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  itemLabel: { flexShrink: 1, fontSize: 13.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  itemLabelSub: { fontSize: 12.5 },
+  itemDescription: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted },
+  itemDescriptionSub: { fontSize: 10.5 },
+  permissionBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: `${c.accent.blue}1A`, borderRadius: radius.full, paddingHorizontal: 6, paddingVertical: 2,
+  },
+  permissionBadgeLabel: { fontSize: 9, fontFamily: 'Inter_700Bold', color: c.accent.blue },
   itemValue: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.secondary, maxWidth: 160 },
 
   logBox: { backgroundColor: c.bg.elevated, borderRadius: radius.lg, padding: spacing[3], gap: 6 },
