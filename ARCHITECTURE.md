@@ -115,13 +115,14 @@ z nowymi zależnościami (zero nowych wpisów w `app.json`'s `plugins` — `expo
 **Faza 3.2 (Dashboard) — ZROBIONA (2026-11-01, "dawaj")**, patrz §DASHBOARD wyżej
 po pełny opis co realne/co stub.
 
-**Następne fazy (3.3+)** — screen-po-screenie, kolejność do ustalenia z userem,
-proponowana: Daily (w tym `MoodPad` — 2D drag energia×przyjemność, ZASTĘPUJE
-obecną siatkę 3×3 "Humor/Nastrój", `react-native-gesture-handler`+`reanimated`
-już są) → Finanse (bottom-sheet-yfikacja istniejących popupów na `AppBottomSheet`,
-bez zmiany modelu danych) → Zadania (`WeekStrip`, `Segmented` zamiast obecnego UI)
-→ Ustawienia. "Płatności cykliczne" (store `bills`, odblokuje pełne "Bezpieczne
-wydatki"/"Najbliższe 48h" z Fazy 3.2) potrzebuje osobnej, uczciwej fazy — dziś
+**Faza 3.3 (Daily) — ZROBIONA (2026-11-01, "dawaj skończ wszystko")**, patrz
+§DAILY wyżej.
+
+**Następne fazy (3.4+)** — Finanse (bottom-sheet-yfikacja istniejących popupów na
+`AppBottomSheet`, bez zmiany modelu danych) → Zadania (`WeekStrip`, `Segmented`
+zamiast obecnego UI) → Ustawienia. "Płatności cykliczne" (store `bills`, odblokuje
+pełne "Bezpieczne wydatki"/"Najbliższe 48h" z Fazy 3.2) potrzebuje osobnej,
+uczciwej fazy — dziś
 `ComingSoonRow` dla Subskrypcji/Pracy, nie udawane na kaflach Dashboardu.
 
 ## DASHBOARD [GE]
@@ -188,24 +189,35 @@ się jako plain `View`, nie `Pressable` — zero udawanej klikalności).
 
 ## DAILY [GE]
 
-Obszerna zakładka, popupy zależnie od klikniętego kafelka. Obejmuje:
-- **ZDROWIE** (woda)
-- **JEDZENIE** — *user: "nie sprawdzała się w SAPP"* — zostawiamy potencjał/miejsce,
-  **NIE dodajemy jej teraz**.
-- **ĆWICZENIA** — superważne, do dopracowania, powiązane z roślinką (Pupil).
-- **KROKI** — z zegarka.
-- **WAGA**
-- **HUMOR — ZROBIONE (2026-10-31)**, patrz sekcja niżej.
+**Przebudowany na nowy system komponentów (Faza 3.3, 2026-11-01)** — układ 1:1 z
+`design/app-design.html`'s `#daily` (4 kolumny, `grid-template-rows: auto auto
+auto 1fr auto`), NIEprzewijalny (był jedynym `ScrollView`-owym głównym ekranem w
+appce — teraz zgodny z resztą). Rzędy: **Sen** (s4, stub) → **Kroki**+**Tętno**
+(s2+s2, stub) → **Waga**+**Woda** (s2+s2, stub) → **Ćwiczenia** (s4, flex, stub) →
+**Nastrój** (s4, REALNE — jedyna niestubowa sekcja). Wszystkie stuby = `Tile` bez
+`onPress` (nieinteraktywne, `value="—"`/`unit="WKRÓTCE"`) — Health Connect
+nieistniejący (Faza 3, decyzja #2) i brak store'a treningów, ten sam powód i ten
+sam wzorzec co Dashboardu stuby (§DASHBOARD). `ComingSoonRow`/`LiveSectionRow`
+(stary wzorzec listy wierszy) USUNIĘTE Z TEGO EKRANU — zostają w Finansach, gdzie
+wciąż są używane (Subskrypcje/Praca w "Obszary").
 
 ### Humor / Nastrój (user, 2026-10-31: "dodawanie humoru... taka siatka jak w sapp i
 opcjonalnym tekstem, zapisywanym w formie pamiętnika DZIEŃ DATA")
 - Port z sapp 1:1, kategorio-niezależne, już dobrze zaprojektowane: `types/mood.ts`
-  (`MoodEntry`: `mood`+`energy` 1-5, `note?`, `tags: string[]`), `components/mood/
-  MoodEnergyGrid.tsx` (siatka 5×5 nastrój×energia, jeden `Gesture.Pan()`, "circumplex
-  model of affect"), `utils/moodTags.ts` (56 presetów, sortowanie po trafności
-  nastrój/energia + pora dnia + recency). `store/moodStore.ts` — wzorzec `calendarStore`
-  (AsyncStorage, bez auto-Firestore jak sapp miało wbudowane — ta granica żyje gdzie
-  indziej w sapp2, patrz Finanse).
+  (`MoodEntry`: `mood`+`energy` 1-5, `note?`, `tags: string[]`), `utils/moodTags.ts`
+  (56 presetów, sortowanie po trafności nastrój/energia + pora dnia + recency).
+  `store/moodStore.ts` — wzorzec `calendarStore` (AsyncStorage, bez auto-Firestore
+  jak sapp miało wbudowane — ta granica żyje gdzie indziej w sapp2, patrz Finanse).
+- **`MoodEnergyGrid.tsx` → `src/components/design/MoodPad.tsx` (Faza 3.3)** —
+  siatka 5×5 nastrój×energia, `Gesture.Pan()`/`GestureDetector`/`runOnJS`
+  PRZENIESIONE bez zmian (już battle-tested na urządzeniu, port sapp) — zmienił się
+  WYGLĄD, nie mechanika: zero emoji (było `MOOD_EMOJIS` jako tekst kropki — reguła
+  #5 ze spec, "Zero emoji"), zero widocznych linii siatki 5×5 (subtelny krzyż przez
+  środek zamiast), nowy `mini` wariant (podgląd w Daily, czysto wizualny, bez
+  `GestureDetector`) i `big` wariant (etykiety narożników, w `MoodModal`). Model
+  danych BEZ ZMIAN (wciąż kwantyzacja do 5 poziomów — "już dobrze zaprojektowany").
+  ŚWIADOMIE uproszczone vs spec: brak tekstury tła z powtarzających się kropek i
+  blurowanego "glow" pod kropką (wymagałoby SVG-wzoru/obrazka, kosmetyczny niuans).
 - **Brak limitu wpisów/dzień** (jak w sapp) — UI liczy "ile już dziś" i tytułuje kolejne
   check-iny "Humor 2. raz dziś" itd. — to NATURALNIE realizuje "raz, potem drugi raz
   dziennie" z prośby usera, bez sztywnej reguły w danych.
@@ -219,9 +231,9 @@ opcjonalnym tekstem, zapisywanym w formie pamiętnika DZIEŃ DATA")
   kosmetyka (port sapp's dwóch potwierdzonych na urządzeniu bugów: natywny `Modal`
   portuje treść do OSOBNEJ hierarchii, poza jedynym `GestureHandlerRootView` w
   `app/_layout.tsx` — bez własnego roota siatka nigdy nie łapie dotknięć).
-- **Wejście**: `app/(tabs)/daily.tsx`'s "Humor" wiersz — NOWY `LiveSectionRow`
-  (klikalny wariant `ComingSoonRow`, status po prawej zamiast "Wkrótce") zamiast
-  statycznego placeholdera, tap otwiera `MoodModal`.
+- **Wejście**: `app/(tabs)/daily.tsx`'s "Nastrój" kafel (rząd 5, Faza 3.3) — `Tile`
+  z `MoodPad mini` + ostatni dzisiejszy wpis, tap na CAŁY kafel otwiera `MoodModal`
+  (wcześniej: "Humor" wiersz, `LiveSectionRow` — ZASTĄPIONE przy przebudowie grida).
 - **Kolejność sekcji "Dodaj" ODWRÓCONA (2026-11-01)**, user: "mam być wygodnie
   wpisywać... jak to jest na górze ekranu wszystko" — siatka (jedyny element
   wymagający przeciągania kciukiem) siedziała NAJWYŻEJ w scrollu, najdalej od

@@ -2163,3 +2163,33 @@ transakcje"/"Najbliższe 48h" zamiast sztywnego "pierwsze 4".
 
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone, `npx expo
 export --platform android` bez błędów.
+
+## Redesign rdzenia UI — Faza 3.3 "Daily" UKOŃCZONA (2026-11-01)
+
+User: "dawaj skończ wszystko" po Fazie 3.2. Daily przebudowany na nowy grid
+(był jedynym `ScrollView`-owym głównym ekranem w appce — teraz nieprzewijalny jak
+reszta). Sen/Kroki/Tętno/Waga/Woda/Ćwiczenia = uczciwy stub "Wkrótce"
+(nieinteraktywne, Health Connect i store treningów nie istnieją). Nastrój =
+jedyna realna sekcja.
+
+**`MoodEnergyGrid.tsx` → `src/components/design/MoodPad.tsx`** — ta sama,
+battle-tested na urządzeniu mechanika `Gesture.Pan()`, nowy wygląd (zero emoji —
+reguła #5 ze spec, zero widocznych linii siatki, `mini`/`big` warianty). Użyty w
+`MoodModal.tsx` (kontener wciąż `Modal`, nie bottom-sheet — to osobna faza) i w
+Daily's kaflu "Nastrój" (`mini`, czysto wizualny podgląd ostatniego wpisu).
+Emoji usunięte też z widoku "Pamiętnik" w `MoodModal.tsx` (kolorowa kropka +
+tekst zamiast `MOOD_EMOJIS`/`ENERGY_EMOJIS`).
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**:
+- Daily nie powinien się scrollować, 6 kafli (Sen/Kroki/Tętno/Waga/Woda/
+  Ćwiczenia) jako uczciwe "Wkrótce", nieinteraktywne.
+- Kafel "Nastrój" → mini-pad pokazuje ostatni dzisiejszy wpis (albo pustą kropkę
+  gdy brak), tap na CAŁY kafel otwiera check-in.
+- W check-inie: przeciąganie/tapanie w nowym `MoodPad` (`big`) powinno działać
+  TAK SAMO jak stara siatka na urządzeniu (sama mechanika, tylko bez linii/emoji)
+  — to jedyny realny test tego czy `Gesture.Pan()` przeniesiony bez regresji.
+  Zapisz check-in → sprawdź że ląduje poprawnie w "Pamiętniku" (bez emoji, z
+  kolorową kropką).
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone, `npx expo
+export --platform android` bez błędów.

@@ -2,15 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { Modal, View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler';
-import { X, Plus, Check, BookOpen, SquarePen } from 'lucide-react-native';
+import { X, Check, BookOpen, SquarePen } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { todayISO } from '@/utils/date';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
-import { type MoodEntry, type MoodLevel, MOOD_COLORS, MOOD_EMOJIS, ENERGY_EMOJIS, MOOD_LABELS, ENERGY_LABELS } from '@/types/mood';
+import { type MoodEntry, type MoodLevel, MOOD_COLORS, MOOD_LABELS, ENERGY_LABELS } from '@/types/mood';
 import { useMoodStore } from '@/store/moodStore';
 import { PRESET_TAGS, sortMoodTags } from '@/utils/moodTags';
-import MoodEnergyGrid from './MoodEnergyGrid';
+import MoodPad from '@/components/design/MoodPad';
 
 // Port z sapp (MoodCheckInModal.tsx) + NOWA sekcja "Pamiętnik" w JEDNYM modalu (user,
 // 2026-10-31: "humor... z taką siatką jak w sapp i opcjonalnym tekstem, zapisywanym tym
@@ -184,7 +184,11 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
                     />
                   </View>
 
-                  <MoodEnergyGrid mood={mood} energy={energy} onChange={(m, e) => { setMood(m); setEnergy(e); }} />
+                  <View style={s.padSection}>
+                    <Text style={s.sectionLabel}>Nastrój i energia</Text>
+                    <Text style={s.hint}>przeciągnij lub tapnij — w prawo lepszy nastrój, w górę więcej energii</Text>
+                    <MoodPad mood={mood} energy={energy} onChange={(m, e) => { setMood(m); setEnergy(e); }} big />
+                  </View>
                 </ScrollView>
 
                 <View style={s.footer}>
@@ -205,9 +209,10 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
                       {list.map((e) => (
                         <TouchableOpacity key={e.id} style={s.entryCard} onPress={() => openForEdit(e)} activeOpacity={0.7}>
                           <View style={s.entryTopRow}>
-                            <Text style={s.entryMood}>
-                              {MOOD_EMOJIS[e.mood]} {MOOD_LABELS[e.mood]} · {ENERGY_EMOJIS[e.energy]} {ENERGY_LABELS[e.energy]}
-                            </Text>
+                            <View style={s.entryMoodRow}>
+                              <View style={[s.entryDot, { backgroundColor: MOOD_COLORS[e.mood] }]} />
+                              <Text style={s.entryMood}>{MOOD_LABELS[e.mood]} · {ENERGY_LABELS[e.energy]}</Text>
+                            </View>
                             <Text style={s.entryTime}>{new Date(e.createdAt).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}</Text>
                           </View>
                           {e.tags.length > 0 && (
@@ -257,10 +262,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
 
   scroll: { paddingHorizontal: spacing[4], paddingVertical: spacing[4], gap: spacing[4] },
   section: { gap: spacing[2] },
+  padSection: { gap: spacing[1] },
   sectionLabel: {
     fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.secondary,
     textTransform: 'uppercase', letterSpacing: 0.5,
   },
+  hint: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginBottom: spacing[2] },
 
   tagsRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   customTagInput: {
@@ -304,6 +311,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
     padding: spacing[3], marginBottom: spacing[2], gap: spacing[1],
   },
   entryTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  entryMoodRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  entryDot: { width: 8, height: 8, borderRadius: 4 },
   entryMood: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
   entryTime: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted },
   entryTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
