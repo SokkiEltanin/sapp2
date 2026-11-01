@@ -26,12 +26,34 @@ wody/snu ręcznie itp.) — **odłożone**, na razie budujemy same ekrany/nawiga
 
 **NIEprzewijalny, celowo** (user: "mieliśmy robić nieskrollowalny ekran żeby nie było
 chaosu") — zawsze dokładnie 4 stałe rzędy (`getTilePosition`), nic więcej. Kafel
-"22,4 PLN DZIENNIE #JEDZENIE" (rząd 4) jest tappable (`StatTile`'owy `onPress`) i
-otwiera `WydatkiModal.tsx` — pełnoekranowy popup z WŁASNYM scrollem, zawierający
-`FoodBreakdownCard.tsx` (szkielet przyszłego widoku "rozkład wydatków na jedzenie",
-mock dane, czeka na parser paragonów, Faza 2 — patrz NEXT_STEPS.md). Szczegółowa
-treść żyje w popupach, NIGDY na stałe na samym Dashboardzie — jeśli coś nowego nie
-mieści się w 4 rzędach, idzie do osobnego modala, nie wydłuża głównego ekranu.
+"DZIENNIE #JEDZENIE" (rząd 4) jest tappable (`StatTile`'owy `onPress`) i otwiera
+`WydatkiModal.tsx` — pełnoekranowy popup z WŁASNYM scrollem, zawierający
+`FoodBreakdownCard.tsx`. Szczegółowa treść żyje w popupach, NIGDY na stałe na samym
+Dashboardzie — jeśli coś nowego nie mieści się w 4 rzędach, idzie do osobnego
+modala, nie wydłuża głównego ekranu.
+
+**Rząd 4 (Finanse/#JEDZENIE) PODPIĘTY do realnych danych (2026-11-01)**, user:
+"czemu na dashboardzie nie ma widgetu... z wydatkami jedzenie" — kafle fizycznie
+BYŁY, ale wciąż renderowały `MOCK_FOOD_*` z 2026-10-30 (zawsze "823 zł" niezależnie
+od realnie dodawanych paragonów), co czytało się jako "nie ma go". Nowy
+`src/utils/foodStats.ts` liczy wszystko na `fvSplitOf` (NIE goły `foodAmountOf` —
+patrz §FINANSE "Stałe/Zmienne/Jedzenie"), bo to jedyna funkcja respektująca
+`fvOverride`/rachunki stałe:
+- `foodByMonth(expenses, count, today)` → ostatnie `count` miesięcy jedzenia
+  (oparte na `fixedVariableMonths`, nie duplikuje grupowania miesięcy) → słupki
+  `FoodBarsTile` (kolumna "~ŚR" = średnia tych miesięcy, ostatni miesiąc =
+  `kind:'highlight'`).
+- `foodDailyAverageThisMonth` → wartość StatTile "DZIENNIE #JEDZENIE" (suma
+  bieżącego miesiąca / dzień miesiąca).
+- `foodByWeekOfMonth` → 5 słupków T1-T5 w `WydatkiModal` (dni miesiąca dzielone po
+  7, nie realne tygodnie kalendarzowe — wystarczająco dla wykresu orientacyjnego).
+- `foodByCategory(expenses, monthKey?)` → rozkład per `foodSubcat` (suma CEN
+  POZYCJI paragonu, nie całych wydatków) → kategorie w `WydatkiModal` + `total`/
+  `previousTotal`/`changePercent` (bieżący miesiąc vs poprzedni).
+Przy pustych/zerowych miesiącach (nowy użytkownik, brak paragonów) `FoodBarsTile`/
+`FoodBreakdownCard` mają teraz `Math.max(1, ...)` floor na dzielnikach wysokości
+słupków — bez tego realne (możliwie zerowe) dane dawały `NaN%` tam, gdzie mock
+(zawsze >0) nigdy tego nie ujawniał.
 
 **Kafel Zadań + "najbliższy termin" — PODPIĘTE do realnych danych (2026-11-01)**,
 user: "zadania które dodaję żeby pokazywały się już realnie na dashboardzie" — oba

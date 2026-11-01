@@ -1736,3 +1736,40 @@ Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 135/135 zielone (6 nowych �
 
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 135/135 zielone,
 `npx expo export --platform android` bez błędów.
+
+## Dashboard — widget #JEDZENIE podpięty do realnych danych (2026-11-01)
+
+User: *"czemu na dashboardzie nie ma widgetu ostatniego tego na dole z wydatkami
+jedzenie (tylko miał być bez scrolla - czyli skrócona jego wersja jakby - pełna po
+kliknięciu)"* — kafle (StatTile "DZIENNIE #JEDZENIE" + `FoodBarsTile` +
+`WydatkiModal`) były fizycznie na ekranie dokładnie w tym bez-scrolla/popup-po-
+kliknięciu wzorcu, jakiego user pyta — ale renderowały `MOCK_FOOD_*` z 2026-10-30,
+więc nigdy nie zmieniały się mimo realnie dodawanych paragonów. To czytało się jako
+"nie ma go".
+
+Nowy `src/utils/foodStats.ts` (`foodByMonth`, `foodDailyAverageThisMonth`,
+`foodByWeekOfMonth`, `foodByCategory`) — wszystko na `fvSplitOf` z
+`fixedVariable.ts`, patrz ARCHITECTURE.md §DASHBOARD. `app/(tabs)/index.tsx` rząd 4
+teraz czyta `useExpensesStore` zamiast stałych `MOCK_FOOD_COLUMNS`/
+`MOCK_FOOD_WEEKS`/`MOCK_FOOD_CATEGORIES` (usunięte całkiem).
+
+Przy tej samej okazji drobny fix bezpieczeństwa w `FoodBarsTile.tsx`/
+`FoodBreakdownCard.tsx`: `Math.max(1, ...)` floor na dzielnikach wysokości/
+szerokości słupków — z mockiem (zawsze >0) nigdy się to nie ujawniało, ale realne
+dane (nowy user/miesiąc bez paragonów = same zera) dawały `NaN%` na wysokości
+słupka bez tego floora.
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**:
+- Dashboard, rząd 4 → "DZIENNIE #JEDZENIE" powinno pokazywać realną dzienną
+  średnią (0,0 jeśli brak paragonów tego miesiąca, nie crashować).
+- `FoodBarsTile` ("#JedzeniePerMiesiąc") → 5 kolumn: "~ŚR" (średnia) + 4 ostatnie
+  miesiące, ostatni (bieżący) jaśniejszy (`kind:'highlight'`).
+- Tap na kafel → `WydatkiModal` → tytuł miesiąca/suma/% zmiany vs poprzedni
+  miesiąc, 5 słupków T1-T5, lista kategorii (`foodSubcat`) z kwotami — wszystko
+  realne, zgodne z faktycznie dodanymi paragonami.
+- Dodaj nowy wydatek z jedzeniem → wartości na Dashboardzie/w popupie powinny się
+  zmienić po zapisaniu (bez potrzeby przeładowania appki — `useExpensesStore` jest
+  reaktywny).
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 135/135 zielone,
+`npx expo export --platform android` bez błędów.

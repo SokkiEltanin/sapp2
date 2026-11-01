@@ -44,8 +44,10 @@ export default function FoodBreakdownCard({
   categories: FoodCategory[];
 }) {
   const s = makeS();
-  const maxWeek = Math.max(...weeks.map((w) => w.value));
-  const maxCategory = Math.max(...categories.map((c) => c.amount));
+  // `Math.max(1, ...)` — jak w FoodBarsTile, zapobiega `NaN%` wysokości/szerokości
+  // słupka gdy realne dane (zamiast mocka) są w danym miesiącu zerowe.
+  const maxWeek = Math.max(1, ...weeks.map((w) => w.value));
+  const maxCategory = Math.max(1, ...categories.map((c) => c.amount));
 
   return (
     <View style={s.card}>

@@ -7,11 +7,14 @@ import SleepTile from '@/components/dashboard/SleepTile';
 import TaskListTile, { type Task, type TaskTag } from '@/components/dashboard/TaskListTile';
 import FoodBarsTile, { type BarColumn } from '@/components/dashboard/FoodBarsTile';
 import WydatkiModal from '@/components/dashboard/WydatkiModal';
-import { type FoodWeek, type FoodCategory } from '@/components/dashboard/FoodBreakdownCard';
 import { colors } from '@/theme/colors';
 import { spacing, themedStyles } from '@/theme';
 import { useCalendarStore } from '@/store/calendarStore';
+import { useExpensesStore } from '@/store/expensesStore';
 import { todayISO } from '@/utils/date';
+import {
+  foodByMonth, foodDailyAverageThisMonth, foodByWeekOfMonth, foodByCategory, MONTH_FULL,
+} from '@/utils/foodStats';
 
 // Pierwsze cztery rzędy prawdziwego Dashboardu (2026-10-26) wg mockupów usera:
 // rząd 1 — STREAK WODA > STREAK SŁODYCZE > INCOMING EVENT > STREAK ĆWICZENIA (kafle
@@ -45,50 +48,62 @@ import { todayISO } from '@/utils/date';
 // Pokazują te same 4 stany systemu tagów (2026-10-27) co dawny mock, tylko liczone
 // z prawdziwych zadań: nazwany skrót (pierwszy tag), pilne (termin dziś/po terminie),
 // przypomnienie (ma termin w przyszłości), bez taga (ani jedno, ani drugie).
-const MOCK_FOOD_COLUMNS: BarColumn[] = [
-  { label: '~ŚR', value: 843, display: '843', kind: 'average' },
-  { label: 'MAJ', value: 940, display: '940', kind: 'bar' },
-  { label: 'CZER', value: 793, display: '793', kind: 'bar' },
-  { label: 'LIP', value: 820, display: '820', kind: 'bar' },
-  { label: 'SIER', value: 452, display: '452', kind: 'highlight' },
-];
-
-// Szczegóły wydatków na jedzenie — NIE na Dashboardzie na stałe (2026-10-31, user:
-// "mieliśmy robić nieskrollowalny ekran żeby nie było chaosu... lepiej mniej
-// informacji ale popup po kliknięciu na zakładkę #wydatki" — poprzednia wersja
-// wrzuciła pełną `FoodBreakdownCard` jako piąty rząd i zmusiła Dashboard do scrolla,
-// co było świadomie odrzucone wcześniej ustalenie). Mock 1:1 z tego co user pokazał
-// ze screenshota sapp, ale teraz renderowany w `WydatkiModal` (pełnoekranowy popup),
-// otwieranym tapem w ISTNIEJĄCY kafel "22,4 PLN DZIENNIE #JEDZENIE" niżej — zero
-// NOWEGO elementu na samym Dashboardzie, patrz komentarz w WydatkiModal.tsx.
-const MOCK_FOOD_WEEKS: FoodWeek[] = [
-  { label: 'T1', value: 147 },
-  { label: 'T2', value: 197 },
-  { label: 'T3', value: 166 },
-  { label: 'T4', value: 208 },
-  { label: 'T5', value: 105 },
-];
-const MOCK_FOOD_CATEGORIES: FoodCategory[] = [
-  { label: 'Pieczywo', amount: 177, color: '#E0A458' },
-  { label: 'Nabiał', amount: 166, color: '#E0C040' },
-  { label: 'Słodycze', amount: 144, color: '#A78BFA' },
-  { label: 'Mięso', amount: 79, color: '#E06A6A' },
-  { label: 'Warzywa', amount: 73, color: '#4CC38A' },
-  { label: 'Napoje', amount: 44, color: '#4FC3E0' },
-  { label: 'Inne jedzenie', amount: 40, color: '#8A8A8A' },
-  { label: 'Przekąski', amount: 40, color: '#E0A458' },
-  { label: 'Owoce', amount: 26, color: '#E06A6A' },
-  { label: 'Sosy', amount: 25, color: '#E0914A' },
-  { label: 'Mąka i produkty', amount: 5, color: '#D8C9A0' },
-  { label: 'Ryż i kasze', amount: 4, color: '#B98A5A' },
-];
+// Rząd 4 (Finanse/#JEDZENIE) PRZESTAŁ być mock (2026-11-01, user: "czemu na
+// dashboardzie nie ma widgetu... z wydatkami jedzenie" — kafle BYŁY, ale wciąż
+// renderowały stałe MOCK_FOOD_* z 2026-10-30 i nigdy nie reagowały na realnie
+// dodawane paragony, co czytało się jako "nie ma go"). Teraz liczone z
+// `useExpensesStore` przez `utils/foodStats.ts` (oparte na `fvSplitOf`, patrz
+// ARCHITECTURE.md §FINANSE) — patrz `foodColumns`/`wydatki` w komponencie niżej.
+// Popup `WydatkiModal` wciąż otwiera się tapem w ISTNIEJĄCY kafel "#JEDZENIE",
+// Dashboard sam nadal się NIE scrolluje — zero nowego elementu, tylko realne dane.
+function formatPlnOneDecimal(n: number): string {
+  return n.toFixed(1).replace('.', ',');
+}
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const s = makeS();
   const [wydatkiOpen, setWydatkiOpen] = useState(false);
   const calendarTasks = useCalendarStore((st) => st.tasks);
+  const expenses = useExpensesStore((st) => st.expenses);
   const today = todayISO();
+  const now = useMemo(() => new Date(), [today]);
+
+  const dailyFoodAvg = useMemo(() => foodDailyAverageThisMonth(expenses, now), [expenses, now]);
+
+  const foodColumns = useMemo<BarColumn[]>(() => {
+    const months = foodByMonth(expenses, 4, now);
+    const avg = months.length > 0 ? Math.round(months.reduce((a, m) => a + m.value, 0) / months.length) : 0;
+    const bars: BarColumn[] = [{ label: '~ŚR', value: avg, display: String(avg), kind: 'average' }];
+    months.forEach((m, i) => {
+      bars.push({
+        label: m.label.toUpperCase(),
+        value: m.value,
+        display: String(m.value),
+        kind: i === months.length - 1 ? 'highlight' : 'bar',
+      });
+    });
+    return bars;
+  }, [expenses, now]);
+
+  const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const prevMonthDate = useMemo(() => new Date(now.getFullYear(), now.getMonth() - 1, 1), [now]);
+  const prevMonthKey = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
+
+  const wydatki = useMemo(() => {
+    const categories = foodByCategory(expenses, thisMonthKey);
+    const thisTotal = categories.reduce((a, c) => a + c.amount, 0);
+    const prevTotal = foodByCategory(expenses, prevMonthKey).reduce((a, c) => a + c.amount, 0);
+    const changePercent = prevTotal > 0 ? Math.round(((thisTotal - prevTotal) / prevTotal) * 100) : (thisTotal > 0 ? 100 : 0);
+    return {
+      month: MONTH_FULL[now.getMonth()],
+      total: `${thisTotal} zł`,
+      changePercent,
+      previousTotal: `${prevTotal} zł`,
+      weeks: foodByWeekOfMonth(expenses, now),
+      categories,
+    };
+  }, [expenses, now, thisMonthKey, prevMonthKey]);
 
   // Do 4 pozycji: najpierw z terminem (rosnąco), potem bez terminu (najnowsze
   // pierwsze) — ten sam porządek co sekcje Teraz/Terminowe w tasks.tsx.
@@ -176,7 +191,7 @@ export default function DashboardScreen() {
       <View style={[s.row, s.rowGap]}>
         <StatTile
           position={getTilePosition(0, 2)}
-          value="22,4"
+          value={formatPlnOneDecimal(dailyFoodAvg)}
           unit="PLN"
           label={'DZIENNIE\n#JEDZENIE'}
           onPress={() => setWydatkiOpen(true)}
@@ -184,19 +199,19 @@ export default function DashboardScreen() {
         <FoodBarsTile
           position={getTilePosition(1, 2)}
           title="#JedzeniePerMiesiąc"
-          columns={MOCK_FOOD_COLUMNS}
+          columns={foodColumns}
         />
       </View>
 
       <WydatkiModal
         visible={wydatkiOpen}
         onClose={() => setWydatkiOpen(false)}
-        month="Październik"
-        total="823 zł"
-        changePercent={-38}
-        previousTotal="1321 zł"
-        weeks={MOCK_FOOD_WEEKS}
-        categories={MOCK_FOOD_CATEGORIES}
+        month={wydatki.month}
+        total={wydatki.total}
+        changePercent={wydatki.changePercent}
+        previousTotal={wydatki.previousTotal}
+        weeks={wydatki.weeks}
+        categories={wydatki.categories}
       />
     </View>
   );

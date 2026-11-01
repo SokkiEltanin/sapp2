@@ -31,7 +31,11 @@ export default function FoodBarsTile({
   columns: BarColumn[];
 }) {
   const s = makeS();
-  const maxValue = Math.max(...columns.map((c) => c.value));
+  // `Math.max(1, ...)` — floor przy realnych (możliwie zerowych, np. brak
+  // wydatków w danym miesiącu) danych, bez tego dzielenie `value/maxValue` dawało
+  // `NaN%` na wysokości słupka, gdy wszystkie kolumny miały 0 (mock zawsze miał
+  // wartości >0, więc to się nie ujawniało wcześniej).
+  const maxValue = Math.max(1, ...columns.map((c) => c.value));
 
   return (
     <View style={[s.tile, cornersForPosition(position)]}>
