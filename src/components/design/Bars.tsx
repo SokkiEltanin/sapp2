@@ -5,7 +5,9 @@ import { themedStyles } from '@/theme';
 // txt, reszta in2". Prosty słupkowy wykres kolumnowy (miesiące jedzenia, tętno,
 // kroki, sen z ostatnich 7 dni) — `Math.max(1, ...)` na mianowniku wysokości jest
 // obowiązkiem WOŁAJĄCEGO (ten sam floor co już ustalony w foodStats.ts dla realnych,
-// czasem zerowych danych), nie tego komponentu.
+// czasem zerowych danych), nie tego komponentu. `minHeight: 3` na słupku (2026-11-02,
+// DESIGN.md §"Stany puste": "słupki z zerem → słupek 3 px") — zero nie ma być
+// niewidoczne, tylko wizualnie spłaszczone.
 export interface BarDatum {
   value: number;
   label?: string;
@@ -45,7 +47,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   wrap: { flexDirection: 'row', gap: 6, alignItems: 'flex-end' },
   col: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: '100%', gap: 5 },
   track: { width: '100%', flex: 1, justifyContent: 'flex-end' },
-  bar: { width: '100%', borderRadius: 3, backgroundColor: c.ui.in2, minHeight: 2 },
+  bar: { width: '100%', borderRadius: 3, backgroundColor: c.ui.in2, minHeight: 3 },
   barOn: { backgroundColor: c.text.primary },
   label: { fontSize: 9, fontFamily: 'Inter_800ExtraBold', letterSpacing: 0.5, color: c.text.muted },
   labelOn: { color: c.text.primary },

@@ -75,7 +75,7 @@ export default function DailyScreen() {
       </View>
 
       {/* Rząd 5: Nastrój (realne, s4, cała wiersz tappable) */}
-      <View style={[s.row, s.rowGap]}>
+      <View style={[s.row, s.rowGap, s.moodRow]}>
         <Tile style={s.moodTile} row onPress={() => setMoodOpen(true)}>
           <MoodPad mood={lastToday?.mood} energy={lastToday?.energy} mini />
           <View style={s.moodTextCol}>
@@ -131,6 +131,19 @@ const makeS = themedStyles((c) => StyleSheet.create({
   exTile: { flex: 1, justifyContent: 'center' },
   exEmpty: { fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', marginTop: spacing[2] },
 
+  // `moodRow` (2026-11-02, bug user na urządzeniu: kafel "Nastrój" renderował się
+  // jako wąski, prawie-zerowej-wysokości pasek — NIE ten sam bug co Tile.tsx fix
+  // wcześniej, nowy: `s.row` tu jest JEDYNYM wierszem w tym layoucie bez `flex:1`
+  // na SOBIE (w przeciwieństwie do Ćwiczeń) — jego wysokość miała wynikać z
+  // auto-size na podstawie dziecka, ALE to dziecko (Tile, `flex:1` dla pełnej
+  // szerokości wiersza) samo potrzebuje WYSOKOŚCI rodzica żeby się rozciągnąć —
+  // krąg bez punktu zaczepienia, Yoga rozwiązuje to kolapsem do ~0. `minHeight`
+  // tutaj daje konkretną liczbę do zaczepienia (76px MoodPad mini + padding
+  // Tile'a), przerywa cykl. Kafle w gridach (2/3/4 w rzędzie) tego nie mają, bo
+  // ICH rodzic (rząd) ma już konkretną wysokość z WYŻEJ (flex:1 na całej
+  // kolumnie) — ten jeden wiersz jest inny, bo jest JEDYNYM dzieckiem swojego
+  // auto-wysokościowego rodzica.
+  moodRow: { minHeight: 100 },
   moodTile: { flex: 1, alignItems: 'center', gap: spacing[3] },
   moodTextCol: { flex: 1, minWidth: 0, gap: 4 },
   moodLabel: { fontSize: 15, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },

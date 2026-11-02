@@ -243,14 +243,16 @@ export default function DashboardScreen() {
         </Tile>
         <Tile style={s.safeTile} onPress={() => setWydatkiOpen(true)}>
           <View>
-            <Text style={s.safeNum}>{Math.round(safePerDay)}</Text>
-            <Text style={s.sleepUnit}>PLN / DZIEŃ</Text>
+            <Text style={[s.safeNum, safePerDay < 0 && s.safeNumNegative]}>{safePerDay < 0 ? 0 : Math.round(safePerDay)}</Text>
+            <Text style={[s.sleepUnit, safePerDay < 0 && s.safeNumNegative]}>
+              {safePerDay < 0 ? `brak ${Math.round(Math.abs(safePerDay))} zł` : 'PLN / DZIEŃ'}
+            </Text>
           </View>
           <View>
             <View style={s.safeBarTrack}>
-              <View style={[s.safeBarFill, { width: `${Math.min(100, (todaySpend / Math.max(1, safePerDay)) * 100)}%`, backgroundColor: todaySpend > safePerDay ? colors.accent.red : colors.text.primary }]} />
+              <View style={[s.safeBarFill, { width: `${Math.min(100, (todaySpend / Math.max(1, safePerDay)) * 100)}%`, backgroundColor: safePerDay < 0 || todaySpend > safePerDay ? colors.accent.red : colors.text.primary }]} />
             </View>
-            <Text style={[s.safeToday, todaySpend > safePerDay && s.safeTodayOver]}>dziś {Math.round(todaySpend)}</Text>
+            <Text style={[s.safeToday, (safePerDay < 0 || todaySpend > safePerDay) && s.safeTodayOver]}>dziś {Math.round(todaySpend)}</Text>
           </View>
         </Tile>
       </View>
@@ -323,6 +325,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
 
   safeTile: { flex: 1, justifyContent: 'space-between' },
   safeNum: { fontSize: 26, fontFamily: 'Inter_800ExtraBold', letterSpacing: -1, color: c.text.bright },
+  // `safePerDay < 0` (2026-11-02, DESIGN.md §"Stany puste": "bezpieczne wydatki < 0 →
+  // czerwone 0 + „brak X zł”, nigdy liczba ujemna") — pokazywanie realnej ujemnej
+  // liczby ("-2 PLN/DZIEŃ") było mylące, wygląda jak błąd, nie jak uczciwy sygnał
+  // "przekroczyłeś budżet". Czerwone "0" + ile brakuje, ten sam ton co inne stany
+  // puste w appce.
+  safeNumNegative: { color: c.accent.red },
   safeBarTrack: { height: 4, borderRadius: 999, backgroundColor: c.ui.in2, overflow: 'hidden', marginBottom: 5 },
   safeBarFill: { height: '100%', borderRadius: 999 },
   safeToday: { fontSize: 10, fontFamily: 'Inter_700Bold', color: c.text.muted },

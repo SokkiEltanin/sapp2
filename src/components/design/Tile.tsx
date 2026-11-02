@@ -17,6 +17,11 @@ import { spacing, radius, themedStyles } from '@/theme';
 // (jak tam), to czysto kosmetyczny niuans nie wart Animated.Value na kolorze.
 export type TileVariant = 'default' | 'hot' | 'static';
 
+// `AnimatedPressable` — `Pressable` z RNGH owinięty `Animated.createAnimatedComponent`,
+// żeby interaktywny kafel mógł być JEDNYM elementem (patrz historia bugów niżej),
+// tak jak statyczny kafel zawsze był.
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export default function Tile({
   onPress,
   variant = 'default',
@@ -41,56 +46,50 @@ export default function Tile({
   };
 
   const chrome = [s.base, row && s.row, variant === 'hot' && s.hot];
+  const content = (
+    <>
+      {variant === 'hot' && pulse && <PulseDot />}
+      {children}
+    </>
+  );
 
   if (isStatic) {
     return (
       <Animated.View style={[...chrome, style, { transform: [{ scale }] }]}>
-        {variant === 'hot' && pulse && <PulseDot />}
-        {children}
+        {content}
       </Animated.View>
     );
   }
 
-  // BUG #1, znaleziony na urządzeniu (2026-11-02, user: kafel "Nastrój" w Daily
-  // renderował się jako wąski pasek zamiast pełnej szerokości rzędu) — `style`
-  // (np. `flex:1`/`flex:3`) trafiał TYLKO na wewnętrzny `Animated.View`, nigdy
-  // na `Pressable`, FAKTYCZNE dziecko rzędu (`flexDirection:'row'`). Flex bez
-  // wpływu na WŁASNEGO rodzica nic nie daje — `Pressable` kurczył się do
-  // rozmiaru treści.
+  // Historia (2026-11-02, user zrzutem ekranu: kafel "Nastrój" w Daily renderował
+  // się jako wąski pasek) — pierwsza poprawka trzymała `Pressable` i `Animated.View`
+  // jako DWA zagnieżdżone widoki (Pressable owijał Animated.View), z `style`
+  // nakładanym na oba z różnymi nadpisaniami (`alignItems:'stretch'` wymuszone na
+  // Pressable, pełny `style` na Animated.View) — zweryfikowane jako poprawione w
+  // izolowanym teście `react-native-web` z zmierzonymi `getBoundingClientRect()`.
+  // DRUGA runda (ten sam dzień, inny zrzut: kafel "Nastrój" skurczony do prawie
+  // zera wysokości, kafel "Jedzenie PLN/dzień" na Dashboardzie całkiem pusty) —
+  // ten sam web-test NIE odtworzył już problemu (sprawdzone ponownie, dokładna
+  // kopia realnej struktury obu ekranów), co wskazuje na rozbieżność między
+  // silnikiem flexbox przeglądarki a prawdziwym Yoga na Androidzie w sposobie
+  // rozwiązywania zagnieżdżonych `flex:1` w kontenerze o niejawnej (auto) wysokości
+  // — czego nie da się tu, bez fizycznego urządzenia, dalej zweryfikować.
   //
-  // BUG #2 (złapany dopiero w izolowanym teście react-native-web z
-  // zmierzonymi `getBoundingClientRect()`, nie samym oglądaniem screena —
-  // pierwsza łatka WYGLĄDAŁA poprawna w review, ale zmierzony layout pokazał
-  // że wewnętrzny `Animated.View` i tak renderował się węższy, WYŚRODKOWANY
-  // w poprawnie-rozmiarowanym już `Pressable`) — naiwna poprawka #1 kładła
-  // CAŁE `style` (np. `alignItems:'center'`, które ma układać DZIECI kafla:
-  // MoodPad + kolumnę tekstu) TAKŻE na `Pressable`. `Pressable` jest
-  // kontenerem `flexDirection:'column'` z JEDNYM dzieckiem (`Animated.View`)
-  // — `alignItems:'center'` na nim NIE jest neutralne: jawnie WYŁĄCZA
-  // domyślne `stretch` (rozciągnięcie dziecka na 100% szerokości) na rzecz
-  // wyśrodkowania dziecka w jego WŁASNYM, skurczonym rozmiarze. Innymi słowy
-  // `alignItems`/`justifyContent` ze `style` mają sens TYLKO dla układu
-  // WEWNĄTRZ kafla (na `Animated.View`), nigdy dla samego `Pressable`, który
-  // ma dokładnie jedno dziecko i zawsze powinien je rozciągać w 100%.
-  //
-  // Fix: `Pressable` dostaje `style` (dla `flex`/`width`/`margin` — rozmiar
-  // WZGLĘDEM rodzica), ale `alignItems:'stretch'` jest NADPISANE na sztywno
-  // PO `style`, więc żadne `alignItems` z wołającego ekranu nigdy go nie
-  // wyłączy. Cały `style` (z oryginalnym `alignItems`/`gap`/itp.) ląduje
-  // RÓWNIEŻ na `Animated.View` — tam te właściwości mają faktyczne,
-  // zamierzone znaczenie (układ MoodPad+tekst wewnątrz kafla).
+  // Zamiast łatać kolejną warstwę tej samej dwuwidokowej struktury: USUNIĘTA
+  // CAŁKOWICIE. Interaktywny kafel to teraz JEDEN element (`AnimatedPressable`),
+  // strukturalnie identyczny ze statycznym kaflem (wyżej) — ten sam `chrome`+
+  // `style` nałożony RAZ, bez żadnego drugiego widoka do rozjeżdżania się z
+  // pierwszym. Statyczne kafle nigdy nie miały tego bugu — to najmocniejszy
+  // dostępny dowód że podwójny widok, nie flex sam w sobie, był źródłem problemu.
   return (
-    <Pressable
-      style={[style, s.stretch]}
+    <AnimatedPressable
+      style={[...chrome, style, { transform: [{ scale }] }]}
       onPress={onPress}
       onPressIn={() => animateTo(0.975)}
       onPressOut={() => animateTo(1)}
     >
-      <Animated.View style={[...chrome, s.fill, style, { transform: [{ scale }] }]}>
-        {variant === 'hot' && pulse && <PulseDot />}
-        {children}
-      </Animated.View>
-    </Pressable>
+      {content}
+    </AnimatedPressable>
   );
 }
 
@@ -137,6 +136,4 @@ const makeS = themedStyles((c) => StyleSheet.create({
   },
   row: { flexDirection: 'row' },
   hot: { backgroundColor: c.text.primary },
-  fill: { flex: 1 },
-  stretch: { alignItems: 'stretch' },
 }));

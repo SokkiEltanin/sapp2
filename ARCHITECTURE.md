@@ -206,11 +206,74 @@ Finanse/Zadania) jest teraz `AppBottomSheet`, zero plain `Modal` nigdzie w repo
 `AddTaskCard`-kompozytor (Zadania). Szczegóły per-popup w §DASHBOARD/§FINANSE/
 §ZADANIA niżej i w NEXT_STEPS.md "Faza 3.8".
 
+**Faza 3.9 (real-device bugi + pętla wizualna `expo web`) — ZROBIONA (2026-11-02,
+user zrzutami z telefonu: kafel "Nastrój" skurczony do ~0 wysokości, kafel
+"Jedzenie PLN/dzień" pusty, kolumny rzędów nierówne; potem DESIGN.md + `design/rn/`
+referencja).**
+
+1. **`Tile.tsx` — DRUGA runda tego samego bugu, inny fix.** Faza 3.6/3.7's
+   dwuwidokowa struktura (`Pressable` owijający `Animated.View`, każdy ze swoim
+   `style`) WYGLĄDAŁA naprawiona w zweryfikowanym `react-native-web` teście, ale
+   na prawdziwym Androidzie dalej kolapsowała. Powtórzony test (dokładna kopia
+   realnej struktury obu ekranów) TYM RAZEM NIE odtworzył błędu wcale —
+   rozbieżność między silnikiem CSS przeglądarki a prawdziwym Yoga, której nie
+   dało się dalej zdiagnozować bez urządzenia. Zamiast kolejnej łatki: dwuwidokowa
+   struktura USUNIĘTA CAŁKOWICIE. Interaktywny kafel to teraz JEDEN element
+   (`Animated.createAnimatedComponent(Pressable)`), strukturalnie identyczny ze
+   statycznym kaflem (który nigdy nie miał tego bugu — najmocniejszy dostępny
+   dowód że podwójny widok, nie flex sam w sobie, był źródłem problemu). `s.fill`/
+   `s.stretch` (martwe po refaktorze) USUNIĘTE.
+2. **Pętla wizualna `expo start --web` + Playwright — NOWA, trwała infrastruktura**
+   (DESIGN.md §9: "Weryfikacja wizualna jest obowiązkowa... Ekran jest skończony
+   dopiero, gdy wyglądają tak samo [jak `app-design.html`]"). Zainstalowane:
+   `react-dom`/`react-native-web`/`@expo/metro-runtime`. Dwie przeszkody
+   naprawione PERMANENTNIE (nie obejściami jednorazowymi):
+   - `babel-strip-import-meta.js` + warunek `platform==='web'` w `babel.config.js`
+     — Metro-na-webie parsuje `import.meta` (martwa gałąź wewnątrz zustand's
+     `devtools` middleware, bundlowana mimo że appka używa TYLKO `persist`, bo
+     Metro nie tree-shake'uje nieużywanych eksportów) jako twardy SyntaxError w
+     zwykłym `<script>`. Dotyczy WYŁĄCZNIE web-buildu, native/Hermes buduje się
+     bez tego od zawsze.
+   - `useAuthUser.ts`'s `Platform.OS==='web'` → fake zalogowany user, pomija
+     prawdziwe Firebase `onAuthStateChanged`. Prawdziwe logowanie Google w
+     headless Playwright nie jest wykonalne; appka i tak jest WYŁĄCZNIE na
+     Androida (CLAUDE.md), `Platform.OS==='web'` NIGDY nie zachodzi w prawdziwym
+     buildzie — bezpieczne na stałe w repo, nie "do usunięcia przed commitem".
+   - Użycie: `npx expo start --web --port 8081` (w tle) + Playwright
+     `page.goto('http://localhost:8081/<trasa>')`, viewport 390×844, screenshot
+     obok `page.goto('file://.../design/app-design.html')`'s `.phone` elementu
+     (ten sam viewport) — PIERWSZA metoda weryfikacji tej sesji, która renderuje
+     PRAWDZIWY kod appki (nie ręcznie kopiowaną aproksymację jak poprzednie
+     `react-native-web`-testy w scratchpadzie) i faktycznie złapała/potwierdziła
+     powyższe bugi.
+3. **Konkretne, zweryfikowane TĄ pętlą naprawy:**
+   - `Bars.tsx`'s `minHeight: 2` → `3` (DESIGN.md §"Stany puste": "słupki z zerem
+     → słupek 3 px", dokładna wartość ze spec).
+   - Dashboard's "Bezpieczne wydatki" — `safePerDay < 0` pokazywało surową ujemną
+     liczbę ("-2 PLN/DZIEŃ", ze zrzutu usera) zamiast DESIGN.md's "bezpieczne
+     wydatki < 0 → czerwone 0 + „brak X zł", nigdy liczba ujemna". Naprawione w
+     `app/(tabs)/index.tsx`.
+   - `app/(tabs)/daily.tsx`'s `moodRow: {minHeight: 100}` zostaje jako dodatkowa
+     siatka bezpieczeństwa (nieszkodliwa, test nie pokazał że była konieczna PO
+     fixie Tile.tsx, ale tani koszt).
+
+**`design/DESIGN.md`** (NOWY, 2026-11-02, przysłany przez usera jako zaktualizowany,
+precyzyjniejszy spec — zastępuje nieformalne odwołania do `app-design.html` jako
+JEDYNEGO źródła). Zawiera m.in. "twarde zasady" przeniesienia na RN: jawne
+szerokości siatki zamiast `flex` w rzędzie z `gap` (`col = (W−24−3·8)/4`),
+zaprojektowane stany puste per typ danych, `FitList` z ghost-wierszami. Referuje
+`design/rn/` jako "gotowy, sprawdzony kit" (theme.ts/layout.tsx/NavBar.tsx/
+DashboardScreen.tsx) — **TEN KIT NIE ZOSTAŁ PRZESŁANY** (sprawdzone: brak w
+uploadach, brak w repo) — czeka na usera, patrz NEXT_STEPS.md.
+
 **Następne fazy** — "Płatności cykliczne" (store `bills`, odblokuje pełne
 "Bezpieczne wydatki"/"Najbliższe 48h" z Fazy 3.2 i "Praca"/"Najbliższa opłata" z
 Fazy 3.4) potrzebuje osobnej, uczciwej fazy — dziś stub `Tile` w miejsce
 Subskrypcji/Pracy/bills, nie udawane na żadnym ekranie. Health Connect (Sen/
-Kroki/Tętno/Waga/Woda) to druga duża, odłożona faza.
+Kroki/Tętno/Waga/Woda) to druga duża, odłożona faza. `design/rn/` kit (patrz
+wyżej) — gdy user go prześle, podmienić layout-y per DESIGN.md §"Przeniesienie
+do React Native" i PROMPT_CLAUDE_CODE.md's kolejność (ekran po ekranie, zawsze z
+pętlą wizualną, zawsze pokazać oba screenshoty obok siebie).
 
 ## DASHBOARD [GE]
 

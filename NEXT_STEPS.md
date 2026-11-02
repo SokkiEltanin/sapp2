@@ -2429,3 +2429,78 @@ export --platform android` bez błędów. Rzeczywisty render/dotyk na urządzeni
 (gesty w sheetach, stackowanie dwóch sheetów naraz, klawiatura) NIE był możliwy
 w tym środowisku (brak Androida) — to jest teraz PRIORYTET #1 do sprawdzenia na
 telefonie, bo dotyka każdego ekranu appki naraz.
+
+## Faza 3.9 — real-device bugi + pętla wizualna `expo web` UKOŃCZONA (2026-11-02)
+
+User przesłał zrzuty ekranu z telefonu: kafel "Nastrój" na Daily skurczony do
+prawie zerowej wysokości, kafel "Jedzenie PLN/dzień" na Dashboardzie całkiem
+pusty, "Bezpieczne wydatki" pokazywało "-2" (ujemną liczbę). Potem przesłał
+`DESIGN.md` (zapisany teraz jako `design/DESIGN.md`) + `PROMPT_CLAUDE_CODE.md`
+z precyzyjnymi "twardymi zasadami" przeniesienia na RN i wymogiem obowiązkowej
+pętli wizualnej.
+
+**Najważniejsza zmiana tej rundy: PIERWSZA działająca metoda weryfikacji, która
+renderuje PRAWDZIWY kod appki.** Wcześniejsze "rygorystyczne testy" w tej sesji
+(`react-native-web` w scratchpadzie) kopiowały strukturę RĘCZNIE — wygodne, ale
+nie złapały tego konkretnego buga wcale przy drugiej próbie (sam Yoga na
+Androidzie zachowuje się inaczej niż silnik CSS przeglądarki dla tego
+konkretnego, zagnieżdżonego przypadku flex). `npx expo start --web` + Playwright
+na `http://localhost:8081` to PRAWDZIWY bundle tej samej appki — i TA metoda
+faktycznie potwierdziła oba bugi (kafel pusty/skurczony) ORAZ potwierdziła że
+fix działa (zrzuty w scratchpadzie tej sesji, nie w repo).
+
+**Co naprawione:**
+1. `Tile.tsx` — DRUGA runda tego samego bugu klasy "kafel z `onPress` renderuje
+   się źle". Dwuwidokowa struktura `Pressable`+`Animated.View` (Faza 3.6 fix)
+   USUNIĘTA CAŁKOWICIE na rzecz JEDNEGO elementu
+   (`Animated.createAnimatedComponent(Pressable)`) — strukturalnie identycznego
+   ze statycznym kaflem, który NIGDY nie miał tego bugu. Szczegóły uzasadnienia
+   w komentarzu w pliku i ARCHITECTURE.md.
+2. `Bars.tsx` — `minHeight: 2` → `3` (DESIGN.md: "słupki z zerem → słupek 3 px").
+3. Dashboard "Bezpieczne wydatki" — ujemna liczba ("-2") zastąpiona czerwonym
+   "0" + "brak X zł" (DESIGN.md: "bezpieczne wydatki < 0 → czerwone 0 + brak X
+   zł, nigdy liczba ujemna").
+
+**Nowa, trwała infrastruktura — pętla wizualna (DESIGN.md §9):**
+- `npx expo install react-dom react-native-web @expo/metro-runtime` (zainstalowane).
+- `babel-strip-import-meta.js` (nowy plik) + warunek na `platform==='web'` w
+  `babel.config.js` — naprawia twardy SyntaxError przy bundlowaniu na web (martwa
+  gałąź `import.meta` wewnątrz zustand's `devtools`, bundlowana mimo że appka
+  używa tylko `persist`). Dotyczy WYŁĄCZNIE web, zero wpływu na native/Hermes.
+- `useAuthUser.ts`'s `Platform.OS==='web'` → fake zalogowany user zamiast
+  prawdziwego Firebase logowania (niemożliwe do zautomatyzowania w headless
+  Playwright). Bezpieczne na stałe — `Platform.OS==='web'` nigdy nie zachodzi w
+  prawdziwym (Android-owym) buildzie.
+- Użycie na przyszłość: `npx expo start --web --port 8081` (w tle, `run_in_
+  background`) → `curl`/Playwright `page.goto('http://localhost:8081/<trasa>')`
+  viewport 390×844 → screenshot → porównaj z `design/app-design.html`'s `.phone`
+  elementu w TYM SAMYM viewporcie (plik `design/app-design.html` otwarty jako
+  `file://...`).
+
+**WAŻNE — wciąż brakuje `design/rn/` kitu.** `PROMPT_CLAUDE_CODE.md` mówi wprost:
+"Przeczytaj... cały folder `design/rn/`. To gotowy, sprawdzony kit – zastąp nim
+obecne komponenty layoutu" (theme.ts/layout.tsx/NavBar.tsx/DashboardScreen.tsx).
+Sprawdzone dokładnie: NIE MA go w przesłanych plikach ani w repo. Bez niego nie
+da się wykonać kroku 2-4 z `PROMPT_CLAUDE_CODE.md` dosłownie (kopiuj kit, podepnij
+dane). User musi przesłać ten folder (osobne pliki albo zip) — dopiero wtedy
+dalszy ciąg planu z `PROMPT_CLAUDE_CODE.md` (podmiana nawigacji na Tabs+NavBar z
+kitu, podmiana Dashboardu na DashboardScreen z kitu, potem Daily/Finanse/
+Zadania/Ustawienia ekran-po-ekranie, zawsze z pętlą wizualną, zawsze pokazując
+oba screenshoty).
+
+**DO PRZETESTOWANIA NA URZĄDZENIU:**
+- Kafel "Nastrój" na Daily — pełna szerokość, pełna wysokość (MoodPad + tekst
+  widoczne), NIE skurczony pasek.
+- Kafel "Jedzenie PLN/dzień" na Dashboardzie — liczba widoczna, NIE pusty.
+- Wszystkie kafle z `onPress` na WSZYSTKICH 4 ekranach (ten fix jest w
+  WSPÓLNYM `Tile.tsx`, dotyczy każdego) — poprawny rozmiar/wyrównanie.
+- Scale-on-press animacja (kafel lekko się kurczy przy dotknięciu) — wciąż
+  działa po refaktorze na `AnimatedPressable`.
+- Jeśli saldo jest ujemne na tyle że "bezpieczne wydatki" wypadają < 0 — powinno
+  pokazać czerwone "0" + "brak X zł", nie ujemną liczbę.
+
+Zweryfikowane TYM RAZEM realnym `expo start --web`-em (nie ręczną aproksymacją):
+`tsc`/`jest` 170/170/`expo export --platform android` czyste, zrzuty Dashboardu i
+Daily po fixie pokazują poprawny layout (kafel "Jedzenie" z liczbą, kafel
+"Nastrój" pełnowymiarowy). Dalej BEZ fizycznego Androida — gesty/dotyk/klawiatura
+nieweryfikowalne tutaj.
