@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Globe, Moon } from 'lucide-react-native';
 import { C, T, F } from './theme';
-import { Screen, Row, Tile, StatTile, Cap, FitList, Item, Tag, Price, Bars, StackBar, Progress, splitTag } from './layout';
+import { Screen, Row, Tile, StatTile, Cap, FitList, Item, Tag, Price, Bars, StackBar, Progress, splitTag, PulseDot } from './layout';
 
 /**
  * Wzorcowy Dashboard 1:1 z app-design.html.
@@ -18,19 +18,30 @@ export type DashData = {
   foodMonths: { label: string; value: number }[];
   transactions: { id: string; name: string; amount: number }[];
   safe: { balance: number | null; unpaidDue: number; daysLeft: number; spentToday: number };
-  next48: { id: string; when: string; title: string; kind: 'event' | 'deadline' | 'bill'; color: string; minutes?: number; amount?: number }[];
+  upcoming: { id: string; when: string; title: string; kind: 'event' | 'deadline' | 'bill'; color: string; minutes?: number; amount?: number }[];
   onOpen: (what: string, id?: string) => void; // otwiera bottom sheet
 };
 
 const fmtMin = (m: number) => `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
 const phaseColor = { deep: C.deep, light: C.light, rem: C.rem, awake: C.awake };
 
+// "za 45 min" / "za 3h" / "jutro 08:00" / "Śr 08:00" — skrót, nie wielka liczba
+// godzin z ułamkiem (DESIGN.md's "4× StatTile: ... + hot „za X min · wydarzenie"" —
+// ten kafelek jest ZAWSZE wariantem "hot", nie tylko gdy wydarzenie jest blisko).
+function relTime(start: Date, now: Date): string {
+  const diffMin = Math.round((start.getTime() - now.getTime()) / 60000);
+  if (diffMin <= 0) return 'teraz';
+  if (diffMin < 60) return `za ${diffMin} min`;
+  const hhmm = start.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+  const diffDay = Math.round((new Date(start).setHours(0, 0, 0, 0) - new Date(now).setHours(0, 0, 0, 0)) / 86400000);
+  if (diffDay === 0) return `za ${Math.round(diffMin / 60)}h`;
+  if (diffDay === 1) return `jutro ${hhmm}`;
+  return `${start.toLocaleDateString('pl-PL', { weekday: 'short' })} ${hhmm}`;
+}
+
 export function DashboardScreen(d: DashData) {
-  // "co za ile": hot tylko gdy < 60 min, inaczej zwykły kafelek z godziną
-  const mins = d.next ? Math.round((d.next.start.getTime() - Date.now()) / 60000) : null;
-  const hot = mins != null && mins >= 0 && mins < 60;
+  const now = new Date();
   const nextTitle = d.next ? splitTag(d.next.title).title : '';
-  const hhmm = d.next ? d.next.start.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' }) : '';
 
   // bezpieczne wydatki – nigdy nie pokazuj ujemnej liczby jako "limitu"
   const free = d.safe.balance == null ? null : d.safe.balance - d.safe.unpaidDue;
@@ -43,13 +54,20 @@ export function DashboardScreen(d: DashData) {
         <StatTile value={d.streaks.water} unit="dni" label="Woda" onPress={() => d.onOpen('streak', 'water')} />
         <StatTile value={d.streaks.sweets} unit="dni" label="Słodycze" onPress={() => d.onOpen('streak', 'sweets')} />
         <StatTile value={d.streaks.training} unit="dni" label="Trening" onPress={() => d.onOpen('streak', 'training')} />
-        <StatTile
-          hot={hot}
-          value={d.next ? (hot ? mins! : hhmm) : null}
-          unit={d.next ? (hot ? `min · ${hhmm}` : 'start') : 'wolne'}
-          label={nextTitle || 'Kalendarz'}
-          onPress={() => d.onOpen('next')}
-        />
+        <Tile hot={!!d.next} center style={st.nextTile} onPress={() => d.onOpen('next')}>
+          {d.next ? (
+            <>
+              <PulseDot />
+              <Text style={st.nextWhen} numberOfLines={1}>{relTime(d.next.start, now)}</Text>
+              <Text style={st.nextTitle} numberOfLines={2}>{nextTitle}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={[T.unit, { color: C.dim }]}>brak</Text>
+              <Text style={T.lab} numberOfLines={1}>Kalendarz</Text>
+            </>
+          )}
+        </Tile>
       </Row>
 
       <Row h={96}>
@@ -115,10 +133,10 @@ export function DashboardScreen(d: DashData) {
 
       <Row flex={1.3}>
         <Tile span={4}>
-          <Cap l="Najbliższe 48h" r={`${d.next48.filter((x) => x.kind === 'deadline' || (x.minutes ?? 999) < 60).length} ważne · ${d.next48.length} razem`} />
+          <Cap l="Najbliższe eventy" r={`${d.upcoming.filter((x) => x.kind === 'deadline' || (x.minutes ?? 999) < 60).length} ważne · ${d.upcoming.length} razem`} />
           <FitList
-            data={d.next48}
-            emptyText="Nic w ciągu 48h"
+            data={d.upcoming}
+            emptyText="Nic zaplanowanego"
             renderItem={(x) => {
               const { tag, title } = splitTag(x.title);
               const important = x.kind === 'deadline' || (x.minutes ?? 999) < 60;
@@ -147,4 +165,7 @@ const st = StyleSheet.create({
   tiny: { fontFamily: F.b, fontSize: 10, color: C.mut },
   when: { width: 64, fontFamily: F.xb, fontSize: 10, color: C.mut, fontVariant: ['tabular-nums'] },
   bar: { width: 3, height: 16, borderRadius: 2 },
+  nextTile: { paddingHorizontal: 6, paddingTop: 14, paddingBottom: 12 },
+  nextWhen: { fontFamily: F.sb, fontSize: 9, letterSpacing: 1.2, color: 'rgba(0,0,0,.55)', textTransform: 'uppercase' },
+  nextTitle: { fontFamily: F.xb, fontSize: 12, lineHeight: 15, letterSpacing: 0.2, color: '#000', textAlign: 'center', marginTop: 6 },
 });

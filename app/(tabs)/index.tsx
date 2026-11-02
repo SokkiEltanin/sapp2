@@ -20,6 +20,7 @@ import { useWydatkiData } from '@/hooks/useWydatkiData';
 import { getBalanceOffset, accountBalance, affectsBalance } from '@/utils/balance';
 import type { CalendarEvent } from '@/types/calendar';
 import type { HabitKey } from '@/types/habits';
+import { haptic } from '@/utils/haptics';
 
 // Faza 3.11 (2026-11-02, user: "zrób tę apkę w pełni funkcjonalną") — Woda/
 // Słodycze/Trening DOSTAŁY realny store (`habitsStore.ts`/`utils/habitStreak.ts`/
@@ -132,19 +133,23 @@ export default function Dashboard() {
     [expenses],
   );
 
+  // "Najbliższe eventy" — wcześniej "Najbliższe 48h" z twardym limitem 48h (user:
+  // "zamieniamy na najbliższe eventy po prostu i tyle bez ograniczenia bo jak nic
+  // nie będzie to będzie pusto") — BEZ limitu czasowego, wszystkie przyszłe
+  // wydarzenia/terminy. `FitList` i tak pokaże tylko tyle ile się zmieści w
+  // kaflu, pusty stan ("Nic zaplanowanego") jest uczciwy, nie coś do unikania.
   type TimelineEntry = { key: string; at: Date; title: string; color: string; kind: 'event' | 'deadline'; minutes?: number };
-  const timeline48h = useMemo<TimelineEntry[]>(() => {
-    const limit = new Date(now.getTime() + 48 * 3600000);
+  const upcomingTimeline = useMemo<TimelineEntry[]>(() => {
     const out: TimelineEntry[] = [];
     for (const e of allEvents) {
       const start = eventStart(e);
-      if (!start || start < now || start > limit) continue;
+      if (!start || start < now) continue;
       out.push({ key: `e_${e.id}`, at: start, title: e.title, color: e.color || colors.ui.in2, kind: 'event', minutes: Math.round((start.getTime() - now.getTime()) / 60000) });
     }
     for (const t of calendarTasks) {
       if (t.status !== 'pending' || !t.deadline) continue;
       const at = new Date(t.deadline);
-      if (at < now || at > limit) continue;
+      if (at < now) continue;
       out.push({ key: `t_${t.id}`, at, title: t.title, color: colors.accent.red, kind: 'deadline' });
     }
     return out.sort((a, b) => a.at.getTime() - b.at.getTime());
@@ -180,7 +185,7 @@ export default function Dashboard() {
       amount: e.type === 'income' ? e.amount : -e.amount,
     })),
     safe: { balance, unpaidDue: 0, daysLeft: daysLeftInMonth, spentToday: todaySpend },
-    next48: timeline48h.map((x) => ({
+    upcoming: upcomingTimeline.map((x) => ({
       id: x.key,
       when: whenLabel(x.at, now),
       title: x.title,
@@ -194,14 +199,15 @@ export default function Dashboard() {
       else if (what === 'tx' || what === 'safe') { setWydatkiTab('variable'); setWydatkiOpen(true); }
       else if (what === 'next' && upcomingEvent) setNextOpen(true);
       else if (what === 'streak') { setHabitsFocus(id as HabitKey | undefined); setHabitsOpen(true); }
-      // sleep/next48 — jeszcze bez docelowego popupu (Health Connect
-      // nieistniejący / szczegół wydarzenia na 48h), świadomie bez akcji na razie.
+      // sleep/upcoming — jeszcze bez docelowego popupu (szczegół pojedynczego
+      // wydarzenia/terminu z listy "Najbliższe eventy"), świadomie bez akcji na razie.
     },
   };
 
   const nextTag = upcomingEvent ? splitTag(upcomingEvent.e.title) : null;
   const openNextInTasks = () => {
     if (!upcomingEvent) return;
+    haptic.tap();
     setNextOpen(false);
     setSelectedDate(upcomingEvent.e.date.slice(0, 10));
     router.push('/tasks');
