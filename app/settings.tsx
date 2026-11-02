@@ -23,7 +23,7 @@ import { todayISO } from '@/utils/date';
 import { useBankQueue } from '@/store/bankQueueStore';
 import { useHealthStore } from '@/store/healthStore';
 import { isHealthConnectAvailable, ensureHealthConnect, openHealthConnectSettings, readHealthDay } from '@/services/healthConnectService';
-import { isHapticsEnabled, setHapticsEnabled, haptic } from '@/utils/haptics';
+import { isHapticsEnabled, setHapticsEnabled } from '@/utils/haptics';
 import Toggle from '@/components/design/Toggle';
 
 // Build metadata wstrzyknięty przez CI (`.github/workflows/build.yml`, krok "Build
@@ -100,54 +100,6 @@ function buildSections(
       },
     ],
   },
-  // Faza 2.6 (2026-11-01) — JEDEN globalny przełącznik, nie per-ekran (ustalone
-  // 2026-10-26, patrz ARCHITECTURE.md §Ogólne "Wibracje").
-  {
-    id: 'ogolne', title: 'Ogólne',
-    items: [
-      {
-        kind: 'switch', key: 'haptics-enabled', label: 'Wibracje',
-        description: 'krótki bzyk przy tapie/zatwierdzeniu w Finansach',
-        icon: Vibrate, value: hapticsEnabled,
-      },
-    ],
-  },
-  {
-    id: 'info', title: 'Info',
-    items: [
-      { kind: 'value', key: 'info-version', label: 'Wersja', description: 'wersja aplikacji', icon: Info, value: BUILD_INFO.version },
-      { kind: 'value', key: 'info-build', label: 'Build', description: 'numer builda github actions', icon: Info, value: `#${BUILD_INFO.buildNumber}` },
-      { kind: 'value', key: 'info-date', label: 'Zbudowano', description: 'data builda', icon: Clock, value: BUILD_INFO.buildDate },
-      { kind: 'value', key: 'info-commit', label: 'Commit', description: 'git commit sha', icon: Info, value: BUILD_INFO.commit },
-    ],
-  },
-  {
-    id: 'diagnostyka', title: 'Diagnostyka',
-    items: [
-      { kind: 'action', key: 'google', label: 'Zaloguj przez Google', description: 'logowanie konto sign-in', icon: LogIn },
-      { kind: 'action', key: 'firestore', label: 'Test Firestore', description: 'baza danych synchronizacja', icon: Database },
-      { kind: 'action', key: 'calendar', label: 'Test Kalendarza Google', description: 'wydarzenia kalendarz', icon: CalendarDays },
-      { kind: 'action', key: 'calendar-sync', label: 'Sync kalendarza (dane)', description: 'test warstwy danych firestore i google calendar round-trip', icon: CalendarDays },
-    ],
-  },
-  // Sandbox do porównania kilku podejść do prawdziwych full-screen-intent alertów
-  // (2026-10-28, user: "potraktujmy sapp2 jako pole do manewrów... kilka opcji osobno
-  // testować, ja powiem która działa"). Dwa NIEZALEŻNE testy, celowo osobno:
-  // `expo` = sufit gołego expo-notifications (MAX priorytet, heads-up — już wcześniej
-  // sprawdzone, NIE przebija blokady ekranu); `notifee` = prawdziwy natywny
-  // `fullScreenIntent` (patrz `plugins/withFullScreenAlert.js`), który POWINIEN
-  // wybudzić telefon i pokazać appkę NAD blokadą jak budzik/połączenie przychodzące.
-  {
-    id: 'alerty', title: 'Alerty',
-    items: [
-      { kind: 'action', key: 'alert-expo', label: 'Expo (MAX priorytet)', description: 'powiadomienia alert notification heads-up', icon: AlertTriangle },
-      { kind: 'action', key: 'alert-notifee', label: 'Notifee (bez przycisku)', description: 'powiadomienia alert notification pelny ekran budzik', icon: Rocket },
-      { kind: 'action', key: 'alert-notifee-buttons', label: 'Notifee (Tak/Nie)', description: 'powiadomienia alert notification pelny ekran budzik przyciski akcji', icon: Rocket },
-      { kind: 'action', key: 'alert-notifee-5min', label: 'Notifee za 5 min (test OLED)', description: 'sprawdza czy ekran faktycznie sie wybudza z glebokiego usypiania, nie tylko gra w ciemno', icon: Rocket },
-      { kind: 'action', key: 'alert-battery', label: 'Optymalizacja baterii', description: 'sprawdza i prosi o wylaczenie — najczestsza przyczyna ciszy po dlugim opoznieniu', icon: BatteryWarning, permission: true },
-      { kind: 'action', key: 'alert-exact-alarm', label: 'Dokladne alarmy', description: 'otwiera systemowe ustawienia "Alarmy i przypomnienia" wymagane dla terminowego budzenia', icon: AlarmClock, permission: true },
-    ],
-  },
   // Sekcja "Finanse" miała dotąd tylko statyczne "W budowie" — stałe od Fazy 2.1,
   // zanim appka miała cokolwiek finansowego do wystawienia. Faza 2.5 (2026-11-01,
   // "najbardziej ryzykowny, natywny kawałek" z ARCHITECTURE.md §FINANSE) daje jej
@@ -174,6 +126,51 @@ function buildSections(
         { kind: 'action' as const, tier: 'sub' as const, key: 'bank-review', label: 'Płatności do zatwierdzenia', description: bank.pending > 0 ? `${bank.pending} czeka — stuknij, żeby przejrzeć` : 'pusto — nic nie czeka na zatwierdzenie', icon: Rocket },
         { kind: 'action' as const, tier: 'sub' as const, key: 'bank-history', label: 'Historia i szablony', description: 'co już złapaliśmy — cofnij błędną pozycję albo zapisz sklep jako szablon', icon: History },
       ] : []),
+    ],
+  },
+  // Faza 3.13 (2026-11-02, user: "podziel ustawienia na kategorie porozmieszczaj to
+  // żeby było czytelniej" + "popraw nasze alerty podziel je na kategorie") —
+  // Alerty/Ogólne/Diagnostyka przeniesione NA KONIEC (po Finansach), żeby góra ekranu
+  // (Konto/Połączenia/Finanse) niosła rzeczy których user faktycznie używa co dzień,
+  // a testy/diagnostyka/build-info (rzadko potrzebne) nie zajmowały pierwszego ekranu.
+  // Alerty skondensowane z 6 pozycji do dokładnie 4 presetów + 2 pomocnicze zgody
+  // systemowe, jak user opisał 1:1: "tylko basic, tylko TAK/NIE, tylko fullscreen bez
+  // powiadomienia [= cichy], tylko fullscreen bez powiadomienia z wakeup i muzyką i
+  // wibracjami [= budzik]" — standalone "test OLED za 5 min" USUNIĘTY jako osobny
+  // wiersz UI (funkcja/parametry w `sendNotifeeAlert` zostają, diagnostyka dalej
+  // dostępna z kodu, po prostu nie zaśmieca listy czterema niemal identycznymi
+  // przyciskami).
+  {
+    id: 'alerty', title: 'Alerty',
+    items: [
+      { kind: 'action', key: 'alert-expo', label: 'Podstawowy', description: 'zwykłe powiadomienie (max priorytet), bez pełnego ekranu', icon: Bell },
+      { kind: 'action', key: 'alert-notifee-buttons', label: 'Pełny ekran + Tak/Nie', description: 'nad blokadą ekranu, z przyciskami odpowiedzi', icon: AlertTriangle },
+      { kind: 'action', key: 'alert-notifee-quiet', label: 'Pełny ekran (cichy)', description: 'nad blokadą ekranu, bez dźwięku i wibracji', icon: AlertTriangle },
+      { kind: 'action', key: 'alert-notifee', label: 'Pełny ekran + budzik', description: 'nad blokadą ekranu, dźwięk w pętli + wibracje', icon: AlarmClock },
+      { kind: 'action', tier: 'sub', permission: true, key: 'alert-battery', label: 'Optymalizacja baterii', description: 'wyklucz appkę, inaczej alerty mogą przychodzić z opóźnieniem/cicho', icon: BatteryWarning },
+      { kind: 'action', tier: 'sub', permission: true, key: 'alert-exact-alarm', label: 'Dokładne alarmy', description: 'zgoda systemowa wymagana na Androidzie 12+', icon: AlarmClock },
+    ],
+  },
+  {
+    id: 'ogolne', title: 'Ogólne',
+    items: [
+      { kind: 'switch', key: 'haptics-enabled', label: 'Wibracje', description: 'delikatne kliknięcie przy tapach w appce', icon: Vibrate, value: hapticsEnabled },
+    ],
+  },
+  // "Diagnostyka" + stara "Info" złączone w jedną sekcję (2026-11-02) — build-info
+  // (wersja/build/data/commit, `value` itemy) to też diagnostyka ("czy to najnowszy
+  // build"), osobna sekcja dla czterech statycznych wierszy była przerostem.
+  {
+    id: 'diagnostyka', title: 'Diagnostyka',
+    items: [
+      { kind: 'value', key: 'info-version', label: 'Wersja', description: 'numer wersji appki', icon: Info, value: BUILD_INFO.version },
+      { kind: 'value', key: 'info-build', label: 'Build', description: 'numer builda CI', icon: Info, value: BUILD_INFO.buildNumber },
+      { kind: 'value', key: 'info-date', label: 'Data builda', description: 'kiedy zbudowano ten APK', icon: Clock, value: BUILD_INFO.buildDate },
+      { kind: 'value', key: 'info-commit', label: 'Commit', description: 'hash commita z którego zbudowano', icon: Copy, value: BUILD_INFO.commit },
+      { kind: 'action', tier: 'sub', key: 'google', label: 'Zaloguj przez Google (test)', description: 'sprawdź czy Google Sign-In działa', icon: LogIn },
+      { kind: 'action', tier: 'sub', key: 'firestore', label: 'Firestore (test)', description: 'zapis/odczyt testowego dokumentu', icon: Database },
+      { kind: 'action', tier: 'sub', key: 'calendar', label: 'Kalendarz Google (test)', description: 'odczyt nadchodzących wydarzeń', icon: CalendarDays },
+      { kind: 'action', tier: 'sub', key: 'calendar-sync', label: 'Sync kalendarza (test)', description: 'round-trip dodaj/zmień/usuń, Firestore + Google', icon: CalendarDays },
     ],
   },
   ];
@@ -425,7 +422,7 @@ export default function SettingsScreen() {
   // trigger), niezależnie od `delayMs` — to ONO przekierowywało na ekran alarmu
   // natychmiast, maskując to że prawdziwy test opóźnienia (5 min) w ogóle się nie
   // wykonał. Test OLED musi iść BEZ instant-części, inaczej nie testuje tego co ma.
-  const sendNotifeeAlert = async (withActions: boolean, delayMs = 5000, includeInstant = true) => {
+  const sendNotifeeAlert = async (withActions: boolean, quiet = false, delayMs = 5000, includeInstant = true) => {
     const delayLabel = delayMs >= 60000 ? `${Math.round(delayMs / 60000)} min` : `${Math.round(delayMs / 1000)}s`;
     append(`Alert notifee (za ${delayLabel}): start…`);
     try {
@@ -468,17 +465,32 @@ export default function SettingsScreen() {
       // kodzie). `-v3` (2026-10-29, `loopSound` dalej cicho mimo poprawnego kodu —
       // ten sam objaw co poprzednio, ten sam fix: nowy id na wszelki wypadek stałej
       // rejestracji).
-      const channelId = await notifee.createChannel({
-        id: 'alerts-fullscreen-v3',
-        name: 'Alerty pełnoekranowe (test) v3',
-        importance: AndroidImportance.HIGH,
-        sound: 'default',
-        vibration: true,
-        vibrationPattern: [300, 500, 300, 500],
-        lights: true,
-        lightColor: '#EF4444',
-        bypassDnd: true,
-      });
+      // `quiet` (2026-11-02, user: jeden z czterech presetów ma być "pełny ekran bez
+      // powiadomienia [dźwięku/wibracji]") — kanał na Androidzie jest NIEMUTOWALNY
+      // (patrz komentarz nad `-v3` niżej), a `sound`/`vibration` ustawione NA
+      // KANALE wygrywają z ewentualnym per-notification override, więc cichy
+      // wariant musi iść pod ZUPEŁNIE OSOBNYM id, nie przez wyzerowanie pól na
+      // notyfikacji w tym samym kanale co głośny wariant.
+      const channelId = quiet
+        ? await notifee.createChannel({
+          id: 'alerts-fullscreen-quiet-v1',
+          name: 'Alerty pełnoekranowe (ciche)',
+          importance: AndroidImportance.HIGH,
+          vibration: false,
+          lights: false,
+          bypassDnd: true,
+        })
+        : await notifee.createChannel({
+          id: 'alerts-fullscreen-v3',
+          name: 'Alerty pełnoekranowe (test) v3',
+          importance: AndroidImportance.HIGH,
+          sound: 'default',
+          vibration: true,
+          vibrationPattern: [300, 500, 300, 500],
+          lights: true,
+          lightColor: '#EF4444',
+          bypassDnd: true,
+        });
       append(`Kanał gotowy: ${channelId}`);
 
       // `loopSound: true` (2026-10-29, user: "dodaj na razie domyślny [dźwięk],
@@ -501,8 +513,7 @@ export default function SettingsScreen() {
         visibility: AndroidVisibility.PUBLIC,
         fullScreenAction: { id: 'default', launchActivity: 'default' },
         pressAction: { id: 'default' },
-        sound: 'default',
-        loopSound: true,
+        ...(!quiet && { sound: 'default', loopSound: true }),
         ...(withActions && {
           actions: [
             { title: 'Nie', pressAction: { id: 'no' } },
@@ -605,7 +616,9 @@ export default function SettingsScreen() {
   // formy nad treścią. Tap po prostu odwraca stan, opis w `buildSections` wyżej od razu
   // pokazuje nowy.
   const toggleHaptics = () => {
-    haptic.tap(); // ostatni/pierwszy "spróbuj" — odpala się po STARYM stanie, więc buczy i przy włączaniu, i przy wyłączaniu
+    // `Toggle` (src/components/design/Toggle.tsx) sam już buczy na KAŻDE naciśnięcie,
+    // przed zmianą stanu — więc "wyłącz wibracje" i tak zdąży zabuczeć (działa na
+    // starym `enabled`), bez osobnego wywołania tutaj (było dublowanie buczenia).
     const next = !hapticsEnabled;
     setHapticsEnabled(next).catch(() => {});
     setHapticsEnabledState(next);
@@ -679,9 +692,9 @@ export default function SettingsScreen() {
     calendar: testCalendar,
     'calendar-sync': testCalendarSync,
     'alert-expo': testExpoAlert,
-    'alert-notifee': () => sendNotifeeAlert(false),
-    'alert-notifee-buttons': () => sendNotifeeAlert(true),
-    'alert-notifee-5min': () => sendNotifeeAlert(false, 5 * 60 * 1000, false),
+    'alert-notifee': () => sendNotifeeAlert(false, false),
+    'alert-notifee-buttons': () => sendNotifeeAlert(true, false),
+    'alert-notifee-quiet': () => sendNotifeeAlert(false, true),
     'alert-battery': checkBatteryOptimization,
     'alert-exact-alarm': openExactAlarmSettings,
     'bank-enabled': toggleBankEnabled,
