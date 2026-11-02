@@ -2560,3 +2560,64 @@ tsc/jest 170/170 + `expo export --platform android` czyste po każdym kroku.
   nowym `Screen`-em kitu, nie zasłonięty przez ostatni rząd.
 - Zadania: `WeekMonthCalendar` wewnątrz nowego `Tile` (padding 6 override)
   wciąż w pełni klikalna/czytelna, nie ściśnięta.
+
+## Faza 3.11 — real-device feedback + nawyki (Woda/Słodycze/Trening) realne (2026-11-02)
+
+User przesłał 2 zrzuty z telefonu (build sprzed Fazy 3.10's Daily/Finanse/
+Zadania — "Z ZEGARKA"/"WKRÓTCE" to stary, już usunięty stub, nie bieżący bug)
++ 3 osobne, konkretne prośby w trakcie tej samej rundy. Zrobione:
+
+1. **Dashboard renderował się pod paskiem statusu Androida** (realny bug,
+   potwierdzony zrzutem — ikonki/zegarek/bateria na kaflach). `src/ui/
+   layout.tsx`'s `Screen` dostał `useSafeAreaInsets().top` zamiast sztywnego
+   `paddingTop:2` (mockup ma WŁASNY symulowany pasek statusu, appka nie miała
+   nic). Jeden fix, wszystkie 4 ekrany. NIEWERYFIKOWALNE w web-pętli
+   (`insets.top` = 0 w przeglądarce) — priorytet #1 na telefonie.
+2. **Kafel "najbliższe wydarzenie" bez tapu/popupu** — jedyny pusty case w
+   starym `onOpen` który MIAŁ realne dane (prawdziwe wydarzenie z kalendarza).
+   Dostał `AppBottomSheet` z tytułem (przez `splitTag`)/datą-godziną/przyciskiem
+   "Otwórz w Zadaniach".
+3. **Kafel "agenda wybranego dnia" na Zadaniach USUNIĘTY** (user: "wywal",
+   dublował `DayDetailModal`).
+4. **Kropki historii na `MoodPad`** — mechanizm już ISTNIAŁ w kodzie
+   (`history` prop, `.slice(0,-1)` celowo wyklucza "żywy" ostatni element),
+   po prostu nikt go nie podawał z `MoodModal.tsx`. Teraz: do 7 ostatnich dni
+   z wpisem (jeden punkt/dzień, ostatni check-in tego dnia), przygaszone,
+   żywa wartość jako jasna animowana kropka.
+5. **Nawyki (Woda/Słodycze/Trening) — pierwszy REALNY store z dwóch dużych
+   stubów.** Nowe: `types/habits.ts`, `store/habitsStore.ts` (zustand+persist,
+   wzorzec `moodStore.ts`), `utils/habitStreak.ts` (6 testów), `HabitsModal.tsx`
+   (jeden popup na wszystkie 3 naraz, tap=toggle dzisiejszego stanu). Dashboard
+   kafle pokazują teraz realne "0 dni"/"N dni", nie "brak" (0 jest prawdziwą
+   wartością, nie pustym stanem). Health Connect (drugi duży stub — Sen/Kroki/
+   Tętno/Waga/Woda) ŚWIADOMIE odłożony — wymaga natywnej integracji z
+   urządzeniem, niemożliwej do zbudowania/zweryfikowania bez fizycznego
+   Androida.
+
+**WAŻNE znalezisko — pętla wizualna NIE testuje popupów.** Próba
+zweryfikowania `HabitsModal`-a interaktywnie w `expo start --web`+Playwright
+(klik kafla → sprawdzenie czy sheet się otworzył) wykazała, że
+`@gorhom/bottom-sheet`'s `BottomSheetModal.present()` W OGÓLE się nie
+prezentuje pod `react-native-web` w tym środowisku — potwierdzone kontrolnie
+na dużo starszym `WydatkiModal`-u (ten sam, zerowy wynik). Dotychczasowa
+pętla wizualna (Fazy 3.9-3.10) łapała WYŁĄCZNIE układ bazowego ekranu, nigdy
+zawartość popupów — to było zawsze poza jej zasięgiem, ale warto to mieć
+jawnie zapisane, żeby nie zakładać inaczej. Treść KAŻDEGO popupu w appce
+(Wydatki/Humor/Nawyki/balance-edit/Transakcje/Produkty/itd.) jest
+weryfikowalna WYŁĄCZNIE na prawdziwym urządzeniu.
+
+tsc/jest 176/176 (dochodzi 6 nowych testów `habitStreak`) + `expo export
+--platform android` czyste.
+
+**DO PRZETESTOWANIA NA URZĄDZENIU (dochodzi do list z Faz 3.9-3.10):**
+- Dashboard — treść NIE zaczyna się pod ikonkami statusu/zegarkiem/baterią.
+- Kafel "najbliższe wydarzenie" — tap otwiera popup z blurem, przycisk
+  "Otwórz w Zadaniach" realnie przełącza zakładkę i zaznacza dzień.
+- Zadania — kafla "agenda" pod kalendarzem już nie ma, lista zadań zaczyna
+  się od razu pod WeekStrip.
+- Humor — kropki historii widoczne na `MoodPad` (`big`, w `MoodModal`),
+  przygaszone vs żywa animowana kropka wyraźnie się różnią.
+- Nawyki — tap na kafel Woda/Słodycze/Trening otwiera popup z 3 przełącznikami
+  (PIERWSZY RAZ niezweryfikowany nawet w web-pętli, patrz znalezisko wyżej),
+  toggle realnie zapisuje się i streak na Dashboardzie aktualizuje się po
+  zamknięciu popupu, przeżywa restart appki (AsyncStorage).

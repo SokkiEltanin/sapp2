@@ -342,20 +342,72 @@ importów) — wszystkie 4 ekrany są teraz na `src/ui/layout.tsx`. `Segmented.t
 `Tag.tsx`/`ChipRow.tsx`/`AppBottomSheet.tsx`/`MoodPad.tsx`/`Toggle.tsx` ZOSTAJĄ,
 wciąż żywe, poza zakresem tej migracji.
 
-**Następne fazy** — "Płatności cykliczne" (store `bills`, odblokuje pełne
-"Bezpieczne wydatki"/"Najbliższe 48h"/Finanse's Praca+Najbliższa opłata) i
-Health Connect (Sen/Kroki/Tętno/Waga/Woda na Dashboardzie+Daily) — osobne,
-odłożone fazy, bez zmian względem Fazy 3.9. Rzeczywisty render/dotyk na
-urządzeniu (scroll vs no-scroll, gesty, FitList ghost-wiersze, kolejność
-navbaru) nadal NIE był możliwy do zweryfikowania w tym środowisku — PRIORYTET
-na następny test na telefonie, lista w NEXT_STEPS.md "Faza 3.10".
+**Faza 3.11 (nawyki: Woda/Słodycze/Trening) — ZROBIONA (2026-11-02, user: "zrób
+tę apkę w pełni funkcjonalną, trzymaj się zasad które mamy").** Pierwszy z
+dwóch dużych stubów z Fazy 3.2/3.10 dostał realny store — DRUGI (Health
+Connect) zostaje świadomie odłożony, bo wymaga natywnej integracji z
+urządzeniem niemożliwej do zbudowania/zweryfikowania bez fizycznego Androida,
+w przeciwieństwie do nawyków (czysty software, tap-to-toggle, jak Nastrój).
+
+- **Model** (`src/types/habits.ts`): jeden `HabitDay` na dzień, 3 booleany
+  (`water`/`sweets`/`training`), `true` = "udało się" symetrycznie dla
+  wszystkich trzech (woda: wypiłem dość, słodycze: obyło się bez nich, trening:
+  potrenowałem) — jeden kształt danych, jedna funkcja streaka dla wszystkich.
+- **Store** (`src/store/habitsStore.ts`) — ten sam wzorzec co `moodStore.ts`
+  (zustand+persist+AsyncStorage, offline-first, zero Firestore w akcjach).
+- **`utils/habitStreak.ts`** — passa = kolejne dni wstecz z `true`, przerywana
+  pierwszym `false`/brakiem. Dziś bez rekordu (user jeszcze nie zaznaczył) NIE
+  zeruje wczorajszej passy — liczenie zaczyna się wtedy od wczoraj (grace
+  period przez cały dzień), dziś jawne `false` PRZERYWA (0). 6 testów
+  (`__tests__/habitStreak.test.ts`), w tym rozróżnienie kluczy (jeden nawyk
+  nie wpływa na streak drugiego tego samego dnia).
+- **`HabitsModal.tsx`** (`src/components/dashboard/`) — jeden popup na
+  wszystkie 3 nawyki naraz (tematycznie powiązane, nie ma sensu osobny sheet
+  na jeden toggle), otwierany z Dashboardu przez `onOpen('streak', key)` (kit's
+  `DashboardScreen` już to wołał — `key` tylko ustawia kolejność w popupie,
+  nie zawęża widoku). Tap na wiersz = toggle dzisiejszego stanu, żywy streak
+  przelicza się natychmiast. Styl 1:1 z kitu (`C`/`T`/`R`/`S`/`F` z
+  `src/ui/theme`), "ON" = odwrócone kolory jak `StatTile`'s `hot` wariant.
+- **`app/(tabs)/index.tsx`** — `streaks: {water,sweets,training}` liczone z
+  `habitStreak` zamiast `null,null,null`. Realne `0` (user jeszcze nic nie
+  zaznaczył) renderuje się jako zwykłe, niemdlone "0 dni" — NIE jako
+  zaprojektowany pusty stan ("brak") — bo źródło danych już istnieje, `0` jest
+  prawdziwą wartością, nie brakiem danych. Potwierdzone zrzutem: kafle
+  pokazują teraz "0 DNI WODA" zamiast starego "0 BRAK WODA".
+
+**Znalezisko tej rundy — pętla wizualna (`expo web`+Playwright) NIE łapie
+bottom-sheetów.** Próba interaktywnego kliknięcia kafla→otwarcia
+`HabitsModal`-a w web-podglądzie pokazała, że `@gorhom/bottom-sheet`'s
+`BottomSheetModal.present()` w ogóle nie prezentuje się pod `react-native-web`
+w tym środowisku (reanimated worklet/gesture-handler zależności, które web
+prawdopodobnie inaczej inicjalizuje) — zweryfikowane KONTROLNIE na dużo
+starszym, wcześniej "zweryfikowanym" `WydatkiModal`-u (ten sam wynik: zero
+reakcji po kliknięciu). Pętla wizualna z Fazy 3.9/3.10 łapała WYŁĄCZNIE
+układ/siatkę BAZOWEGO ekranu (co było jej jedynym zadeklarowanym celem w
+PROMPT_CLAUDE_CODE.md) — nigdy nie testowała zawartości popupów, mimo że
+wcześniejsze opisy ("Zweryfikowane expo start --web...") mogły to sugerować
+czytelnikowi. Treść POPUPÓW (Humor/Wydatki/nowy Nawyki/balance-edit/itd.)
+pozostaje możliwa do zweryfikowania WYŁĄCZNIE na prawdziwym urządzeniu —
+dopisane jawnie do listy "DO PRZETESTOWANIA" w NEXT_STEPS.md, żeby nie
+zakładać inaczej w kolejnych fazach.
+
+**Następne fazy** — Health Connect (Sen/Kroki/Tętno/Waga/Woda) i "Płatności
+cykliczne" (store `bills`, odblokuje pełne "Bezpieczne wydatki"/"Najbliższe
+48h"/Finanse's Praca+Najbliższa opłata) — osobne, odłożone fazy. Rzeczywisty
+render/dotyk na urządzeniu (scroll vs no-scroll, gesty, FitList ghost-wiersze,
+kolejność navbaru, TREŚĆ KAŻDEGO POPUPU) nadal NIE był możliwy do
+zweryfikowania w tym środowisku — PRIORYTET na następny test na telefonie,
+lista w NEXT_STEPS.md "Faza 3.11".
 
 ## DASHBOARD [GE]
 
-**Przebudowany na nowy system komponentów (Faza 3.2, 2026-11-01)** — patrz
-§"REDESIGN RDZENIA UI" wyżej. Poniższy opis to AKTUALNA struktura; starszy opis
-(4 stałe rzędy, `getTilePosition`/`StatTile.tsx`/`MOCK_TASKS`) jest historią,
-te komponenty USUNIĘTE z repo.
+**Przebudowany na nowy system komponentów (Faza 3.2, 2026-11-01), POTEM na kit
+`design/rn/` (Faza 3.10) — ten akapit i poniższe listy komponentów (`StatTile`/
+`FitList`/`Row`/`PricePill` z `src/components/design/`) są HISTORIĄ, te pliki
+USUNIĘTE w Fazie 3.10 (zastąpione `src/ui/layout.tsx`'s odpowiednikami, patrz
+§"Faza 3.10" wyżej). Układ rzędów/kolejność kafelków NIE zmieniła się, tylko
+implementacja pod spodem. Streak-stub opis niżej też jest historią — Woda/
+Słodycze/Trening są REALNE od Fazy 3.11, patrz tam.
 
 **NIEprzewijalny, celowo** (bez zmian od 2026-10-31) — 5 rzędów o układzie
 DOKŁADNIE jak w `design/app-design.html`'s `#dash` (4 kolumny, `grid-template-rows:

@@ -5,28 +5,30 @@ import { DashboardScreen, type DashData } from '@/ui/DashboardScreen';
 import { Cap, Tag, splitTag } from '@/ui/layout';
 import { T, S, R, C, F } from '@/ui/theme';
 import WydatkiModal from '@/components/dashboard/WydatkiModal';
+import HabitsModal from '@/components/dashboard/HabitsModal';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { colors } from '@/theme/colors';
 import { useCalendarStore } from '@/store/calendarStore';
 import { useExpensesStore } from '@/store/expensesStore';
+import { useHabitsStore } from '@/store/habitsStore';
 import { todayISO } from '@/utils/date';
 import { foodByMonth, foodDailyAverageThisMonth } from '@/utils/foodStats';
+import { habitStreak } from '@/utils/habitStreak';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
 import { getBalanceOffset, accountBalance, affectsBalance } from '@/utils/balance';
 import type { CalendarEvent } from '@/types/calendar';
+import type { HabitKey } from '@/types/habits';
 
-// Faza 3.9 (design/rn kit, 2026-11-02) — Dashboard podmieniony na `DashboardScreen`
-// z kitu (src/ui/, skopiowane 1:1 z design/rn/, patrz ARCHITECTURE.md): ten plik
-// teraz TYLKO zbiera prawdziwe dane appki i mapuje je na `DashData`, cały layout/
-// grid/style żyje w kicie. Co jest REALNE a co stub — bez zmian względem starego
-// Dashboardu (Faza 3.2):
-// - Woda/Słodycze/Trening: appka NIE ma jeszcze store'a nawyków → `null` dla
-//   wszystkich trzech. `StatTile` z kitu renderuje `null` jako zaprojektowany stan
-//   pusty (DESIGN.md: "0" przygaszone + "brak"), NIE jako fałszywy mock.
+// Faza 3.11 (2026-11-02, user: "zrób tę apkę w pełni funkcjonalną") — Woda/
+// Słodycze/Trening DOSTAŁY realny store (`habitsStore.ts`/`utils/habitStreak.ts`/
+// `HabitsModal.tsx`) — pierwszy z dwóch dużych stubów z Fazy 3.2/3.10 (drugi,
+// Health Connect/Sen-Kroki-Tętno-Waga-Woda, zostaje odłożony: wymaga natywnej
+// integracji z urządzeniem, niemożliwej do zbudowania/zweryfikowania w tym
+// środowisku bez fizycznego Androida — w przeciwieństwie do nawyków, które są
+// czystym software'em, tap-to-toggle, jak Nastrój). Reszta bez zmian:
 // - Sen: Health Connect nieistniejący → `sleep: null` (kit: "0h 00m" + "Połącz
 //   zegarek w Ustawieniach").
-// - Reszta (kalendarz, jedzenie, transakcje, saldo, 48h) — bez zmian, te same
-//   store'y/hooki co w starym Dashboardzie.
+// - Kalendarz/jedzenie/transakcje/saldo/48h — bez zmian, te same store'y/hooki.
 const FACTS = [
   'Mózg zużywa jedną piątą energii twojego organizmu',
   'Grafen jest ok. 200× wytrzymalszy od stali przy tej samej masie',
@@ -74,12 +76,15 @@ export default function Dashboard() {
   const [wydatkiTab, setWydatkiTab] = useState<'food' | 'fixed' | 'variable'>('food');
   const [factIndex, setFactIndex] = useState<number | null>(null);
   const [nextOpen, setNextOpen] = useState(false);
+  const [habitsOpen, setHabitsOpen] = useState(false);
+  const [habitsFocus, setHabitsFocus] = useState<HabitKey | undefined>();
   const [offset, setOffset] = useState(0);
   const calendarTasks = useCalendarStore((st) => st.tasks);
   const calendarEvents = useCalendarStore((st) => st.events);
   const gcalEvents = useCalendarStore((st) => st.gcalEvents);
   const setSelectedDate = useCalendarStore((st) => st.setSelectedDate);
   const expenses = useExpensesStore((st) => st.expenses);
+  const habitDays = useHabitsStore((st) => st.days);
   const today = todayISO();
   const now = useMemo(() => new Date(), [today]);
 
@@ -140,8 +145,14 @@ export default function Dashboard() {
     return out.sort((a, b) => a.at.getTime() - b.at.getTime());
   }, [allEvents, calendarTasks, now]);
 
+  const streaks = useMemo(() => ({
+    water: habitStreak(habitDays, 'water', today),
+    sweets: habitStreak(habitDays, 'sweets', today),
+    training: habitStreak(habitDays, 'training', today),
+  }), [habitDays, today]);
+
   const data: DashData = {
-    streaks: { water: null, sweets: null, training: null },
+    streaks,
     next: upcomingEvent ? { title: upcomingEvent.e.title, start: upcomingEvent.start } : null,
     fact: FACTS[factIndex ?? 0],
     sleep: null,
@@ -161,13 +172,14 @@ export default function Dashboard() {
       color: x.color,
       minutes: x.minutes,
     })),
-    onOpen: (what) => {
+    onOpen: (what, id) => {
       if (what === 'fact') setFactIndex((i) => ((i ?? 0) + 1) % FACTS.length);
       else if (what === 'foodDay' || what === 'foodMonth') { setWydatkiTab('food'); setWydatkiOpen(true); }
       else if (what === 'tx' || what === 'safe') { setWydatkiTab('variable'); setWydatkiOpen(true); }
       else if (what === 'next' && upcomingEvent) setNextOpen(true);
-      // streak/sleep/next48 — jeszcze bez docelowego popupu (brak store'a
-      // nawyków / szczegółu wydarzenia na 48h), świadomie bez akcji na razie.
+      else if (what === 'streak') { setHabitsFocus(id as HabitKey | undefined); setHabitsOpen(true); }
+      // sleep/next48 — jeszcze bez docelowego popupu (Health Connect
+      // nieistniejący / szczegół wydarzenia na 48h), świadomie bez akcji na razie.
     },
   };
 
@@ -191,6 +203,7 @@ export default function Dashboard() {
         fixed={wydatkiData.fixed}
         variable={wydatkiData.variable}
       />
+      <HabitsModal visible={habitsOpen} onClose={() => setHabitsOpen(false)} focusKey={habitsFocus} />
       <AppBottomSheet visible={nextOpen} onClose={() => setNextOpen(false)} scrollable={false}>
         {upcomingEvent && nextTag ? (
           <View style={ns.card}>
