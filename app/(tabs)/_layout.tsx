@@ -1,50 +1,29 @@
-import { View, StyleSheet } from 'react-native';
-import { Tabs, usePathname, router } from 'expo-router';
-import TabBar, { TABS } from '@/components/ui/TabBar';
+import { Tabs, router } from 'expo-router';
+import { NavBar } from '@/ui/NavBar';
 import { colors } from '@/theme/colors';
 
-const ROUTES: Record<string, string> = {
-  index: '/', daily: '/daily', tasks: '/tasks', finances: '/finances',
-};
-
-// BUG (2026-10-28, user: "jak klikam to nic się nie dzieje") — `ROUTES['index']` to
-// `'/'`, czyli PREFIKS KAŻDEJ ścieżki. Skoro `'index'` jest sprawdzane jako PIERWSZE w
-// `TABS.find`, `pathname.startsWith('/')` wychodziło `true` dla KAŻDEGO pathname
-// (`/daily`, `/tasks`, ...), więc funkcja zawsze zwracała `'index'` — ekran realnie się
-// zmieniał (`router.navigate` działał poprawnie), ale podświetlenie w navbarze nigdy
-// nie ruszało się z Dashboardu. Fix: `'index'` wyłączone z pętli prefiksowej (ma już
-// własny wczesny `return` wyżej), reszta kluczy sprawdzana normalnie.
-function activeKey(pathname: string): string {
-  if (pathname === '/') return 'index';
-  const found = TABS.find((t) => t.key !== 'index' && pathname.startsWith(ROUTES[t.key]));
-  return found?.key ?? 'index';
-}
-
-// 4 korzenie, tap-only (patrz komentarz w TabBar.tsx — Pupil usunięty, Faza 3.1) —
-// `animation: 'none'` jest tu CELOWE, nie przeoczone: to jest dokładnie ta decyzja o
-// której rozmawialiśmy.
+// Faza 3.9 (design/rn kit) — dolny pasek podmieniony na NavBar z kitu (1:1 z makietą:
+// kwadrat ustawień osobno + grupa 4 ikon), Tabs bez pagera/swipe (`animation: 'none'`,
+// jak poprzednio) renderuje go sam przez `tabBar`, więc nie trzeba już ręcznie liczyć
+// aktywnej trasy z `usePathname()` jak stary TabBar.tsx robił — expo-router/
+// `@react-navigation` dają to przez `state` w `BottomTabBarProps`.
 export default function TabsLayout() {
-  const pathname = usePathname();
-  const active = activeKey(pathname);
   return (
-    <View style={s.root}>
-      <Tabs
-        tabBar={() => null}
-        screenOptions={{
-          headerShown: false,
-          animation: 'none',
-          sceneStyle: { backgroundColor: colors.bg.primary },
-        }}
-      />
-      <TabBar
-        active={active}
-        onPress={(key) => router.navigate(ROUTES[key] as any)}
-        onSettingsPress={() => router.push('/settings' as any)}
-      />
-    </View>
+    <Tabs
+      tabBar={(p) => <NavBar {...p} onSettingsPress={() => router.push('/settings' as any)} />}
+      screenOptions={{
+        headerShown: false,
+        animation: 'none',
+        sceneStyle: { backgroundColor: colors.bg.primary },
+      }}
+    >
+      {/* Kolejność jawna (bez tego expo-router rejestruje trasy w kolejności
+          wczytywania plików, nie alfabetycznej ani wg designu) — ma być
+          Dashboard/Daily/Finanse/Zadania, 1:1 z makietą. */}
+      <Tabs.Screen name="index" />
+      <Tabs.Screen name="daily" />
+      <Tabs.Screen name="finances" />
+      <Tabs.Screen name="tasks" />
+    </Tabs>
   );
 }
-
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg.primary },
-});
