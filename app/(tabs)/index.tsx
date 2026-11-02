@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
+import { router } from 'expo-router';
 import { DashboardScreen, type DashData } from '@/ui/DashboardScreen';
+import { Cap, Tag, splitTag } from '@/ui/layout';
+import { T, S, R, C, F } from '@/ui/theme';
 import WydatkiModal from '@/components/dashboard/WydatkiModal';
+import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { colors } from '@/theme/colors';
 import { useCalendarStore } from '@/store/calendarStore';
 import { useExpensesStore } from '@/store/expensesStore';
@@ -68,10 +73,12 @@ export default function Dashboard() {
   const [wydatkiOpen, setWydatkiOpen] = useState(false);
   const [wydatkiTab, setWydatkiTab] = useState<'food' | 'fixed' | 'variable'>('food');
   const [factIndex, setFactIndex] = useState<number | null>(null);
+  const [nextOpen, setNextOpen] = useState(false);
   const [offset, setOffset] = useState(0);
   const calendarTasks = useCalendarStore((st) => st.tasks);
   const calendarEvents = useCalendarStore((st) => st.events);
   const gcalEvents = useCalendarStore((st) => st.gcalEvents);
+  const setSelectedDate = useCalendarStore((st) => st.setSelectedDate);
   const expenses = useExpensesStore((st) => st.expenses);
   const today = todayISO();
   const now = useMemo(() => new Date(), [today]);
@@ -158,9 +165,18 @@ export default function Dashboard() {
       if (what === 'fact') setFactIndex((i) => ((i ?? 0) + 1) % FACTS.length);
       else if (what === 'foodDay' || what === 'foodMonth') { setWydatkiTab('food'); setWydatkiOpen(true); }
       else if (what === 'tx' || what === 'safe') { setWydatkiTab('variable'); setWydatkiOpen(true); }
-      // streak/next/sleep/next48 — jeszcze bez docelowego popupu (brak store'a
-      // nawyków / szczegółu wydarzenia), świadomie bez akcji na razie.
+      else if (what === 'next' && upcomingEvent) setNextOpen(true);
+      // streak/sleep/next48 — jeszcze bez docelowego popupu (brak store'a
+      // nawyków / szczegółu wydarzenia na 48h), świadomie bez akcji na razie.
     },
+  };
+
+  const nextTag = upcomingEvent ? splitTag(upcomingEvent.e.title) : null;
+  const openNextInTasks = () => {
+    if (!upcomingEvent) return;
+    setNextOpen(false);
+    setSelectedDate(upcomingEvent.e.date.slice(0, 10));
+    router.push('/tasks');
   };
 
   return (
@@ -175,6 +191,34 @@ export default function Dashboard() {
         fixed={wydatkiData.fixed}
         variable={wydatkiData.variable}
       />
+      <AppBottomSheet visible={nextOpen} onClose={() => setNextOpen(false)} scrollable={false}>
+        {upcomingEvent && nextTag ? (
+          <View style={ns.card}>
+            <Cap l="Najbliższe wydarzenie" />
+            <View style={ns.titleRow}>
+              {nextTag.tag ? <Tag label={nextTag.tag} kind={nextTag.tag === 'PUR' || nextTag.tag === 'UR' ? 'ur' : 'default'} /> : null}
+              <Text style={[T.rowHi, ns.title]} numberOfLines={2}>{nextTag.title}</Text>
+            </View>
+            <Text style={T.small}>
+              {upcomingEvent.start.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' })}
+              {' · '}
+              {upcomingEvent.start.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
+              {upcomingEvent.e.endTime ? ` – ${upcomingEvent.e.endTime}` : ''}
+            </Text>
+            <TouchableOpacity onPress={openNextInTasks} style={ns.btn}>
+              <Text style={ns.btnLabel}>Otwórz w Zadaniach</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+      </AppBottomSheet>
     </>
   );
 }
+
+const ns = StyleSheet.create({
+  card: { gap: S.gap },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: S.gap, flexWrap: 'wrap' },
+  title: { flex: 1 },
+  btn: { marginTop: S.gap, height: 48, borderRadius: R.btn, backgroundColor: C.hi, alignItems: 'center', justifyContent: 'center' },
+  btnLabel: { fontFamily: F.xb, fontSize: 13, color: '#000' },
+});
