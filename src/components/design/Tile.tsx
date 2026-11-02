@@ -40,30 +40,56 @@ export default function Tile({
     Animated.timing(scale, { toValue: v, duration: 120, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
   };
 
-  const content = (
-    <Animated.View
-      style={[
-        s.base,
-        row && s.row,
-        variant === 'hot' && s.hot,
-        { transform: [{ scale }] },
-        style,
-      ]}
-    >
-      {variant === 'hot' && pulse && <PulseDot />}
-      {children}
-    </Animated.View>
-  );
+  const chrome = [s.base, row && s.row, variant === 'hot' && s.hot];
 
-  if (isStatic) return content;
+  if (isStatic) {
+    return (
+      <Animated.View style={[...chrome, style, { transform: [{ scale }] }]}>
+        {variant === 'hot' && pulse && <PulseDot />}
+        {children}
+      </Animated.View>
+    );
+  }
 
+  // BUG #1, znaleziony na urządzeniu (2026-11-02, user: kafel "Nastrój" w Daily
+  // renderował się jako wąski pasek zamiast pełnej szerokości rzędu) — `style`
+  // (np. `flex:1`/`flex:3`) trafiał TYLKO na wewnętrzny `Animated.View`, nigdy
+  // na `Pressable`, FAKTYCZNE dziecko rzędu (`flexDirection:'row'`). Flex bez
+  // wpływu na WŁASNEGO rodzica nic nie daje — `Pressable` kurczył się do
+  // rozmiaru treści.
+  //
+  // BUG #2 (złapany dopiero w izolowanym teście react-native-web z
+  // zmierzonymi `getBoundingClientRect()`, nie samym oglądaniem screena —
+  // pierwsza łatka WYGLĄDAŁA poprawna w review, ale zmierzony layout pokazał
+  // że wewnętrzny `Animated.View` i tak renderował się węższy, WYŚRODKOWANY
+  // w poprawnie-rozmiarowanym już `Pressable`) — naiwna poprawka #1 kładła
+  // CAŁE `style` (np. `alignItems:'center'`, które ma układać DZIECI kafla:
+  // MoodPad + kolumnę tekstu) TAKŻE na `Pressable`. `Pressable` jest
+  // kontenerem `flexDirection:'column'` z JEDNYM dzieckiem (`Animated.View`)
+  // — `alignItems:'center'` na nim NIE jest neutralne: jawnie WYŁĄCZA
+  // domyślne `stretch` (rozciągnięcie dziecka na 100% szerokości) na rzecz
+  // wyśrodkowania dziecka w jego WŁASNYM, skurczonym rozmiarze. Innymi słowy
+  // `alignItems`/`justifyContent` ze `style` mają sens TYLKO dla układu
+  // WEWNĄTRZ kafla (na `Animated.View`), nigdy dla samego `Pressable`, który
+  // ma dokładnie jedno dziecko i zawsze powinien je rozciągać w 100%.
+  //
+  // Fix: `Pressable` dostaje `style` (dla `flex`/`width`/`margin` — rozmiar
+  // WZGLĘDEM rodzica), ale `alignItems:'stretch'` jest NADPISANE na sztywno
+  // PO `style`, więc żadne `alignItems` z wołającego ekranu nigdy go nie
+  // wyłączy. Cały `style` (z oryginalnym `alignItems`/`gap`/itp.) ląduje
+  // RÓWNIEŻ na `Animated.View` — tam te właściwości mają faktyczne,
+  // zamierzone znaczenie (układ MoodPad+tekst wewnątrz kafla).
   return (
     <Pressable
+      style={[style, s.stretch]}
       onPress={onPress}
       onPressIn={() => animateTo(0.975)}
       onPressOut={() => animateTo(1)}
     >
-      {content}
+      <Animated.View style={[...chrome, s.fill, style, { transform: [{ scale }] }]}>
+        {variant === 'hot' && pulse && <PulseDot />}
+        {children}
+      </Animated.View>
     </Pressable>
   );
 }
@@ -100,8 +126,17 @@ const pulseS = StyleSheet.create({
 const makeS = themedStyles((c) => StyleSheet.create({
   base: {
     backgroundColor: c.bg.card, borderRadius: radius.tile, padding: spacing[3],
+    // `flex: 1` DOMYŚLNIE (2026-11-02, ten sam bug co opisany wyżej) — bez tego
+    // kafel BEZ jawnego `flex`/`width` w `style` (np. StatTile, które go w ogóle
+    // nie przyjmuje) kurczył się do rozmiaru treści zamiast równo dzielić
+    // szerokość rzędu z rodzeństwem — każdy wiersz 2/3/4 kafli wyglądał krzywo,
+    // nie jak siatka. Jawny `flex`/`width` w `style` wołającego i tak wygrywa
+    // (merge'owany PO `base`).
+    flex: 1,
     minWidth: 0, overflow: 'hidden', flexDirection: 'column',
   },
   row: { flexDirection: 'row' },
   hot: { backgroundColor: c.text.primary },
+  fill: { flex: 1 },
+  stretch: { alignItems: 'stretch' },
 }));
