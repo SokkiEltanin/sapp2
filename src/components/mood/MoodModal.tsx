@@ -89,6 +89,31 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
     handleClose();
   };
 
+  // Kropki historii (DESIGN.md §Komponenty "MoodPad – ... kropki historii 7 dni")
+  // — `MoodPad` już UMIAŁ to renderować (`history` prop, `histDot` styl), tylko
+  // nikt tu go nie podawał. Jeden punkt na dzień (ostatni check-in tego dnia,
+  // jeśli było kilka), ostatnie 7 dni z wpisem, posortowane rosnąco. Edytowany
+  // wpis wyłączony (inaczej duplikowałby się z żywą kropką poniżej). Żywa,
+  // przeciągana wartość dopisana jako OSTATNI element — `MoodPad` celowo
+  // wyklucza ostatni element z przygaszonych kropek (`history.slice(0, -1)`),
+  // bo on i tak jest już pokazany jako jasna, animowana kropka.
+  const recentHistory = useMemo(() => {
+    const byDate = new Map<string, MoodEntry>();
+    for (const e of entries) {
+      if (editingEntry && e.id === editingEntry.id) continue;
+      const prev = byDate.get(e.date);
+      if (!prev || e.createdAt > prev.createdAt) byDate.set(e.date, e);
+    }
+    return [...byDate.values()]
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-7)
+      .map((e) => ({ mood: e.mood, energy: e.energy }));
+  }, [entries, editingEntry]);
+  const padHistory = useMemo(
+    () => [...recentHistory, { mood: mood ?? 3, energy: energy ?? 3 }] as { mood: MoodLevel; energy: MoodLevel }[],
+    [recentHistory, mood, energy],
+  );
+
   const byDay = useMemo(() => {
     const map = new Map<string, MoodEntry[]>();
     for (const e of entries) map.set(e.date, [...(map.get(e.date) ?? []), e]);
@@ -182,7 +207,7 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
           <View style={s.padSection}>
             <Text style={s.sectionLabel}>Nastrój i energia</Text>
             <Text style={s.hint}>przeciągnij lub tapnij — w prawo lepszy nastrój, w górę więcej energii</Text>
-            <MoodPad mood={mood} energy={energy} onChange={(m, e) => { setMood(m); setEnergy(e); }} big />
+            <MoodPad mood={mood} energy={energy} onChange={(m, e) => { setMood(m); setEnergy(e); }} big history={padHistory} />
           </View>
         </View>
       ) : (
