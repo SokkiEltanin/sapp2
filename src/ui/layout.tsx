@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 import { View, Text, Pressable, useWindowDimensions, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, R, S, T, F } from './theme';
 
 /* ------------------------------------------------------------------
@@ -15,10 +16,18 @@ const HotCtx = createContext(false);
 
 export function Screen({ title, right, children }: { title?: string; right?: React.ReactNode; children: React.ReactNode }) {
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const col = (width - S.x * 2 - S.gap * 3) / 4;
   return (
     <ColCtx.Provider value={col}>
-      <View style={st.screen}>
+      {/* `insets.top` (2026-11-02, user zrzutem z realnego telefonu: Dashboard
+          renderował się POD ikonkami statusu/zegarkiem/baterią) — mockup's
+          `.phone` ma WŁASNY, symulowany pasek statusu nad `.screen` (stąd
+          `paddingTop:2` w `st.screen` niżej wystarcza TAM), ale w prawdziwej
+          appce `<Tabs>` nic nie rezerwuje miejsca na prawdziwy pasek statusu
+          Androida nad treścią ekranu. Dotyczy KAŻDEGO ekranu przez `Screen`
+          (Dashboard/Daily/Finanse/Zadania) — jeden fix tutaj naprawia wszystkie. */}
+      <View style={[st.screen, { paddingTop: insets.top + 2 }]}>
         {title ? (
           <View style={st.head}>
             <Text style={T.h1}>{title}</Text>
