@@ -2477,17 +2477,6 @@ fix działa (zrzuty w scratchpadzie tej sesji, nie w repo).
   elementu w TYM SAMYM viewporcie (plik `design/app-design.html` otwarty jako
   `file://...`).
 
-**WAŻNE — wciąż brakuje `design/rn/` kitu.** `PROMPT_CLAUDE_CODE.md` mówi wprost:
-"Przeczytaj... cały folder `design/rn/`. To gotowy, sprawdzony kit – zastąp nim
-obecne komponenty layoutu" (theme.ts/layout.tsx/NavBar.tsx/DashboardScreen.tsx).
-Sprawdzone dokładnie: NIE MA go w przesłanych plikach ani w repo. Bez niego nie
-da się wykonać kroku 2-4 z `PROMPT_CLAUDE_CODE.md` dosłownie (kopiuj kit, podepnij
-dane). User musi przesłać ten folder (osobne pliki albo zip) — dopiero wtedy
-dalszy ciąg planu z `PROMPT_CLAUDE_CODE.md` (podmiana nawigacji na Tabs+NavBar z
-kitu, podmiana Dashboardu na DashboardScreen z kitu, potem Daily/Finanse/
-Zadania/Ustawienia ekran-po-ekranie, zawsze z pętlą wizualną, zawsze pokazując
-oba screenshoty).
-
 **DO PRZETESTOWANIA NA URZĄDZENIU:**
 - Kafel "Nastrój" na Daily — pełna szerokość, pełna wysokość (MoodPad + tekst
   widoczne), NIE skurczony pasek.
@@ -2504,3 +2493,53 @@ Zweryfikowane TYM RAZEM realnym `expo start --web`-em (nie ręczną aproksymacj�
 Daily po fixie pokazują poprawny layout (kafel "Jedzenie" z liczbą, kafel
 "Nastrój" pełnowymiarowy). Dalej BEZ fizycznego Androida — gesty/dotyk/klawiatura
 nieweryfikowalne tutaj.
+
+## Faza 3.10 — Dashboard na kit `design/rn/` UKOŃCZONA (2026-11-02)
+
+User przesłał kit (`theme.ts`/`layout.tsx`/`NavBar.tsx`/`DashboardScreen.tsx`,
+czego brakowało pod koniec Fazy 3.9). Skopiowany 1:1 do `src/ui/`, jedyne zmiany:
+`NavBar`'s `ICONS` (`finance`→`finances`) i `onSettingsPress` prop zamiast
+nawigacji w obrębie Tabs navigatora (Ustawienia to stack-route poza grupą
+`(tabs)`). Szczegóły w ARCHITECTURE.md §"Faza 3.10".
+
+**Potwierdzony realny root-cause "kolumny się rozjeżdżają między rzędami"** (nie
+sama kosmetyka, user miał rację że coś było fundamentalnie nie tak): stary
+`Tile.tsx` miał `flex: 1` domyślnie, każdy wołający nadpisywał wagą (`flex: 3`
+dla szerszych kafli) — suma wag różni się między rzędami (np. rząd "4×1" vs rząd
+"1+3"), więc flexbox z `gap` liczy RÓŻNE szerokości kolumny w różnych rzędach.
+Kit liczy szerokość kolumny JAWNIE z jednego wspólnego kontekstu
+(`ColCtx`/`col = (W − 2·S.x − 3·S.gap) / 4`), więc każdy rząd ma identyczną
+siatkę niezależnie od tego jakie `span`-y są obok. Zweryfikowane pętlą wizualną
+(`expo start --web` + Playwright, 390×844) — zrzuty wysłane userowi, krawędzie
+kolumn teraz dokładnie wyrównane między wszystkimi rzędami, 1:1 z
+`design/app-design.html`.
+
+Poprawiony przy okazji (złapane w tej samej pętli wizualnej, nie wspomniane w
+PROMPT_CLAUDE_CODE.md): kolejność zakładek w navbarze — bez jawnego
+`<Tabs.Screen>` w `app/(tabs)/_layout.tsx`, expo-router rejestrował trasy w
+kolejności z dysku, co zamieniało miejscami ikony "Finanse"/"Zadania" względem
+zamierzonej kolejności Dashboard→Daily→Finanse→Zadania.
+
+`src/components/design/{Tile,StatTile,Row,PricePill,Bars,FitList}.tsx` ZOSTAJĄ —
+wciąż żywe, używane przez Daily/Finanse/Zadania (jeszcze nie na kicie). Stary
+`src/components/ui/TabBar.tsx` USUNIĘTY (zastąpiony `src/ui/NavBar.tsx`, jedyny
+użytkownik).
+
+**Następny krok (PROMPT_CLAUDE_CODE.md krok 6): Daily, tą samą pętlą.** Kit NIE
+MA jeszcze `DailyScreen`/`FinanceScreen`/`TasksScreen`/`SettingsScreen` —
+`design/rn/` dostarczył na razie tylko Dashboard. Przebudowa pozostałych 3+1
+ekranów idzie wprost z `design/DESIGN.md`'s "twardych zasad", reużywając
+`src/ui/layout.tsx`'s gotowych prymitywów (`Screen`/`Row`/`Tile`/`StatTile`/
+`Cap`/`FitList`/`Item`/`Tag`/`Price`/`Bars`/`StackBar`/`Progress`/`splitTag`),
+NIE pisząc nowych odpowiedników obok starych. Po każdym ekranie — oba
+screenshoty (appka vs `app-design.html`) do usera, jak przy Dashboardzie.
+
+**DO PRZETESTOWANIA NA URZĄDZENIU (dochodzi do listy z Fazy 3.9):**
+- Dashboard — siatka 4-kolumnowa wyrównana między WSZYSTKIMI rzędami (to był
+  główny realny bug tej rundy, web-test go potwierdza ale nie zastępuje
+  prawdziwego Androida).
+- Dolny pasek nawigacji — kolejność ikon Dashboard/Daily/Finanse/Zadania,
+  podświetlenie aktywnej zakładki, kwadrat Ustawień osobno po lewej.
+- Scroll — żaden z 5 rzędów Dashboardu nie powinien się scrollować (poza
+  `FitList`-ami wewnątrz kafli, które same nie scrollują, tylko dopasowują
+  liczbę wierszy).

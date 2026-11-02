@@ -263,17 +263,62 @@ JEDYNEGO źródła). Zawiera m.in. "twarde zasady" przeniesienia na RN: jawne
 szerokości siatki zamiast `flex` w rzędzie z `gap` (`col = (W−24−3·8)/4`),
 zaprojektowane stany puste per typ danych, `FitList` z ghost-wierszami. Referuje
 `design/rn/` jako "gotowy, sprawdzony kit" (theme.ts/layout.tsx/NavBar.tsx/
-DashboardScreen.tsx) — **TEN KIT NIE ZOSTAŁ PRZESŁANY** (sprawdzone: brak w
-uploadach, brak w repo) — czeka na usera, patrz NEXT_STEPS.md.
+DashboardScreen.tsx) — przesłany przez usera tego samego dnia, patrz Faza 3.10.
 
-**Następne fazy** — "Płatności cykliczne" (store `bills`, odblokuje pełne
-"Bezpieczne wydatki"/"Najbliższe 48h" z Fazy 3.2 i "Praca"/"Najbliższa opłata" z
-Fazy 3.4) potrzebuje osobnej, uczciwej fazy — dziś stub `Tile` w miejsce
-Subskrypcji/Pracy/bills, nie udawane na żadnym ekranie. Health Connect (Sen/
-Kroki/Tętno/Waga/Woda) to druga duża, odłożona faza. `design/rn/` kit (patrz
-wyżej) — gdy user go prześle, podmienić layout-y per DESIGN.md §"Przeniesienie
-do React Native" i PROMPT_CLAUDE_CODE.md's kolejność (ekran po ekranie, zawsze z
-pętlą wizualną, zawsze pokazać oba screenshoty obok siebie).
+**Faza 3.10 (Dashboard na kit `design/rn/`) — ZROBIONA (2026-11-02, user przesłał
+kit).** Kit skopiowany 1:1 do `src/ui/` (`theme.ts`/`layout.tsx`/`DashboardScreen.tsx`/
+`NavBar.tsx`) — jedyne zmiany względem przesłanych plików: `NavBar`'s `ICONS`
+(`finance`→`finances`, dopasowanie do nazw plików w `app/(tabs)/`) i nowy wymagany
+prop `onSettingsPress` zamiast `navigation.navigate('settings')` (Ustawienia to
+stack-route POZA grupą `(tabs)` w tej appce — `app/settings.tsx` — nie piąta
+zakładka wewnątrz tego Tabs navigatora, więc nawigacja w obrębie navigatora nie
+miałaby dokąd trafić). Reszta kitu (grid, style, komponenty) BEZ ZMIAN — zero
+własnych wartości koloru/rozmiaru/odstępu poza `theme.ts` z kitu, per
+PROMPT_CLAUDE_CODE.md.
+
+`app/(tabs)/index.tsx` przebudowany na cienki adapter: zbiera prawdziwe dane
+(te same store'y/hooki co stary Dashboard z Fazy 3.2 — `calendarStore`/
+`expensesStore`/`foodStats`/`useWydatkiData`/`utils/balance.ts`), mapuje je na
+kitu's `DashData` i renderuje `<DashboardScreen {...data} />` + `WydatkiModal`
+obok (ten sam popup co wcześniej, otwierany przez `onOpen('foodDay'|'foodMonth'|
+'tx'|'safe')`). `streaks`/`sleep` nadal `null` (appka nie ma store'a nawyków ani
+Health Connect) — kit renderuje `null` jako zaprojektowany stan pusty z DESIGN.md
+("0" przygaszone + "brak"), nie fałszywy mock.
+
+`app/(tabs)/_layout.tsx`: stary `TabBar.tsx` (ręczne liczenie aktywnej trasy z
+`usePathname()`) USUNIĘTY, zastąpiony kitu's `NavBar` jako `tabBar` prop `<Tabs>`
+— `active`/podświetlenie teraz z `BottomTabBarProps`'s `state`, nie ręcznie. Kolejność
+zakładek jawna przez `<Tabs.Screen name=.../>` (`index`→`daily`→`finances`→`tasks`)
+— BEZ TEGO expo-router rejestruje trasy w kolejności wczytywania plików z dysku
+(alfabetycznie-podobnej, ale nie identycznej z zamierzoną kolejnością Dashboard→
+Daily→Finanse→Zadania) — złapane dopiero w zrzucie z pętli wizualnej (ikonka
+"Finanse" i "Zadania" były zamienione miejscami).
+
+Zweryfikowane pętlą z Fazy 3.9 (`expo start --web` + Playwright, 390×844, obok
+`design/app-design.html`) — siatka kolumn teraz wyrównana MIĘDZY rzędami (był to
+realny powód "kolumny się rozjeżdżają", nie kosmetyka: stary `Tile.tsx` miał
+`flex:1` domyślnie + `style` nadpisujący wagami (`flex:3` itp.) per wołający —
+dokładnie ten anti-pattern, przed którym ostrzega komentarz w kitu's `layout.tsx`,
+różne sumy wag w różnych rzędach dają różne szerokości kolumn. Kit liczy szerokość
+JAWNIE z kontekstu (`col = (W − 2·S.x − 3·S.gap) / 4`, `tile(span) = span·col +
+(span−1)·gap`), więc kolumna w każdym rzędzie ma identyczną szerokość niezależnie
+od tego ile kafli/jakiego `span` jest w rzędzie obok. Fonty/zaokrąglenia/odstępy
+zgodne, zero błędów w konsoli przeglądarki.
+
+**Stary `src/components/design/{Tile,StatTile,Row,PricePill,Bars,FitList}.tsx`
+ZOSTAJĄ** — wciąż używane przez Daily/Finanse/Zadania (jeszcze nie przeniesione na
+kit), usunięcie dopiero gdy wszystkie 4 ekrany będą na `src/ui/`.
+
+**Następne fazy** — ekran po ekranie, zawsze przez kit i zawsze z pętlą wizualną
+(PROMPT_CLAUDE_CODE.md's kolejność): Daily → Finanse → Zadania → Ustawienia. Kit ma
+na razie TYLKO `DashboardScreen` — pozostałe ekrany nie mają jeszcze odpowiednika w
+`design/rn/`, więc ich przebudowa idzie wprost z `design/DESIGN.md`'s "twardych
+zasad" (jawna siatka, zaprojektowane stany puste, `FitList` z ghost-wierszami),
+reużywając `src/ui/layout.tsx`'s prymitywów (`Screen`/`Row`/`Tile`/`StatTile`/
+`Cap`/`FitList`/`Item`/`Tag`/`Price`/`Bars`/`StackBar`/`Progress`), NIE pisząc
+nowych odpowiedników. "Płatności cykliczne" (store `bills`, odblokuje pełne
+"Bezpieczne wydatki"/"Najbliższe 48h") i Health Connect (Sen/Kroki/Tętno/Waga/
+Woda) — wciąż osobne, odłożone fazy, bez zmian względem Fazy 3.9.
 
 ## DASHBOARD [GE]
 
