@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus } from 'lucide-react-native';
-import { colors } from '@/theme/colors';
-import { spacing, radius, themedStyles } from '@/theme';
-import Tile from '@/components/design/Tile';
-import Row from '@/components/design/Row';
+import { spacing, themedStyles } from '@/theme';
+import { Screen, Row, Tile, Cap, FitList, Item } from '@/ui/layout';
+import { C, T, R } from '@/ui/theme';
 import Segmented from '@/components/design/Segmented';
-import FitList from '@/components/design/FitList';
 import { useCalendarStore } from '@/store/calendarStore';
 import { todayISO } from '@/utils/date';
 import { eventCoversDay, type Task } from '@/types/calendar';
@@ -18,21 +15,35 @@ import AddTaskCard from '@/components/tasks/AddTaskCard';
 import DayDetailModal from '@/components/tasks/DayDetailModal';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 
-// Faza 3.5 (2026-11-01, "dawaj skończ wszystko") — Zadania przebudowane na nowy
-// grid, układ z design/app-design.html's `#tasks` (4 kolumny, `grid-template-rows:
-// auto auto 1fr`): WeekStrip → agenda wybranego dnia → lista zadań (JEDEN
-// aktywny segment na raz, `Segmented` Teraz/Terminowe/Bez terminu, + przycisk
-// inline, NIE floating FAB jak wcześniej — spec pokazuje przycisk "+" PRZY
-// segmencie, w tej samej karcie co lista, nie pływający w rogu).
+// Faza 3.10 (design/rn kit) — Zadania przebudowane na kitu's `src/ui/layout.tsx`
+// prymitywy (Screen/Row/Tile/Cap/FitList/Item), ten sam powód co pozostałe 3
+// ekrany (ARCHITECTURE.md §"Faza 3.10"). Kolejność/spany 1:1 z design/
+// app-design.html's `#tasks` (`grid-template-rows: auto auto 1fr`): WeekStrip(4,
+// padding 6) → agenda wybranego dnia(4, glance max 3) → lista zadań(4, fill) +
+// Segmented + "+" inline (NIE floating FAB — spec pokazuje przycisk PRZY
+// segmencie, w tej samej karcie co lista).
+//
+// Nowość tej rundy: nagłówek dostał zakres tygodnia ("1 – 7 LIS", `weekRangeLabel`
+// niżej) — brakowało go względem mockupu, `WeekMonthCalendar` liczy TEN SAM
+// poniedziałek-niedziela zawsze z `new Date()` (nie nawigowalny), więc etykieta
+// może to policzyć niezależnie bez propsów.
 //
 // `WeekMonthCalendar.tsx`/`TaskRow.tsx` BEZ ZMIAN — już matchują spec koncepcyjnie
-// (7-kolumnowy tydzień z chipami wydarzeń = dokładnie `WeekStrip`; miesiąc-popup to
-// realna, poza-spec funkcja zachowana jak "Produkty" w Finansach).
-//
-// Kompozytor "+" (2026-11-02, kontynuacja migracji popupów z Faza 3.6) — `AddTaskCard`
-// (wcześniej inline w scrollu, potem opakowany w plain `Modal`+ręczny backdrop)
-// teraz w `AppBottomSheet` — `DayDetailModal.tsx` też przebudowany na to samo, patrz
-// tam.
+// (patrz komentarz w WeekMonthCalendar.tsx), tylko nowy `Tile`/`Item` dookoła.
+const MONTHS_ABBR = ['STY', 'LUT', 'MAR', 'KWI', 'MAJ', 'CZE', 'LIP', 'SIE', 'WRZ', 'PAŹ', 'LIS', 'GRU'];
+function weekRangeLabel(base: Date): string {
+  const dow = base.getDay();
+  const mondayOffset = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(base);
+  monday.setDate(base.getDate() + mondayOffset);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  if (monday.getMonth() === sunday.getMonth()) {
+    return `${monday.getDate()} – ${sunday.getDate()} ${MONTHS_ABBR[sunday.getMonth()]}`;
+  }
+  return `${monday.getDate()} ${MONTHS_ABBR[monday.getMonth()]} – ${sunday.getDate()} ${MONTHS_ABBR[sunday.getMonth()]}`;
+}
+
 export default function TasksScreen() {
   const s = makeS();
   const tasks = useCalendarStore((st) => st.tasks);
@@ -70,9 +81,6 @@ export default function TasksScreen() {
     [allEvents, detailDate],
   );
 
-  // Agenda inline (glance, max 3) dla dnia WYBRANEGO w WeekStrip — tap na wiersz
-  // albo na cały kafel otwiera `DayDetailModal` z pełną listą (ten sam podział
-  // "podgląd na ekranie / pełny popup" co Dashboard robi dla Jedzenia.
   const agendaDate = selectedDate || today;
   const agendaEvents = useMemo(
     () => allEvents
@@ -121,53 +129,49 @@ export default function TasksScreen() {
   };
 
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
-      <View style={s.header}>
-        <Text style={s.title}>Zadania</Text>
-      </View>
+    <Screen title="Zadania" right={<Text style={T.small}>{weekRangeLabel(new Date())}</Text>}>
+      <Row>
+        <Tile span={4} style={s.weekTile}>
+          <WeekMonthCalendar
+            events={allEvents}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            onOpenDay={setDetailDate}
+          />
+        </Tile>
+      </Row>
 
-      <View style={s.content}>
-        {/* Rząd 1 (auto): WeekStrip — komponent bez zmian */}
-        <WeekMonthCalendar
-          events={allEvents}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-          onOpenDay={setDetailDate}
-        />
-
-        {/* Rząd 2 (auto): agenda wybranego dnia, glance max 3 */}
-        <Tile style={s.agendaTile} variant="static">
-          <TouchableOpacity style={s.capRow} onPress={() => setDetailDate(agendaDate)} activeOpacity={0.6}>
-            <Text style={s.capLabel} numberOfLines={1}>{agendaLabel.toUpperCase()}</Text>
-            <Text style={s.capUnit}>{agendaEvents.length} wydarz.</Text>
-          </TouchableOpacity>
+      <Row>
+        <Tile span={4}>
+          <Cap l={agendaLabel} r={`${agendaEvents.length} wydarz.`} />
           {agendaEvents.length === 0 ? (
-            <Text style={s.emptyInline}>Wolne</Text>
+            <Text style={[T.small, s.emptyInline]}>Wolne</Text>
           ) : (
-            agendaEvents.slice(0, 3).map((ev) => (
-              <Row
-                key={ev.id}
-                height={36}
-                onPress={() => setDetailDate(agendaDate)}
-                left={<View style={[s.bar4, { backgroundColor: ev.color ?? colors.chart.muted }]} />}
-                label={ev.title}
-                right={ev.startTime ? <Text style={s.agendaTime}>{ev.startTime}</Text> : undefined}
-              />
-            ))
+            <View style={s.agendaList}>
+              {agendaEvents.slice(0, 3).map((ev) => (
+                <View key={ev.id} style={s.agendaRow}>
+                  <Item onPress={() => setDetailDate(agendaDate)}>
+                    <View style={[s.bar4, { backgroundColor: ev.color ?? C.in2 }]} />
+                    <Text style={[T.row, s.agendaTitle]} numberOfLines={1}>{ev.title}</Text>
+                    {ev.startTime ? <Text style={s.agendaTime}>{ev.startTime}</Text> : null}
+                  </Item>
+                </View>
+              ))}
+            </View>
           )}
         </Tile>
+      </Row>
 
-        {/* Rząd 3 (flex): lista zadań (jeden segment) + Segmented + "+" */}
-        <Tile style={[s.listTile, s.rowFlex1]} variant="static">
+      <Row flex={1}>
+        <Tile span={4} style={s.listTile}>
           <FitList
             data={activeList}
-            itemHeight={56}
-            gap={spacing[1]}
-            keyExtractor={(t) => t.id}
-            empty={<Text style={s.emptyInline}>Pusto</Text>}
-            renderItem={(t) => (
-              <TaskRow key={t.id} task={t} isLast onToggleDone={handleToggleDone} onDelete={deleteTask} />
+            minRowH={56}
+            maxRowH={56}
+            renderItem={(t, i) => (
+              <TaskRow key={t.id} task={t} isLast={i === activeList.length - 1} onToggleDone={handleToggleDone} onDelete={deleteTask} />
             )}
+            emptyText="Pusto"
           />
           <View style={s.bottomRow}>
             <Segmented
@@ -180,11 +184,11 @@ export default function TasksScreen() {
               onChange={(k) => setSegment(k as typeof segment)}
             />
             <TouchableOpacity style={s.addBtn} onPress={() => setComposerOpen(true)} activeOpacity={0.8}>
-              <Plus size={18} color={colors.bg.primary} />
+              <Plus size={18} color={C.bg} />
             </TouchableOpacity>
           </View>
         </Tile>
-      </View>
+      </Row>
 
       <AppBottomSheet visible={composerOpen} onClose={() => setComposerOpen(false)}>
         <AddTaskCard onAdd={handleAdd} onClose={() => setComposerOpen(false)} />
@@ -196,7 +200,7 @@ export default function TasksScreen() {
         events={detailDateEvents}
         onClose={() => setDetailDate(null)}
       />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -204,26 +208,19 @@ function genId(): string {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
-const makeS = themedStyles((c) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: c.bg.primary },
-  header: { paddingHorizontal: spacing[4], paddingVertical: spacing[3] },
-  title: { fontSize: 22, fontFamily: 'Inter_900Black', letterSpacing: -0.5, color: c.text.bright },
-  content: { flex: 1, paddingHorizontal: spacing[3], gap: spacing[2] },
-  rowFlex1: { flex: 1 },
-
-  capRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  capLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.4, color: c.text.primary, flex: 1, marginRight: spacing[2] },
-  capUnit: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
-
-  agendaTile: { gap: spacing[1] },
-  emptyInline: { fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', paddingVertical: spacing[2] },
+const makeS = themedStyles(() => StyleSheet.create({
+  weekTile: { padding: 6 },
+  emptyInline: { textAlign: 'center', paddingVertical: spacing[2] },
+  agendaList: { gap: spacing[1] },
+  agendaRow: { height: 36 },
   bar4: { width: 3, height: 14, borderRadius: 2, flexShrink: 0 },
-  agendaTime: { fontSize: 10.5, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },
+  agendaTitle: { flex: 1 },
+  agendaTime: { fontSize: 10.5, fontFamily: 'Inter_800ExtraBold', color: C.hi },
 
   listTile: { gap: spacing[2] },
   bottomRow: { flexDirection: 'row', gap: spacing[2], alignItems: 'center' },
   addBtn: {
-    width: 48, height: 48, borderRadius: radius.btn, backgroundColor: c.text.bright,
+    width: 48, height: 48, borderRadius: R.btn, backgroundColor: C.hi,
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
 }));
