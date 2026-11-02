@@ -11,6 +11,8 @@ import { colors } from '@/theme/colors';
 import { useCalendarStore } from '@/store/calendarStore';
 import { useExpensesStore } from '@/store/expensesStore';
 import { useHabitsStore } from '@/store/habitsStore';
+import { useHealthStore } from '@/store/healthStore';
+import { useHealthSync } from '@/hooks/useHealthSync';
 import { todayISO } from '@/utils/date';
 import { foodByMonth, foodDailyAverageThisMonth } from '@/utils/foodStats';
 import { habitStreak } from '@/utils/habitStreak';
@@ -21,13 +23,14 @@ import type { HabitKey } from '@/types/habits';
 
 // Faza 3.11 (2026-11-02, user: "zrób tę apkę w pełni funkcjonalną") — Woda/
 // Słodycze/Trening DOSTAŁY realny store (`habitsStore.ts`/`utils/habitStreak.ts`/
-// `HabitsModal.tsx`) — pierwszy z dwóch dużych stubów z Fazy 3.2/3.10 (drugi,
-// Health Connect/Sen-Kroki-Tętno-Waga-Woda, zostaje odłożony: wymaga natywnej
-// integracji z urządzeniem, niemożliwej do zbudowania/zweryfikowania w tym
-// środowisku bez fizycznego Androida — w przeciwieństwie do nawyków, które są
-// czystym software'em, tap-to-toggle, jak Nastrój). Reszta bez zmian:
-// - Sen: Health Connect nieistniejący → `sleep: null` (kit: "0h 00m" + "Połącz
-//   zegarek w Ustawieniach").
+// `HabitsModal.tsx`).
+// Faza 3.12 (2026-11-02, user: "masz w sapp jak były połączenia z health czemu
+// nie możesz tego zrobić na podstawie jak tam") — Sen DOSTAŁ realny Health
+// Connect (port z sapp, `src/services/healthConnectService.ts`), ten sam
+// store'owy wzorzec co nawyki: `useHealthSync()` odświeża cache w tle (cicho,
+// bez promptu — zgoda przyznawana TYLKO z przycisku w Ustawieniach),
+// `useHealthStore` czyta ostatni snapshot. Bez zegarka/braku zgody →
+// `sleep: null`, kit renderuje zaprojektowany stan pusty.
 // - Kalendarz/jedzenie/transakcje/saldo/48h — bez zmian, te same store'y/hooki.
 const FACTS = [
   'Mózg zużywa jedną piątą energii twojego organizmu',
@@ -85,6 +88,8 @@ export default function Dashboard() {
   const setSelectedDate = useCalendarStore((st) => st.setSelectedDate);
   const expenses = useExpensesStore((st) => st.expenses);
   const habitDays = useHabitsStore((st) => st.days);
+  const healthToday = useHealthStore((st) => st.today);
+  useHealthSync();
   const today = todayISO();
   const now = useMemo(() => new Date(), [today]);
 
@@ -151,11 +156,22 @@ export default function Dashboard() {
     training: habitStreak(habitDays, 'training', today),
   }), [habitDays, today]);
 
+  const sleep = useMemo(() => {
+    if (!healthToday || healthToday.sleepMinutes == null || !healthToday.sleepFrom || !healthToday.sleepTo) return null;
+    const phases: { kind: 'deep' | 'light' | 'rem' | 'awake'; min: number }[] = [
+      { kind: 'deep' as const, min: healthToday.sleepDeepMin ?? 0 },
+      { kind: 'light' as const, min: healthToday.sleepLightMin ?? 0 },
+      { kind: 'rem' as const, min: healthToday.sleepRemMin ?? 0 },
+      { kind: 'awake' as const, min: healthToday.sleepAwakeMin ?? 0 },
+    ].filter((p) => p.min > 0);
+    return { minutes: healthToday.sleepMinutes, from: healthToday.sleepFrom, to: healthToday.sleepTo, phases };
+  }, [healthToday]);
+
   const data: DashData = {
     streaks,
     next: upcomingEvent ? { title: upcomingEvent.e.title, start: upcomingEvent.start } : null,
     fact: FACTS[factIndex ?? 0],
-    sleep: null,
+    sleep,
     foodPerDay: dailyFoodAvg,
     foodMonths: foodMonths.map((m) => ({ label: m.label, value: m.value })),
     transactions: recentExpenses.map((e) => ({

@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, Search, X,
   Info, Stethoscope, Clock, Bell, Copy,
   LogIn, LogOut, User as UserIcon, Database, CalendarDays, AlertTriangle, Rocket,
-  BatteryWarning, AlarmClock, Landmark, Zap, Vibrate, ShieldCheck, History,
+  BatteryWarning, AlarmClock, Landmark, Zap, Vibrate, ShieldCheck, History, Watch,
 } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -21,6 +21,8 @@ import { calendarService } from '@/services/calendarService';
 import { googleCalendarService } from '@/services/googleCalendarService';
 import { todayISO } from '@/utils/date';
 import { useBankQueue } from '@/store/bankQueueStore';
+import { useHealthStore } from '@/store/healthStore';
+import { isHealthConnectAvailable, ensureHealthConnect, openHealthConnectSettings, readHealthDay } from '@/services/healthConnectService';
 import { isHapticsEnabled, setHapticsEnabled, haptic } from '@/utils/haptics';
 import Toggle from '@/components/design/Toggle';
 
@@ -67,13 +69,35 @@ type SettingsSection = { id: string; title: string; items: SettingsItem[] };
 // (`c.bg.elevated` + `c.text.secondary`), tak samo dla wszystkich kategorii/pozycji —
 // kolor nie niesie już znaczenia kategorii, tylko funkcjonalne akcenty (tagi zadań)
 // zostają kolorowe.
-function buildSections(email: string | null, bank: { enabled: boolean; autoAll: boolean; pending: number }, hapticsEnabled: boolean): SettingsSection[] {
+function buildSections(
+  email: string | null,
+  bank: { enabled: boolean; autoAll: boolean; pending: number },
+  hapticsEnabled: boolean,
+  health: { connected: boolean; lastSyncedAt: string | null },
+): SettingsSection[] {
   return [
   {
     id: 'konto', title: 'Konto',
     items: [
       { kind: 'value', key: 'account-email', label: 'Zalogowano jako', description: 'konto google', icon: UserIcon, value: email ?? '—' },
       { kind: 'action', key: 'account-logout', label: 'Wyloguj', description: 'wyloguj z konta google', icon: LogOut },
+    ],
+  },
+  // Faza 3.12 (2026-11-02, user: "masz w sapp jak były połączenia z health czemu
+  // nie możesz tego zrobić na podstawie jak tam") — Health Connect, port z sapp
+  // (patrz src/services/healthConnectService.ts). Jeden wiersz, `permission: true`
+  // (jak bank-notif-access) bo to prowadzi do systemowego dialogu zgody, nie
+  // zwykłego ustawienia appki które appka sama kontroluje.
+  {
+    id: 'polaczenia', title: 'Połączenia',
+    items: [
+      {
+        kind: 'action', key: 'health-connect', label: 'Galaxy Watch / Health Connect', permission: true,
+        description: health.connected
+          ? (health.lastSyncedAt ? `połączono — ostatnia sync. ${new Date(health.lastSyncedAt).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}` : 'połączono')
+          : 'stuknij, aby połączyć (sen, kroki, tętno, waga, woda)',
+        icon: Watch,
+      },
     ],
   },
   // Faza 2.6 (2026-11-01) — JEDEN globalny przełącznik, nie per-ekran (ustalone
@@ -192,9 +216,18 @@ export default function SettingsScreen() {
   // finances.tsx dla `getBalanceOffset()`), żeby opis w `buildSections` odświeżał się
   // po tapie.
   const [hapticsEnabled, setHapticsEnabledState] = useState(isHapticsEnabled());
+  const healthConnected = useHealthStore((st) => st.connected);
+  const healthLastSyncedAt = useHealthStore((st) => st.lastSyncedAt);
+  const setHealthConnected = useHealthStore((st) => st.setConnected);
+  const setHealthToday = useHealthStore((st) => st.setToday);
   const sections = useMemo(
-    () => buildSections(user?.email ?? null, { enabled: bankEnabled, autoAll: bankAutoAll, pending: bankPending }, hapticsEnabled),
-    [user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled],
+    () => buildSections(
+      user?.email ?? null,
+      { enabled: bankEnabled, autoAll: bankAutoAll, pending: bankPending },
+      hapticsEnabled,
+      { connected: healthConnected, lastSyncedAt: healthLastSyncedAt },
+    ),
+    [user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt],
   );
 
   const handleLogout = async () => {
@@ -605,8 +638,42 @@ export default function SettingsScreen() {
     }
   };
 
+  // Faza 3.12 — "Połącz" woła `ensureHealthConnect()` (prosi o zgodę jeśli trzeba,
+  // cicho potwierdza jeśli już przyznana) i od razu dociąga dzisiejszy snapshot, żeby
+  // Dashboard/Daily miały dane bez czekania na pierwszy auto-sync (`useHealthSync.ts`).
+  const connectHealthConnect = async () => {
+    append('Health Connect: łączenie…');
+    if (!(await isHealthConnectAvailable())) {
+      append('Niedostępne w tej wersji — potrzebny nowy build APK (ten moduł nie działa w Expo Go).');
+      return;
+    }
+    const res = await ensureHealthConnect();
+    if (!res.ok) {
+      if (res.reason === 'denied') {
+        append('Odmówiono dostępu — włącz go ręcznie w Health Connect, potem spróbuj ponownie.');
+        await openHealthConnectSettings();
+        return;
+      }
+      const msg = res.reason === 'unavailable' ? 'Health Connect niedostępny na tym telefonie'
+        : res.reason === 'update' ? 'Zaktualizuj Health Connect ze sklepu Play'
+        : res.reason === 'init' ? 'Nie udało się zainicjować Health Connect'
+        : 'Nie udało się połączyć z Health Connect';
+      append(`Błąd: ${msg}`);
+      return;
+    }
+    setHealthConnected(true);
+    append('Połączono — synchronizuję dzisiejsze dane…');
+    try {
+      setHealthToday(await readHealthDay(new Date()));
+      append('Zsynchronizowano.');
+    } catch (e: any) {
+      append(`Połączono, ale synchronizacja się nie udała: ${String(e?.message ?? e)}`);
+    }
+  };
+
   const handlers: Record<string, () => void> = {
     'account-logout': handleLogout,
+    'health-connect': connectHealthConnect,
     google: testGoogleSignIn,
     firestore: testFirestore,
     calendar: testCalendar,

@@ -2621,3 +2621,81 @@ tsc/jest 176/176 (dochodzi 6 nowych testów `habitStreak`) + `expo export
   (PIERWSZY RAZ niezweryfikowany nawet w web-pętli, patrz znalezisko wyżej),
   toggle realnie zapisuje się i streak na Dashboardzie aktualizuje się po
   zamknięciu popupu, przeżywa restart appki (AsyncStorage).
+
+## Faza 3.12 — Health Connect (Sen/Kroki/Tętno/Waga/Woda) realne (2026-11-02)
+
+User: "masz w sapp jak były połączenia z health czemu nie możesz tego zrobić
+na podstawie jak tam" — słuszna poprawka. Health Connect NIE jest "niemożliwy
+bez fizycznego Androida", tylko niemożliwy do ZWERYFIKOWANIA bez niego — kod da
+się napisać i zbudować tak samo jak każdy inny realny fragment appki. Port z
+`/home/user/sapp` (`react-native-health-connect` + custom config-plugin), drugi
+z dwóch dużych stubów z Fazy 3.2/3.10 — zrobiony.
+
+**Co nowe:**
+- `react-native-health-connect@^4.1.3` (sapp miał v3, zweryfikowane że API
+  funkcji nie zmieniło się między wersjami — `getSdkStatus`/`initialize`/
+  `requestPermission`/`getGrantedPermissions`/`readRecords` identyczne; TYLKO
+  kształt surowych rekordów się różnił — v4 trzyma `Mass`/`Volume` jako
+  `{value,unit}`, NIE `{inKilograms}`/`{inMilliliters}` jak sapp's starszy kod
+  zakładał — `healthConnectService.ts` konwertuje jednostki sam, nie kopiuje
+  sapp's kodu 1:1 tam gdzie się nie zgadzało z zainstalowaną wersją).
+- `plugins/withHealthConnectQueries.js` — PRZYCIĘTY port sapp's wersji.
+  Biblioteki własny bundlowany plugin (`node_modules/react-native-health-
+  connect/app.plugin.js`, w v4) już dodaje rationale intent-filter +
+  `ViewPermissionUsageActivity` — sapp's wersja (dla v3) to dublowała.
+  Zostaje TYLKO to czego oficjalny plugin nadal nie robi: `<queries>`
+  widoczność pakietu Health Connect + wstrzyknięcie `HealthConnectPermission
+  Delegate.setPermissionDelegate(this)` do `MainActivity.onCreate`
+  (biblioteka ma `lateinit var requestPermission`, nic jej NIE inicjalizuje
+  samo — potwierdzone bezpośrednio w kodzie Kotlin zainstalowanej wersji).
+- `app.json` — 5 uprawnień (`READ_STEPS`/`READ_SLEEP`/`READ_WEIGHT`/
+  `READ_RESTING_HEART_RATE`/`READ_HYDRATION`) dopisane do istniejącej listy
+  (NIE zastąpione — CLAUDE.md regł #2), oba pluginy zarejestrowane.
+- `src/services/healthConnectService.ts` — dynamiczny `import()` (ten sam
+  wzorzec co `@react-native-google-signin`/`@notifee` gdzie indziej w appce —
+  moduł niedostępny w Expo Go, nie może być importem statycznym). `ensureHealth
+  Connect()` sprawdza SDK/inicjalizuje/prosi o zgodę TYLKO jeśli brakuje
+  (`getGrantedPermissions()` sprawdzone najpierw — kolejne wywołania z Daily/
+  Dashboard NIE pokazują dialogu, tylko potwierdzają że zgoda wciąż ważna).
+  `readHealthDay(date)` czyta 5 metryk, każda w OSOBNYM `try/catch` (brak
+  jednej nie blokuje reszty). Kroki/sen: WIELU pisarzy (zegarek+telefon) —
+  grupowanie po źródle (`metadata.dataOrigin`), bierze NAJLEPSZE źródło (max
+  kroków / najdłuższa sesja snu), nie sumę (podwójne liczenie).
+- `src/store/healthStore.ts` + `src/hooks/useHealthSync.ts` — ten sam wzorzec
+  cache+persist co `habitsStore.ts`. `useHealthSync()` (wołany z Dashboard+
+  Daily) odświeża w tle, CICHO (bez promptu — tylko gdy `connected===true` z
+  wcześniejszego "Połącz"), throttled 5 min.
+- Ustawienia: nowa sekcja "Połączenia" (jeden wiersz "Galaxy Watch / Health
+  Connect", `permission:true` jak `bank-notif-access`) — "Połącz" woła
+  `ensureHealthConnect()` + od razu pierwszy sync, z czytelnymi komunikatami
+  błędu per przyczyna (brak modułu/niedostępny/wymaga aktualizacji/odmowa).
+- Dashboard's `sleep` i Daily's Sen/Kroki/Tętno/Waga/Woda — realne, gdy
+  `healthStore.today` ma dane; BEZ zmian wizualnych dla usera bez zegarka
+  (dokładnie ten sam pusty stan co wcześniej).
+
+**Zweryfikowane INACZEJ niż zwykle** — config-plugin NIE wykonuje się przy
+`expo export` (tylko bundluje JS), więc tym razem `npx expo prebuild --platform
+android --no-install` (wygenerowane `android/`, potem USUNIĘTE — CNG, nie
+commitujemy natywnego projektu) żeby potwierdzić naprawdę, nie tylko "nie
+rzuciło wyjątku": `AndroidManifest.xml` ma `<queries><package android:name=
+"com.google.android.apps.healthdata"/></queries>`, wszystkie 5 uprawnień
+`health.*`, `ViewPermissionUsageActivity`-alias; `MainActivity.kt` ma zarówno
+import jak i wywołanie `HealthConnectPermissionDelegate.setPermissionDelegate
+(this)` wstrzyknięte zaraz po `super.onCreate(...)`. `expo start --web` dalej
+się bundluje czysto (3425 modułów, zero błędów konsoli) — natywny moduł się
+"cicho nie ładuje" na web (dynamiczny import w `mod()` łapie błąd), appka
+renderuje dokładnie ten sam pusty stan co bez tej rundy.
+
+**DO PRZETESTOWANIA NA URZĄDZENIU (priorytet — to NAJMNIEJ zweryfikowana
+funkcja w appce, prawdziwy pierwszy test dopiero na telefonie):**
+- Ustawienia → Połączenia → "Galaxy Watch / Health Connect" → pokazuje się
+  prawdziwy systemowy dialog zgody Health Connect (nie crashuje z
+  `UninitializedPropertyAccessException` — to dokładnie bug który
+  `withHealthConnectQueries.js` ma naprawiać).
+- Po zgodzie: Dashboard's Sen i Daily's Sen/Kroki/Tętno/Waga/Woda pokazują
+  prawdziwe dane z zegarka/telefonu (jeśli jakieś są w Health Connect).
+- Zamknięcie appki i ponowne otwarcie — `connected` i `today` przeżywają
+  restart (AsyncStorage), dane odświeżają się w tle bez ponownego promptu.
+- Jeśli NIE MA zegarka/danych w Health Connect w ogóle — appka dalej pokazuje
+  uczciwy pusty stan ("0h 00m" + "Połącz zegarek", "0"+"brak" na StatTile'ach),
+  nie crashuje i nie pokazuje fałszywych zer jako realnych danych.

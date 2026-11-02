@@ -5,6 +5,8 @@ import { C, T, S } from '@/ui/theme';
 import MoodPad from '@/components/design/MoodPad';
 import { todayISO } from '@/utils/date';
 import { useMoodStore } from '@/store/moodStore';
+import { useHealthStore } from '@/store/healthStore';
+import { useHealthSync } from '@/hooks/useHealthSync';
 import MoodModal from '@/components/mood/MoodModal';
 
 // Faza 3.10 (design/rn kit) — Daily przebudowany na kitu's `src/ui/layout.tsx`
@@ -14,41 +16,59 @@ import MoodModal from '@/components/mood/MoodModal';
 // rows: auto auto auto 1fr auto`): Sen (4) → Kroki(2)|Tętno(2) →
 // Waga(2)|Woda(2) → Ćwiczenia (4, fill) → Nastrój (4, row).
 //
-// Realne vs stub — bez zmian względem Fazy 3.3: Sen/Kroki/Tętno/Waga/Woda =
-// Health Connect nieistniejący, appka NIE udaje tych danych. `StatTile`'s
-// `value={null}` to WBUDOWANA obsługa DESIGN.md's "licznik bez danych → 0
-// (dim) + brak" (patrz src/ui/layout.tsx) — nie trzeba tego ręcznie
-// powtarzać tutaj. Sen (pełna szerokość, nie StatTile) dostaje dedykowany
-// empty-state 1:1 z kitu's DashboardScreen sleep-tile ("0h 00m" dim +
-// "Połącz zegarek w Ustawieniach"). Ćwiczenia = appka nie ma jeszcze store'a
-// treningów, ten sam stub co wcześniej. Nastrój = JEDYNA realna sekcja
-// (`useMoodStore`), bez zmian logiki — tylko nowy `Tile` z kitu.
+// Faza 3.12 (2026-11-02) — Sen/Kroki/Tętno/Waga/Woda DOSTAŁY realny Health
+// Connect (port z sapp, `src/services/healthConnectService.ts`). Bez zegarka/
+// bez zgody (`useHealthStore().today === null`) → `StatTile value={null}`
+// (DESIGN.md's zaprojektowany stan pusty, "0" dim + "brak") i Sen zostaje przy
+// "0h 00m" + "Połącz zegarek w Ustawieniach" — DOKŁADNIE jak wcześniej, zero
+// zmiany wizualnej dla usera bez zegarka. Ćwiczenia = appka nie ma jeszcze
+// store'a treningów (osobna, nieportowalna z sapp 1:1 funkcja — inny model
+// danych), ten sam stub co wcześniej. Nastrój = `useMoodStore`, bez zmian.
+function fmtMin(m: number): string {
+  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
+}
+
 export default function DailyScreen() {
   const entries = useMoodStore((st) => st.entries);
   const [moodOpen, setMoodOpen] = useState(false);
+  const health = useHealthStore((st) => st.today);
+  useHealthSync();
 
   const todayEntries = useMemo(() => entries.filter((e) => e.date === todayISO()), [entries]);
   const lastToday = todayEntries[todayEntries.length - 1];
   const dayLabel = new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
+
+  const hasSleep = !!health && health.sleepMinutes != null && !!health.sleepFrom && !!health.sleepTo;
+  const weightVal = health?.weightKg != null ? health.weightKg.toFixed(1).replace('.', ',') : null;
+  const hydrationVal = health?.hydrationMl != null ? (health.hydrationMl / 1000).toFixed(1).replace('.', ',') : null;
 
   return (
     <Screen title="Daily" right={<Text style={T.small}>{dayLabel}</Text>}>
       <Row>
         <Tile span={4}>
           <Cap l="Sen" />
-          <Text style={[T.num, st.sleepNum]}>0h 00m</Text>
-          <Text style={T.small}>Połącz zegarek w Ustawieniach</Text>
+          {hasSleep ? (
+            <>
+              <Text style={T.num}>{fmtMin(health!.sleepMinutes!)}</Text>
+              <Text style={T.small}>{health!.sleepFrom} – {health!.sleepTo}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={[T.num, st.sleepNum]}>0h 00m</Text>
+              <Text style={T.small}>Połącz zegarek w Ustawieniach</Text>
+            </>
+          )}
         </Tile>
       </Row>
 
       <Row>
-        <StatTile value={null} unit="z celu" label="Kroki" span={2} />
-        <StatTile value={null} unit="bpm" label="Tętno" span={2} />
+        <StatTile value={health?.steps ?? null} unit="kroki" label="Kroki" span={2} />
+        <StatTile value={health?.restingHeartRate ?? null} unit="bpm" label="Tętno" span={2} />
       </Row>
 
       <Row>
-        <StatTile value={null} unit="kg" label="Waga" span={2} />
-        <StatTile value={null} unit="litra" label="Woda" span={2} />
+        <StatTile value={weightVal} unit="kg" label="Waga" span={2} />
+        <StatTile value={hydrationVal} unit="litra" label="Woda" span={2} />
       </Row>
 
       <Row flex={1}>

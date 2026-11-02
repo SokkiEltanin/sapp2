@@ -391,13 +391,36 @@ pozostaje możliwa do zweryfikowania WYŁĄCZNIE na prawdziwym urządzeniu —
 dopisane jawnie do listy "DO PRZETESTOWANIA" w NEXT_STEPS.md, żeby nie
 zakładać inaczej w kolejnych fazach.
 
-**Następne fazy** — Health Connect (Sen/Kroki/Tętno/Waga/Woda) i "Płatności
-cykliczne" (store `bills`, odblokuje pełne "Bezpieczne wydatki"/"Najbliższe
-48h"/Finanse's Praca+Najbliższa opłata) — osobne, odłożone fazy. Rzeczywisty
-render/dotyk na urządzeniu (scroll vs no-scroll, gesty, FitList ghost-wiersze,
-kolejność navbaru, TREŚĆ KAŻDEGO POPUPU) nadal NIE był możliwy do
+**Faza 3.12 (Health Connect: Sen/Kroki/Tętno/Waga/Woda) — ZROBIONA (2026-11-02,
+user: "masz w sapp jak były połączenia z health czemu nie możesz tego zrobić na
+podstawie jak tam").** Poprawka na moje wcześniejsze założenie — "niemożliwe do
+zweryfikowania bez telefonu" ≠ "niemożliwe do napisania". Port z `/home/user/
+sapp`'s działającej integracji (`react-native-health-connect` — sapp miał v3,
+tu zainstalowane ^4.1.3, API funkcji identyczne, TYLKO kształt surowych
+rekordów `Mass`/`Volume` się różni, `healthConnectService.ts` konwertuje sam).
+`plugins/withHealthConnectQueries.js` — PRZYCIĘTY port (biblioteki własny
+bundlowany plugin w v4 już dodaje rationale/`ViewPermissionUsageActivity`,
+sapp's v3-era wersja to dublowała; zostaje TYLKO `<queries>` + wstrzyknięcie
+`HealthConnectPermissionDelegate.setPermissionDelegate(this)` do
+`MainActivity.onCreate` — biblioteka ma to pole `lateinit`, nic go samo nie
+inicjalizuje). `healthStore.ts`/`useHealthSync.ts` — ten sam cache+persist+
+throttled-cichy-sync wzorzec co nawyki. Ustawienia dostały sekcję
+"Połączenia". Dashboard's `sleep` i Daily's 4 StatTile'e czytają prawdziwe
+dane, z zerową zmianą wizualną dla usera bez zegarka (ten sam pusty stan).
+Zweryfikowane `npx expo prebuild --platform android --no-install` (config-
+plugin NIE wykonuje się przy `expo export`, tylko bundluje JS) — potwierdzone
+bezpośrednio w wygenerowanym `AndroidManifest.xml`/`MainActivity.kt`, potem
+USUNIĘTE (CNG, nie commitujemy natywnego projektu). Szczegóły i pełna lista
+"DO PRZETESTOWANIA" w NEXT_STEPS.md "Faza 3.12" — to NAJMNIEJ zweryfikowana
+funkcja w appce, prawdziwy pierwszy test dopiero na telefonie.
+
+**Następne fazy** — "Płatności cykliczne" (store `bills`, odblokuje pełne
+"Bezpieczne wydatki"/"Najbliższe 48h"/Finanse's Praca+Najbliższa opłata) —
+jedyny duży stub, który zostaje. Rzeczywisty render/dotyk na urządzeniu
+(scroll vs no-scroll, gesty, FitList ghost-wiersze, kolejność navbaru, TREŚĆ
+KAŻDEGO POPUPU, i teraz Health Connect) nadal NIE był możliwy do
 zweryfikowania w tym środowisku — PRIORYTET na następny test na telefonie,
-lista w NEXT_STEPS.md "Faza 3.11".
+lista w NEXT_STEPS.md "Faza 3.12".
 
 ## DASHBOARD [GE]
 
