@@ -2319,3 +2319,56 @@ export --platform android` bez błędów. Rzeczywisty render na urządzeniu/
 emulatorze (gesty przeciągania w sheecie, keyboard-avoidance) NIE był możliwy
 w tym środowisku (brak Androida) — lista wyżej to co user powinien sprawdzić
 jako pierwsze.
+
+## Redesign rdzenia UI — Faza 3.7 "Ustawienia — styl 1:1" UKOŃCZONA (2026-11-02)
+
+User: "miało być 1do1 wiec wsl dalej edycje zeby wszystko miało ten sam styl
+nawet ustawienia". Przy tej okazji ponowna, dokładniejsza lektura `design/
+app-design.html`'s `#set` pokazała, że wcześniejszy opis w ARCHITECTURE.md
+("5 kafli-kategorii, tap wchodzi w pełną listę") był NIEŚCISŁY — spec wcale
+nie ma drugiego poziomu, sekcje (`.tile.static`) mają wiersze `.set` wprost w
+środku, zawsze widoczne. Naprawione w `app/settings.tsx`:
+
+1. **Drill-down USUNIĘTY.** `activeSectionId`, cały "kategoria-kafel → tap →
+   osobny widok" stan/branch/style (`categoryRow`/`categoryIcon`/
+   `categoryTitle`/`categorySubtitle`) zniknęły. Sekcje renderują się teraz
+   WSZYSTKIE naraz, stacked, każda jako podpis `.cap` (ten sam styl co podpisy
+   kafli Daily/Zadania) + karta z wierszami wprost pod spodem.
+2. **Nowy `Toggle`** (`src/components/design/Toggle.tsx`) — zastąpił natywny
+   `Switch`, który kolorował stan "włączone" ZIELENIĄ (`colors.accent.green`),
+   co łamało własną, wcześniej ustaloną zasadę appki "kolor TYLKO jako
+   funkcjonalny akcent, nie semantyka stanu". `Toggle` matchuje spec's `.tog`
+   1:1 — monochromatyczny, jasny tor + czarna kropka (włączone), ciemny tor +
+   wygaszona kropka (wyłączone), animowane przesunięcie.
+3. **Tokeny**: `radius.lg`(16)→`radius.tile`(18) na kartach sekcji i polu
+   szukania — dokładny token z resztą przebudowanego systemu, nie "podobny".
+4. **Nagłówek**: rozmiar/waga/kolor wyrównane do `.h1` ze spec (20px/
+   Inter_900Black/`text.bright`), jak inne ekrany — wyśrodkowanie + strzałka
+   wstecz ZOSTAJĄ (to pushowany ekran, nie tab, nawigacja ≠ styl).
+
+**Co ZOSTAŁO bez zmian, świadomie** (patrz pełne uzasadnienie w
+ARCHITECTURE.md §"REDESIGN RDZENIA UI" → "Ustawienia"): scroll + pole
+szukania (realna treść jest wiele razy większa niż spec's 12-wierszowe demo,
+nieprzewijalny `overflow:hidden` by ją OBCIĄŁ, nie pomieścił), odznaki
+ikon/"Zgoda"/opisy-podtytuły pod etykietami (realna, celowo dodana wcześniej
+w tej sesji wartość, nie niedopasowanie stylu).
+
+**DO PRZETESTOWANIA NA URZĄDZENIU**:
+- Ustawienia po otwarciu powinny pokazywać WSZYSTKIE sekcje naraz (Konto/
+  Ogólne/Info/Diagnostyka/Alerty/Finanse), bez tapowania w kafel-kategorię —
+  jeśli widać listę "kategorii ze strzałką", to regresja.
+- Przełączniki (Wibracje w Ogólne, Powiadomienia z banku + Dodawaj
+  automatycznie w Finanse) — nowy `Toggle` powinien wizualnie ślizgać się
+  (nie migać) i wyglądać jak jasny/ciemny monochromatyczny suwak, NIE zielony
+  natywny switch.
+- Szukanie wciąż powinno działać (wpisanie tekstu → płaska lista trafień ze
+  WSZYSTKICH sekcji, nie tylko jednej).
+- Przycisk "wstecz" (strzałka w headerze ORAZ sprzętowy/gestowy na Androidzie)
+  — w trakcie szukania czyści pole, poza szukaniem wraca do Dashboardu (bez
+  zmian funkcjonalnych, uproszczona tylko wewnętrzna logika).
+- Log testów (Konto/Diagnostyka/Alerty) powinien się pojawiać na dole PO
+  pierwszym odpaleniu jakiegoś testu, nie na stałe jako pusty placeholder.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone, `npx expo
+export --platform android` bez błędów. Rzeczywisty render/dotyk na urządzeniu
+NIE był możliwy w tym środowisku (brak Androida).

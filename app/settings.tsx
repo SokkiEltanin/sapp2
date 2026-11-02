@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ComponentType } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, BackHandler, Platform, Linking, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, BackHandler, Platform, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import {
   ChevronLeft, ChevronRight, Search, X,
-  Info, Stethoscope, Wallet, Clock, Bell, Copy,
+  Info, Stethoscope, Clock, Bell, Copy,
   LogIn, LogOut, User as UserIcon, Database, CalendarDays, AlertTriangle, Rocket,
   BatteryWarning, AlarmClock, Landmark, Zap, Vibrate, ShieldCheck, History,
 } from 'lucide-react-native';
@@ -22,6 +22,7 @@ import { googleCalendarService } from '@/services/googleCalendarService';
 import { todayISO } from '@/utils/date';
 import { useBankQueue } from '@/store/bankQueueStore';
 import { isHapticsEnabled, setHapticsEnabled, haptic } from '@/utils/haptics';
+import Toggle from '@/components/design/Toggle';
 
 // Build metadata wstrzyknięty przez CI (`.github/workflows/build.yml`, krok "Build
 // release APK") jako EXPO_PUBLIC_* — Expo inline'uje te zmienne w bundlu JS na etapie
@@ -47,24 +48,14 @@ type SettingsItem =
   | { kind: 'value'; key: string; label: string; description: string; icon: Icon; value: string; tier?: 'sub' }
   | { kind: 'switch'; key: string; label: string; description: string; icon: Icon; value: boolean; tier?: 'sub' };
 
-type SettingsSection = { id: string; title: string; icon: Icon; items: SettingsItem[] };
-
-function plCount(n: number, one: string, few: string, many: string) {
-  if (n === 1) return one;
-  const mod10 = n % 10, mod100 = n % 100;
-  if (mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)) return few;
-  return many;
-}
+type SettingsSection = { id: string; title: string; items: SettingsItem[] };
 
 // Sekcje Ustawień (2026-10-28, user: "ustawienia jak w sap musimy podzielić żeby mieć
-// INFO, DIAGNOSTYKĘ, FINANSE itp") — ten sam dwupoziomowy wzorzec co w sapp
-// (`SettingsSectionDef`/`SettingsCategoryRow`): lista kategorii na głównym ekranie,
-// kliknięcie przełącza widok na pełną listę TEJ kategorii (stan `activeSectionId`
-// niżej w komponencie, nie osobna trasa routera — dokładnie jak w sapp, patrz
-// komentarz przy `SettingsCategoryRow` tam: "kliknięcie woła openSection(section.id)").
-// FINANSE ma na razie jeden statyczny item "W budowie" — appka nie ma jeszcze żadnej
-// funkcji finansowej do wystawienia tutaj (patrz ARCHITECTURE.md); sekcja istnieje
-// żeby struktura była gotowa, nie żeby udawać gotową funkcję.
+// INFO, DIAGNOSTYKĘ, FINANSE itp") — podział na `SettingsSection`y, każda renderowana
+// jako WŁASNA karta ZAWSZE widoczna na głównym ekranie (2026-11-02: usunięty
+// dwupoziomowy "kategoria → pełna lista po tapie" wzorzec z sapp, patrz komentarz przy
+// renderze niżej — mockup `design/app-design.html`'s `#set` nie ma koncepcji
+// drugiego poziomu, sekcje-kafle są wszystkie naraz na ekranie).
 //
 // Funkcja, nie stała — sekcja "Konto" potrzebuje realnego e-maila zalogowanego usera
 // (`useAuthUser()`), więc cała lista musi przeliczać się w komponencie, nie raz na
@@ -79,7 +70,7 @@ function plCount(n: number, one: string, few: string, many: string) {
 function buildSections(email: string | null, bank: { enabled: boolean; autoAll: boolean; pending: number }, hapticsEnabled: boolean): SettingsSection[] {
   return [
   {
-    id: 'konto', title: 'Konto', icon: UserIcon,
+    id: 'konto', title: 'Konto',
     items: [
       { kind: 'value', key: 'account-email', label: 'Zalogowano jako', description: 'konto google', icon: UserIcon, value: email ?? '—' },
       { kind: 'action', key: 'account-logout', label: 'Wyloguj', description: 'wyloguj z konta google', icon: LogOut },
@@ -88,7 +79,7 @@ function buildSections(email: string | null, bank: { enabled: boolean; autoAll: 
   // Faza 2.6 (2026-11-01) — JEDEN globalny przełącznik, nie per-ekran (ustalone
   // 2026-10-26, patrz ARCHITECTURE.md §Ogólne "Wibracje").
   {
-    id: 'ogolne', title: 'Ogólne', icon: Vibrate,
+    id: 'ogolne', title: 'Ogólne',
     items: [
       {
         kind: 'switch', key: 'haptics-enabled', label: 'Wibracje',
@@ -98,7 +89,7 @@ function buildSections(email: string | null, bank: { enabled: boolean; autoAll: 
     ],
   },
   {
-    id: 'info', title: 'Info', icon: Info,
+    id: 'info', title: 'Info',
     items: [
       { kind: 'value', key: 'info-version', label: 'Wersja', description: 'wersja aplikacji', icon: Info, value: BUILD_INFO.version },
       { kind: 'value', key: 'info-build', label: 'Build', description: 'numer builda github actions', icon: Info, value: `#${BUILD_INFO.buildNumber}` },
@@ -107,7 +98,7 @@ function buildSections(email: string | null, bank: { enabled: boolean; autoAll: 
     ],
   },
   {
-    id: 'diagnostyka', title: 'Diagnostyka', icon: Stethoscope,
+    id: 'diagnostyka', title: 'Diagnostyka',
     items: [
       { kind: 'action', key: 'google', label: 'Zaloguj przez Google', description: 'logowanie konto sign-in', icon: LogIn },
       { kind: 'action', key: 'firestore', label: 'Test Firestore', description: 'baza danych synchronizacja', icon: Database },
@@ -123,7 +114,7 @@ function buildSections(email: string | null, bank: { enabled: boolean; autoAll: 
   // `fullScreenIntent` (patrz `plugins/withFullScreenAlert.js`), który POWINIEN
   // wybudzić telefon i pokazać appkę NAD blokadą jak budzik/połączenie przychodzące.
   {
-    id: 'alerty', title: 'Alerty', icon: Bell,
+    id: 'alerty', title: 'Alerty',
     items: [
       { kind: 'action', key: 'alert-expo', label: 'Expo (MAX priorytet)', description: 'powiadomienia alert notification heads-up', icon: AlertTriangle },
       { kind: 'action', key: 'alert-notifee', label: 'Notifee (bez przycisku)', description: 'powiadomienia alert notification pelny ekran budzik', icon: Rocket },
@@ -142,7 +133,7 @@ function buildSections(email: string | null, bank: { enabled: boolean; autoAll: 
   // "historia żebym mógł cofnąć albo stworzyć szablon") dodaje "Historia i szablony"
   // (app/bank-history.tsx) — cofnij/"Stwórz szablon" opisane tam i w bank-review.tsx.
   {
-    id: 'finanse', title: 'Finanse', icon: Wallet,
+    id: 'finanse', title: 'Finanse',
     items: [
       {
         kind: 'switch', key: 'bank-enabled', label: 'Powiadomienia z banku',
@@ -177,7 +168,6 @@ export default function SettingsScreen() {
   const { user } = useAuthUser();
   const [log, setLog] = useState<string[]>([]);
   const [query, setQuery] = useState('');
-  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
 
   const append = (line: string) => setLog((prev) => [line, ...prev].slice(0, 12));
 
@@ -650,31 +640,29 @@ export default function SettingsScreen() {
     );
   }, [q, sections]);
 
-  const activeSection = activeSectionId ? sections.find((sec) => sec.id === activeSectionId) ?? null : null;
-
   const handleBack = () => {
     if (query) { setQuery(''); return; }
-    if (activeSection) { setActiveSectionId(null); return; }
     router.back();
   };
 
   // Sprzętowy/gestowy przycisk "wstecz" na Androidzie POMIJA `handleBack` (ten reaguje
   // tylko na tap w `ChevronLeft` w nagłówku) — bez przechwycenia, expo-router po prostu
-  // zdejmuje `/settings` ze stosu i wychodzi do Dashboardu, nawet gdy user jest w
-  // rozwiniętej kategorii/szukaniu (2026-10-28, user na urządzeniu: "chcę cofnąć to
-  // mnie cofa od razu do DASHBOARDU zamiast do głównych ustawień"). Ten sam dokładnie
-  // bug i fix co w sapp (app/settings.tsx, `closeSection`/`BackHandler`).
+  // zdejmuje `/settings` ze stosu i wychodzi do Dashboardu, nawet gdy user wciąż szuka
+  // (2026-10-28, user na urządzeniu: "chcę cofnąć to mnie cofa od razu do DASHBOARDU
+  // zamiast do głównych ustawień"). Ten sam dokładnie bug i fix co w sapp
+  // (app/settings.tsx, `closeSection`/`BackHandler`). Gałąź "wróć z rozwiniętej
+  // kategorii" ODPADŁA (2026-11-02, patrz niżej) — sekcje są teraz WSZYSTKIE naraz
+  // widoczne, nie ma już stanu "w środku kategorii" do zamykania.
   useEffect(() => {
-    if (Platform.OS !== 'android' || (!activeSectionId && !query)) return;
+    if (Platform.OS !== 'android' || !query) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (query) { setQuery(''); return true; }
-      setActiveSectionId(null);
+      setQuery('');
       return true;
     });
     return () => sub.remove();
-  }, [activeSectionId, query]);
+  }, [query]);
 
-  const headerTitle = query ? 'Szukaj' : activeSection ? activeSection.title : 'Ustawienia';
+  const headerTitle = query ? 'Szukaj' : 'Ustawienia';
 
   // Przeprojektowane (2026-11-01, user zrzutem ekranu Finansów: "nie rozróżniam
   // nazwy kategorii od podkategorii, oraz jak coś jest pozwoleniem żeby miało
@@ -684,10 +672,11 @@ export default function SettingsScreen() {
   //   nie było widoczne na ekranie, mimo że dla wielu wierszy niosło stan ("WŁĄCZONE"
   //   itp.) — to był większy powód "nie widzę różnicy między wierszami" niż sam brak
   //   wcięcia.
-  // - `kind: 'switch'` → prawdziwy natywny `Switch` z react-native (dokładnie ten
-  //   wygląd co systemowe Ustawienia Androida, za darmo, zero własnego kafelka do
-  //   rysowania) dla stanów które appka faktycznie zna i kontroluje (wibracje,
-  //   powiadomienia z banku, auto-dodawanie).
+  // - `kind: 'switch'` → `Toggle` (`src/components/design/Toggle.tsx`, 2026-11-02 —
+  //   był tu natywny `Switch` z zielonym `trackColor.true`, co kolorowało stan
+  //   "włączone" wbrew własnej zasadzie appki "kolor TYLKO jako funkcjonalny akcent";
+  //   `Toggle` matchuje `.tog` ze spec 1:1, monochromatyczny) dla stanów które appka
+  //   faktycznie zna i kontroluje (wibracje, powiadomienia z banku, auto-dodawanie).
   // - `permission: true` → odznaka "Zgoda" + ikona tarczy przy akcjach prowadzących
   //   do EKRANU SYSTEMOWEGO (dostęp do powiadomień, bateria, dokładne alarmy) — to
   //   NIE są prawdziwe switche (appka nie ma jak programowo sprawdzić/zmienić stanu
@@ -720,12 +709,7 @@ export default function SettingsScreen() {
         </View>
         {item.kind === 'value' && <Text style={s.itemValue} numberOfLines={1}>{item.value}</Text>}
         {item.kind === 'switch' && (
-          <Switch
-            value={item.value}
-            onValueChange={() => handlers[item.key]?.()}
-            trackColor={{ false: colors.border.default, true: colors.accent.green }}
-            thumbColor="#FFFFFF"
-          />
+          <Toggle value={item.value} onValueChange={() => handlers[item.key]?.()} />
         )}
         {item.kind === 'action' && <ChevronRight size={15} color={colors.text.muted} />}
       </>
@@ -752,7 +736,7 @@ export default function SettingsScreen() {
         <Search size={16} color={colors.text.muted} />
         <TextInput
           value={query}
-          onChangeText={(v) => { setQuery(v); if (v) setActiveSectionId(null); }}
+          onChangeText={setQuery}
           placeholder="Szukaj w ustawieniach…"
           placeholderTextColor={colors.text.muted}
           style={s.searchInput}
@@ -773,47 +757,34 @@ export default function SettingsScreen() {
               {searchResults.map((item, i) => renderItem(item, i === searchResults.length - 1))}
             </View>
           )
-        ) : activeSection ? (
-          <View style={s.sectionCard}>
-            {activeSection.items.map((item, i) => renderItem(item, i === activeSection.items.length - 1))}
-          </View>
         ) : (
-          sections.map((section) => {
-            const Icon = section.icon;
-            return (
-              <TouchableOpacity
-                key={section.id}
-                style={s.categoryRow}
-                onPress={() => setActiveSectionId(section.id)}
-                activeOpacity={0.7}
-              >
-                <View style={s.categoryIcon}>
-                  <Icon size={18} color={colors.text.secondary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.categoryTitle}>{section.title}</Text>
-                  <Text style={s.categorySubtitle}>
-                    {section.items.length} {plCount(section.items.length, 'pozycja', 'pozycje', 'pozycji')}
-                  </Text>
-                </View>
-                <ChevronRight size={18} color={colors.text.muted} />
-              </TouchableOpacity>
-            );
-          })
+          // Sekcje WSZYSTKIE naraz, jedna pod drugą (2026-11-02, user: "miało być
+          // 1do1... żeby wszystko miało ten sam styl" — zastępuje poprzedni
+          // dwupoziomowy "kategoria-kafel → tap → pełna lista" wzorzec, którego spec
+          // nie ma: `design/app-design.html`'s `#set` renderuje sekcje jako
+          // ZAWSZE-widoczne kafle z wierszami wprost w środku, zero drugiego poziomu.
+          // Nagłówek sekcji = `.cap` ze spec (10px/700/uppercase-tracking), ten sam
+          // styl co podpisy kafli na Daily/Zadaniach, nie osobna "karta kategorii".
+          sections.map((section) => (
+            <View key={section.id} style={s.sectionBlock}>
+              <Text style={s.sectionCap}>{section.title.toUpperCase()}</Text>
+              <View style={s.sectionCard}>
+                {section.items.map((item, i) => renderItem(item, i === section.items.length - 1))}
+              </View>
+            </View>
+          ))
         )}
 
-        {/* Log testów — tylko w sekcjach gdzie testy/akcje coś robią (Konto, Diagnostyka,
-            Alerty), nie zaśmieca listy kategorii ani innych sekcji/wyników szukania. */}
-        {(activeSection?.id === 'konto' || activeSection?.id === 'diagnostyka' || activeSection?.id === 'alerty') && (
+        {/* Log testów — konsola na dole, pojawia się dopiero gdy coś faktycznie
+            przetestowano (Konto/Diagnostyka/Alerty); nie ma już gałęzi "wewnątrz
+            której kategorii jesteśmy" do gatowania, bo wszystkie sekcje są teraz
+            naraz na ekranie. */}
+        {log.length > 0 && (
           <View style={s.logBox}>
-            {log.length === 0 ? (
-              <Text style={s.logEmpty}>Wyniki testów pojawią się tutaj.</Text>
-            ) : (
-              <TouchableOpacity style={s.logCopyBtn} onPress={copyLog} activeOpacity={0.7}>
-                <Copy size={13} color={colors.text.muted} />
-                <Text style={s.logCopyLabel}>Kopiuj log</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity style={s.logCopyBtn} onPress={copyLog} activeOpacity={0.7}>
+              <Copy size={13} color={colors.text.muted} />
+              <Text style={s.logCopyLabel}>Kopiuj log</Text>
+            </TouchableOpacity>
             {log.map((line, i) => <Text key={i} style={s.logLine}>{line}</Text>)}
           </View>
         )}
@@ -826,33 +797,35 @@ const makeS = themedStyles((c) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.bg.primary },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[3], paddingVertical: spacing[2] },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  title: { flex: 1, textAlign: 'center', fontSize: 15, fontFamily: 'Inter_900Black', color: c.text.primary },
+  // `fontSize`/`fontFamily`/`color` wyrównane do `.h1` ze spec (2026-11-02, patrz
+  // komentarz przy renderze sekcji) — ten sam nagłówkowy styl co Dashboard/Daily/
+  // Finanse/Zadania. Zostaje wyśrodkowany + z `ChevronLeft` (nie lewo wyrównany jak
+  // na tabach) — Ustawienia są PUSHowanym ekranem z realnym "wstecz", nie tabem,
+  // ten konkretny layout-wybór jest nawigacją, nie stylem, i spec go nie definiuje.
+  title: { flex: 1, textAlign: 'center', fontSize: 20, fontFamily: 'Inter_900Black', letterSpacing: -0.5, color: c.text.bright },
 
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: spacing[2],
     marginHorizontal: spacing[4], marginBottom: spacing[3],
-    backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default,
+    backgroundColor: c.bg.card, borderRadius: radius.tile, borderWidth: 1, borderColor: c.border.default,
     paddingHorizontal: spacing[3], height: 42,
   },
   searchInput: { flex: 1, fontSize: 13.5, fontFamily: 'Inter_500Medium', color: c.text.primary, padding: 0 },
 
-  scroll: { paddingHorizontal: spacing[4], paddingBottom: spacing[4], gap: spacing[2] },
+  scroll: { paddingHorizontal: spacing[4], paddingBottom: spacing[4], gap: spacing[4] },
   noResults: { fontSize: 12.5, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', marginTop: spacing[4] },
 
-  // Wiersz kategorii na głównym ekranie Ustawień (2026-10-28, wzorzec z sapp:
-  // `SettingsCategoryRow`) — karta z odznaką ikony, tytułem + liczbą pozycji, strzałką
-  // w prawo. Kliknięcie wchodzi w pełną listę tej kategorii (`activeSectionId`).
-  categoryRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing[3],
-    backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default,
-    padding: spacing[3],
+  // Blok sekcji = podpis `.cap` ze spec (10px/700/uppercase, ten sam co podpisy
+  // kafli na Daily/Zadaniach) + karta z wierszami wprost pod nim — ZASTĘPUJE
+  // (2026-11-02) poprzedni `categoryRow`/`categoryIcon`/`categoryTitle`/
+  // `categorySubtitle` "kafel-kategoria, tap wchodzi w pełną listę" (USUNIĘTE).
+  sectionBlock: { gap: spacing[2] },
+  sectionCap: {
+    fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.4, color: c.text.primary,
+    marginLeft: spacing[1],
   },
-  categoryIcon: { width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.elevated },
-  categoryTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.primary },
-  categorySubtitle: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 1 },
-
   sectionCard: {
-    backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default,
+    backgroundColor: c.bg.card, borderRadius: radius.tile, borderWidth: 1, borderColor: c.border.default,
     overflow: 'hidden',
   },
   item: {
@@ -878,8 +851,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   permissionBadgeLabel: { fontSize: 9, fontFamily: 'Inter_700Bold', color: c.accent.blue },
   itemValue: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.secondary, maxWidth: 160 },
 
-  logBox: { backgroundColor: c.bg.elevated, borderRadius: radius.lg, padding: spacing[3], gap: 6 },
-  logEmpty: { fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.muted },
+  logBox: { backgroundColor: c.bg.elevated, borderRadius: radius.tile, padding: spacing[3], gap: 6 },
   logCopyBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-end',
     paddingHorizontal: spacing[2], paddingVertical: 4, marginBottom: 2,

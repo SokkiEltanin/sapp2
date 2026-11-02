@@ -155,20 +155,47 @@ animacje jak blur wylatuje, wyglądało 1do1 jak tam". Dwie rzeczy naraz:
    "Zapisz", nie goły blob treści). Szczegóły: §DAILY "Humor / Nastrój" wyżej,
    AppBottomSheet opis wyżej.
 
-**Ustawienia — ŚWIADOMIE NIE przebudowane na grid ze spec.** `design/
-app-design.html`'s `#set` to 5 prostych kafli-kategorii (Profil/Połączenia/
-Finanse/Cele/Aplikacja) — sapp2's `app/settings.tsx` to GŁĘBOKO inna rzecz:
-przeszukiwalna, sekcjonowana LISTA dziesiątek realnych ustawień (bank-nasłuch,
-diagnostyka, alerty, haptyka, konto Google…), zbudowana i dopracowana przez
-WIELE rund tej sesji (ostatnio: stopniowany `tier`/`switch`/`permission`
-system, 2026-11-01). Wtłoczenie tego w 5 dużych kafli-kart by: (a) zgubiło
-wyszukiwanie i hierarchię sekcji, (b) nie przeniosło żadnej z dziesiątek
-realnych pozycji, których spec nie wymienia (bo jest uproszczonym demo, nie
-pełną listą ustawień). Lista pozostaje najlepszym wzorcem DLA TEGO zadania
-(dużo dyskretnych przełączników/nawigacji) — token kolorów appka już dzieli
-globalnie (`colors.ts`), więc Ustawienia AUTOMATYCZNIE dostały wyrównanie z
-Fazy 3.1 bez żadnej zmiany kodu. To jedyny ekran główny, który formalnie
-pomija "przebudowę na grid" z pełnym uzasadnieniem, nie przez przeoczenie.
+**Ustawienia — styl 1:1 z Fazy 3.1, struktura NIE identyczna co spec
+(uzasadnione, patrz niżej).** Poprawka (2026-11-02, user: "miało być 1do1...
+żeby wszystko miało ten sam styl nawet ustawienia") do wcześniejszej wersji
+tego akapitu, która błędnie opisywała `design/app-design.html`'s `#set` jako
+"5 kafli-kategorii, tap wchodzi w pełną listę" — PO ponownym przeczytaniu
+mockupu, `#set` wcale nie ma drugiego poziomu: to 5 `.tile.static` kart
+(Profil/Połączenia/Finanse/Cele/Aplikacja) z wierszami `.set` WPROST w środku,
+ZAWSZE widocznymi, bez tapu. `app/settings.tsx` miał inaczej: kafel-kategoria →
+tap → osobny widok pełnej listy (port wzorca z sapp). Naprawione:
+- **Drill-down USUNIĘTY** — `activeSectionId` i cały "kategoria → pełna lista"
+  stan/branch zniknęły. Sekcje renderują się TERAZ wszystkie naraz, jedna pod
+  drugą, każda jako podpis `.cap` (ten sam co podpisy kafli na Daily/Zadaniach)
+  + karta z wierszami wprost pod nim — dokładnie mechanika spec.
+- **`radius.lg`(16) → `radius.tile`(18)** na kartach sekcji/polu szukania —
+  dokładny token, nie "podobny".
+- **`Toggle`** (`src/components/design/Toggle.tsx`, nowy) zamiast natywnego
+  `Switch` z `trackColor.true: colors.accent.green` — natywny Switch kolorował
+  stan "włączone" ZIELENIĄ, co łamało własną zasadę appki "kolor TYLKO jako
+  funkcjonalny akcent" (patrz colors.ts) i nie miało odpowiednika w spec.
+  `Toggle` matchuje `.tog` 1:1 (monochromatyczny: jasny tor + czarna kropka
+  gdy włączone, ciemny tor + wygaszona kropka gdy wyłączone).
+- Nagłówek: `fontSize`/`fontFamily`/`color` wyrównane do `.h1` (22→20/
+  Inter_900Black/`text.bright`), ten sam co inne ekrany. Wyśrodkowanie +
+  `ChevronLeft` ZOSTAJE (Ustawienia to pushowany ekran z realnym "wstecz" w
+  `app/settings.tsx`, nie tab — to nawigacja, nie styl, spec jej nie definiuje).
+
+**Co NIE zmienione, świadomie** — `app/settings.tsx` to WCIĄŻ przeszukiwalna,
+scrollowalna lista dziesiątek realnych ustawień (bank-nasłuch, diagnostyka,
+alerty, haptyka, konto Google…), nie nieprzewijalny czteropolowy grid jak
+pozostałe 4 ekrany. Spec's `#set` jest `overflow:hidden`/nieprzewijalny jak
+wszystkie inne screeny, ale to DZIAŁA tam tylko bo to uproszczone demo (5 kart
+× 2-4 wiersze = ~12 wierszy total, mieści się). Realna treść Ustawień jest
+WIELE RAZY większa (dziesiątki pozycji w 6 sekcjach) — upakowanie w
+nieprzewijalny ekran by je OBCIĘŁO (spec's `overflow:hidden`, nie scroll), nie
+pomieściło. Pole szukania (nie istnieje w spec — tam niepotrzebne przy 12
+wierszach total) ZOSTAJE z tego samego powodu realnej skali. Odznaki ikon/
+"Zgoda"/opisy-podtytuły pod etykietami też ZOSTAJĄ — to realna, celowo
+dodana wcześniej w tej sesji wartość (user explicite prosił o te konkretne
+rzeczy 2026-11-01, "nie rozróżniam nazwy kategorii od podkategorii... jak coś
+jest pozwoleniem żeby miało symbol"), nie niedopasowanie stylu do usunięcia —
+demo mockupu nie ma ich TYLKO bo demo nie ma nic do opisywania/oznaczania.
 
 **Następne fazy** — bottom-sheet-yfikacja istniejących popupów Finansów/Zadań
 (osobna, jeszcze nieumówiona faza, patrz §FINANSE). "Płatności cykliczne"
@@ -810,11 +837,13 @@ więc nie ma nic do migracji/zachowania.
   ekranu sekcji Finanse: "nie rozróżniam nazwy kategorii od podkategorii, oraz jak
   coś jest pozwoleniem żeby miało symbol... albo toggle jak w ustawieniach
   telefonów". `SettingsItem` (`app/settings.tsx`) ma teraz, obok `'action'`/`'value'`:
-  - **`kind: 'switch'`** — prawdziwy natywny `Switch` z `react-native` (ten sam
-    wygląd co systemowe Ustawienia Androida, zero własnego kafelka) dla stanów
-    które appka faktycznie zna i kontroluje: `haptics-enabled`, `bank-enabled`,
-    `bank-auto-all`. Cały wiersz jest tappable (woła ten sam handler co `Switch`
-    bezpośrednio), nie tylko sam suwak.
+  - **`kind: 'switch'`** — `Toggle` (`src/components/design/Toggle.tsx`,
+    2026-11-02; był tu natywny `Switch` z kolorowym `trackColor`, zamienione na
+    monochromatyczny komponent 1:1 ze spec's `.tog`, patrz §"REDESIGN RDZENIA
+    UI" wyżej) dla stanów które appka faktycznie zna i kontroluje:
+    `haptics-enabled`, `bank-enabled`, `bank-auto-all`. Cały wiersz jest
+    tappable (woła ten sam handler co `Toggle` bezpośrednio), nie tylko sam
+    suwak.
   - **`permission: true`** (tylko na `'action'`) — odznaka "Zgoda" + ikona tarczy
     (`ShieldCheck`) przy akcjach prowadzących do EKRANU SYSTEMOWEGO (dostęp do
     powiadomień, optymalizacja baterii, dokładne alarmy) — appka nie ma jak
