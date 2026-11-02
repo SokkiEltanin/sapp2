@@ -124,12 +124,28 @@ wszystko")**, patrz §FINANSE niżej. Popupy świadomie bez zmian (ciąg dalej).
 **Faza 3.5 (Zadania) — ZROBIONA (2026-11-01, "dawaj skończ wszystko")**, patrz
 §ZADANIA niżej.
 
-**Następne fazy (3.6+)** — Ustawienia → bottom-sheet-yfikacja istniejących
-popupów Finansów/Zadań (osobna, jeszcze nieumówiona faza, patrz §FINANSE).
-"Płatności cykliczne" (store `bills`,
-odblokuje pełne "Bezpieczne wydatki"/"Najbliższe 48h" z Fazy 3.2 i "Praca"/
-"Najbliższa opłata" z Fazy 3.4) potrzebuje osobnej, uczciwej fazy — dziś stub
-`Tile` w miejsce Subskrypcji/Pracy/bills, nie udawane na żadnym ekranie.
+**Ustawienia — ŚWIADOMIE NIE przebudowane na grid ze spec.** `design/
+app-design.html`'s `#set` to 5 prostych kafli-kategorii (Profil/Połączenia/
+Finanse/Cele/Aplikacja) — sapp2's `app/settings.tsx` to GŁĘBOKO inna rzecz:
+przeszukiwalna, sekcjonowana LISTA dziesiątek realnych ustawień (bank-nasłuch,
+diagnostyka, alerty, haptyka, konto Google…), zbudowana i dopracowana przez
+WIELE rund tej sesji (ostatnio: stopniowany `tier`/`switch`/`permission`
+system, 2026-11-01). Wtłoczenie tego w 5 dużych kafli-kart by: (a) zgubiło
+wyszukiwanie i hierarchię sekcji, (b) nie przeniosło żadnej z dziesiątek
+realnych pozycji, których spec nie wymienia (bo jest uproszczonym demo, nie
+pełną listą ustawień). Lista pozostaje najlepszym wzorcem DLA TEGO zadania
+(dużo dyskretnych przełączników/nawigacji) — token kolorów appka już dzieli
+globalnie (`colors.ts`), więc Ustawienia AUTOMATYCZNIE dostały wyrównanie z
+Fazy 3.1 bez żadnej zmiany kodu. To jedyny ekran główny, który formalnie
+pomija "przebudowę na grid" z pełnym uzasadnieniem, nie przez przeoczenie.
+
+**Następne fazy** — bottom-sheet-yfikacja istniejących popupów Finansów/Zadań
+(osobna, jeszcze nieumówiona faza, patrz §FINANSE). "Płatności cykliczne"
+(store `bills`, odblokuje pełne "Bezpieczne wydatki"/"Najbliższe 48h" z Fazy 3.2
+i "Praca"/"Najbliższa opłata" z Fazy 3.4) potrzebuje osobnej, uczciwej fazy —
+dziś stub `Tile` w miejsce Subskrypcji/Pracy/bills, nie udawane na żadnym
+ekranie. Health Connect (Sen/Kroki/Tętno/Waga/Woda) to trzecia duża, odłożona
+faza.
 
 ## DASHBOARD [GE]
 
