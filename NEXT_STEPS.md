@@ -2699,3 +2699,96 @@ funkcja w appce, prawdziwy pierwszy test dopiero na telefonie):**
 - Jeśli NIE MA zegarka/danych w Health Connect w ogóle — appka dalej pokazuje
   uczciwy pusty stan ("0h 00m" + "Połącz zegarek", "0"+"brak" na StatTile'ach),
   nie crashuje i nie pokazuje fałszywych zer jako realnych danych.
+
+## Faza 3.13 — Runda poprawek po 8-punktowym feedbacku z urządzenia (2026-11-02)
+
+User po teście builda z Fazy 3.12 przysłał 8 punktów naraz. Status każdego:
+
+**1. Kafelek "najbliższy event" (prawy górny obok Treningu) — ZROBIONE.**
+Przebudowany w `src/ui/DashboardScreen.tsx`: zawsze-gorący (`hot`) biały kafel
+z czarną `PulseDot` (nowy komponent w `src/ui/layout.tsx` — pierścień
+rozchodzący się w pętli + stała kropka, `Animated.loop`), `relTime()` (nowy
+helper) nad tytułem eventu (`splitTag`) — "za 8h"/"za 45 min"/"jutro 14:00"
+zamiast starej dużej liczby godzin + jednostki.
+
+**2. "Najbliższe 48h" → "Najbliższe eventy", bez limitu — ZROBIONE.**
+`app/(tabs)/index.tsx`: `timeline48h`→`upcomingTimeline`, usunięty górny
+odcinek czasu (`start > limit`/`at > limit`), zostaje tylko dolny (`< now`).
+Pusta lista = pusty stan ("Nic zaplanowanego"), zgodnie z "jak nic nie będzie
+to będzie pusto".
+
+**3. Wibracje nie działają — ZROBIONE (prawdziwa przyczyna: NIE były
+podpięte).** Audyt (`grep haptic`) pokazał że `haptic.tap/success/warn` z
+`src/utils/haptics.ts` były wołane tylko w 7 plikach związanych z Finansami —
+cała reszta appki (każdy `Tile`/`Item` z kitu, `Toggle`, `ChipRow`,
+`Segmented`, wszystkie popupy) nie buczała NIGDY, nie tylko przy Humorze. Fix
+NIE punktowy — haptic dodany CENTRALNIE w współdzielonych komponentach
+(`Tile`/`Item` w `src/ui/layout.tsx`, `Toggle.tsx`, `ChipRow.tsx`), więc
+pokrywa WSZYSTKIE ekrany na raz, plus ręcznie domknięte pojedyncze przyciski
+(X/zamknij, strzałki miesiąca, wiersze list) w ~15 plikach, które nie idą
+przez te współdzielone komponenty. `toggleHaptics` w `settings.tsx` miał
+własne jawne `haptic.tap()` sprzed tej rundy — USUNIĘTE (dublowało się z
+nowym centralnym w `Toggle`).
+
+**4. Ustawienia posegregowane — ZROBIONE.** Nowa kolejność sekcji w
+`buildSections()` (`app/settings.tsx`): Konto → Połączenia → Finanse → Alerty
+→ Ogólne → Diagnostyka(+Info złączone). Rzeczy używane codziennie (konto,
+zegarek, bank) na górze; testy/diagnostyka/build-info (rzadko potrzebne) na
+dole, nie na pierwszym ekranie.
+
+**5. Alerty podzielone na 4 kategorie — ZROBIONE.** `sendNotifeeAlert`
+dostał parametr `quiet` (osobny, NIEMUTOWALNY kanał Androida
+`alerts-fullscreen-quiet-v1` — bez `sound`/`vibration`, bo kanał nadpisuje
+per-notification ustawienia). Finalne 4 pozycje w sekcji "Alerty": Podstawowy
+(zwykłe powiadomienie, `alert-expo`) / Pełny ekran + Tak/Nie (`withActions:
+true, quiet:false`) / Pełny ekran cichy (`quiet:true`) / Pełny ekran + budzik
+(dźwięk+wibracje w pętli, `quiet:false`). Standalone "test OLED za 5 min"
+USUNIĘTY jako osobny wiersz UI (funkcja/parametry w kodzie zostają, po prostu
+nie zaśmieca już listy czwartym niemal identycznym przyciskiem).
+
+**6. "Daj humor" nie otwiera się w ogóle — NIE ZNALEZIONO PRZYCZYNY W
+KODZIE, mimo dogłębnego audytu. Status: NIEROZWIĄZANE, wymaga więcej danych
+z urządzenia.** Co sprawdzone i wykluczone:
+- `Tile` w `daily.tsx` (`onPress={() => setMoodOpen(true)}`) — zwykły
+  `Pressable`, bez konkurującego gestu (`MoodPad mini` NIE renderuje
+  `GestureDetector` — warunek `!mini && onChange` w `MoodPad.tsx` gwarantuje
+  to, mini-pad jest czysto wizualny).
+- `AppBottomSheet`/`BottomSheetModalProvider` — poprawnie owinięty w
+  `app/_layout.tsx` (`GestureHandlerRootView > BottomSheetModalProvider`), ten
+  sam dokładnie wzorzec jak w `DayDetailModal`/`MonthViewModal`/`AddExpenseModal`
+  (zero skarg na te popupy), więc to nie systemowy problem z samym sheetem.
+- `MoodModal.tsx` — struktura identyczna do innych działających popupów
+  (header+footer+AppBottomSheet), `useMoodStore`/`sortMoodTags` już i tak
+  wykonują się na KAŻDYM renderze Daily (czyli przy starcie ekranu), więc
+  gdyby rzucały, cały ekran Daily by padł, nie tylko tap na Nastrój.
+  `useHealthSync()` (nowe w tej rundzie) — cichy no-op gdy `connected===
+  false`, złapane w `.catch(()=>{})`, nie może zablokować JS threada.
+  `web` test (Playwright, tap na wiersz Nastrój) — ZERO błędów w konsoli
+  (`pageerror`/`console.error`), ale `BottomSheetModal.present()` i tak nie
+  renderuje się pod `react-native-web` w ogóle (znany od Fazy 3.9 ślepy
+  punkt tej metody weryfikacji) — więc to NIE potwierdza że na urządzeniu
+  jest OK, tylko że nic nie rzuca wyjątkiem w JS.
+- Commit `8bc7137` (migracja Humoru na `AppBottomSheet`) sam przyznawał:
+  "Rzeczywisty render na urządzeniu... nie był możliwy w tym środowisku" —
+  ta migracja NIGDY nie była zweryfikowana na prawdziwym telefonie przed
+  wysłaniem do usera, więc jest głównym podejrzanym mimo braku dowodu w
+  statycznej analizie kodu.
+  **Następnym razem gdy to się powtórzy, potrzebne od usera: czy INNE
+  popupy (np. "+" w Zadaniach, "+" w Finansach) TEŻ nie otwierają się w tym
+  samym momencie?** Jeśli tak — problem jest systemowy (`BottomSheetModal
+  Provider`/gorhom, nie Humor). Jeśli NIE — problem jest specyficzny dla
+  `MoodModal`/`MoodPad`, szukać dalej tam. Warto też sprawdzić
+  Ustawienia→Diagnostyka→"Commit" przy zgłoszeniu, żeby mieć pewność który
+  dokładnie build jest testowany (ten sam mechanizm po to tam jest).
+
+**7. Zadania: WSZYSTKIE/TERAZ/BEZTERMINOWE — ZROBIONE.** `buckets` w
+`app/(tabs)/tasks.tsx` przeliczone na 3 kategorie (było Teraz/Terminowe/Bez
+terminu, "Terminowe" odpadło — "Wszystkie" już to pokazuje, posortowane
+najbliższy termin pierwszy). Segmented default zmieniony z `'teraz'` na
+`'wszystkie'`.
+
+**8. Nawyki (Woda/Słodycze/Trening) do przemyślenia — ŚWIADOMIE NIE
+RUSZONE.** User explicite: "na razie tego nie rób na potem zapisz żebym
+przemyślał co z tym" — nie wiadomo jeszcze czy appka ma w ogóle śledzić te 3
+nawyki. Zero zmian w `habitsStore.ts`/`HabitsModal.tsx`/Dashboard do czasu aż
+user zdecyduje; ten zapis to WYŁĄCZNIE przypomnienie dla kolejnej sesji.

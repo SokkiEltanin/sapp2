@@ -913,14 +913,22 @@ banku... plus szablony wyłapywań")
    pętla (nasłuch → parser → kolejka → przegląd → zaksięgowanie), bez szablonów —
    patrz `### Powiadomienia z banku (Faza 2.5)` niżej po szczegóły i co świadomie
    odłożone.
-6. **Wibracje — ZROBIONE (2026-11-01, "dawaj dalej")**. `utils/haptics.ts` (port z
-   sapp, uproszczony: zamiast sapp's dużego `appSettings.ts` — lokalny,
+6. **Wibracje — ZROBIONE (2026-11-01, "dawaj dalej"), ROZSZERZONE NA CAŁĄ APKĘ
+   (Faza 3.13, 2026-11-02, user: "wibracje nie działają" — audyt pokazał że
+   były wpięte TYLKO w 7 plikach Finansów, nigdzie indziej).** `utils/haptics.ts`
+   (port z sapp, uproszczony: zamiast sapp's dużego `appSettings.ts` — lokalny,
    AsyncStorage-cache'owany flag jak `ownName.ts`), JEDEN globalny przełącznik w
-   Ustawieniach → Ogólne (zgodnie z zasadą niżej w §Ogólne). Wpięte w "toggle taga"
-   (`AddExpenseModal`'s tagi, `ReceiptItemRow`'s checkbox+`foodSubcat` chipy,
-   `bank-review.tsx`'s tagi), "zatwierdź" (`AddExpenseModal.handleSave`,
-   `bank-review.tsx`'s accept, kalibracja salda w `finances.tsx`) i "połącz
-   duplikat" (`ProductsModal.mergeInto`).
+   Ustawieniach → Ogólne (zgodnie z zasadą niżej w §Ogólne). Od Fazy 3.13 wpięte
+   CENTRALNIE we współdzielone komponenty, nie per-ekran — `Tile`/`Item`
+   (`src/ui/layout.tsx`, czyli KAŻDY tap na Dashboard/Daily/Finanse/Zadania),
+   `Toggle.tsx` (każdy switch w Ustawieniach), `ChipRow.tsx` (każdy filtr-chip)
+   — plus ręcznie domknięte pojedyncze X/zamknij/strzałki w popupach, które nie
+   idą przez te komponenty (`MonthViewModal`, `DayDetailModal`, `MoodModal`,
+   `WydatkiModal`, `TransactionsModal`, `FoodCategoryItemsModal`, `HabitsModal`,
+   `AddTaskCard`, `WeekMonthCalendar`, `NavBar`, `Segmented`). Nowy komponent
+   dodający Pressable/TouchableOpacity powinien iść PRZEZ `Tile`/`Item`/`Toggle`/
+   `ChipRow` gdy pasuje, zamiast dopisywać własny `haptic.tap()` ręcznie — to
+   jedyny sposób żeby to się nie rozjechało znowu.
 7. **Historia, cofnięcie, szablony — ZROBIONE (2026-11-01, user: "mam nadzieję że
    zrobiłeś w zatwierdzeniu historię żebym mógł cofnąć albo stworzyć szablon z
    wyłapanych")** — zamyka ostatni gap z Fazy 2.5. Patrz
