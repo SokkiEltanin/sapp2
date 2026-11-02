@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { spacing, themedStyles } from '@/theme';
-import { Screen, Row, Tile, Cap, FitList, Item } from '@/ui/layout';
+import { Screen, Row, Tile, FitList } from '@/ui/layout';
 import { C, T, R } from '@/ui/theme';
 import Segmented from '@/components/design/Segmented';
 import { useCalendarStore } from '@/store/calendarStore';
@@ -16,12 +16,17 @@ import DayDetailModal from '@/components/tasks/DayDetailModal';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 
 // Faza 3.10 (design/rn kit) — Zadania przebudowane na kitu's `src/ui/layout.tsx`
-// prymitywy (Screen/Row/Tile/Cap/FitList/Item), ten sam powód co pozostałe 3
-// ekrany (ARCHITECTURE.md §"Faza 3.10"). Kolejność/spany 1:1 z design/
-// app-design.html's `#tasks` (`grid-template-rows: auto auto 1fr`): WeekStrip(4,
-// padding 6) → agenda wybranego dnia(4, glance max 3) → lista zadań(4, fill) +
-// Segmented + "+" inline (NIE floating FAB — spec pokazuje przycisk PRZY
-// segmencie, w tej samej karcie co lista).
+// prymitywy (Screen/Row/Tile/FitList), ten sam powód co pozostałe 3 ekrany
+// (ARCHITECTURE.md §"Faza 3.10"). Układ: WeekStrip(4, padding 6) → lista
+// zadań(4, fill) + Segmented + "+" inline (NIE floating FAB — spec pokazuje
+// przycisk PRZY segmencie, w tej samej karcie co lista).
+//
+// Kafel "agenda wybranego dnia" (glance max 3 wydarzeń pod WeekStrip, był w
+// design/app-design.html's `#tasks` jako środkowy rząd) USUNIĘTY na wyraźną
+// prośbę usera (2026-11-02, "wywal kafelek wydarzeń pod kalendarzem") —
+// dublował `DayDetailModal` (tap na dzień w WeekStrip wciąż go otwiera, pełna
+// lista wydarzeń tego dnia) bez dodawania niczego nowego. Odstępstwo od
+// mockupu świadome, na wyraźne życzenie, nie przeoczenie.
 //
 // Nowość tej rundy: nagłówek dostał zakres tygodnia ("1 – 7 LIS", `weekRangeLabel`
 // niżej) — brakowało go względem mockupu, `WeekMonthCalendar` liczy TEN SAM
@@ -29,7 +34,7 @@ import AppBottomSheet from '@/components/design/AppBottomSheet';
 // może to policzyć niezależnie bez propsów.
 //
 // `WeekMonthCalendar.tsx`/`TaskRow.tsx` BEZ ZMIAN — już matchują spec koncepcyjnie
-// (patrz komentarz w WeekMonthCalendar.tsx), tylko nowy `Tile`/`Item` dookoła.
+// (patrz komentarz w WeekMonthCalendar.tsx), tylko nowy `Tile`/`FitList` dookoła.
 const MONTHS_ABBR = ['STY', 'LUT', 'MAR', 'KWI', 'MAJ', 'CZE', 'LIP', 'SIE', 'WRZ', 'PAŹ', 'LIS', 'GRU'];
 function weekRangeLabel(base: Date): string {
   const dow = base.getDay();
@@ -81,16 +86,6 @@ export default function TasksScreen() {
     [allEvents, detailDate],
   );
 
-  const agendaDate = selectedDate || today;
-  const agendaEvents = useMemo(
-    () => allEvents
-      .filter((e) => eventCoversDay(e, agendaDate))
-      .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? '')),
-    [allEvents, agendaDate],
-  );
-  const agendaDateObj = new Date(`${agendaDate}T00:00:00`);
-  const agendaLabel = agendaDateObj.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
-
   const buckets = useMemo(() => {
     const pending = tasks.filter((t) => t.status === 'pending');
     const teraz: Task[] = [];
@@ -138,27 +133,6 @@ export default function TasksScreen() {
             onSelectDate={setSelectedDate}
             onOpenDay={setDetailDate}
           />
-        </Tile>
-      </Row>
-
-      <Row>
-        <Tile span={4}>
-          <Cap l={agendaLabel} r={`${agendaEvents.length} wydarz.`} />
-          {agendaEvents.length === 0 ? (
-            <Text style={[T.small, s.emptyInline]}>Wolne</Text>
-          ) : (
-            <View style={s.agendaList}>
-              {agendaEvents.slice(0, 3).map((ev) => (
-                <View key={ev.id} style={s.agendaRow}>
-                  <Item onPress={() => setDetailDate(agendaDate)}>
-                    <View style={[s.bar4, { backgroundColor: ev.color ?? C.in2 }]} />
-                    <Text style={[T.row, s.agendaTitle]} numberOfLines={1}>{ev.title}</Text>
-                    {ev.startTime ? <Text style={s.agendaTime}>{ev.startTime}</Text> : null}
-                  </Item>
-                </View>
-              ))}
-            </View>
-          )}
         </Tile>
       </Row>
 
@@ -210,13 +184,6 @@ function genId(): string {
 
 const makeS = themedStyles(() => StyleSheet.create({
   weekTile: { padding: 6 },
-  emptyInline: { textAlign: 'center', paddingVertical: spacing[2] },
-  agendaList: { gap: spacing[1] },
-  agendaRow: { height: 36 },
-  bar4: { width: 3, height: 14, borderRadius: 2, flexShrink: 0 },
-  agendaTitle: { flex: 1 },
-  agendaTime: { fontSize: 10.5, fontFamily: 'Inter_800ExtraBold', color: C.hi },
-
   listTile: { gap: spacing[2] },
   bottomRow: { flexDirection: 'row', gap: spacing[2], alignItems: 'center' },
   addBtn: {
