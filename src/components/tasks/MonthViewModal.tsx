@@ -1,21 +1,27 @@
 import { useMemo, useState } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { ScrollView } from 'react-native-gesture-handler';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { ymd, todayISO } from '@/utils/date';
 import { eventCoversDay, type CalendarEvent } from '@/types/calendar';
+import AppBottomSheet from '@/components/design/AppBottomSheet';
 
-// Widok miesiąca, PEŁNOEKRANOWY (user, 2026-11-01: "kalendarz w trybie rozłożonym
-// niech też ma takie kafelki jak tygodniowy widok, może być nawet na cały ekran") —
-// wcześniej widok miesiąca w `WeekMonthCalendar.tsx` był ciasną siatką z samą
-// kropeczką "ma wydarzenie" (za mało miejsca w komórce 6-wierszowej siatki na
-// cokolwiek więcej). Pełny ekran daje miejsce na te same kolorowe chipy wydarzeń co
-// widok tygodnia (`MAX_CHIPS_PER_DAY`, reszta jako "+N"), tylko mniej na komórkę
-// (siatka 6×7 zamiast 1×7) — ten sam wzorzec co WydatkiModal/AddExpenseModal: popup
-// z WŁASNYM scrollem zamiast dociskania wszystkiego w mały, stały kafel.
+// Widok miesiąca, DUŻY (user, 2026-11-01: "kalendarz w trybie rozłożonym niech też
+// ma takie kafelki jak tygodniowy widok, może być nawet na cały ekran") — wcześniej
+// widok miesiąca w `WeekMonthCalendar.tsx` był ciasną siatką z samą kropeczką "ma
+// wydarzenie" (za mało miejsca w komórce 6-wierszowej siatki na cokolwiek więcej).
+// Dużo miejsca daje miejsce na te same kolorowe chipy wydarzeń co widok tygodnia
+// (`MAX_CHIPS_PER_DAY`, reszta jako "+N"), tylko mniej na komórkę (siatka 6×7
+// zamiast 1×7).
+//
+// Przebudowany na `AppBottomSheet` (2026-11-02, kontynuacja migracji z Faza 3.6) —
+// "może być nawet na cały ekran" z usera NIE oznaczało literalnie edge-to-edge,
+// tylko "więcej miejsca niż ciasny mały kafel"; sheet przy `maxDynamicContentSize`
+// 78% wysokości ekranu wciąż daje DUŻO miejsca na siatkę 6×7, ze scrollem WEWNĄTRZ
+// gdy któryś miesiąc (6 tygodni) się nie zmieści. Nagłówek (tytuł+nawigacja) i
+// etykiety dni tygodnia (Pon/Wt/...) jako `header` — NIEruchome, jak nagłówek
+// tabeli; same tygodnie (siatka) jako scrollowalna treść.
 const DAY_LABELS = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nd'];
 const MONTH_NAMES = [
   'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
@@ -80,74 +86,72 @@ export default function MonthViewModal({
   // szczegółów dnia, tak jak w tygodniu.
   const selectDay = (dateYMD: string) => { onSelectDate(dateYMD); onOpenDay(dateYMD); };
 
+  const header = (
+    <>
+      <View style={s.header}>
+        <Text style={s.title}>{MONTH_NAMES[monthCursor.getMonth()]} {monthCursor.getFullYear()}</Text>
+        <View style={s.headerActions}>
+          {!isCurrentMonth && (
+            <TouchableOpacity onPress={jumpToToday} hitSlop={8} style={s.todayBtn}>
+              <Text style={s.todayBtnLabel}>Dziś</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => shiftMonth(-1)} hitSlop={8}>
+            <ChevronLeft size={20} color={colors.text.secondary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => shiftMonth(1)} hitSlop={8}>
+            <ChevronRight size={20} color={colors.text.secondary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onClose} hitSlop={8} style={s.closeBtn}>
+            <X size={18} color={colors.text.secondary} />
+          </TouchableOpacity>
+        </View>
+      </View>
+      <View style={s.weekLabelRow}>
+        {DAY_LABELS.map((l) => <Text key={l} style={s.weekLabel}>{l}</Text>)}
+      </View>
+    </>
+  );
+
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
-      <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
-        <View style={s.header}>
-          <Text style={s.title}>{MONTH_NAMES[monthCursor.getMonth()]} {monthCursor.getFullYear()}</Text>
-          <View style={s.headerActions}>
-            {!isCurrentMonth && (
-              <TouchableOpacity onPress={jumpToToday} hitSlop={8} style={s.todayBtn}>
-                <Text style={s.todayBtnLabel}>Dziś</Text>
+    <AppBottomSheet visible={visible} onClose={onClose} header={header}>
+      {monthWeeks.map((week, i) => (
+        <View key={i} style={s.weekRow}>
+          {week.map((d, j) => {
+            if (!d) return <View key={j} style={s.cellSlot} />;
+            const dateYMD = ymd(d);
+            const isToday = dateYMD === today;
+            const isSelected = !isToday && dateYMD === selectedDate;
+            const dayEvents = eventsByDay.get(dateYMD) ?? [];
+            const overflow = dayEvents.length - MAX_CHIPS_PER_CELL;
+            return (
+              <TouchableOpacity key={j} style={s.cellSlot} onPress={() => selectDay(dateYMD)} activeOpacity={0.7}>
+                <View style={[s.cell, isToday && s.cellToday, isSelected && s.cellSelected]}>
+                  <View style={[s.dayNumWrap, isToday && s.dayNumToday]}>
+                    <Text style={[s.dayNum, isToday && s.dayNumTextToday]}>{d.getDate()}</Text>
+                  </View>
+                  <View style={s.chips}>
+                    {dayEvents.slice(0, MAX_CHIPS_PER_CELL).map((ev) => (
+                      <View key={ev.id} style={[s.chip, { backgroundColor: ev.color ?? colors.accent.blue }]}>
+                        <Text style={s.chipLabel} numberOfLines={1}>{ev.title}</Text>
+                      </View>
+                    ))}
+                    {overflow > 0 && <Text style={s.moreLabel}>+{overflow}</Text>}
+                  </View>
+                </View>
               </TouchableOpacity>
-            )}
-            <TouchableOpacity onPress={() => shiftMonth(-1)} hitSlop={8}>
-              <ChevronLeft size={20} color={colors.text.secondary} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => shiftMonth(1)} hitSlop={8}>
-              <ChevronRight size={20} color={colors.text.secondary} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onClose} hitSlop={8} style={s.closeBtn}>
-              <X size={18} color={colors.text.secondary} />
-            </TouchableOpacity>
-          </View>
+            );
+          })}
         </View>
-
-        <View style={s.weekLabelRow}>
-          {DAY_LABELS.map((l) => <Text key={l} style={s.weekLabel}>{l}</Text>)}
-        </View>
-
-        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-          {monthWeeks.map((week, i) => (
-            <View key={i} style={s.weekRow}>
-              {week.map((d, j) => {
-                if (!d) return <View key={j} style={s.cellSlot} />;
-                const dateYMD = ymd(d);
-                const isToday = dateYMD === today;
-                const isSelected = !isToday && dateYMD === selectedDate;
-                const dayEvents = eventsByDay.get(dateYMD) ?? [];
-                const overflow = dayEvents.length - MAX_CHIPS_PER_CELL;
-                return (
-                  <TouchableOpacity key={j} style={s.cellSlot} onPress={() => selectDay(dateYMD)} activeOpacity={0.7}>
-                    <View style={[s.cell, isToday && s.cellToday, isSelected && s.cellSelected]}>
-                      <View style={[s.dayNumWrap, isToday && s.dayNumToday]}>
-                        <Text style={[s.dayNum, isToday && s.dayNumTextToday]}>{d.getDate()}</Text>
-                      </View>
-                      <View style={s.chips}>
-                        {dayEvents.slice(0, MAX_CHIPS_PER_CELL).map((ev) => (
-                          <View key={ev.id} style={[s.chip, { backgroundColor: ev.color ?? colors.accent.blue }]}>
-                            <Text style={s.chipLabel} numberOfLines={1}>{ev.title}</Text>
-                          </View>
-                        ))}
-                        {overflow > 0 && <Text style={s.moreLabel}>+{overflow}</Text>}
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          ))}
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
+      ))}
+    </AppBottomSheet>
   );
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: c.bg.primary },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+    paddingBottom: spacing[2],
   },
   title: { fontSize: 18, fontFamily: 'Inter_900Black', color: c.text.primary },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
@@ -158,13 +162,15 @@ const makeS = themedStyles((c) => StyleSheet.create({
     backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default,
   },
 
-  weekLabelRow: { flexDirection: 'row', paddingHorizontal: spacing[3] + 2 },
+  // Bez własnego `paddingHorizontal` (2026-11-02) — wyrównanie z siatką tygodni
+  // niżej idzie teraz przez WSPÓLNY `paddingHorizontal` z `AppBottomSheet`'s
+  // `header`/`body` wrapperów (oba spacing[4]), nie przez osobno przeliczany offset.
+  weekLabelRow: { flexDirection: 'row' },
   // `text.secondary` zamiast `text.muted` (2026-11-01, user: "popraw kolory pod
   // nasz motyw bo sa chyba zbyt szarawiaste") — odrobinę więcej kontrastu na tle
   // czystej czerni, ten sam zabieg co `cellToday`/akcentowe chipy niżej.
   weekLabel: { flex: 1, textAlign: 'center', fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.secondary, textTransform: 'uppercase' },
 
-  scroll: { paddingHorizontal: spacing[3], paddingBottom: spacing[6] },
   weekRow: { flexDirection: 'row' },
   cellSlot: { flex: 1, minHeight: 86, padding: 2 },
   cell: { flex: 1, borderRadius: radius.md, padding: 4, gap: 3 },

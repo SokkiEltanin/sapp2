@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
@@ -16,6 +16,7 @@ import WeekMonthCalendar from '@/components/tasks/WeekMonthCalendar';
 import TaskRow from '@/components/tasks/TaskRow';
 import AddTaskCard from '@/components/tasks/AddTaskCard';
 import DayDetailModal from '@/components/tasks/DayDetailModal';
+import AppBottomSheet from '@/components/design/AppBottomSheet';
 
 // Faza 3.5 (2026-11-01, "dawaj skończ wszystko") — Zadania przebudowane na nowy
 // grid, układ z design/app-design.html's `#tasks` (4 kolumny, `grid-template-rows:
@@ -24,12 +25,14 @@ import DayDetailModal from '@/components/tasks/DayDetailModal';
 // inline, NIE floating FAB jak wcześniej — spec pokazuje przycisk "+" PRZY
 // segmencie, w tej samej karcie co lista, nie pływający w rogu).
 //
-// `WeekMonthCalendar.tsx`/`TaskRow.tsx`/`DayDetailModal.tsx` BEZ ZMIAN — już
-// matchują spec koncepcyjnie (7-kolumnowy tydzień z chipami wydarzeń = dokładnie
-// `WeekStrip`; miesiąc-popup to realna, poza-spec funkcja zachowana jak
-// "Produkty" w Finansach). `AddTaskCard.tsx` — kontrakt `visible`/`onClose` bez
-// zmian, ale teraz OPAKOWANY w `Modal` (ten sam wzorzec co balance-edit w
-// finances.tsx) zamiast inline-renderować się w scrollu, który już nie istnieje.
+// `WeekMonthCalendar.tsx`/`TaskRow.tsx` BEZ ZMIAN — już matchują spec koncepcyjnie
+// (7-kolumnowy tydzień z chipami wydarzeń = dokładnie `WeekStrip`; miesiąc-popup to
+// realna, poza-spec funkcja zachowana jak "Produkty" w Finansach).
+//
+// Kompozytor "+" (2026-11-02, kontynuacja migracji popupów z Faza 3.6) — `AddTaskCard`
+// (wcześniej inline w scrollu, potem opakowany w plain `Modal`+ręczny backdrop)
+// teraz w `AppBottomSheet` — `DayDetailModal.tsx` też przebudowany na to samo, patrz
+// tam.
 export default function TasksScreen() {
   const s = makeS();
   const tasks = useCalendarStore((st) => st.tasks);
@@ -183,13 +186,9 @@ export default function TasksScreen() {
         </Tile>
       </View>
 
-      <Modal visible={composerOpen} transparent animationType="fade" onRequestClose={() => setComposerOpen(false)}>
-        <Pressable style={s.backdrop} onPress={() => setComposerOpen(false)}>
-          <Pressable style={s.composerWrap} onPress={(e) => e.stopPropagation()}>
-            <AddTaskCard visible onAdd={handleAdd} onClose={() => setComposerOpen(false)} />
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <AppBottomSheet visible={composerOpen} onClose={() => setComposerOpen(false)}>
+        <AddTaskCard onAdd={handleAdd} onClose={() => setComposerOpen(false)} />
+      </AppBottomSheet>
 
       <DayDetailModal
         visible={!!detailDate}
@@ -227,7 +226,4 @@ const makeS = themedStyles((c) => StyleSheet.create({
     width: 48, height: 48, borderRadius: radius.btn, backgroundColor: c.text.bright,
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: spacing[4] },
-  composerWrap: {},
 }));

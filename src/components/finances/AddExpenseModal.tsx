@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import * as Clipboard from 'expo-clipboard';
 import { X, Receipt, Banknote, ClipboardPaste, Plus, ChevronDown, ChevronUp, Trash2, CalendarDays } from 'lucide-react-native';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { todayISO, ymd } from '@/utils/date';
-import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { parseReceiptText } from '@/utils/receiptParser';
 import { useExpensesStore } from '@/store/expensesStore';
 import {
@@ -17,6 +16,7 @@ import {
 import { buildProductCatalog } from '@/utils/productCatalog';
 import { haptic } from '@/utils/haptics';
 import type { Expense, ReceiptItem, PaymentMethod, FvBucket } from '@/types/finances';
+import AppBottomSheet from '@/components/design/AppBottomSheet';
 import ReceiptItemRow from './ReceiptItemRow';
 
 // "Jeden ujednolicony dodaj" (ARCHITECTURE.md §FINANSE, decyzja 2026-10-26) — PASTE
@@ -26,6 +26,18 @@ import ReceiptItemRow from './ReceiptItemRow';
 // Brak pozycji wcale → pole "Kwota" odkrywa się jako zwykły szybki wydatek (czynsz,
 // paliwo) bez rozbijania na produkty — user nie jest zmuszony do paragonu, żeby
 // zapisać jedną liczbę.
+//
+// Przebudowany na `AppBottomSheet` (2026-11-02, kontynuacja migracji z Faza 3.6,
+// najbardziej złożony popup w appce) — tytuł+usuń/zamknij jako `header`, kwota+
+// "Zapisz" jako `footer` (przypięte, jak MoodModal). Pływający FAB "wklej ze
+// schowka" ("bliżej prawego kciuka", user 2026-11-01) ZOSTAJE pływający, ale teraz
+// jako SIBLING `s.footer`-a WEWNĄTRZ `footer`-a (nie osobny prop na `AppBottomSheet`
+// — `bottom:'100%'` go wynosi NAD przypiętą stopkę, własny mechanizm
+// `BottomSheetFooter` już i tak trzyma to wszystko ponad klawiaturą, nie trzeba
+// kolejnej warstwy API). `useKeyboardHeight`/`paddingBottom:kb` ODPADŁY — to był fix
+// na niewiarygodny `KeyboardAvoidingView` WEWNĄTRZ `Modal`-a (osobna natywna
+// hierarchia); `AppBottomSheet`'s `keyboardBehavior="interactive"` rozwiązuje to
+// należycie dla sheeta. Wszystkie `TextInput`y zamienione na `BottomSheetTextInput`.
 function genId(): string {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -66,7 +78,6 @@ export default function AddExpenseModal({
   const addExpense = useExpensesStore((st) => st.addExpense);
   const updateExpense = useExpensesStore((st) => st.updateExpense);
   const deleteExpense = useExpensesStore((st) => st.deleteExpense);
-  const kb = useKeyboardHeight();
 
   // Pamięć produktowa (Faza 2.1, dotąd nieużywana — zamykany gap z Faza 2.2, user:
   // "wpisuję nazwę... sugeruje... klikam, cena się uzupełnia"). Wczytywana raz na
@@ -238,284 +249,278 @@ export default function AddExpenseModal({
     handleClose();
   };
 
+  const header = (
+    <View style={s.header}>
+      <Text style={s.title}>
+        {editingExpense ? 'Edytuj' : 'Nowy'} {type === 'expense' ? 'wydatek' : 'przychód'}
+      </Text>
+      <View style={s.headerActions}>
+        {editingExpense && (
+          <TouchableOpacity onPress={handleDelete} hitSlop={8} style={s.closeBtn}>
+            <Trash2 size={16} color={colors.accent.red} />
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity onPress={handleClose} hitSlop={8} style={s.closeBtn}>
+          <X size={18} color={colors.text.secondary} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const footer = (
+    <View style={s.footerRoot}>
+      {/* Pływający, zawsze pod prawym kciukiem (user, 2026-11-01) — `bottom:'100%'`
+          wynosi go NAD przypiętą stopkę `AppBottomSheet`'s `footer` (ta sama warstwa,
+          już trzymana ponad klawiaturą przez gorhom, nie trzeba drugiej). */}
+      {type === 'expense' && (
+        <TouchableOpacity style={s.pasteFab} onPress={handlePasteFromClipboard} activeOpacity={0.8} accessibilityLabel="Wklej ze schowka i rozpoznaj paragon">
+          <ClipboardPaste size={20} color={colors.bg.primary} />
+        </TouchableOpacity>
+      )}
+      <View style={s.footer}>
+        <View>
+          <Text style={s.footerLabel}>{type === 'expense' ? 'Wydatek' : 'Przychód'}</Text>
+          <Text style={s.footerAmount}>{amount.toFixed(2)} zł</Text>
+        </View>
+        <TouchableOpacity style={[s.saveBtn, !canSave && s.btnDisabled]} onPress={handleSave} disabled={!canSave} activeOpacity={0.7}>
+          <Text style={s.saveLabel}>{editingExpense ? 'Zaktualizuj' : 'Zapisz'}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={handleClose}>
-      <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
-        {/* `paddingBottom: kb` zamiast `KeyboardAvoidingView` (user, 2026-11-01:
-            "klawiatura nie zasłania tego co piszesz") — RN's `Modal` na Androidzie
-            portuje treść do OSOBNEJ natywnej hierarchii, gdzie `KeyboardAvoidingView`/
-            `windowSoftInputMode` bywa niewiarygodne (patrz useKeyboardHeight.ts,
-            port z sapp). Płynie też do pływającego przycisku paste niżej, żeby
-            wędrował razem z resztą treści, nie chował się pod klawiaturą. */}
-        <View style={[s.flex1, { paddingBottom: kb }]}>
-          <View style={s.header}>
-            <Text style={s.title}>
-              {editingExpense ? 'Edytuj' : 'Nowy'} {type === 'expense' ? 'wydatek' : 'przychód'}
+    <AppBottomSheet visible={visible} onClose={handleClose} header={header} footer={footer}>
+      <View style={s.typeRow}>
+        <TouchableOpacity
+          style={[s.typeChip, type === 'expense' && s.typeChipActive]}
+          onPress={() => setType('expense')}
+          activeOpacity={0.7}
+        >
+          <Receipt size={14} color={type === 'expense' ? colors.bg.primary : colors.text.muted} />
+          <Text style={[s.typeChipLabel, type === 'expense' && s.typeChipLabelActive]}>Wydatek</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.typeChip, type === 'income' && s.typeChipActive]}
+          onPress={() => setType('income')}
+          activeOpacity={0.7}
+        >
+          <Banknote size={14} color={type === 'income' ? colors.bg.primary : colors.text.muted} />
+          <Text style={[s.typeChipLabel, type === 'income' && s.typeChipLabelActive]}>Przychód</Text>
+        </TouchableOpacity>
+      </View>
+
+      {type === 'expense' && (
+        <View style={s.section}>
+          <Text style={s.label}>Wklej tekst paragonu</Text>
+          <BottomSheetTextInput
+            value={pasteText}
+            onChangeText={setPasteText}
+            placeholder="Wklej tekst paragonu ze sklepu / SMS-a / aplikacji banku…"
+            placeholderTextColor={colors.text.muted}
+            style={s.pasteInput}
+            multiline
+            textAlignVertical="top"
+          />
+          <TouchableOpacity style={[s.parseBtn, !pasteText.trim() && s.btnDisabled]} onPress={handleParse} disabled={!pasteText.trim()} activeOpacity={0.7}>
+            <ClipboardPaste size={14} color={colors.bg.primary} />
+            <Text style={s.parseBtnLabel}>Rozpoznaj paragon</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {type === 'expense' && (
+        <View style={s.section}>
+          <Text style={s.label}>Sklep / firma</Text>
+          <BottomSheetTextInput
+            value={storeName}
+            onChangeText={setStoreName}
+            placeholder="np. Lidl, Orlen…"
+            placeholderTextColor={colors.text.muted}
+            style={s.textInput}
+          />
+        </View>
+      )}
+
+      <View style={s.section}>
+        <Text style={s.label}>Data</Text>
+        <View style={s.chips}>
+          {[{ key: 'today', label: 'Dziś', v: todayISO() }, { key: 'yesterday', label: 'Wczoraj', v: ymd(new Date(Date.now() - 86400000)) }].map((opt) => (
+            <TouchableOpacity
+              key={opt.key}
+              style={[s.chip, date === opt.v && s.chipActive]}
+              onPress={() => { haptic.tap(); setDate(opt.v); }}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.chipLabel, date === opt.v && s.chipLabelActive]}>{opt.label}</Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity style={s.dateBadge} onPress={openDatePicker} activeOpacity={0.7}>
+            <CalendarDays size={13} color={colors.text.secondary} />
+            <Text style={s.dateBadgeLabel}>{date}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {type === 'expense' && (
+        <View style={s.section}>
+          <View style={s.itemsHeader}>
+            <Text style={s.label}>Pozycje{items.length > 0 ? ` (${items.length})` : ''}</Text>
+            <TouchableOpacity style={s.addItemBtn} onPress={addBlankItem} activeOpacity={0.7}>
+              <Plus size={13} color={colors.text.bright} />
+              <Text style={s.addItemLabel}>Dodaj pozycję</Text>
+            </TouchableOpacity>
+          </View>
+          {items.map((it, idx) => (
+            <ReceiptItemRow
+              key={idx}
+              item={it}
+              onChange={(patch) => updateItem(idx, patch)}
+              onDelete={() => removeItem(idx)}
+              priceMemory={priceMemory}
+              knownNames={knownNames}
+            />
+          ))}
+          {items.length > 0 && (
+            <View style={s.sumRow}>
+              <Text style={s.sumLabel}>Suma pozycji</Text>
+              <Text style={s.sumValue}>{includedSum.toFixed(2)} zł</Text>
+            </View>
+          )}
+          {mismatch && (
+            <Text style={s.mismatchText}>
+              Na paragonie: {parsedTotal.toFixed(2)} zł — różnica {Math.abs(includedSum - parsedTotal).toFixed(2)} zł, sprawdź pozycje
             </Text>
-            <View style={s.headerActions}>
-              {editingExpense && (
-                <TouchableOpacity onPress={handleDelete} hitSlop={8} style={s.closeBtn}>
-                  <Trash2 size={16} color={colors.accent.red} />
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity onPress={handleClose} hitSlop={8} style={s.closeBtn}>
-                <X size={18} color={colors.text.secondary} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-            <View style={s.typeRow}>
-              <TouchableOpacity
-                style={[s.typeChip, type === 'expense' && s.typeChipActive]}
-                onPress={() => setType('expense')}
-                activeOpacity={0.7}
-              >
-                <Receipt size={14} color={type === 'expense' ? colors.bg.primary : colors.text.muted} />
-                <Text style={[s.typeChipLabel, type === 'expense' && s.typeChipLabelActive]}>Wydatek</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[s.typeChip, type === 'income' && s.typeChipActive]}
-                onPress={() => setType('income')}
-                activeOpacity={0.7}
-              >
-                <Banknote size={14} color={type === 'income' ? colors.bg.primary : colors.text.muted} />
-                <Text style={[s.typeChipLabel, type === 'income' && s.typeChipLabelActive]}>Przychód</Text>
-              </TouchableOpacity>
-            </View>
-
-            {type === 'expense' && (
-              <View style={s.section}>
-                <Text style={s.label}>Wklej tekst paragonu</Text>
-                <TextInput
-                  value={pasteText}
-                  onChangeText={setPasteText}
-                  placeholder="Wklej tekst paragonu ze sklepu / SMS-a / aplikacji banku…"
-                  placeholderTextColor={colors.text.muted}
-                  style={s.pasteInput}
-                  multiline
-                  textAlignVertical="top"
-                />
-                <TouchableOpacity style={[s.parseBtn, !pasteText.trim() && s.btnDisabled]} onPress={handleParse} disabled={!pasteText.trim()} activeOpacity={0.7}>
-                  <ClipboardPaste size={14} color={colors.bg.primary} />
-                  <Text style={s.parseBtnLabel}>Rozpoznaj paragon</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {type === 'expense' && (
-              <View style={s.section}>
-                <Text style={s.label}>Sklep / firma</Text>
-                <TextInput
-                  value={storeName}
-                  onChangeText={setStoreName}
-                  placeholder="np. Lidl, Orlen…"
-                  placeholderTextColor={colors.text.muted}
-                  style={s.textInput}
-                />
-              </View>
-            )}
-
-            <View style={s.section}>
-              <Text style={s.label}>Data</Text>
-              <View style={s.chips}>
-                {[{ key: 'today', label: 'Dziś', v: todayISO() }, { key: 'yesterday', label: 'Wczoraj', v: ymd(new Date(Date.now() - 86400000)) }].map((opt) => (
-                  <TouchableOpacity
-                    key={opt.key}
-                    style={[s.chip, date === opt.v && s.chipActive]}
-                    onPress={() => { haptic.tap(); setDate(opt.v); }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[s.chipLabel, date === opt.v && s.chipLabelActive]}>{opt.label}</Text>
-                  </TouchableOpacity>
-                ))}
-                <TouchableOpacity style={s.dateBadge} onPress={openDatePicker} activeOpacity={0.7}>
-                  <CalendarDays size={13} color={colors.text.secondary} />
-                  <Text style={s.dateBadgeLabel}>{date}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {type === 'expense' && (
-              <View style={s.section}>
-                <View style={s.itemsHeader}>
-                  <Text style={s.label}>Pozycje{items.length > 0 ? ` (${items.length})` : ''}</Text>
-                  <TouchableOpacity style={s.addItemBtn} onPress={addBlankItem} activeOpacity={0.7}>
-                    <Plus size={13} color={colors.text.bright} />
-                    <Text style={s.addItemLabel}>Dodaj pozycję</Text>
-                  </TouchableOpacity>
-                </View>
-                {items.map((it, idx) => (
-                  <ReceiptItemRow
-                    key={idx}
-                    item={it}
-                    onChange={(patch) => updateItem(idx, patch)}
-                    onDelete={() => removeItem(idx)}
-                    priceMemory={priceMemory}
-                    knownNames={knownNames}
-                  />
-                ))}
-                {items.length > 0 && (
-                  <View style={s.sumRow}>
-                    <Text style={s.sumLabel}>Suma pozycji</Text>
-                    <Text style={s.sumValue}>{includedSum.toFixed(2)} zł</Text>
-                  </View>
-                )}
-                {mismatch && (
-                  <Text style={s.mismatchText}>
-                    Na paragonie: {parsedTotal.toFixed(2)} zł — różnica {Math.abs(includedSum - parsedTotal).toFixed(2)} zł, sprawdź pozycje
-                  </Text>
-                )}
-              </View>
-            )}
-
-            {(items.length === 0) && (
-              <View style={s.section}>
-                <Text style={s.label}>Kwota</Text>
-                <View style={s.amountRow}>
-                  <TextInput
-                    value={amountInput}
-                    onChangeText={setAmountInput}
-                    placeholder="0,00"
-                    placeholderTextColor={colors.text.muted}
-                    keyboardType="decimal-pad"
-                    style={s.amountInput}
-                  />
-                  <Text style={s.currencyLg}>zł</Text>
-                </View>
-              </View>
-            )}
-
-            <View style={s.section}>
-              <Text style={s.label}>Notatka</Text>
-              <TextInput
-                value={note}
-                onChangeText={setNote}
-                placeholder="opcjonalny opis…"
-                placeholderTextColor={colors.text.muted}
-                style={s.textInput}
-              />
-            </View>
-
-            {type === 'expense' && (
-              <View style={s.section}>
-                <Text style={s.label}>Rozlicz jako</Text>
-                <View style={s.chips}>
-                  {FV_CHOICES.map((opt) => (
-                    <TouchableOpacity
-                      key={opt.key}
-                      style={[s.chip, fvChoice === opt.key && s.chipActive]}
-                      onPress={() => setFvChoice(opt.key)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[s.chipLabel, fvChoice === opt.key && s.chipLabelActive]}>{opt.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {type === 'expense' && (
-              <View style={s.section}>
-                {/* Zwinięte domyślnie (user, 2026-11-01: "ta opcja mniej widoczna po
-                    rozwinięciu kto płacił i czym... żeby to miejsca nie zajmowało,
-                    ale żeby dało się zmienić") — w 99% przypadków to "Ja · Karta",
-                    więc nie zasługuje na stałe miejsce jak "Rozlicz jako" wyżej. */}
-                <TouchableOpacity style={s.paidSummaryRow} onPress={() => setPaidOpen((v) => !v)} activeOpacity={0.7}>
-                  <Text style={s.label}>
-                    Zapłacono: {PAYER_CHOICES.find((p) => p.key === payer)?.label} · {PAYMENT_LABEL[paymentMethod]}
-                  </Text>
-                  {paidOpen ? <ChevronUp size={14} color={colors.text.muted} /> : <ChevronDown size={14} color={colors.text.muted} />}
-                </TouchableOpacity>
-                {paidOpen && (
-                  <View style={s.paidDetail}>
-                    <Text style={s.subLabel}>Kto płacił</Text>
-                    <View style={s.chips}>
-                      {PAYER_CHOICES.map((opt) => (
-                        <TouchableOpacity
-                          key={opt.key}
-                          style={[s.chip, payer === opt.key && s.chipActive]}
-                          onPress={() => setPayer(opt.key)}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={[s.chipLabel, payer === opt.key && s.chipLabelActive]}>{opt.label}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                    <Text style={[s.subLabel, s.subLabelGap]}>Czym</Text>
-                    <View style={s.chips}>
-                      {PAYMENT_CHOICES.map((opt) => (
-                        <TouchableOpacity
-                          key={opt.key}
-                          style={[s.chip, paymentMethod === opt.key && s.chipActive]}
-                          onPress={() => setPaymentMethod(opt.key)}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={[s.chipLabel, paymentMethod === opt.key && s.chipLabelActive]}>{opt.label}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                )}
-              </View>
-            )}
-
-            <View style={s.section}>
-              <Text style={s.label}>Tagi</Text>
-              <View style={s.tagInputRow}>
-                <TextInput
-                  value={tagInput}
-                  onChangeText={setTagInput}
-                  placeholder="np. Wakacje, Prezent…"
-                  placeholderTextColor={colors.text.muted}
-                  style={s.tagInputField}
-                  onSubmitEditing={addTag}
-                  returnKeyType="done"
-                />
-                <TouchableOpacity style={s.tagAddBtn} onPress={addTag} activeOpacity={0.7}>
-                  <Plus size={14} color={colors.bg.primary} />
-                </TouchableOpacity>
-              </View>
-              {tags.length > 0 && (
-                <View style={s.chips}>
-                  {tags.map((t) => (
-                    <TouchableOpacity key={t} style={s.tagRemoveChip} onPress={() => removeTag(t)} activeOpacity={0.7}>
-                      <Text style={s.tagRemoveLabel}>{t}</Text>
-                      <X size={10} color={colors.bg.primary} />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
-          </ScrollView>
-
-          <View style={s.footer}>
-            <View>
-              <Text style={s.footerLabel}>{type === 'expense' ? 'Wydatek' : 'Przychód'}</Text>
-              <Text style={s.footerAmount}>{amount.toFixed(2)} zł</Text>
-            </View>
-            <TouchableOpacity style={[s.saveBtn, !canSave && s.btnDisabled]} onPress={handleSave} disabled={!canSave} activeOpacity={0.7}>
-              <Text style={s.saveLabel}>{editingExpense ? 'Zaktualizuj' : 'Zapisz'}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {type === 'expense' && (
-            <TouchableOpacity style={s.pasteFab} onPress={handlePasteFromClipboard} activeOpacity={0.8} accessibilityLabel="Wklej ze schowka i rozpoznaj paragon">
-              <ClipboardPaste size={20} color={colors.bg.primary} />
-            </TouchableOpacity>
           )}
         </View>
-      </SafeAreaView>
-    </Modal>
+      )}
+
+      {(items.length === 0) && (
+        <View style={s.section}>
+          <Text style={s.label}>Kwota</Text>
+          <View style={s.amountRow}>
+            <BottomSheetTextInput
+              value={amountInput}
+              onChangeText={setAmountInput}
+              placeholder="0,00"
+              placeholderTextColor={colors.text.muted}
+              keyboardType="decimal-pad"
+              style={s.amountInput}
+            />
+            <Text style={s.currencyLg}>zł</Text>
+          </View>
+        </View>
+      )}
+
+      <View style={s.section}>
+        <Text style={s.label}>Notatka</Text>
+        <BottomSheetTextInput
+          value={note}
+          onChangeText={setNote}
+          placeholder="opcjonalny opis…"
+          placeholderTextColor={colors.text.muted}
+          style={s.textInput}
+        />
+      </View>
+
+      {type === 'expense' && (
+        <View style={s.section}>
+          <Text style={s.label}>Rozlicz jako</Text>
+          <View style={s.chips}>
+            {FV_CHOICES.map((opt) => (
+              <TouchableOpacity
+                key={opt.key}
+                style={[s.chip, fvChoice === opt.key && s.chipActive]}
+                onPress={() => setFvChoice(opt.key)}
+                activeOpacity={0.7}
+              >
+                <Text style={[s.chipLabel, fvChoice === opt.key && s.chipLabelActive]}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {type === 'expense' && (
+        <View style={s.section}>
+          {/* Zwinięte domyślnie (user, 2026-11-01: "ta opcja mniej widoczna po
+              rozwinięciu kto płacił i czym... żeby to miejsca nie zajmowało,
+              ale żeby dało się zmienić") — w 99% przypadków to "Ja · Karta",
+              więc nie zasługuje na stałe miejsce jak "Rozlicz jako" wyżej. */}
+          <TouchableOpacity style={s.paidSummaryRow} onPress={() => setPaidOpen((v) => !v)} activeOpacity={0.7}>
+            <Text style={s.label}>
+              Zapłacono: {PAYER_CHOICES.find((p) => p.key === payer)?.label} · {PAYMENT_LABEL[paymentMethod]}
+            </Text>
+            {paidOpen ? <ChevronUp size={14} color={colors.text.muted} /> : <ChevronDown size={14} color={colors.text.muted} />}
+          </TouchableOpacity>
+          {paidOpen && (
+            <View style={s.paidDetail}>
+              <Text style={s.subLabel}>Kto płacił</Text>
+              <View style={s.chips}>
+                {PAYER_CHOICES.map((opt) => (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={[s.chip, payer === opt.key && s.chipActive]}
+                    onPress={() => setPayer(opt.key)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[s.chipLabel, payer === opt.key && s.chipLabelActive]}>{opt.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={[s.subLabel, s.subLabelGap]}>Czym</Text>
+              <View style={s.chips}>
+                {PAYMENT_CHOICES.map((opt) => (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={[s.chip, paymentMethod === opt.key && s.chipActive]}
+                    onPress={() => setPaymentMethod(opt.key)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[s.chipLabel, paymentMethod === opt.key && s.chipLabelActive]}>{opt.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+        </View>
+      )}
+
+      <View style={s.section}>
+        <Text style={s.label}>Tagi</Text>
+        <View style={s.tagInputRow}>
+          <BottomSheetTextInput
+            value={tagInput}
+            onChangeText={setTagInput}
+            placeholder="np. Wakacje, Prezent…"
+            placeholderTextColor={colors.text.muted}
+            style={s.tagInputField}
+            onSubmitEditing={addTag}
+            returnKeyType="done"
+          />
+          <TouchableOpacity style={s.tagAddBtn} onPress={addTag} activeOpacity={0.7}>
+            <Plus size={14} color={colors.bg.primary} />
+          </TouchableOpacity>
+        </View>
+        {tags.length > 0 && (
+          <View style={s.chips}>
+            {tags.map((t) => (
+              <TouchableOpacity key={t} style={s.tagRemoveChip} onPress={() => removeTag(t)} activeOpacity={0.7}>
+                <Text style={s.tagRemoveLabel}>{t}</Text>
+                <X size={10} color={colors.bg.primary} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
+    </AppBottomSheet>
   );
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: c.bg.primary },
-  flex1: { flex: 1 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+    paddingBottom: spacing[3],
   },
   title: { fontSize: 20, fontFamily: 'Inter_900Black', color: c.text.primary },
   headerActions: { flexDirection: 'row', gap: spacing[2] },
@@ -523,7 +528,6 @@ const makeS = themedStyles((c) => StyleSheet.create({
     width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
     backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default,
   },
-  scroll: { paddingHorizontal: spacing[4], paddingBottom: spacing[8], gap: spacing[1] },
 
   typeRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[3] },
   typeChip: {
@@ -611,19 +615,24 @@ const makeS = themedStyles((c) => StyleSheet.create({
   },
   tagRemoveLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.bg.primary },
 
+  // `footerRoot` = wrapper dla `footer`+`pasteFab` razem (2026-11-02) — `AppBottomSheet`
+  // dostaje JEDEN `footer` prop, a FAB musi mieć wspólnego rodzica z rzędem
+  // kwota+Zapisz, żeby `bottom:'100%'` na `pasteFab` kotwiczyło się do GÓRNEJ
+  // krawędzi TEGO rzędu (nie całego, szerszego paddingu `AppBottomSheet`'s).
+  footerRoot: {},
   footer: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing[4], paddingVertical: spacing[3],
-    borderTopWidth: 1, borderTopColor: c.border.default, backgroundColor: c.bg.primary,
   },
   footerLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
   footerAmount: { fontSize: 20, fontFamily: 'Inter_900Black', color: c.text.bright },
   saveBtn: { paddingHorizontal: spacing[6], paddingVertical: spacing[3], borderRadius: radius.md, backgroundColor: c.text.bright },
   saveLabel: { fontSize: 14, fontFamily: 'Inter_900Black', color: c.bg.primary },
 
-  // Pływający, zawsze pod prawym kciukiem — nad stopką z "Zapisz", nie na niej.
+  // Pływający, zawsze pod prawym kciukiem — `bottom:'100%'` zamiast stałego `bottom`
+  // w px (2026-11-02) — wynosi się NAD `footerRoot`'a WŁASNĄ wysokość, niezależnie
+  // od tego ile miejsca zajmuje padding/safe-area wokół, które liczył `AppBottomSheet`.
   pasteFab: {
-    position: 'absolute', right: spacing[4], bottom: 84,
+    position: 'absolute', right: spacing[4], bottom: '100%', marginBottom: spacing[3],
     width: 48, height: 48, borderRadius: radius.full, backgroundColor: c.text.bright,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,

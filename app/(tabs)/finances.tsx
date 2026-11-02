@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Package, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
@@ -13,6 +14,7 @@ import AddExpenseModal from '@/components/finances/AddExpenseModal';
 import ProductsModal from '@/components/finances/ProductsModal';
 import TransactionsModal from '@/components/finances/TransactionsModal';
 import WydatkiModal from '@/components/dashboard/WydatkiModal';
+import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useExpensesStore } from '@/store/expensesStore';
 import { getBalanceOffset, setBalanceOffset, accountBalance, affectsBalance } from '@/utils/balance';
 import { buildProductCatalog } from '@/utils/productCatalog';
@@ -28,10 +30,10 @@ import type { Expense } from '@/types/finances';
 // Ostatnie transakcje (fill, 2-liniowe wiersze, `FitList`).
 //
 // POPUPY (AddExpenseModal/ProductsModal/TransactionsModal/WydatkiModal, balance-edit)
-// ŚWIADOMIE BEZ ZMIAN — wciąż `Modal`, NIE `AppBottomSheet`. Bottom-sheet-yfikacja
-// istniejących, złożonych popupów to osobna, odłożona faza (ARCHITECTURE.md
-// §"REDESIGN RDZENIA UI", "Następne fazy") — ryzyko migrowania 5 różnych modali w
-// tej samej rundzie co przebudowa głównego ekranu byłoby nieproporcjonalne.
+// PRZEBUDOWANE na `AppBottomSheet` (2026-11-02, kontynuacja migracji z Faza 3.6,
+// user: "miało być 1do1... dawaj" — ryzyko odłożone w Fazie 3.4 na osobną rundę,
+// teraz podjęte). Balance-edit (ten plik) — prosty, krótki popup, `scrollable=false`
+// (statyczna treść, bez potrzeby scrolla).
 //
 // "Produkty" (pamięć cen, realna funkcja) NIE WYSTĘPUJE w spec — zamiast ją
 // wyrzucić, dostała mały link w nagłówku kafla "Jedzenie · kategorie" (ten sam
@@ -245,33 +247,31 @@ export default function FinancesScreen() {
         variable={wydatkiData.variable}
       />
 
-      <Modal visible={editingBalance} transparent animationType="fade" onRequestClose={() => setEditingBalance(false)}>
-        <Pressable style={s.backdrop} onPress={() => setEditingBalance(false)}>
-          <Pressable style={s.editCard} onPress={(e) => e.stopPropagation()}>
-            <Text style={s.editTitle}>Ustaw aktualne saldo</Text>
-            <Text style={s.editHint}>Tyle realnie masz teraz na koncie — appka doliczy od tego wszystkie kolejne wydatki/przychody kartą.</Text>
-            <View style={s.editInputRow}>
-              <TextInput
-                value={balanceInput}
-                onChangeText={setBalanceInput}
-                keyboardType="decimal-pad"
-                style={s.editInput}
-                autoFocus
-                onSubmitEditing={saveBalance}
-              />
-              <Text style={s.editCurrency}>zł</Text>
-            </View>
-            <View style={s.editActions}>
-              <TouchableOpacity onPress={() => setEditingBalance(false)} style={s.editCancelBtn}>
-                <Text style={s.editCancelLabel}>Anuluj</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={saveBalance} style={s.editSaveBtn}>
-                <Text style={s.editSaveLabel}>Zapisz</Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <AppBottomSheet visible={editingBalance} onClose={() => setEditingBalance(false)} scrollable={false}>
+        <View style={s.editCard}>
+          <Text style={s.editTitle}>Ustaw aktualne saldo</Text>
+          <Text style={s.editHint}>Tyle realnie masz teraz na koncie — appka doliczy od tego wszystkie kolejne wydatki/przychody kartą.</Text>
+          <View style={s.editInputRow}>
+            <BottomSheetTextInput
+              value={balanceInput}
+              onChangeText={setBalanceInput}
+              keyboardType="decimal-pad"
+              style={s.editInput}
+              autoFocus
+              onSubmitEditing={saveBalance}
+            />
+            <Text style={s.editCurrency}>zł</Text>
+          </View>
+          <View style={s.editActions}>
+            <TouchableOpacity onPress={() => setEditingBalance(false)} style={s.editCancelBtn}>
+              <Text style={s.editCancelLabel}>Anuluj</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={saveBalance} style={s.editSaveBtn}>
+              <Text style={s.editSaveLabel}>Zapisz</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </AppBottomSheet>
     </SafeAreaView>
   );
 }
@@ -318,11 +318,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
     elevation: 6,
   },
 
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: spacing[4] },
-  editCard: {
-    backgroundColor: c.bg.card, borderRadius: radius.xl, borderWidth: 1, borderColor: c.border.default,
-    padding: spacing[4], gap: spacing[2],
-  },
+  editCard: { gap: spacing[2] },
   editTitle: { fontSize: 16, fontFamily: 'Inter_900Black', color: c.text.primary },
   editHint: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: c.text.muted, lineHeight: 16 },
   editInputRow: {

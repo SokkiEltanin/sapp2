@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { X, Search, ChevronDown, ChevronUp, GitMerge } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -9,6 +9,7 @@ import { buildProductCatalog, findDuplicateCandidates, type ProductCatalogEntry 
 import { loadNameAliases, saveNameAliases, saveFoodSubcatMemory } from '@/utils/productMemory';
 import { FOOD_SUBCATS, FOOD_SUBCAT_META } from '@/utils/food';
 import { haptic } from '@/utils/haptics';
+import AppBottomSheet from '@/components/design/AppBottomSheet';
 
 // Faza 2.3 (2026-11-01) — "jak złapie źle... wejść w produkty i edytować, ale dużo
 // ładniej zrobione niż w SAPie". Brak osobnego store'u "Produkty" — katalog jest
@@ -18,6 +19,11 @@ import { haptic } from '@/utils/haptics';
 // historycznych wydatków — przyszłe paragony i widok tego katalogu od razu
 // korzystają z poprawki, stare dane zostają jako były (audyt/historia nietknięta).
 // UI karty-wiersze (jak TaskRow), nie ciasny centered-modal sapp's `products.tsx`.
+//
+// Przebudowany na `AppBottomSheet` (2026-11-02, kontynuacja migracji z Faza 3.6) —
+// tytuł+szukajka jako `header` (nieruchome, ten sam wzorzec co TransactionsModal),
+// duplikaty+lista produktów jako scrollowalna treść. `TextInput`y zamienione na
+// gorhom's `BottomSheetTextInput`.
 export default function ProductsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const s = makeS();
   const expenses = useExpensesStore((st) => st.expenses);
@@ -80,123 +86,122 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
     refreshAliases(); // aliasy się nie zmieniły, ale katalog i tak przeliczy się z expenses — no-op bezpieczny
   };
 
+  const header = (
+    <>
+      <View style={s.header}>
+        <Text style={s.title}>Produkty</Text>
+        <TouchableOpacity onPress={onClose} hitSlop={8} style={s.closeBtn}>
+          <X size={18} color={colors.text.secondary} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={s.searchRow}>
+        <Search size={14} color={colors.text.muted} />
+        <BottomSheetTextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Szukaj produktu…"
+          placeholderTextColor={colors.text.muted}
+          style={s.searchInput}
+        />
+      </View>
+    </>
+  );
+
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
-      <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
-        <View style={s.header}>
-          <Text style={s.title}>Produkty</Text>
-          <TouchableOpacity onPress={onClose} hitSlop={8} style={s.closeBtn}>
-            <X size={18} color={colors.text.secondary} />
+    <AppBottomSheet visible={visible} onClose={onClose} header={header}>
+      {duplicates.length > 0 && (
+        <View style={s.dupeSection}>
+          <TouchableOpacity style={s.dupeHeader} onPress={() => setDuplicatesOpen((v) => !v)} activeOpacity={0.7}>
+            <GitMerge size={14} color={colors.text.bright} />
+            <Text style={s.dupeHeaderLabel}>Możliwe duplikaty ({duplicates.length})</Text>
+            {duplicatesOpen ? <ChevronUp size={14} color={colors.text.muted} /> : <ChevronDown size={14} color={colors.text.muted} />}
           </TouchableOpacity>
+          {duplicatesOpen && duplicates.map(({ a, b }) => (
+            <View key={`${a.groupKey}|${b.groupKey}`} style={s.dupeRow}>
+              <Text style={s.dupeQuestion}>Czy to ten sam produkt?</Text>
+              <Text style={s.dupeNames}>„{a.label}” i „{b.label}”</Text>
+              <View style={s.dupeActions}>
+                <TouchableOpacity style={s.dupeBtnSecondary} onPress={() => dismissPair(a, b)}>
+                  <Text style={s.dupeBtnSecondaryLabel}>To różne</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.dupeBtnPrimary} onPress={() => mergeInto(a, b)}>
+                  <Text style={s.dupeBtnPrimaryLabel}>Połącz</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
         </View>
+      )}
 
-        <View style={s.searchRow}>
-          <Search size={14} color={colors.text.muted} />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Szukaj produktu…"
-            placeholderTextColor={colors.text.muted}
-            style={s.searchInput}
-          />
-        </View>
-
-        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-          {duplicates.length > 0 && (
-            <View style={s.dupeSection}>
-              <TouchableOpacity style={s.dupeHeader} onPress={() => setDuplicatesOpen((v) => !v)} activeOpacity={0.7}>
-                <GitMerge size={14} color={colors.text.bright} />
-                <Text style={s.dupeHeaderLabel}>Możliwe duplikaty ({duplicates.length})</Text>
-                {duplicatesOpen ? <ChevronUp size={14} color={colors.text.muted} /> : <ChevronDown size={14} color={colors.text.muted} />}
+      {filtered.length === 0 ? (
+        <Text style={s.empty}>
+          {catalog.length === 0 ? 'Brak produktów — pojawią się tu po pierwszym paragonie z pozycjami.' : 'Nic nie znaleziono.'}
+        </Text>
+      ) : (
+        filtered.map((entry) => {
+          const meta = entry.foodSubcat ? FOOD_SUBCAT_META[entry.foodSubcat] : undefined;
+          const expanded = expandedKey === entry.groupKey;
+          return (
+            <View key={entry.groupKey} style={s.card}>
+              <TouchableOpacity style={s.cardRow} onPress={() => openEdit(entry)} activeOpacity={0.7}>
+                <View style={s.cardInfo}>
+                  <Text style={s.cardLabel} numberOfLines={1}>{entry.label}</Text>
+                  <Text style={s.cardStats}>
+                    {entry.timesBought}× · ostatnio {entry.lastPrice.toFixed(2)} zł · razem {entry.totalSpent.toFixed(2)} zł
+                  </Text>
+                </View>
+                <View style={[s.subcatChip, meta && { backgroundColor: meta.color + '2A', borderColor: meta.color }]}>
+                  <Text style={[s.subcatChipLabel, meta && { color: meta.color }]}>{meta?.label ?? 'Nie-jedzenie'}</Text>
+                </View>
               </TouchableOpacity>
-              {duplicatesOpen && duplicates.map(({ a, b }) => (
-                <View key={`${a.groupKey}|${b.groupKey}`} style={s.dupeRow}>
-                  <Text style={s.dupeQuestion}>Czy to ten sam produkt?</Text>
-                  <Text style={s.dupeNames}>„{a.label}” i „{b.label}”</Text>
-                  <View style={s.dupeActions}>
-                    <TouchableOpacity style={s.dupeBtnSecondary} onPress={() => dismissPair(a, b)}>
-                      <Text style={s.dupeBtnSecondaryLabel}>To różne</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={s.dupeBtnPrimary} onPress={() => mergeInto(a, b)}>
-                      <Text style={s.dupeBtnPrimaryLabel}>Połącz</Text>
+
+              {expanded && (
+                <View style={s.editArea}>
+                  <Text style={s.editLabel}>Nazwa</Text>
+                  <View style={s.editNameRow}>
+                    <BottomSheetTextInput value={editName} onChangeText={setEditName} style={s.editNameInput} />
+                    <TouchableOpacity style={s.editSaveBtn} onPress={() => saveName(entry)}>
+                      <Text style={s.editSaveLabel}>Zapisz</Text>
                     </TouchableOpacity>
                   </View>
-                </View>
-              ))}
-            </View>
-          )}
 
-          {filtered.length === 0 ? (
-            <Text style={s.empty}>
-              {catalog.length === 0 ? 'Brak produktów — pojawią się tu po pierwszym paragonie z pozycjami.' : 'Nic nie znaleziono.'}
-            </Text>
-          ) : (
-            filtered.map((entry) => {
-              const meta = entry.foodSubcat ? FOOD_SUBCAT_META[entry.foodSubcat] : undefined;
-              const expanded = expandedKey === entry.groupKey;
-              return (
-                <View key={entry.groupKey} style={s.card}>
-                  <TouchableOpacity style={s.cardRow} onPress={() => openEdit(entry)} activeOpacity={0.7}>
-                    <View style={s.cardInfo}>
-                      <Text style={s.cardLabel} numberOfLines={1}>{entry.label}</Text>
-                      <Text style={s.cardStats}>
-                        {entry.timesBought}× · ostatnio {entry.lastPrice.toFixed(2)} zł · razem {entry.totalSpent.toFixed(2)} zł
-                      </Text>
-                    </View>
-                    <View style={[s.subcatChip, meta && { backgroundColor: meta.color + '2A', borderColor: meta.color }]}>
-                      <Text style={[s.subcatChipLabel, meta && { color: meta.color }]}>{meta?.label ?? 'Nie-jedzenie'}</Text>
-                    </View>
-                  </TouchableOpacity>
+                  <Text style={[s.editLabel, s.editLabelGap]}>Kategoria jedzenia</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <TouchableOpacity
+                      style={[s.pickerChip, !entry.foodSubcat && s.pickerChipActive]}
+                      onPress={() => setSubcat(entry, undefined)}
+                    >
+                      <Text style={s.pickerChipLabel}>Brak</Text>
+                    </TouchableOpacity>
+                    {FOOD_SUBCATS.map((sc) => (
+                      <TouchableOpacity
+                        key={sc.tag}
+                        style={[s.pickerChip, entry.foodSubcat === sc.tag && { backgroundColor: sc.color }]}
+                        onPress={() => setSubcat(entry, sc.tag)}
+                      >
+                        <Text style={[s.pickerChipLabel, entry.foodSubcat === sc.tag && s.pickerChipLabelActive]}>{sc.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
 
-                  {expanded && (
-                    <View style={s.editArea}>
-                      <Text style={s.editLabel}>Nazwa</Text>
-                      <View style={s.editNameRow}>
-                        <TextInput value={editName} onChangeText={setEditName} style={s.editNameInput} />
-                        <TouchableOpacity style={s.editSaveBtn} onPress={() => saveName(entry)}>
-                          <Text style={s.editSaveLabel}>Zapisz</Text>
-                        </TouchableOpacity>
-                      </View>
-
-                      <Text style={[s.editLabel, s.editLabelGap]}>Kategoria jedzenia</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        <TouchableOpacity
-                          style={[s.pickerChip, !entry.foodSubcat && s.pickerChipActive]}
-                          onPress={() => setSubcat(entry, undefined)}
-                        >
-                          <Text style={s.pickerChipLabel}>Brak</Text>
-                        </TouchableOpacity>
-                        {FOOD_SUBCATS.map((sc) => (
-                          <TouchableOpacity
-                            key={sc.tag}
-                            style={[s.pickerChip, entry.foodSubcat === sc.tag && { backgroundColor: sc.color }]}
-                            onPress={() => setSubcat(entry, sc.tag)}
-                          >
-                            <Text style={[s.pickerChipLabel, entry.foodSubcat === sc.tag && s.pickerChipLabelActive]}>{sc.label}</Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-
-                      {entry.rawNames.length > 1 && (
-                        <Text style={s.rawNamesHint}>Scalone nazwy: {entry.rawNames.join(', ')}</Text>
-                      )}
-                    </View>
+                  {entry.rawNames.length > 1 && (
+                    <Text style={s.rawNamesHint}>Scalone nazwy: {entry.rawNames.join(', ')}</Text>
                   )}
                 </View>
-              );
-            })
-          )}
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
+              )}
+            </View>
+          );
+        })
+      )}
+    </AppBottomSheet>
   );
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: c.bg.primary },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+    paddingBottom: spacing[3],
   },
   title: { fontSize: 20, fontFamily: 'Inter_900Black', color: c.text.primary },
   closeBtn: {
@@ -206,13 +211,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
 
   searchRow: {
     flexDirection: 'row', alignItems: 'center', gap: spacing[2],
-    marginHorizontal: spacing[4], marginBottom: spacing[3],
+    marginBottom: spacing[1],
     backgroundColor: c.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default,
     paddingHorizontal: spacing[3],
   },
   searchInput: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: c.text.primary, paddingVertical: spacing[2] },
 
-  scroll: { paddingHorizontal: spacing[4], paddingBottom: spacing[8] },
   empty: { fontSize: 12.5, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', paddingVertical: spacing[6] },
 
   dupeSection: {

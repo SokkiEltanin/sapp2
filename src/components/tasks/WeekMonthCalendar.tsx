@@ -8,7 +8,7 @@ import { eventCoversDay, type CalendarEvent } from '@/types/calendar';
 import MonthViewModal from './MonthViewModal';
 
 // Kalendarz Zadań — dwa tryby: TYDZIEŃ (domyślny, zawsze bieżący tydzień Pon-Nd,
-// inline) i MIESIĄC (pełnoekranowy popup, patrz MonthViewModal.tsx). Przełącznik w
+// inline) i MIESIĄC (bottom-sheet popup, patrz MonthViewModal.tsx). Przełącznik w
 // nagłówku karty tylko OTWIERA popup miesiąca — tydzień zostaje jedynym inline
 // widokiem w karcie, miesiąc nigdy nie renderuje się ściśnięty.
 //
@@ -24,11 +24,12 @@ import MonthViewModal from './MonthViewModal';
 // zwalnia miejsce dla sekcji Zadań, które user explicite nazwał ważniejszymi
 // ("a tak to zadania pod spodem tylko bo one są ważne").
 //
-// Widok miesiąca PRZENIESIONY do pełnoekranowego popupu (2026-11-01, user: "kalendarz
-// w trybie rozłożonym niech też ma takie kafelki jak tygodniowy widok, może być
-// nawet na cały ekran") — ciasna siatka 6×7 wewnątrz małej karty nie miała miejsca na
-// chipy wydarzeń, tylko kropkę; pełny ekran daje go wystarczająco (patrz
-// MonthViewModal.tsx).
+// Widok miesiąca PRZENIESIONY do popupu, teraz `AppBottomSheet` (2026-11-01, user:
+// "kalendarz w trybie rozłożonym niech też ma takie kafelki jak tygodniowy widok,
+// może być nawet na cały ekran"; 2026-11-02: przebudowany z pełnoekranowego `Modal`
+// na bottom-sheet, patrz MonthViewModal.tsx) — ciasna siatka 6×7 wewnątrz małej
+// karty nie miała miejsca na chipy wydarzeń, tylko kropkę; sheet daje go
+// wystarczająco (78% wysokości ekranu, scroll wewnątrz gdy trzeba).
 const DAY_LABELS = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nd'];
 const MAX_CHIPS_PER_DAY = 3;
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { ymd, todayISO } from '@/utils/date';
@@ -12,12 +13,21 @@ import { ymd, todayISO } from '@/utils/date';
 // bez nowej zależności). Tag — jedno pole tekstowe, nie lista: `Task.tags` to string[],
 // ale UI dla wielu tagów naraz to rozbudowa na później, jeśli user tego zażąda.
 //
-// KONTROLOWANY przez rodzica (`visible`/`onClose`), nie własny stan otwarcia
-// (2026-10-30, user: "zależy nam na przestrzeni... chcę mieć zamiast tam przycisk w
-// prawym nad navbarem") — wcześniej ten komponent sam renderował pełnoszerokościowy
+// KONTROLOWANY przez rodzica (`onClose`), nie własny stan otwarcia (2026-10-30,
+// user: "zależy nam na przestrzeni... chcę mieć zamiast tam przycisk w prawym nad
+// navbarem") — wcześniej ten komponent sam renderował pełnoszerokościowy
 // przycisk-wyzwalacz zajmujący stały wiersz w scrollu; teraz wyzwalacz to pływający
 // FAB w tasks.tsx (nad navbarem, nie zajmuje miejsca na liście), ten komponent
-// renderuje WYŁĄCZNIE formularz, i to tylko gdy `visible`.
+// renderuje WYŁĄCZNIE formularz.
+//
+// Przebudowany na `AppBottomSheet` (2026-11-02, kontynuacja migracji z Faza 3.6) —
+// `visible`/`return null` USUNIĘTE (martwy kod: jedyny caller, `tasks.tsx`, już
+// wołał `visible` jako literał `true`, bo faktyczną widoczność kontrolował
+// otaczający `Modal`; teraz kontroluje ją `AppBottomSheet` w `tasks.tsx`). Własny
+// `card` (tło/border/radius/padding) ZDJĘTY — sheet sam daje to tło, drugie "pudełko
+// w pudełku" dublowałoby chrome. Tytuł "Nowe zadanie" dodany na górze — odpowiednik
+// spec's `taskAdd` popupu (`.st`/`.sh`), bez redundantnej drugiej linii "Dodaj",
+// której mockup używa jako generycznego szablonu wszystkich popupów formularzy.
 const DEADLINE_OPTIONS = [
   { key: 'none', label: 'Bez terminu' },
   { key: 'today', label: 'Dziś' },
@@ -27,11 +37,9 @@ const DEADLINE_OPTIONS = [
 type DeadlineChoice = (typeof DEADLINE_OPTIONS)[number]['key'];
 
 export default function AddTaskCard({
-  visible,
   onAdd,
   onClose,
 }: {
-  visible: boolean;
   onAdd: (input: { title: string; tags: string[]; deadline?: string }) => void;
   onClose: () => void;
 }) {
@@ -62,11 +70,10 @@ export default function AddTaskCard({
     reset();
   };
 
-  if (!visible) return null;
-
   return (
     <View style={s.card}>
-      <TextInput
+      <Text style={s.title}>Nowe zadanie</Text>
+      <BottomSheetTextInput
         value={title}
         onChangeText={setTitle}
         placeholder="Co trzeba zrobić?"
@@ -74,7 +81,7 @@ export default function AddTaskCard({
         style={s.titleInput}
         autoFocus
       />
-      <TextInput
+      <BottomSheetTextInput
         value={tag}
         onChangeText={setTag}
         placeholder="Tag (opcjonalnie, np. UR)"
@@ -112,10 +119,8 @@ export default function AddTaskCard({
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
-  card: {
-    backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default,
-    padding: spacing[3], marginBottom: spacing[4], gap: spacing[2],
-  },
+  card: { gap: spacing[2] },
+  title: { fontSize: 20, fontFamily: 'Inter_800ExtraBold', letterSpacing: -0.4, color: c.text.bright, marginBottom: spacing[1] },
   titleInput: {
     fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.primary,
     backgroundColor: c.bg.elevated, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[2],

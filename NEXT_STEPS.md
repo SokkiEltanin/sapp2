@@ -2372,3 +2372,60 @@ w tej sesji wartość, nie niedopasowanie stylu).
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone, `npx expo
 export --platform android` bez błędów. Rzeczywisty render/dotyk na urządzeniu
 NIE był możliwy w tym środowisku (brak Androida).
+
+## Redesign rdzenia UI — Faza 3.8 "Wszystkie pozostałe popupy → bottom-sheet" UKOŃCZONA (2026-11-02)
+
+User, po pytaniu czy appka jest teraz "1do1" z mockupem: "miało byc 1do1 wiec wsl
+dalej edycje". Faza 3.6 zrobiła TYLKO Humor/MoodModal (jedyny popup na Daily) —
+ta faza dociąga WSZYSTKIE pozostałe popupy w appce na `AppBottomSheet`. Zero
+plain `Modal` nigdzie w repo po tej rundzie (zweryfikowane grepem `<Modal` po
+całym `app/`+`src/`).
+
+Migrowane (wszystkie: `tsc`/`jest` po każdym pliku, nie batch na końcu):
+- **Zadania**: `DayDetailModal.tsx` (prosty — header=dzień+X, scrollowalna lista
+  `EventCard`), `MonthViewModal.tsx` (header=tytuł+nawigacja+etykiety dni
+  tygodnia, scrollowalna siatka 6×7 tygodni), `AddTaskCard.tsx`-kompozytor
+  (usunięty martwy `visible`-prop/early-return, własny "card" chrome zdjęty —
+  sheet już to daje, dodany tytuł "Nowe zadanie" na górze jak w spec's
+  `taskAdd`).
+- **Finanse/Dashboard**: `WydatkiModal.tsx`+`FoodCategoryItemsModal.tsx`
+  (drill-down — DWA niezależne sheety naraz, gorhom's `BottomSheetModal-
+  Provider` wspiera to bez specjalnej obsługi), `ProductsModal.tsx`
+  (header=tytuł+szukajka), `TransactionsModal.tsx` (jak wyżej, ale lista przez
+  `BottomSheetFlatList` nie generyczny scroll `AppBottomSheet`), `AddExpense-
+  Modal.tsx` (NAJWIĘKSZY, 637 linii — header=tytuł+usuń/zamknij, footer=kwota+
+  Zapisz PRZYPIĘTE jak w MoodModalu, pływający FAB "wklej ze schowka" jako
+  sibling footera z `bottom:'100%'`, `useKeyboardHeight` USUNIĘTY — gorhom's
+  `keyboardBehavior` to teraz robi), balance-edit w `finances.tsx` (prosty,
+  `scrollable=false`).
+
+Wszystkie `TextInput`y w migrowanych plikach → gorhom's `BottomSheetTextInput`
+(zwykły `TextInput` gubi fokus/zaznaczenie przy przewijaniu sheeta — ten sam
+powód co w MoodModalu, Faza 3.6).
+
+**DO PRZETESTOWANIA NA URZĄDZENIU — to jest teraz NAJWIĘKSZA, najbardziej
+rozległa zmiana interakcji w całej appce, warta dokładnego sprawdzenia:**
+- KAŻDY popup w appce (dodawanie/edycja wydatku, produkty, transakcje, Wydatki
+  z zakładkami Stałe/Zmienne/Jedzenie, drill-down kategorii jedzenia, edycja
+  salda, szczegóły dnia w Zadaniach, widok miesiąca, dodawanie zadania) powinien
+  wysuwać się od dołu z blurem, nie pełnoekranowym slide'm.
+- `AddExpenseModal` — najbardziej złożony test: otwórz z FAB-a w Finansach,
+  sprawdź że pole "Wklej tekst paragonu"/"Sklep"/"Kwota"/"Notatka"/"Tagi" NIE są
+  zasłonięte klawiaturą; pływający przycisk wklejania ze schowka powinien być
+  widoczny NAD stopką z kwotą+"Zapisz", nie pod nią, nie zasłonięty.
+- `WydatkiModal` → tap w kategorię jedzenia → `FoodCategoryItemsModal` powinien
+  wysunąć się NA WIERCHU pierwszego sheeta (dwa naraz, jeden nad drugim), a
+  zamknięcie drugiego powinno wrócić do pierwszego, nie zamykać obu.
+- `TransactionsModal`/`ProductsModal` — szukajka w nagłówku powinna zostać
+  nieruchoma, lista się przewija pod nią.
+- Edycja nazwy produktu w `ProductsModal` (rozwinięcie karty) — pole tekstowe
+  powinno normalnie przyjmować fokus/edycję mimo że jest w środku przewijanej
+  listy w sheecie.
+- Zadania: "+" przy segmencie → formularz nowego zadania w sheecie, zapis
+  powinien działać identycznie jak wcześniej.
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone, `npx expo
+export --platform android` bez błędów. Rzeczywisty render/dotyk na urządzeniu
+(gesty w sheetach, stackowanie dwóch sheetów naraz, klawiatura) NIE był możliwy
+w tym środowisku (brak Androida) — to jest teraz PRIORYTET #1 do sprawdzenia na
+telefonie, bo dotyka każdego ekranu appki naraz.

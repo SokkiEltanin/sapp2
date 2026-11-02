@@ -197,13 +197,20 @@ rzeczy 2026-11-01, "nie rozróżniam nazwy kategorii od podkategorii... jak coś
 jest pozwoleniem żeby miało symbol"), nie niedopasowanie stylu do usunięcia —
 demo mockupu nie ma ich TYLKO bo demo nie ma nic do opisywania/oznaczania.
 
-**Następne fazy** — bottom-sheet-yfikacja istniejących popupów Finansów/Zadań
-(osobna, jeszcze nieumówiona faza, patrz §FINANSE). "Płatności cykliczne"
-(store `bills`, odblokuje pełne "Bezpieczne wydatki"/"Najbliższe 48h" z Fazy 3.2
-i "Praca"/"Najbliższa opłata" z Fazy 3.4) potrzebuje osobnej, uczciwej fazy —
-dziś stub `Tile` w miejsce Subskrypcji/Pracy/bills, nie udawane na żadnym
-ekranie. Health Connect (Sen/Kroki/Tętno/Waga/Woda) to trzecia duża, odłożona
-faza.
+**Faza 3.8 (bottom-sheet: WSZYSTKIE pozostałe popupy) — ZROBIONA (2026-11-02,
+user: "dawaj")** — kontynuacja Fazy 3.6. KAŻDY popup w appce (Dashboard/Daily/
+Finanse/Zadania) jest teraz `AppBottomSheet`, zero plain `Modal` nigdzie w repo
+(zweryfikowane grepem `<Modal` po całym `app/`+`src/`). Migrowane: `WydatkiModal`+
+`FoodCategoryItemsModal` (Dashboard/Finanse), `AddExpenseModal`/`ProductsModal`/
+`TransactionsModal`/balance-edit (Finanse), `DayDetailModal`/`MonthViewModal`/
+`AddTaskCard`-kompozytor (Zadania). Szczegóły per-popup w §DASHBOARD/§FINANSE/
+§ZADANIA niżej i w NEXT_STEPS.md "Faza 3.8".
+
+**Następne fazy** — "Płatności cykliczne" (store `bills`, odblokuje pełne
+"Bezpieczne wydatki"/"Najbliższe 48h" z Fazy 3.2 i "Praca"/"Najbliższa opłata" z
+Fazy 3.4) potrzebuje osobnej, uczciwej fazy — dziś stub `Tile` w miejsce
+Subskrypcji/Pracy/bills, nie udawane na żadnym ekranie. Health Connect (Sen/
+Kroki/Tętno/Waga/Woda) to druga duża, odłożona faza.
 
 ## DASHBOARD [GE]
 
@@ -245,7 +252,8 @@ wydatki.
 - **Ciekawostka — REALNE.** Statyczna lista 4 faktów (z mockupu), wybór
   deterministyczny po dniu roku (`dayOfYear(now) % FACTS.length` — ta sama
   ciekawostka cały dzień, nie losowa przy każdym wejściu), tap = następna (lokalny
-  stan, bez popupu na razie — bottom-sheet-yfikacja popupów to inna faza).
+  stan, bez popupu — nie ma tu nic do rozwinięcia w sheet, sama ciekawostka już
+  jest całą treścią kafla).
 - **Jedzenie PLN/dzień, #JedzeniePerMiesiąc, Ostatnie transakcje — REALNE, bez
   zmian w danych** (`utils/foodStats.ts`/`useExpensesStore`, od wcześniejszych
   rund), tylko nowy wygląd (`StatTile`/`Bars`/`Row`+`PricePill`).
@@ -261,11 +269,10 @@ wydatki.
   czasie. Płatności cykliczne NIE wchodzą do merge'a (jak wyżej, store nie
   istnieje) — gdy powstanie, dołącza się jako trzeci typ wpisu.
 
-Kliknięcie w kafelek z danymi finansowymi otwiera `WydatkiModal.tsx` (bez zmian —
-pełnoekranowy `Modal`, NIE jeszcze `AppBottomSheet`; bottom-sheet-yfikacja istnieją-
-cych popupów Finansów to kolejna, osobna faza, patrz §"REDESIGN RDZENIA UI"
-"Następne fazy"). Streaki/Sen są NIEINTERAKTYWNE (brak `onPress` → `Tile` renderuje
-się jako plain `View`, nie `Pressable` — zero udawanej klikalności).
+Kliknięcie w kafelek z danymi finansowymi otwiera `WydatkiModal.tsx` (Faza 3.8,
+2026-11-02: `AppBottomSheet`, patrz §FINANSE niżej). Streaki/Sen są
+NIEINTERAKTYWNE (brak `onPress` → `Tile` renderuje się jako plain `View`, nie
+`Pressable` — zero udawanej klikalności).
 
 ## DAILY [GE]
 
@@ -367,9 +374,11 @@ otwiera go teraz przycisk "+" przy `Segmented`, nie floating FAB.
 - `WeekMonthCalendar.tsx` — kalendarz domyślnie **tygodniowy** (zawsze bieżący
   Pon-Nd, inline w karcie, chipy wydarzeń per dzień) → tap na nagłówek karty otwiera
   **`MonthViewModal.tsx`** (NOWY, 2026-11-01, user: "kalendarz w trybie rozłożonym
-  niech też ma takie kafelki jak tygodniowy widok, może być nawet na cały ekran") —
-  pełnoekranowy popup (wzorzec WydatkiModal/AddExpenseModal) z siatką 6×7, TYCH SAMYCH
-  kolorowych chipów co tydzień (max 2/komórkę + "+N"), nawigacja miesiącami + "Dziś".
+  niech też ma takie kafelki jak tygodniowy widok, może być nawet na cały ekran";
+  2026-11-02, Faza 3.8: przebudowany z pełnoekranowego `Modal` na `AppBottomSheet`)
+  — duży popup (sheet do 78% wysokości ekranu, scroll wewnątrz gdy trzeba) z siatką
+  6×7, TYCH SAMYCH kolorowych chipów co tydzień (max 2/komórkę + "+N"), nawigacja
+  miesiącami + "Dziś".
   Dawny inline widok miesiąca (ciasna siatka, sama kropka) USUNIĘTY — miesiąc nigdy
   nie renderuje się ściśnięty, zawsze w popupie z miejscem na treść. Kropka pod dniem
   w widoku tygodnia zastąpiona chipami (`eventCoversDay`, obsługuje wielodniowe).
@@ -428,12 +437,20 @@ kalendarza wciąż nie ma) → Ostatnie transakcje (flex, `FitList`+`Row`+`Price
 głównego ekranu.
 
 **POPUPY (AddExpenseModal/ProductsModal/TransactionsModal/WydatkiModal,
-balance-edit) ŚWIADOMIE BEZ ZMIAN** — wciąż `Modal`, NIE `AppBottomSheet`.
-Bottom-sheet-yfikacja istniejących, złożonych popupów (5 różnych modali, każdy z
-własną logiką) to osobna, jeszcze nieumówiona faza — zbyt duże ryzyko robić to w
-tej samej rundzie co przebudowa głównego ekranu. `ComingSoonRow`/`LiveSectionRow`
-(stary wzorzec listy "Obszary") USUNIĘTE Z REPO CAŁKOWICIE — po przebudowie
-Finansów nic ich już nie importowało (Daily zrzucił je w Fazie 3.3).
+balance-edit) — PRZEBUDOWANE na `AppBottomSheet` (Faza 3.8, 2026-11-02, user:
+"dawaj" po "miało być 1do1").** W Fazie 3.4 (ten akapit niżej, historia) zostały
+świadomie bez zmian — zbyt duże ryzyko robić migrację 5 różnych, złożonych modali w
+tej samej rundzie co przebudowa głównego ekranu. Teraz zrobione: `AddExpenseModal`
+(największy, header=tytuł+usuń/zamknij, footer=kwota+Zapisz PRZYPIĘTE, pływający
+FAB "wklej ze schowka" jako sibling footera z `bottom:'100%'`, patrz komentarz w
+pliku), `ProductsModal`/`TransactionsModal` (header=tytuł+szukajka, nieruchome),
+`WydatkiModal`+`FoodCategoryItemsModal` (drill-down, STACKUJĄ się jako dwa
+niezależne sheety naraz — gorhom's `BottomSheetModalProvider` to wspiera bez
+specjalnej obsługi z naszej strony), balance-edit (`scrollable=false`, krótka
+statyczna treść). Wszystkie `TextInput`y → gorhom's `BottomSheetTextInput`,
+listy (`TransactionsModal`) → `BottomSheetFlatList`. `ComingSoonRow`/
+`LiveSectionRow` (stary wzorzec listy "Obszary") USUNIĘTE Z REPO CAŁKOWICIE — po
+przebudowie Finansów nic ich już nie importowało (Daily zrzucił je w Fazie 3.3).
 
 **Faza 2 — plan pełny (2026-10-31)**, rozpisany po tym jak user poprosił: "przejrzyj
 sobie całego SAPa... zaprojektuj to wszystko... napisz jak masz zamiar to zrobić".
@@ -452,8 +469,9 @@ ustalenia z 2026-10-26 (poniżej) WCIĄŻ obowiązują — ten plan je rozwija, 
   filtrowalny spis w PEŁNOEKRANOWYM POPUPIE. **UWAGA**: sapp NIE MA tego dokładnie —
   tam lista rozwija się W MIEJSCU (przycisk "Pokaż starsze", 31-dniowe okno), nie
   osobny ekran. To nowy wzorzec dla sapp2 — ale mamy już gotowy, sprawdzony kawałek:
-  dokładnie ten sam `WydatkiModal`-owy wzorzec (pełnoekranowy `Modal`,
-  `presentationStyle="fullScreen"`) co dla kafla Jedzenie (patrz niżej) — **Dashboard
+  dokładnie ten sam `WydatkiModal`-owy wzorzec (ówczesny pełnoekranowy `Modal`,
+  `presentationStyle="fullScreen"` — Faza 3.8, 2026-11-02: `AppBottomSheet`, patrz
+  wyżej) co dla kafla Jedzenie (patrz niżej) — **Dashboard
   (i teraz Finanse) NIGDY nie dostają scrolla, nadmiarowa treść zawsze idzie do
   popupu z WŁASNYM scrollem** (ta sama zasada co w §DASHBOARD).
 - **Stałe / Zmienne / Jedzenie — podział na 3** (user, 2026-10-31). **Nie trzeba
@@ -611,13 +629,16 @@ banku... plus szablony wyłapywań")
   "Zapłacono: Ja · Karta" (user: "ta opcja mniej widoczna po rozwinięciu... żeby to
   miejsca nie zajmowało") — tap rozwija wybór Ja/Olesia + metoda płatności razem.
 - **Klawiatura nie zasłania pola** (user, ogólna uwaga na całą appkę) —
-  `src/hooks/useKeyboardHeight.ts` (port z sapp) zamiast `KeyboardAvoidingView`,
-  niewiarygodnego wewnątrz RN's `Modal` na Androidzie (osobna natywna hierarchia,
-  poza zasięgiem `windowSoftInputMode`). Podpięte w `AddExpenseModal.tsx` — **jedyny
-  ekran z inputami wewnątrz pełnoekranowego `Modal` na razie**; każdy następny
-  formularz w `Modal`-u powinien dostać ten sam fix. `MoodModal.tsx` (2026-11-02,
-  przeniesiony na `AppBottomSheet`) tego hooka już NIE potrzebuje — `keyboardBehavior`
-  gorhom's `BottomSheetModal` rozwiązuje to wewnętrznie (patrz §DAILY/AppBottomSheet).
+  `src/hooks/useKeyboardHeight.ts` (port z sapp), użyty zamiast `KeyboardAvoiding-
+  View` (niewiarygodnego wewnątrz RN's `Modal` na Androidzie), dotąd ISTNIAŁ w
+  `AddExpenseModal.tsx`. Faza 3.8 (2026-11-02) przeniosła `AddExpenseModal` (jak i
+  `MoodModal` w Fazie 3.6) na `AppBottomSheet` — hook USUNIĘTY z obu, `keyboard-
+  Behavior="interactive"` gorhom's `BottomSheetModal` rozwiązuje to teraz dla
+  KAŻDEGO popupu z inputami, jedną regułą w jednym miejscu (`AppBottomSheet.tsx`),
+  nie per-ekranowym hookiem. `useKeyboardHeight.ts` zostaje w repo — nieużywany
+  teraz (zero popupów-`Modal` z inputami już w ogóle nie ma), ale generyczny,
+  gotowy gdyby jakikolwiek PRAWDZIWY `Modal` (nie-sheet) z polem tekstowym kiedyś
+  wrócił.
 - **Parser bliżej prawego kciuka** (user) — pływający przycisk (`ClipboardPaste`,
   wzorzec FAB) w prawym dolnym rogu `AddExpenseModal`, czyta schowek i parsuje jednym
   tapnięciem, bez przewijania do pola tekstowego na górze.

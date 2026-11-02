@@ -1,18 +1,26 @@
 import { useMemo, useState } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { BottomSheetFlatList, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { X, Search } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import type { Expense } from '@/types/finances';
+import AppBottomSheet from '@/components/design/AppBottomSheet';
 
 // Pełna lista transakcji (Faza 2.4, 2026-11-01) — "Ostatnie transakcje" na ekranie
 // Finanse pokazuje TYLKO 4 pozycje (ARCHITECTURE.md §FINANSE), to tutaj żyje
-// reszta: pełnoekranowy popup z wyszukiwarką, ten sam wzorzec co WydatkiModal/
-// ProductsModal. `onSelect` NIE zamyka tego modala (ta sama zasada co fix
-// MonthViewModal/DayDetailModal — dwa niezależne Modale mogą być widoczne naraz),
-// żeby po zamknięciu edycji user wracał TUTAJ, do listy, nie od razu do głównego
-// ekranu Finansów.
+// reszta: popup z wyszukiwarką, ten sam wzorzec co WydatkiModal/ProductsModal.
+// `onSelect` NIE zamyka tego modala (ta sama zasada co fix MonthViewModal/
+// DayDetailModal — dwa niezależne popupy mogą być widoczne naraz), żeby po
+// zamknięciu edycji user wracał TUTAJ, do listy, nie od razu do głównego ekranu.
+//
+// Przebudowany na `AppBottomSheet` (2026-11-02, kontynuacja migracji z Faza 3.6).
+// `BottomSheetFlatList` (nie plain `FlatList`, NIE generyczny scroll `AppBottomSheet`
+// sam dodaje) — lista transakcji może być długa, gorhom's wariant to jedyny sposób
+// żeby jej scroll poprawnie współpracował z gestem przeciągania sheeta i z
+// `enableDynamicSizing`/`maxDynamicContentSize` (sheet rośnie do treści, od 78%
+// scrolluje wewnątrz FlatlLista, nie całego sheeta). `header` niesie TAKŻE pole
+// szukania (nie tylko tytuł) — ma zostać NIEruchome, nie przewijać się z listą.
 export default function TransactionsModal({
   visible, onClose, expenses, onSelect,
 }: {
@@ -37,57 +45,58 @@ export default function TransactionsModal({
       || (e.tags ?? []).some((t) => t.toLowerCase().includes(q)));
   }, [sorted, query]);
 
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
-      <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
-        <View style={s.header}>
-          <Text style={s.title}>Transakcje</Text>
-          <TouchableOpacity onPress={onClose} hitSlop={8} style={s.closeBtn}>
-            <X size={18} color={colors.text.secondary} />
-          </TouchableOpacity>
-        </View>
-        <View style={s.searchRow}>
-          <Search size={15} color={colors.text.muted} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Szukaj sklepu, notatki, tagu…"
-            placeholderTextColor={colors.text.muted}
-            style={s.searchInput}
-          />
-        </View>
-        <FlatList
-          data={filtered}
-          keyExtractor={(e) => e.id}
-          contentContainerStyle={s.list}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <Text style={s.empty}>{expenses.length === 0 ? 'Brak transakcji — dodaj pierwszą przyciskiem +.' : 'Brak wyników.'}</Text>
-          }
-          renderItem={({ item: e }) => (
-            <TouchableOpacity style={s.row} onPress={() => onSelect(e)} activeOpacity={0.7}>
-              <View style={s.rowInfo}>
-                <Text style={s.rowNote} numberOfLines={1}>
-                  {e.storeName || e.note || (e.type === 'income' ? 'Przychód' : 'Wydatek')}
-                </Text>
-                <Text style={s.rowDate}>{e.date}</Text>
-              </View>
-              <Text style={[s.rowAmount, e.type === 'income' && s.rowAmountIncome]}>
-                {e.type === 'income' ? '+' : '−'}{e.amount.toFixed(2)} zł
-              </Text>
-            </TouchableOpacity>
-          )}
+  const header = (
+    <>
+      <View style={s.header}>
+        <Text style={s.title}>Transakcje</Text>
+        <TouchableOpacity onPress={onClose} hitSlop={8} style={s.closeBtn}>
+          <X size={18} color={colors.text.secondary} />
+        </TouchableOpacity>
+      </View>
+      <View style={s.searchRow}>
+        <Search size={15} color={colors.text.muted} />
+        <BottomSheetTextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Szukaj sklepu, notatki, tagu…"
+          placeholderTextColor={colors.text.muted}
+          style={s.searchInput}
         />
-      </SafeAreaView>
-    </Modal>
+      </View>
+    </>
+  );
+
+  return (
+    <AppBottomSheet visible={visible} onClose={onClose} header={header} scrollable={false}>
+      <BottomSheetFlatList
+        data={filtered}
+        keyExtractor={(e) => e.id}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <Text style={s.empty}>{expenses.length === 0 ? 'Brak transakcji — dodaj pierwszą przyciskiem +.' : 'Brak wyników.'}</Text>
+        }
+        renderItem={({ item: e }: { item: Expense }) => (
+          <TouchableOpacity style={s.row} onPress={() => onSelect(e)} activeOpacity={0.7}>
+            <View style={s.rowInfo}>
+              <Text style={s.rowNote} numberOfLines={1}>
+                {e.storeName || e.note || (e.type === 'income' ? 'Przychód' : 'Wydatek')}
+              </Text>
+              <Text style={s.rowDate}>{e.date}</Text>
+            </View>
+            <Text style={[s.rowAmount, e.type === 'income' && s.rowAmountIncome]}>
+              {e.type === 'income' ? '+' : '−'}{e.amount.toFixed(2)} zł
+            </Text>
+          </TouchableOpacity>
+        )}
+      />
+    </AppBottomSheet>
   );
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: c.bg.primary },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+    paddingBottom: spacing[3],
   },
   title: { fontSize: 20, fontFamily: 'Inter_900Black', color: c.text.primary },
   closeBtn: {
@@ -97,13 +106,16 @@ const makeS = themedStyles((c) => StyleSheet.create({
 
   searchRow: {
     flexDirection: 'row', alignItems: 'center', gap: spacing[2],
-    marginHorizontal: spacing[4], marginBottom: spacing[3],
+    marginBottom: spacing[3],
     backgroundColor: c.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default,
     paddingHorizontal: spacing[3], paddingVertical: spacing[2],
   },
   searchInput: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: c.text.primary },
 
-  list: { paddingHorizontal: spacing[4], paddingBottom: spacing[8] },
+  // Brak własnego paddingu na liście (2026-11-02) — przy `scrollable={false}`
+  // `AppBottomSheet` opakowuje `children` w `BottomSheetView` z paddingiem już
+  // ustawionym (`paddingHorizontal`/`paddingBottom`); dokładanie go też tutaj
+  // dałoby podwójny odstęp od krawędzi.
   empty: { fontSize: 12.5, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', paddingVertical: spacing[6] },
 
   row: {
