@@ -1,15 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Package, ChevronRight } from 'lucide-react-native';
-import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
-import Tile from '@/components/design/Tile';
-import Row from '@/components/design/Row';
-import PricePill from '@/components/design/PricePill';
-import StackBar from '@/components/design/StackBar';
-import FitList from '@/components/design/FitList';
+import { Screen, Row, Tile, StatTile, Cap, FitList, Item, Price, StackBar } from '@/ui/layout';
+import { C, T } from '@/ui/theme';
 import AddExpenseModal from '@/components/finances/AddExpenseModal';
 import ProductsModal from '@/components/finances/ProductsModal';
 import TransactionsModal from '@/components/finances/TransactionsModal';
@@ -23,28 +18,42 @@ import { haptic } from '@/utils/haptics';
 import { todayISO } from '@/utils/date';
 import type { Expense } from '@/types/finances';
 
-// Faza 3.4 (2026-11-01, "dawaj skończ wszystko") — Finanse przebudowane na nowy
-// system komponentów, układ z design/app-design.html's `#fin` (4 kolumny,
-// `grid-template-rows: auto auto auto auto 1fr`): Saldo → Podział (StackBar) →
-// Jedzenie kategorie (StackBar) → Praca+Najbliższa opłata (stub, s2+s2) →
-// Ostatnie transakcje (fill, 2-liniowe wiersze, `FitList`).
+// Faza 3.10 (design/rn kit) — Finanse przebudowane na kitu's `src/ui/layout.tsx`
+// prymitywy (Screen/Row/Tile/StatTile/Cap/FitList/Item/Price/StackBar), ten sam
+// powód co Dashboard/Daily (ARCHITECTURE.md §"Faza 3.10"). Kolejność/spany 1:1 z
+// design/app-design.html's `#fin` (`grid-template-rows: auto auto auto auto
+// 1fr`): Saldo(4) → Podział(4, StackBar) → Jedzenie kategorie(4, StackBar) →
+// Praca(2)|Najbliższa opłata(2) → Ostatnie transakcje(4, fill, FitList).
 //
-// POPUPY (AddExpenseModal/ProductsModal/TransactionsModal/WydatkiModal, balance-edit)
-// PRZEBUDOWANE na `AppBottomSheet` (2026-11-02, kontynuacja migracji z Faza 3.6,
-// user: "miało być 1do1... dawaj" — ryzyko odłożone w Fazie 3.4 na osobną rundę,
-// teraz podjęte). Balance-edit (ten plik) — prosty, krótki popup, `scrollable=false`
-// (statyczna treść, bez potrzeby scrolla).
+// Praca/Najbliższa opłata — appka nie ma store'a "bills"/godzin z kalendarza
+// (patrz ARCHITECTURE.md §FINANSE). `StatTile value={null}` daje DESIGN.md's
+// zaprojektowany stan pusty ("0" dim + "brak") — zastępuje poprzednie ręczne
+// "wkrótce — kalendarz"/"wkrótce — rachunki", które łamało regułę "nigdy
+// 'wkrótce'" sformalizowaną dopiero w DESIGN.md (Faza 3.9), nie było błędem w
+// chwili pisania.
 //
-// "Produkty" (pamięć cen, realna funkcja) NIE WYSTĘPUJE w spec — zamiast ją
-// wyrzucić, dostała mały link w nagłówku kafla "Jedzenie · kategorie" (ten sam
-// kafel skąd sensownie się do niej trafia). "Praca"/"Najbliższa opłata" = uczciwy
-// stub (appka nie ma store'a "bills"/godzin z kalendarza, patrz ARCHITECTURE.md
-// §FINANSE "Kolejność budowy" — Subskrypcje/Praca wciąż nieistniejące).
+// "Produkty" (pamięć cen, realna funkcja) NIE WYSTĘPUJE w spec — zostaje jako
+// mały link pod `Cap`'em kafla "Jedzenie · kategorie" (ta sama decyzja co
+// Faza 3.4, tylko przeniesiona pod nowy `Cap`, bo ten nie ma miejsca na drugi
+// link obok `r`).
+//
+// FAB "+" (dodaj wydatek/przychód) — REALNA funkcja appki, nie część
+// design/app-design.html (tam nie ma floating-button na Finansach, tylko na
+// Zadaniach jako `.add` inline obok segmentu) — zostaje bez zmian, renderowana
+// jako ostatnie dziecko `Screen` z `position:'absolute'` (w RN pozycjonuje się
+// względem najbliższego rodzica-View niezależnie od jego własnego `position`).
+//
+// Popupy (AddExpenseModal/ProductsModal/TransactionsModal/WydatkiModal,
+// balance-edit) BEZ ZMIAN — `AppBottomSheet` już od Fazy 3.8, kit nie ma
+// odpowiednika popupów.
 function parseZl(s: string): number {
   return parseInt(s.replace(/[^\d]/g, ''), 10) || 0;
 }
 function fmtAmount(n: number): string {
   return Math.abs(n).toFixed(2).replace('.', ',');
+}
+function fmtBalance(n: number): string {
+  return n.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export default function FinancesScreen() {
@@ -95,126 +104,102 @@ export default function FinancesScreen() {
   );
   const productCount = useMemo(() => buildProductCatalog(expenses).length, [expenses]);
 
+  const splitTotal = useMemo(
+    () => parseZl(wydatkiData.fixed.total) + parseZl(wydatkiData.food.total) + parseZl(wydatkiData.variable.total),
+    [wydatkiData],
+  );
   const split = useMemo(() => {
     const fixed = parseZl(wydatkiData.fixed.total);
     const food = parseZl(wydatkiData.food.total);
     const variable = parseZl(wydatkiData.variable.total);
+    // `Math.max(…, 0.001)` TYLKO dla proporcji słupka (StackBar dzieli szerokość
+    // przez `value` — zero zniknęłoby zamiast dać 3px minimum z DESIGN.md), NIE
+    // dla `splitTotal` wyżej (ten pokazuje PRAWDZIWĄ sumę, nie podłogę 0,001 ×3).
     return [
-      { value: Math.max(fixed, 0.001), color: colors.text.primary, label: 'Stałe' },
+      { value: Math.max(fixed, 0.001), color: C.txt, label: 'Stałe' },
       { value: Math.max(food, 0.001), color: '#8A8A8A', label: 'Jedzenie' },
       { value: Math.max(variable, 0.001), color: '#3F3F3F', label: 'Zmienne' },
     ];
   }, [wydatkiData]);
-  const splitTotal = split.reduce((a, s2) => a + s2.value, 0);
 
   const foodCats = wydatkiData.food.categories;
   const foodTotal = parseZl(wydatkiData.food.total);
 
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
-      <View style={s.header}>
-        <Text style={s.title}>Finanse</Text>
-        <Text style={s.headerMonth}>{wydatkiData.month.toUpperCase()} {now.getFullYear()}</Text>
-      </View>
-
-      <View style={s.content}>
-        {/* Rząd 1: Saldo */}
-        <Tile style={s.balanceTile} onPress={openEditBalance}>
-          <View style={s.capRow}>
-            <Text style={s.capLabel}>SALDO</Text>
-            <Text style={s.capUnit}>stuknij, by skalibrować</Text>
-          </View>
-          <Text style={s.balanceNum}>{balance.toFixed(2)} <Text style={s.balanceCur}>PLN</Text></Text>
+    <Screen title="Finanse" right={<Text style={T.small}>{wydatkiData.month.toUpperCase()} {now.getFullYear()}</Text>}>
+      <Row>
+        <Tile span={4} onPress={openEditBalance}>
+          <Cap l="Saldo" r="stuknij, by skalibrować" />
+          <Text style={T.numXl}>{fmtBalance(balance)} <Text style={s.balanceCur}>PLN</Text></Text>
           <View style={s.balanceSumRow}>
             <Text style={s.balanceIn}>+{fmtAmount(monthIncome)}</Text>
             <Text style={s.balanceOut}>−{fmtAmount(monthExpense)}</Text>
           </View>
         </Tile>
+      </Row>
 
-        {/* Rząd 2: Podział */}
-        <Tile style={[s.wideTile, s.rowGap]} onPress={() => setWydatkiOpen(true)}>
-          <View style={s.capRow}>
-            <Text style={s.capLabel}>PODZIAŁ</Text>
-            <Text style={s.capUnit}>{splitTotal} PLN</Text>
-          </View>
+      <Row>
+        <Tile span={4} onPress={() => setWydatkiOpen(true)}>
+          <Cap l="Podział" r={`${splitTotal} PLN`} />
           <View style={s.barSpace}>
-            <StackBar segments={split} height={10} legend={split} />
+            <StackBar parts={split} height={10} />
           </View>
         </Tile>
+      </Row>
 
-        {/* Rząd 3: Jedzenie kategorie */}
-        <Tile style={[s.wideTile, s.rowGap]} variant="static">
-          <View style={s.capRow}>
-            <Text style={s.capLabel}>JEDZENIE · KATEGORIE</Text>
-            <TouchableOpacity onPress={() => setProductsOpen(true)} style={s.productsLink} hitSlop={6}>
-              <Package size={11} color={colors.text.muted} />
-              <Text style={s.productsLinkLabel}>Produkty {productCount > 0 ? `(${productCount})` : ''}</Text>
-            </TouchableOpacity>
-          </View>
+      <Row>
+        <Tile span={4}>
+          <Cap l="Jedzenie · kategorie" r={`${foodTotal} PLN`} />
+          <TouchableOpacity onPress={() => setProductsOpen(true)} style={s.productsLink} hitSlop={6}>
+            <Package size={11} color={C.mut} />
+            <Text style={s.productsLinkLabel}>Produkty {productCount > 0 ? `(${productCount})` : ''}</Text>
+          </TouchableOpacity>
           {foodCats.length === 0 ? (
-            <Text style={s.emptyInline}>Brak jedzenia w tym miesiącu</Text>
+            <Text style={[T.small, s.emptyInline]}>Brak jedzenia w tym miesiącu</Text>
           ) : (
             <TouchableOpacity onPress={() => setWydatkiOpen(true)} activeOpacity={0.7} style={s.barSpace}>
-              <StackBar
-                segments={foodCats.map((c) => ({ value: c.amount, color: c.color }))}
-                height={10}
-                legend={foodCats.slice(0, 3).map((c) => ({ value: c.amount, color: c.color, label: c.label }))}
-                extra={Math.max(0, foodCats.length - 3)}
-              />
-              <Text style={s.foodTotalHint}>{foodTotal} PLN</Text>
+              <StackBar parts={foodCats.map((c) => ({ label: c.label, value: c.amount, color: c.color }))} height={10} legendMax={3} />
             </TouchableOpacity>
           )}
         </Tile>
+      </Row>
 
-        {/* Rząd 4: Praca + Najbliższa opłata (stub) */}
-        <View style={[s.row, s.rowGap]}>
-          <Tile style={s.stubTile}>
-            <Text style={s.capLabel}>PRACA</Text>
-            <Text style={s.stubNum}>—</Text>
-            <Text style={s.stubHint}>wkrótce — kalendarz</Text>
-          </Tile>
-          <Tile style={s.stubTile}>
-            <Text style={s.capLabel}>NAJBLIŻSZA OPŁATA</Text>
-            <Text style={s.stubNum}>—</Text>
-            <Text style={s.stubHint}>wkrótce — rachunki</Text>
-          </Tile>
-        </View>
+      <Row>
+        <StatTile value={null} unit="kalendarz" label="Praca" span={2} />
+        <StatTile value={null} unit="rachunki" label="Najbliższa opłata" span={2} />
+      </Row>
 
-        {/* Rząd 5 (flex): Ostatnie transakcje */}
-        <Tile style={[s.wideTile, s.rowGap, s.rowFlex1]} variant="static">
+      <Row flex={1}>
+        <Tile span={4}>
           <TouchableOpacity
             style={s.capRow}
             onPress={() => setTransactionsOpen(true)}
             activeOpacity={0.6}
             disabled={expenses.length === 0}
           >
-            <Text style={s.capLabel}>OSTATNIE TRANSAKCJE</Text>
+            <Text style={T.cap}>Ostatnie transakcje</Text>
             {expenses.length > 0 && (
               <View style={s.seeAllRow}>
-                <Text style={s.capUnit}>wszystkie</Text>
-                <ChevronRight size={12} color={colors.text.muted} />
+                <Text style={T.capR}>wszystkie</Text>
+                <ChevronRight size={12} color={C.mut} />
               </View>
             )}
           </TouchableOpacity>
           <FitList
             data={recent}
-            itemHeight={44}
-            gap={spacing[1]}
-            keyExtractor={(e) => e.id}
-            empty={<Text style={s.emptyInline}>Brak transakcji — dodaj pierwszą przyciskiem +</Text>}
+            emptyText="Brak transakcji — dodaj pierwszą przyciskiem +"
             renderItem={(e) => (
-              <Row
-                key={e.id}
-                height={44}
-                onPress={() => setEditingExpense(e)}
-                label={e.storeName || e.note || (e.type === 'income' ? 'Przychód' : 'Wydatek')}
-                sublabel={e.date}
-                right={<PricePill amount={fmtAmount(e.amount)} income={e.type === 'income'} />}
-              />
+              <Item onPress={() => setEditingExpense(e)}>
+                <Price amount={e.type === 'income' ? e.amount : -e.amount} />
+                <View style={s.txTextCol}>
+                  <Text style={T.row} numberOfLines={1}>{e.storeName || e.note || (e.type === 'income' ? 'Przychód' : 'Wydatek')}</Text>
+                  <Text style={T.rowSub} numberOfLines={1}>{e.date}</Text>
+                </View>
+              </Item>
             )}
           />
         </Tile>
-      </View>
+      </Row>
 
       <TouchableOpacity
         style={s.fab}
@@ -222,7 +207,7 @@ export default function FinancesScreen() {
         activeOpacity={0.8}
         accessibilityLabel="Nowy wydatek lub przychód"
       >
-        <Plus size={22} color={colors.bg.primary} />
+        <Plus size={22} color={C.bg} />
       </TouchableOpacity>
 
       <AddExpenseModal
@@ -272,47 +257,29 @@ export default function FinancesScreen() {
           </View>
         </View>
       </AppBottomSheet>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: c.bg.primary },
-  header: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: spacing[4], paddingVertical: spacing[3] },
-  title: { fontSize: 22, fontFamily: 'Inter_900Black', letterSpacing: -0.5, color: c.text.bright },
-  headerMonth: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted, letterSpacing: 0.4 },
-  content: { flex: 1, paddingHorizontal: spacing[3] },
-
-  row: { flexDirection: 'row', gap: spacing[2] },
-  rowGap: { marginTop: spacing[2] },
-  rowFlex1: { flex: 1 },
-  wideTile: { width: '100%' },
-
-  capRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  capLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.4, color: c.text.primary },
-  capUnit: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
+  capRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   seeAllRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
 
-  balanceTile: {},
-  balanceNum: { fontSize: 32, fontFamily: 'Inter_900Black', letterSpacing: -0.8, color: c.text.bright, marginTop: spacing[2] },
-  balanceCur: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  balanceCur: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.mut },
   balanceSumRow: { flexDirection: 'row', gap: spacing[4], marginTop: spacing[2] },
-  balanceIn: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.accent.green },
-  balanceOut: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  balanceIn: { fontSize: 12, fontFamily: 'Inter_700Bold', color: C.ok },
+  balanceOut: { fontSize: 12, fontFamily: 'Inter_700Bold', color: C.mut },
 
   barSpace: { marginTop: spacing[3] },
-  productsLink: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  productsLinkLabel: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
-  foodTotalHint: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: spacing[2], textAlign: 'right' },
-  emptyInline: { fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', marginTop: spacing[3] },
+  productsLink: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: -4, marginBottom: spacing[1] },
+  productsLinkLabel: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: C.mut },
+  emptyInline: { textAlign: 'center', marginTop: spacing[3] },
 
-  stubTile: { flex: 1, gap: 4 },
-  stubNum: { fontSize: 22, fontFamily: 'Inter_800ExtraBold', color: c.text.bright, marginTop: spacing[1] },
-  stubHint: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
+  txTextCol: { flex: 1, minWidth: 0 },
 
   fab: {
     position: 'absolute', right: spacing[4], bottom: spacing[4],
-    width: 52, height: 52, borderRadius: radius.full, backgroundColor: c.text.bright,
+    width: 52, height: 52, borderRadius: radius.full, backgroundColor: C.hi,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
     elevation: 6,
