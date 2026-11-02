@@ -1,29 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { X, Check, BookOpen, SquarePen } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { todayISO } from '@/utils/date';
-import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { type MoodEntry, type MoodLevel, MOOD_COLORS, MOOD_LABELS, ENERGY_LABELS } from '@/types/mood';
 import { useMoodStore } from '@/store/moodStore';
 import { PRESET_TAGS, sortMoodTags } from '@/utils/moodTags';
 import MoodPad from '@/components/design/MoodPad';
+import AppBottomSheet from '@/components/design/AppBottomSheet';
 
 // Port z sapp (MoodCheckInModal.tsx) + NOWA sekcja "Pamiętnik" w JEDNYM modalu (user,
 // 2026-10-31: "humor... z taką siatką jak w sapp i opcjonalnym tekstem, zapisywanym tym
 // razem w formie pamiętnika DZIEŃ DATA"). Zamiast dwóch osobnych modali (check-in +
-// historia), jeden "Humor" surface z przełącznikiem widoku w headerze — tak samo jak
-// wszystkie inne popupy w sapp2 (pełnoekranowy Modal, nie bottom-sheet jak w sapp).
+// historia), jeden "Humor" surface z przełącznikiem widoku w headerze.
 //
-// `GestureHandlerRootView` + `ScrollView` z 'react-native-gesture-handler' (NIE z
-// 'react-native') — KRYTYCZNE, nie kosmetyka: RN's `Modal` portuje swoją treść do
-// OSOBNEJ natywnej hierarchii, poza drzewiem które jedyny `GestureHandlerRootView` w
-// app/_layout.tsx opakowuje — bez własnego roota tutaj `Gesture.Pan()` w
-// `MoodEnergyGrid` nigdy nie dostaje poprawnie routowanych dotknięć (sapp, dwa
-// potwierdzone na urządzeniu bugi, patrz komentarze w MoodEnergyGrid.tsx/tu).
+// Przebudowa na `AppBottomSheet` (2026-11-02, user: "animacje jak blur wylatuje...
+// wyglądało 1do1 jak tam" — mockup ma KAŻDĄ interakcję jako bottom sheet z blur
+// backdropem, nie pełnoekranowy `Modal` ze slide'm, którym to było dotąd). Dzięki temu
+// odpadł cały `GestureHandlerRootView`/`SafeAreaView`/`ScrollView`-z-gesture-handler
+// rytuał, który był potrzebny TYLKO bo `Modal` portuje się poza jedyny root w
+// `app/_layout.tsx` — `AppBottomSheet` renderuje się WEWNĄTRZ tego roota (przez
+// `BottomSheetModalProvider`), więc `Gesture.Pan()` w `MoodPad` routuje się poprawnie
+// bez dodatkowego wrappera, a zwykły `ScrollView`/`TextInput` z 'react-native' działają
+// normalnie. `TextInput`y zamienione na `BottomSheetTextInput` (gorhom) — zwykły
+// `TextInput` wewnątrz sheeta gubi fokus/zaznaczenie przy przewijaniu treści.
 //
 // Model danych: BEZ nowego pola na "dziennik dnia" — `MoodEntry.note` jest już
 // per-wpisem notatką; widok "Pamiętnik" grupuje wpisy po `date` pod nagłówkiem
@@ -31,7 +33,6 @@ import MoodPad from '@/components/design/MoodPad';
 // = zrobić kolejny check-in tego dnia z własną notatką — nie osobny rekord do pilnowania.
 export default function MoodModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const s = makeS();
-  const kb = useKeyboardHeight();
   const entries = useMoodStore((st) => st.entries);
   const addEntry = useMoodStore((st) => st.addEntry);
   const updateEntry = useMoodStore((st) => st.updateEntry);
@@ -98,140 +99,123 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
 
   const chipColor = mood ? MOOD_COLORS[mood] : undefined;
 
+  const header = (
+    <View style={s.header}>
+      <View style={s.flex1}>
+        <Text style={s.title}>
+          {view === 'diary' ? 'Pamiętnik' : editingEntry ? 'Edytuj check-in' : ordinal === 1 ? 'Jak się czujesz?' : `Humor ${ordinal}. raz dziś`}
+        </Text>
+        {view === 'checkin' && (
+          <Text style={s.subtitle}>
+            {new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' })}
+            {!editingEntry && todayCount > 0 ? ` · masz już ${todayCount} dziś` : ''}
+          </Text>
+        )}
+      </View>
+      <TouchableOpacity
+        onPress={() => setView((v) => (v === 'checkin' ? 'diary' : 'checkin'))}
+        style={s.iconBtn}
+        hitSlop={8}
+      >
+        {view === 'checkin' ? <BookOpen size={17} color={colors.text.secondary} /> : <SquarePen size={17} color={colors.text.secondary} />}
+      </TouchableOpacity>
+      <TouchableOpacity onPress={handleClose} style={s.iconBtn} hitSlop={8}>
+        <X size={18} color={colors.text.secondary} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const footer = view === 'checkin' ? (
+    <TouchableOpacity style={[s.saveBtn, !canSave && s.btnDisabled]} onPress={handleSave} disabled={!canSave} activeOpacity={0.7}>
+      <Check size={16} color={colors.bg.primary} />
+      <Text style={s.saveLabel}>{editingEntry ? 'Zaktualizuj' : 'Zapisz'}</Text>
+    </TouchableOpacity>
+  ) : undefined;
+
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={handleClose}>
-      <GestureHandlerRootView style={s.flex1}>
-        <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
-          {/* `paddingBottom: kb` zamiast `KeyboardAvoidingView` — patrz identyczny
-              komentarz w AddExpenseModal.tsx (ten sam problem: `Modal` na Androidzie
-              portuje treść poza zasięg `windowSoftInputMode`). */}
-          <View style={[s.flex1, { paddingBottom: kb }]}>
-            <View style={s.header}>
-              <View style={s.flex1}>
-                <Text style={s.title}>
-                  {view === 'diary' ? 'Pamiętnik' : editingEntry ? 'Edytuj check-in' : ordinal === 1 ? 'Jak się czujesz?' : `Humor ${ordinal}. raz dziś`}
-                </Text>
-                {view === 'checkin' && (
-                  <Text style={s.subtitle}>
-                    {new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' })}
-                    {!editingEntry && todayCount > 0 ? ` · masz już ${todayCount} dziś` : ''}
-                  </Text>
-                )}
-              </View>
-              <TouchableOpacity
-                onPress={() => setView((v) => (v === 'checkin' ? 'diary' : 'checkin'))}
-                style={s.iconBtn}
-                hitSlop={8}
-              >
-                {view === 'checkin' ? <BookOpen size={17} color={colors.text.secondary} /> : <SquarePen size={17} color={colors.text.secondary} />}
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleClose} style={s.iconBtn} hitSlop={8}>
-                <X size={18} color={colors.text.secondary} />
-              </TouchableOpacity>
-            </View>
-
-            {view === 'checkin' ? (
-              <>
-                {/* Kolejność sekcji ODWRÓCONA (2026-11-01, user: "mam być wygodnie
-                    wpisywać... jak to jest na górze ekranu wszystko" — siatka,
-                    jedyny element wymagający przeciągania kciukiem, siedziała
-                    NAJWYŻEJ, najdalej od naturalnej pozycji kciuka przy trzymaniu
-                    telefonu jedną ręką; tagi/notatka to pojedyncze taty/pisanie,
-                    mniej wymagające precyzji). Teraz: tagi → notatka → siatka, tuż
-                    nad przyciskiem "Zapisz" — ten sam "bliżej kciuka" priorytet co
-                    FAB wklejania paragonu w AddExpenseModal. */}
-                <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-                  <View style={s.section}>
-                    <Text style={s.sectionLabel}>Co czujesz?</Text>
-                    <View style={s.tagsRow}>
-                      <TextInput
-                        value={customTag}
-                        onChangeText={setCustomTag}
-                        placeholder="+ własny"
-                        placeholderTextColor={colors.text.muted}
-                        style={s.customTagInput}
-                        onSubmitEditing={addCustomTag}
-                        returnKeyType="done"
-                      />
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tagsScroll}>
-                        {allDisplayTags.map((tag) => {
-                          const selected = tags.includes(tag);
-                          return (
-                            <TouchableOpacity
-                              key={tag}
-                              style={[s.tagChip, selected && { backgroundColor: chipColor ?? colors.text.bright, borderColor: chipColor ?? colors.text.bright }]}
-                              onPress={() => toggleTag(tag)}
-                              activeOpacity={0.7}
-                            >
-                              <Text style={[s.tagChipLabel, selected && s.tagChipLabelActive]}>{tag}</Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </ScrollView>
-                    </View>
-                  </View>
-
-                  <View style={s.section}>
-                    <Text style={s.sectionLabel}>Notatka dnia (opcjonalnie)</Text>
-                    <TextInput
-                      value={note}
-                      onChangeText={setNote}
-                      placeholder="Co słychać? Trafi do pamiętnika pod dzisiejszą datą."
-                      placeholderTextColor={colors.text.muted}
-                      style={s.noteInput}
-                      multiline
-                      textAlignVertical="top"
-                    />
-                  </View>
-
-                  <View style={s.padSection}>
-                    <Text style={s.sectionLabel}>Nastrój i energia</Text>
-                    <Text style={s.hint}>przeciągnij lub tapnij — w prawo lepszy nastrój, w górę więcej energii</Text>
-                    <MoodPad mood={mood} energy={energy} onChange={(m, e) => { setMood(m); setEnergy(e); }} big />
-                  </View>
-                </ScrollView>
-
-                <View style={s.footer}>
-                  <TouchableOpacity style={[s.saveBtn, !canSave && s.btnDisabled]} onPress={handleSave} disabled={!canSave} activeOpacity={0.7}>
-                    <Check size={16} color={colors.bg.primary} />
-                    <Text style={s.saveLabel}>{editingEntry ? 'Zaktualizuj' : 'Zapisz'}</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            ) : (
-              <ScrollView contentContainerStyle={s.scroll}>
-                {byDay.length === 0 ? (
-                  <Text style={s.empty}>Pamiętnik jest jeszcze pusty — zapisz pierwszy nastrój.</Text>
-                ) : (
-                  byDay.map(([date, list]) => (
-                    <View key={date} style={s.daySection}>
-                      <Text style={s.dayHeader}>DZIEŃ · {formatDiaryDate(date)}</Text>
-                      {list.map((e) => (
-                        <TouchableOpacity key={e.id} style={s.entryCard} onPress={() => openForEdit(e)} activeOpacity={0.7}>
-                          <View style={s.entryTopRow}>
-                            <View style={s.entryMoodRow}>
-                              <View style={[s.entryDot, { backgroundColor: MOOD_COLORS[e.mood] }]} />
-                              <Text style={s.entryMood}>{MOOD_LABELS[e.mood]} · {ENERGY_LABELS[e.energy]}</Text>
-                            </View>
-                            <Text style={s.entryTime}>{new Date(e.createdAt).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}</Text>
-                          </View>
-                          {e.tags.length > 0 && (
-                            <View style={s.entryTags}>
-                              {e.tags.map((t) => <Text key={t} style={s.entryTag}>#{t}</Text>)}
-                            </View>
-                          )}
-                          {e.note && <Text style={s.entryNote}>{e.note}</Text>}
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  ))
-                )}
+    <AppBottomSheet visible={visible} onClose={handleClose} header={header} footer={footer}>
+      {view === 'checkin' ? (
+        <View style={s.checkinBody}>
+          <View style={s.section}>
+            <Text style={s.sectionLabel}>Co czujesz?</Text>
+            <View style={s.tagsRow}>
+              <BottomSheetTextInput
+                value={customTag}
+                onChangeText={setCustomTag}
+                placeholder="+ własny"
+                placeholderTextColor={colors.text.muted}
+                style={s.customTagInput}
+                onSubmitEditing={addCustomTag}
+                returnKeyType="done"
+              />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tagsScroll}>
+                {allDisplayTags.map((tag) => {
+                  const selected = tags.includes(tag);
+                  return (
+                    <TouchableOpacity
+                      key={tag}
+                      style={[s.tagChip, selected && { backgroundColor: chipColor ?? colors.text.bright, borderColor: chipColor ?? colors.text.bright }]}
+                      onPress={() => toggleTag(tag)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[s.tagChipLabel, selected && s.tagChipLabelActive]}>{tag}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
-            )}
+            </View>
           </View>
-        </SafeAreaView>
-      </GestureHandlerRootView>
-    </Modal>
+
+          <View style={s.section}>
+            <Text style={s.sectionLabel}>Notatka dnia (opcjonalnie)</Text>
+            <BottomSheetTextInput
+              value={note}
+              onChangeText={setNote}
+              placeholder="Co słychać? Trafi do pamiętnika pod dzisiejszą datą."
+              placeholderTextColor={colors.text.muted}
+              style={s.noteInput}
+              multiline
+              textAlignVertical="top"
+            />
+          </View>
+
+          <View style={s.padSection}>
+            <Text style={s.sectionLabel}>Nastrój i energia</Text>
+            <Text style={s.hint}>przeciągnij lub tapnij — w prawo lepszy nastrój, w górę więcej energii</Text>
+            <MoodPad mood={mood} energy={energy} onChange={(m, e) => { setMood(m); setEnergy(e); }} big />
+          </View>
+        </View>
+      ) : (
+        <View style={s.diaryBody}>
+          {byDay.length === 0 ? (
+            <Text style={s.empty}>Pamiętnik jest jeszcze pusty — zapisz pierwszy nastrój.</Text>
+          ) : (
+            byDay.map(([date, list]) => (
+              <View key={date} style={s.daySection}>
+                <Text style={s.dayHeader}>DZIEŃ · {formatDiaryDate(date)}</Text>
+                {list.map((e) => (
+                  <TouchableOpacity key={e.id} style={s.entryCard} onPress={() => openForEdit(e)} activeOpacity={0.7}>
+                    <View style={s.entryTopRow}>
+                      <View style={s.entryMoodRow}>
+                        <View style={[s.entryDot, { backgroundColor: MOOD_COLORS[e.mood] }]} />
+                        <Text style={s.entryMood}>{MOOD_LABELS[e.mood]} · {ENERGY_LABELS[e.energy]}</Text>
+                      </View>
+                      <Text style={s.entryTime}>{new Date(e.createdAt).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}</Text>
+                    </View>
+                    {e.tags.length > 0 && (
+                      <View style={s.entryTags}>
+                        {e.tags.map((t) => <Text key={t} style={s.entryTag}>#{t}</Text>)}
+                      </View>
+                    )}
+                    {e.note && <Text style={s.entryNote}>{e.note}</Text>}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ))
+          )}
+        </View>
+      )}
+    </AppBottomSheet>
   );
 }
 
@@ -246,12 +230,10 @@ function formatDiaryDate(dateYmd: string): string {
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: c.bg.primary },
   flex1: { flex: 1 },
   header: {
     flexDirection: 'row', alignItems: 'flex-start', gap: spacing[2],
-    paddingHorizontal: spacing[4], paddingVertical: spacing[3],
-    borderBottomWidth: 1, borderBottomColor: c.border.default,
+    paddingBottom: spacing[3], borderBottomWidth: 1, borderBottomColor: c.border.default,
   },
   title: { fontSize: 19, fontFamily: 'Inter_900Black', color: c.text.primary },
   subtitle: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 2 },
@@ -260,7 +242,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
     backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default,
   },
 
-  scroll: { paddingHorizontal: spacing[4], paddingVertical: spacing[4], gap: spacing[4] },
+  checkinBody: { paddingTop: spacing[3], gap: spacing[4] },
+  diaryBody: { paddingTop: spacing[3] },
   section: { gap: spacing[2] },
   padSection: { gap: spacing[1] },
   sectionLabel: {
@@ -289,10 +272,6 @@ const makeS = themedStyles((c) => StyleSheet.create({
     padding: spacing[3], minHeight: 100,
   },
 
-  footer: {
-    paddingHorizontal: spacing[4], paddingVertical: spacing[3],
-    borderTopWidth: 1, borderTopColor: c.border.default,
-  },
   saveBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: c.text.bright, borderRadius: radius.md, paddingVertical: spacing[3],

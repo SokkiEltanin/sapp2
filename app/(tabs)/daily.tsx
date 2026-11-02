@@ -21,10 +21,9 @@ import MoodModal from '@/components/mood/MoodModal';
 // `PLACEHOLDER_SECTIONS` co wcześniej, teraz jako kafel zamiast wiersza listy).
 // Nastrój = JEDYNA realna sekcja (`useMoodStore`, od 2026-10-31) — `MoodPad`
 // (`mini`) pokazuje ostatni dzisiejszy wpis, tap na CAŁY wiersz otwiera
-// `MoodModal.tsx` (bez zmian w kontenerze — wciąż pełnoekranowy `Modal`, nie
-// jeszcze bottom-sheet, patrz "Następne fazy" w ARCHITECTURE.md), który teraz
-// wewnątrz używa tego samego `MoodPad` (`big`) zamiast starego `MoodEnergyGrid`
-// (USUNIĘTY, osierocony).
+// `MoodModal.tsx` (2026-11-02: przebudowany na `AppBottomSheet`, patrz
+// komentarz tam), który wewnątrz używa tego samego `MoodPad` (`big`) zamiast
+// starego `MoodEnergyGrid` (USUNIĘTY, osierocony).
 export default function DailyScreen() {
   const insets = useSafeAreaInsets();
   const s = makeS();

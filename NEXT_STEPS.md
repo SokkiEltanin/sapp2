@@ -2253,3 +2253,69 @@ Finansów) zamiast inline w scrollu.
 
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone, `npx expo
 export --platform android` bez błędów.
+
+## Redesign rdzenia UI — Faza 3.6 "Fix kafli + pierwszy bottom-sheet" UKOŃCZONA (2026-11-02)
+
+User, po zrzucie ekranu Daily: "wgle sie nie postarałeś miałeś zrobic 1 do 1
+jak tam, ze animacje jak blur wylatuje, wyglądało 1do1 jak tam i wgle" — dwie
+różne rzeczy, obie zaadresowane:
+
+**1. Realny bug kafli, nie tylko estetyka.** Kafel "Nastrój" na Daily renderował
+się jako wąski, wyśrodkowany pasek, nie pełna szerokość rzędu, jak na zrzucie.
+Przyczyna w `Tile.tsx` (dwa nałożone błędy, szczegóły w komentarzu w pliku):
+`style` z `flex`/`width` trafiał tylko na wewnętrzny `Animated.View`, nigdy na
+`Pressable` (faktyczne dziecko rzędu) — a naiwna pierwsza poprawka dokładała
+tam CAŁE `style`, co przez `alignItems:'center'` (myślane do ułożenia treści
+WEWNĄTRZ kafla) wyłączało domyślne rozciąganie. Złapane dopiero zmierzonym
+`getBoundingClientRect()` w izolowanym `react-native-web` renderze — sam
+screenshot wyglądał identycznie dla zepsutej i naprawionej wersji i za
+pierwszym podejściem zmylił. Fix w jednym miejscu (`Tile.tsx`) naprawia KAŻDY
+interaktywny kafel na wszystkich 4 przebudowanych ekranach (Dashboard/Daily/
+Finanse/Zadania) naraz.
+
+**2. Brakująca fidelity bottom-sheet/blur.** `AppBottomSheet.tsx` istniał od
+Fazy 3.1, ale żaden popup go jeszcze nie używał — stąd brak "animacji jak blur
+wylatuje" z mockupu. `MoodModal.tsx` (jedyny popup na Daily, dokładnie to co
+user miał na ekranie) jako pierwszy realny migrant z pełnoekranowego `Modal`.
+Przy okazji `AppBottomSheet` dostał `header`/`footer`/`scrollable` propsy
+(potrzebne, bo MoodModal ma stały nagłówek z przełącznikiem widoku "Dodaj"/
+"Pamiętnik" + przypięty przycisk "Zapisz", nie goły blob treści) —
+`header` renderuje się NAD scrollem, `footer` przez gorhom's `BottomSheetFooter`
+(zawsze przypięty do dołu, odpychany przez klawiaturę). `TextInput`y w
+MoodModalu zamienione na `BottomSheetTextInput`. Stary `GestureHandlerRootView`
++RNGH-`ScrollView` rytuał w MoodModalu ODPADŁ — potrzebny był TYLKO bo `Modal`
+portuje się poza jedyny root w `app/_layout.tsx`; `AppBottomSheet` renderuje się
+WEWNĄTRZ tego roota.
+
+Pozostałe popupy (AddExpenseModal/ProductsModal/TransactionsModal/WydatkiModal,
+balance-edit, DayDetailModal, AddTaskCard-composer) ŚWIADOMIE wciąż `Modal` —
+ten jeden ekran był najbardziej bezpośrednio wskazany przez usera (to literalnie
+to, na co patrzył na zrzucie), reszta to dalszy ciąg tej samej, osobnej fazy.
+
+**DO PRZETESTOWANIA NA URZĄDZENIU — to jest najważniejsze do zweryfikowania
+po tej rundzie:**
+- Kafel "Nastrój" na Daily powinien wypełniać CAŁĄ szerokość rzędu, nie być
+  wąskim wyśrodkowanym paskiem — to jest DOKŁADNIE bug ze zrzutu ekranu usera.
+- Wszystkie inne kafle z `onPress` (Dashboard/Finanse/Zadania) też powinny
+  wypełniać swoją kolumnę/rząd poprawnie — jeśli gdzieś jeszcze widać wąski/
+  wyśrodkowany kafel, to NOWY, nie ten sam bug (ten jest naprawiony w jednym
+  miejscu dla wszystkich).
+- Tap na kafel "Nastrój" → powinien wysunąć się bottom sheet OD DOŁU (nie
+  pełnoekranowy slide), z rozmytym (blur) tłem za nim — to jest DOKŁADNIE
+  "animacja jak blur wylatuje" z prośby usera.
+- W sheecie: nagłówek (tytuł + ikony przełącznika/zamknięcia) powinien zostać
+  NIEruchomy u góry, treść (tagi/notatka/siatka nastroju ALBO pamiętnik) się
+  przewija, przycisk "Zapisz" zostaje przypięty u dołu.
+- Otwarcie klawiatury (pole "+ własny" tag / notatka) NIE powinno zasłaniać
+  pola — sheet powinien się odpowiednio podnieść/dociskać.
+- Zamknięcie: tap w tło (blur) ALBO X ALBO zapisanie — sheet powinien się
+  schować z powrotem W DÓŁ z blurem zanikającym, nie "mignąć" czy zutnąć się.
+- Przeciąganie siatki nastroju (`MoodPad big`) w środku sheeta — gest NIE
+  powinien przypadkowo przeciągać/zamykać całego sheeta (to był realny bug na
+  urządzeniu w sapp przy złej konfiguracji gestów, stąd świadomy test).
+
+Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone, `npx expo
+export --platform android` bez błędów. Rzeczywisty render na urządzeniu/
+emulatorze (gesty przeciągania w sheecie, keyboard-avoidance) NIE był możliwy
+w tym środowisku (brak Androida) — lista wyżej to co user powinien sprawdzić
+jako pierwsze.

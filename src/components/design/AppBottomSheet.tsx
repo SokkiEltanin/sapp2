@@ -1,8 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { StyleSheet, Dimensions } from 'react-native';
 import {
-  BottomSheetModal, BottomSheetView, BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
+  BottomSheetModal, BottomSheetView, BottomSheetScrollView, BottomSheetBackdrop, BottomSheetFooter,
+  type BottomSheetBackdropProps, type BottomSheetFooterProps,
 } from '@gorhom/bottom-sheet';
 import { BlurView } from 'expo-blur';
 import { colors } from '@/theme/colors';
@@ -24,18 +24,35 @@ import { spacing, radius } from '@/theme';
 // spec (`.sheet{left:8px;right:8px;bottom:8px}`), nie tylko z góry.
 // `enableDynamicSizing` + `maxDynamicContentSize` = 78% wysokości ekranu — sheet
 // rośnie do wysokości treści, ale nigdy więcej niż 78% (spec: `max-height:78%`), od
-// tego momentu scrolluje WEWNĄTRZ (`BottomSheetView` → scrollview gdy treść nie mieści,
-// patrz ekrany korzystające z tego, Faza 3.2+).
+// tego momentu scrolluje WEWNĄTRZ.
+//
+// `header`/`footer` (2026-11-02, user zgłosił: "animacje jak blur wylatuje" brakuje —
+// pierwsza wersja miała TYLKO `children` w jednym `BottomSheetView`, co dla prostych
+// popupów starczało, ale dla złożonych ekranów jak Humor (nagłówek z przełącznikiem
+// widoku + przewijalna treść + przypięty przycisk "Zapisz") zmuszałoby do upychania
+// WSZYSTKIEGO w jeden scroll — nagłówek i stopka by uciekały poza ekran przy
+// przewijaniu/klawiaturze. `header` renderuje się w stałym `BottomSheetView` NAD
+// scrollem; `footer`, jeśli podany, idzie przez `footerComponent` (`BottomSheetFooter`)
+// — to osobny, ABSOLUTNIE pozycjonowany warstwa POZA treścią, zawsze przypięta do dołu
+// sheeta i automatycznie odpychana przez klawiaturę, dlatego `body` dostaje dodatkowy
+// `paddingBottom`, żeby treść nie chowała się pod nią.
 const SCREEN_H = Dimensions.get('window').height;
 const MAX_SHEET_HEIGHT = SCREEN_H * 0.78;
+const FOOTER_SPACE = 76;
 
 export default function AppBottomSheet({
   visible,
   onClose,
+  header,
+  footer,
+  scrollable = true,
   children,
 }: {
   visible: boolean;
   onClose: () => void;
+  header?: React.ReactNode;
+  footer?: React.ReactNode;
+  scrollable?: boolean;
   children: React.ReactNode;
 }) {
   const ref = useRef<BottomSheetModal>(null);
@@ -60,6 +77,18 @@ export default function AppBottomSheet({
     [],
   );
 
+  const renderFooter = useCallback(
+    (props: BottomSheetFooterProps) => (
+      <BottomSheetFooter {...props} style={s.footer}>
+        {footer}
+      </BottomSheetFooter>
+    ),
+    [footer],
+  );
+
+  const bodyStyle = [s.body, !!footer && s.bodyWithFooter];
+  const Body = scrollable ? BottomSheetScrollView : BottomSheetView;
+
   return (
     <BottomSheetModal
       ref={ref}
@@ -72,8 +101,15 @@ export default function AppBottomSheet({
       enableDynamicSizing
       maxDynamicContentSize={MAX_SHEET_HEIGHT}
       backdropComponent={renderBackdrop}
+      footerComponent={footer ? renderFooter : undefined}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
     >
-      <BottomSheetView style={s.body}>{children}</BottomSheetView>
+      {header && <BottomSheetView style={s.header}>{header}</BottomSheetView>}
+      <Body style={scrollable ? s.scroll : bodyStyle} contentContainerStyle={scrollable ? bodyStyle : undefined} keyboardShouldPersistTaps="handled">
+        {children}
+      </Body>
     </BottomSheetModal>
   );
 }
@@ -89,5 +125,12 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#1f1f1f',
   },
   handle: { width: 36, height: 4, backgroundColor: colors.ui.dim },
+  header: { paddingHorizontal: spacing[4], paddingTop: spacing[1] },
+  scroll: {},
   body: { paddingHorizontal: spacing[4], paddingBottom: spacing[4] },
+  bodyWithFooter: { paddingBottom: FOOTER_SPACE },
+  footer: {
+    paddingHorizontal: spacing[4], paddingTop: spacing[2], paddingBottom: spacing[4],
+    backgroundColor: colors.bg.card, borderTopWidth: 1, borderTopColor: '#1f1f1f',
+  },
 });

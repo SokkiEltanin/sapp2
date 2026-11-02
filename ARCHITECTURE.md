@@ -95,15 +95,28 @@ zdrowia POTWIERDZONE jako osobna, odłożona faza (opcja 1 z dwóch zaproponowan
   legenda), `Bars` (słupkowy wykres kolumnowy, `Math.max(1,...)` na mianowniku to
   obowiązek wołającego, jak już w `foodStats.ts`).
 - **`AppBottomSheet`** (`src/components/design/AppBottomSheet.tsx`) — `visible`/
-  `onClose`/`children`, WEWNĄTRZ `BottomSheetModal` (nie plain `BottomSheet` — portal
-  poza drzewem wołającego ekranu). `detached`+`bottomInset` (jedyny sposób w v5 na
-  pływający sheet z marginesem z KAŻDEJ strony, nie tylko z góry — spec:
-  `left/right/bottom:8px`). `enableDynamicSizing`+`maxDynamicContentSize`=78%
-  wysokości ekranu. Backdrop: `BottomSheetBackdrop` + `BlurView` (`expo-blur`) + 60%
-  czarny, dziecko nad dzieckiem (blur nie steruje przezroczystością tła, tylko
-  rozmyciem pod nim).
-- **Żaden ekran jeszcze NIE używa** tych komponentów — to czysto addytywna,
-  nieużywana-jeszcze warstwa, zero wizualnej zmiany na ekranach do następnej fazy.
+  `onClose`/`children` + opcjonalne `header`/`footer`/`scrollable` (ostatnie dwa,
+  2026-11-02, dodane przy migracji `MoodModal.tsx`, pierwszego realnego konsumenta).
+  WEWNĄTRZ `BottomSheetModal` (nie plain `BottomSheet` — portal poza drzewem
+  wołającego ekranu). `detached`+`bottomInset` (jedyny sposób w v5 na pływający sheet
+  z marginesem z KAŻDEJ strony, nie tylko z góry — spec: `left/right/bottom:8px`).
+  `enableDynamicSizing`+`maxDynamicContentSize`=78% wysokości ekranu. Backdrop:
+  `BottomSheetBackdrop` + `BlurView` (`expo-blur`) + 60% czarny, dziecko nad dzieckiem
+  (blur nie steruje przezroczystością tła, tylko rozmyciem pod nim).
+  `header` renderuje się w stałym `BottomSheetView` NAD treścią (nie scrolluje —
+  tytuł/przyciski-ikony zawsze widoczne). `children` idzie przez `BottomSheetScrollView`
+  domyślnie (`scrollable=false` → zwykły `BottomSheetView`, dla krótkiej, statycznej
+  treści bez potrzeby scrolla). `footer`, jeśli podany, idzie przez `footerComponent`
+  (`BottomSheetFooter`) — osobna, ABSOLUTNIE pozycjonowana warstwa, zawsze przypięta
+  do dołu sheeta i automatycznie odpychana przez klawiaturę (`keyboardBehavior=
+  "interactive"`, `android_keyboardInputMode="adjustResize"`); `body` dostaje dodatkowy
+  `paddingBottom`, żeby treść się pod nią nie chowała. `TextInput`y WEWNĄTRZ sheeta
+  muszą być gorhom's `BottomSheetTextInput` (nie zwykły `TextInput` z 'react-native' —
+  gubi fokus/zaznaczenie przy przewijaniu).
+- **Pierwszy realny konsument: `MoodModal.tsx`** (2026-11-02, patrz §DAILY). Pozostałe
+  popupy (AddExpenseModal/ProductsModal/TransactionsModal/WydatkiModal, balance-edit,
+  DayDetailModal, AddTaskCard-composer) wciąż `Modal` — migracja screen-po-screenie,
+  patrz "Następne fazy" niżej.
 
 Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone (bez zmian w
 testach — nowa warstwa to czyste komponenty UI, nic do testowania jednostkowo na
@@ -123,6 +136,24 @@ wszystko")**, patrz §FINANSE niżej. Popupy świadomie bez zmian (ciąg dalej).
 
 **Faza 3.5 (Zadania) — ZROBIONA (2026-11-01, "dawaj skończ wszystko")**, patrz
 §ZADANIA niżej.
+
+**Faza 3.6 (bottom-sheet: pierwszy popup, `MoodModal`/Daily) — ZROBIONA
+(2026-11-02)**, user po zrzucie ekranu Daily: "wgle sie nie postarałeś... ze
+animacje jak blur wylatuje, wyglądało 1do1 jak tam". Dwie rzeczy naraz:
+1. **Realny bug, nie estetyka** — kafel "Nastrój" renderował się jako wąski,
+   wyśrodkowany pasek, nie pełna szerokość rzędu. Naprawione w `Tile.tsx` (patrz
+   komentarz tam), zweryfikowane zmierzonym `getBoundingClientRect()` w izolowanym
+   `react-native-web` renderze (nie samym screenem — pierwsze podejście screenem
+   wygłądało identycznie dla buggy/fixed wersji i zmyliło). Dotyczy KAŻDEGO
+   interaktywnego kafla na wszystkich 4 przebudowanych ekranach, jeden fix w
+   jednym miejscu.
+2. **Brakująca fidelity bottom-sheet/blur** — `AppBottomSheet.tsx` istniał od
+   Fazy 3.1, ale ŻADEN popup go nie używał. `MoodModal.tsx` (jedyny popup na
+   Daily, dokładnie to co user miał na ekranie) jako pierwszy realny migrant —
+   `header`/`footer` propsy dodane do `AppBottomSheet` przy tej okazji (potrzebne
+   bo MoodModal ma stały nagłówek z przełącznikiem widoku + przypięty przycisk
+   "Zapisz", nie goły blob treści). Szczegóły: §DAILY "Humor / Nastrój" wyżej,
+   AppBottomSheet opis wyżej.
 
 **Ustawienia — ŚWIADOMIE NIE przebudowane na grid ze spec.** `design/
 app-design.html`'s `#set` to 5 prostych kafli-kategorii (Profil/Połączenia/
@@ -243,16 +274,22 @@ opcjonalnym tekstem, zapisywanym w formie pamiętnika DZIEŃ DATA")
 - **Brak limitu wpisów/dzień** (jak w sapp) — UI liczy "ile już dziś" i tytułuje kolejne
   check-iny "Humor 2. raz dziś" itd. — to NATURALNIE realizuje "raz, potem drugi raz
   dziennie" z prośby usera, bez sztywnej reguły w danych.
-- **`MoodModal.tsx`** — JEDEN modal (pełnoekranowy, sapp2-stylowy, nie bottom-sheet jak
-  w sapp), przełącznik widoku w headerze: "Dodaj" (siatka+tagi+notatka) / "Pamiętnik"
-  (wpisy grupowane po dniu, nagłówek "DZIEŃ · {data po polsku}", notatki z check-inów
-  renderowane jak akapity dziennika). **Brak NOWEGO pola na "dziennik dnia"** — notatka
-  żyje na `MoodEntry.note` jak w sapp, "dopisać więcej o dniu" = kolejny check-in tego
-  dnia z własną notatką. Tap na wpis w Pamiętniku → edycja.
-  `GestureHandlerRootView`+RNGH `ScrollView` wewnątrz modala — **krytyczne**, nie
-  kosmetyka (port sapp's dwóch potwierdzonych na urządzeniu bugów: natywny `Modal`
-  portuje treść do OSOBNEJ hierarchii, poza jedynym `GestureHandlerRootView` w
-  `app/_layout.tsx` — bez własnego roota siatka nigdy nie łapie dotknięć).
+- **`MoodModal.tsx`** — PIERWSZY popup przeniesiony na `AppBottomSheet` (2026-11-02,
+  user: "animacje jak blur wylatuje... 1do1 jak tam" — mockup chce bottom-sheeta z
+  blurem dla KAŻDEJ interakcji, nie pełnoekranowego `Modal`). `header`/`footer` jako
+  nowe propsy `AppBottomSheet` (patrz tam) — nagłówek z przełącznikiem widoku: "Dodaj"
+  (siatka+tagi+notatka) / "Pamiętnik" (wpisy grupowane po dniu, nagłówek "DZIEŃ ·
+  {data po polsku}", notatki z check-inów renderowane jak akapity dziennika) stały NAD
+  scrollem, przycisk "Zapisz" przypięty PRZEZ `BottomSheetFooter` (tylko w widoku
+  "Dodaj"). **Brak NOWEGO pola na "dziennik dnia"** — notatka żyje na `MoodEntry.note`
+  jak w sapp, "dopisać więcej o dniu" = kolejny check-in tego dnia z własną notatką.
+  Tap na wpis w Pamiętniku → edycja.
+  `GestureHandlerRootView`+RNGH `ScrollView`, które port z sapp wymagał wewnątrz
+  pełnoekranowego `Modal`-a, ODPADŁY — `AppBottomSheet` renderuje się WEWNĄTRZ
+  jedynego `GestureHandlerRootView` z `app/_layout.tsx` (przez
+  `BottomSheetModalProvider`), więc `MoodPad`'owy `Gesture.Pan()` routuje się
+  poprawnie bez dodatkowego roota; `TextInput`y zamienione na gorhom's
+  `BottomSheetTextInput` (zwykły `TextInput` gubi fokus przy przewijaniu sheeta).
 - **Wejście**: `app/(tabs)/daily.tsx`'s "Nastrój" kafel (rząd 5, Faza 3.3) — `Tile`
   z `MoodPad mini` + ostatni dzisiejszy wpis, tap na CAŁY kafel otwiera `MoodModal`
   (wcześniej: "Humor" wiersz, `LiveSectionRow` — ZASTĄPIONE przy przebudowie grida).
@@ -549,9 +586,11 @@ banku... plus szablony wyłapywań")
 - **Klawiatura nie zasłania pola** (user, ogólna uwaga na całą appkę) —
   `src/hooks/useKeyboardHeight.ts` (port z sapp) zamiast `KeyboardAvoidingView`,
   niewiarygodnego wewnątrz RN's `Modal` na Androidzie (osobna natywna hierarchia,
-  poza zasięgiem `windowSoftInputMode`). Podpięte w `AddExpenseModal.tsx` i
-  `MoodModal.tsx` — **jedyne dwa ekrany z inputami wewnątrz `Modal` na razie**, każdy
-  następny z formularzem w pełnoekranowym `Modal` powinien dostać ten sam fix.
+  poza zasięgiem `windowSoftInputMode`). Podpięte w `AddExpenseModal.tsx` — **jedyny
+  ekran z inputami wewnątrz pełnoekranowego `Modal` na razie**; każdy następny
+  formularz w `Modal`-u powinien dostać ten sam fix. `MoodModal.tsx` (2026-11-02,
+  przeniesiony na `AppBottomSheet`) tego hooka już NIE potrzebuje — `keyboardBehavior`
+  gorhom's `BottomSheetModal` rozwiązuje to wewnętrznie (patrz §DAILY/AppBottomSheet).
 - **Parser bliżej prawego kciuka** (user) — pływający przycisk (`ClipboardPaste`,
   wzorzec FAB) w prawym dolnym rogu `AddExpenseModal`, czyta schowek i parsuje jednym
   tapnięciem, bez przewijania do pola tekstowego na górze.
