@@ -5,6 +5,7 @@ import { X, Check, BookOpen, SquarePen } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { todayISO } from '@/utils/date';
+import { haptic } from '@/utils/haptics';
 import { type MoodEntry, type MoodLevel, MOOD_COLORS, MOOD_LABELS, ENERGY_LABELS } from '@/types/mood';
 import { useMoodStore } from '@/store/moodStore';
 import { PRESET_TAGS, sortMoodTags } from '@/utils/moodTags';
@@ -61,9 +62,10 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
     if (!visible) { resetForm(); setView('checkin'); }
   }, [visible]);
 
-  const handleClose = () => { resetForm(); onClose(); };
+  const handleClose = () => { haptic.tap(); resetForm(); onClose(); };
 
   const openForEdit = (entry: MoodEntry) => {
+    haptic.tap();
     setEditingId(entry.id);
     setMood(entry.mood); setEnergy(entry.energy); setNote(entry.note ?? ''); setTags(entry.tags);
     setView('checkin');
@@ -74,11 +76,12 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
     if (t && !tags.includes(t)) setTags((prev) => [...prev, t]);
     setCustomTag('');
   };
-  const toggleTag = (tag: string) => setTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
+  const toggleTag = (tag: string) => { haptic.tap(); setTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag])); };
 
   const canSave = !!mood && !!energy;
   const handleSave = () => {
     if (!canSave) return;
+    haptic.success();
     const now = new Date().toISOString();
     if (editingEntry) {
       updateEntry(editingEntry.id, { mood, energy, note: note.trim() || undefined, tags, updatedAt: now });
@@ -138,7 +141,7 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
         )}
       </View>
       <TouchableOpacity
-        onPress={() => setView((v) => (v === 'checkin' ? 'diary' : 'checkin'))}
+        onPress={() => { haptic.tap(); setView((v) => (v === 'checkin' ? 'diary' : 'checkin')); }}
         style={s.iconBtn}
         hitSlop={8}
       >

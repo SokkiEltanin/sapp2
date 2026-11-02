@@ -6,6 +6,7 @@ import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import type { Expense } from '@/types/finances';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
+import { haptic } from '@/utils/haptics';
 
 // Pełna lista transakcji (Faza 2.4, 2026-11-01) — "Ostatnie transakcje" na ekranie
 // Finanse pokazuje TYLKO 4 pozycje (ARCHITECTURE.md §FINANSE), to tutaj żyje
@@ -49,7 +50,7 @@ export default function TransactionsModal({
     <>
       <View style={s.header}>
         <Text style={s.title}>Transakcje</Text>
-        <TouchableOpacity onPress={onClose} hitSlop={8} style={s.closeBtn}>
+        <TouchableOpacity onPress={() => { haptic.tap(); onClose(); }} hitSlop={8} style={s.closeBtn}>
           <X size={18} color={colors.text.secondary} />
         </TouchableOpacity>
       </View>
@@ -76,7 +77,7 @@ export default function TransactionsModal({
           <Text style={s.empty}>{expenses.length === 0 ? 'Brak transakcji — dodaj pierwszą przyciskiem +.' : 'Brak wyników.'}</Text>
         }
         renderItem={({ item: e }: { item: Expense }) => (
-          <TouchableOpacity style={s.row} onPress={() => onSelect(e)} activeOpacity={0.7}>
+          <TouchableOpacity style={s.row} onPress={() => { haptic.tap(); onSelect(e); }} activeOpacity={0.7}>
             <View style={s.rowInfo}>
               <Text style={s.rowNote} numberOfLines={1}>
                 {e.storeName || e.note || (e.type === 'income' ? 'Przychód' : 'Wydatek')}

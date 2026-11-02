@@ -4,6 +4,7 @@ import { X, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { ymd, todayISO } from '@/utils/date';
+import { haptic } from '@/utils/haptics';
 import { eventCoversDay, type CalendarEvent } from '@/types/calendar';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 
@@ -75,8 +76,8 @@ export default function MonthViewModal({
     return map;
   }, [monthWeeks, events]);
 
-  const shiftMonth = (delta: number) => setMonthCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
-  const jumpToToday = () => { setMonthCursor(new Date()); onSelectDate(today); };
+  const shiftMonth = (delta: number) => { haptic.tap(); setMonthCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1)); };
+  const jumpToToday = () => { haptic.tap(); setMonthCursor(new Date()); onSelectDate(today); };
   // NIE zamyka modala miesiąca (2026-11-01, user: "po kliknięciu w dzień... wywala
   // mi z powrotem do tyg[odnia]" — zamykanie tego popupu przy wyborze dnia
   // oznaczało że po zamknięciu `DayDetailModal` user widział z powrotem WIDOK
@@ -84,7 +85,7 @@ export default function MonthViewModal({
   // `DayDetailModal`) są niezależnymi `Modal`-ami — mogą być widoczne naraz, jeden
   // na drugim — więc zostawiamy ten otwarty, user wraca do miesiąca po zamknięciu
   // szczegółów dnia, tak jak w tygodniu.
-  const selectDay = (dateYMD: string) => { onSelectDate(dateYMD); onOpenDay(dateYMD); };
+  const selectDay = (dateYMD: string) => { haptic.tap(); onSelectDate(dateYMD); onOpenDay(dateYMD); };
 
   const header = (
     <>
@@ -102,7 +103,7 @@ export default function MonthViewModal({
           <TouchableOpacity onPress={() => shiftMonth(1)} hitSlop={8}>
             <ChevronRight size={20} color={colors.text.secondary} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={onClose} hitSlop={8} style={s.closeBtn}>
+          <TouchableOpacity onPress={() => { haptic.tap(); onClose(); }} hitSlop={8} style={s.closeBtn}>
             <X size={18} color={colors.text.secondary} />
           </TouchableOpacity>
         </View>

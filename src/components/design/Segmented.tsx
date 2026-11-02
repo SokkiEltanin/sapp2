@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 import { themedStyles } from '@/theme';
+import { haptic } from '@/utils/haptics';
 
 // `Segmented` — design/app-design.html §Komponenty: "bg `in`, aktywny segment bg
 // `txt` + czarny tekst, wysokość 40". Używany w Zadaniach (Teraz/Terminowe/Bez
@@ -27,7 +28,7 @@ export default function Segmented({
       {options.map((o) => {
         const active = o.key === activeKey;
         return (
-          <Pressable key={o.key} style={[s.btn, active && s.btnOn]} onPress={() => onChange(o.key)}>
+          <Pressable key={o.key} style={[s.btn, active && s.btnOn]} onPress={() => { haptic.tap(); onChange(o.key); }}>
             <Text style={[s.label, active && s.labelOn]} numberOfLines={1}>
               {o.label}{o.count !== undefined ? <Text style={s.count}> {o.count}</Text> : null}
             </Text>

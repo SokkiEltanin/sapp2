@@ -9,6 +9,7 @@ import FoodCategoryItemsModal from './FoodCategoryItemsModal';
 import FixedBreakdownCard from './FixedBreakdownCard';
 import VariableBreakdownCard from './VariableBreakdownCard';
 import type { FixedItem, FixedDeviation, VariableContributor } from '@/utils/fixedVariable';
+import { haptic } from '@/utils/haptics';
 
 // Popup "#wydatki" (2026-10-31, user: "lepiej mniej informacji ale popup po kliknięciu
 // na zakładkę #wydatki, w której będzie scroll już jakby bo to popup będzie ze
@@ -74,7 +75,7 @@ export default function WydatkiModal({
     <>
       <View style={s.header}>
         <Text style={s.title}>Wydatki</Text>
-        <TouchableOpacity onPress={onClose} hitSlop={8} style={s.closeBtn}>
+        <TouchableOpacity onPress={() => { haptic.tap(); onClose(); }} hitSlop={8} style={s.closeBtn}>
           <X size={18} color={colors.text.secondary} />
         </TouchableOpacity>
       </View>
@@ -83,7 +84,7 @@ export default function WydatkiModal({
           <TouchableOpacity
             key={t.key}
             style={[s.tabBtn, tab === t.key && s.tabBtnActive]}
-            onPress={() => setTab(t.key)}
+            onPress={() => { haptic.tap(); setTab(t.key); }}
             activeOpacity={0.7}
           >
             <Text style={[s.tabBtnLabel, tab === t.key && s.tabBtnLabelActive]}>{t.label}</Text>

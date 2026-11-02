@@ -3,6 +3,7 @@ import { X } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, themedStyles } from '@/theme';
 import type { CalendarEvent } from '@/types/calendar';
+import { haptic } from '@/utils/haptics';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import EventCard from './EventCard';
 
@@ -37,7 +38,7 @@ export default function DayDetailModal({
   const header = (
     <View style={s.header}>
       <Text style={s.headerTitle}>{DAY_FULL[d.getDay()]}, {d.getDate()} {MONTH_SHORT[d.getMonth()]}</Text>
-      <TouchableOpacity onPress={onClose} hitSlop={8}>
+      <TouchableOpacity onPress={() => { haptic.tap(); onClose(); }} hitSlop={8}>
         <X size={18} color={colors.text.muted} />
       </TouchableOpacity>
     </View>

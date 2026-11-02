@@ -3,6 +3,7 @@ import { View, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Settings, LayoutGrid, Activity, CreditCard, CalendarDays, LucideIcon } from 'lucide-react-native';
+import { haptic } from '@/utils/haptics';
 import { C, R } from './theme';
 
 /**
@@ -32,13 +33,14 @@ export function NavBar({ state, navigation, onSettingsPress }: BottomTabBarProps
   const insets = useSafeAreaInsets();
   const active = state.routes[state.index]?.name;
   const go = (name: string) => {
+    haptic.tap();
     if (name !== active) navigation.navigate(name as never);
   };
   const main = state.routes.filter((r) => r.name !== SETTINGS);
 
   return (
     <View style={[st.wrap, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-      <Pressable onPress={onSettingsPress} style={st.settings}>
+      <Pressable onPress={() => { haptic.tap(); onSettingsPress(); }} style={st.settings}>
         <Settings size={20} strokeWidth={2} color={C.txt} />
       </Pressable>
       <View style={st.group}>

@@ -3,6 +3,7 @@ import { X, ShoppingBasket } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
+import { haptic } from '@/utils/haptics';
 import type { FoodCategory } from './FoodBreakdownCard';
 
 // Drill-down popup "co konkretnie się na to złożyło" (2026-11-01, user: "jak
@@ -40,7 +41,7 @@ export default function FoodCategoryItemsModal({
           <View style={[s.dot, { backgroundColor: category.color }]} />
           <Text style={s.title}>{category.label}</Text>
         </View>
-        <TouchableOpacity onPress={onClose} hitSlop={8} style={s.closeBtn}>
+        <TouchableOpacity onPress={() => { haptic.tap(); onClose(); }} hitSlop={8} style={s.closeBtn}>
           <X size={18} color={colors.text.secondary} />
         </TouchableOpacity>
       </View>

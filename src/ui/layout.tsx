@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
-import { View, Text, Pressable, useWindowDimensions, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, Animated, Easing, useWindowDimensions, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { haptic } from '@/utils/haptics';
 import { C, R, S, T, F } from './theme';
 
 /* ------------------------------------------------------------------
@@ -72,9 +73,30 @@ export function Tile({ span = 1, onPress, hot, center, style, children }: TilePr
   const inner = <HotCtx.Provider value={!!hot}>{children}</HotCtx.Provider>;
   if (!onPress) return <View style={look(false)}>{inner}</View>;
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => look(pressed)}>
+    <Pressable onPress={() => { haptic.tap(); onPress(); }} style={({ pressed }) => look(pressed)}>
       {inner}
     </Pressable>
+  );
+}
+
+/** Kropka hot-kafli — pierścień rozchodzący się w pętli + stała kropka na środku
+ * (RN nie ma animowanego `box-shadow` jak spec, ten sam efekt inną techniką). */
+export function PulseDot() {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(anim, { toValue: 1, duration: 1600, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [anim]);
+  const ringScale = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 3.2] });
+  const ringOpacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] });
+  return (
+    <View style={st.pulseWrap}>
+      <Animated.View style={[st.pulseRing, { transform: [{ scale: ringScale }], opacity: ringOpacity }]} />
+      <View style={st.pulse} />
+    </View>
   );
 }
 
@@ -94,7 +116,7 @@ export function StatTile({ value, unit, label, onPress, hot, span = 1 }: {
   const empty = value == null || value === '';
   return (
     <Tile span={span} onPress={onPress} hot={hot} center style={st.stat}>
-      {hot ? <View style={st.pulse} /> : null}
+      {hot ? <PulseDot /> : null}
       <Text
         style={[T.num, String(value ?? '').length > 4 && { fontSize: 24, lineHeight: 32, letterSpacing: -1 }, hot && { color: '#000' }, empty && { color: C.dim }]}
         numberOfLines={1}
@@ -156,7 +178,10 @@ export function FitList<I>({ data, minRowH = 30, maxRowH = 44, gap = S.rowGap, r
 /** Wiersz wewnątrz listy – zawsze flex:1 (wysokość daje FitList) */
 export function Item({ children, onPress, done }: { children: React.ReactNode; onPress?: () => void; done?: boolean }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [st.item, pressed && { backgroundColor: C.in2 }, done && { opacity: 0.45 }]}>
+    <Pressable
+      onPress={onPress && (() => { haptic.tap(); onPress(); })}
+      style={({ pressed }) => [st.item, pressed && { backgroundColor: C.in2 }, done && { opacity: 0.45 }]}
+    >
       {children}
     </Pressable>
   );
@@ -272,7 +297,9 @@ const st = StyleSheet.create({
   tile: { backgroundColor: C.tile, borderRadius: R.tile, padding: S.pad, overflow: 'hidden' },
   center: { alignItems: 'center', justifyContent: 'center' },
   stat: { paddingHorizontal: 4, paddingTop: 14, paddingBottom: 12 },
-  pulse: { position: 'absolute', top: 9, right: 9, width: 6, height: 6, borderRadius: 3, backgroundColor: '#000' },
+  pulseWrap: { position: 'absolute', top: 9, right: 9, width: 6, height: 6, alignItems: 'center', justifyContent: 'center' },
+  pulse: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#000' },
+  pulseRing: { position: 'absolute', width: 6, height: 6, borderRadius: 3, backgroundColor: '#000' },
   cap: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 },
   ghost: { backgroundColor: C.ghost, borderRadius: R.inner, justifyContent: 'center', paddingHorizontal: 10 },
   item: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.in, borderRadius: R.inner, paddingHorizontal: 10 },

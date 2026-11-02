@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Circle, CheckCircle2, Trash2 } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
+import { haptic } from '@/utils/haptics';
 import type { Task } from '@/types/calendar';
 
 // Wiersz zadania — kosz z LEWEJ (tap = usuń od razu, bez potwierdzenia — świadomie
@@ -26,7 +27,7 @@ export default function TaskRow({
   const s = makeS();
   return (
     <View style={[s.row, !isLast && s.rowDivider]}>
-      <TouchableOpacity onPress={() => onDelete(task.id)} hitSlop={8}>
+      <TouchableOpacity onPress={() => { haptic.warn(); onDelete(task.id); }} hitSlop={8}>
         <Trash2 size={16} color={colors.text.muted} />
       </TouchableOpacity>
       <View style={s.content}>
@@ -41,7 +42,7 @@ export default function TaskRow({
           </View>
         )}
       </View>
-      <TouchableOpacity onPress={() => onToggleDone(task.id)} hitSlop={8}>
+      <TouchableOpacity onPress={() => { haptic.success(); onToggleDone(task.id); }} hitSlop={8}>
         {task.status === 'done'
           ? <CheckCircle2 size={20} color={colors.text.bright} />
           : <Circle size={20} color={colors.text.muted} />}

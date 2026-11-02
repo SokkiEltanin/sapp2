@@ -6,6 +6,7 @@ import { useHabitsStore } from '@/store/habitsStore';
 import { habitStreak } from '@/utils/habitStreak';
 import { todayISO } from '@/utils/date';
 import { HABIT_LABELS, HABIT_QUESTIONS, type HabitKey } from '@/types/habits';
+import { haptic } from '@/utils/haptics';
 
 // Popup "nawyki" — pierwsza REALNA implementacja Woda/Słodycze/Trening (Dashboard
 // Faza 3.2/3.10 miały je jako uczciwy stub, `null`/"brak", bo appka nie miała
@@ -35,7 +36,7 @@ export default function HabitsModal({ visible, onClose, focusKey }: { visible: b
             <TouchableOpacity
               key={key}
               style={[st.row, on && st.rowOn]}
-              onPress={() => setHabit(today, key, !on)}
+              onPress={() => { haptic.success(); setHabit(today, key, !on); }}
               activeOpacity={0.8}
             >
               <View style={st.rowTextCol}>

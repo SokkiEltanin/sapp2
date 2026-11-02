@@ -203,7 +203,7 @@ export default function FinancesScreen() {
 
       <TouchableOpacity
         style={s.fab}
-        onPress={() => setAddOpen(true)}
+        onPress={() => { haptic.tap(); setAddOpen(true); }}
         activeOpacity={0.8}
         accessibilityLabel="Nowy wydatek lub przychód"
       >

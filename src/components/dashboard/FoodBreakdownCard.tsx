@@ -3,6 +3,7 @@ import { Utensils, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import type { FoodCategoryItem } from '@/utils/foodStats';
+import { haptic } from '@/utils/haptics';
 
 // Szkielet "Jedzenie — rozkład wydatków" (2026-10-30, user podesłał screenshot
 // analogicznego widoku z sapp: "musimy na dashbordzie w naszym stylu dodać takie coś
@@ -88,7 +89,7 @@ export default function FoodBreakdownCard({
 
       <View style={s.categories}>
         {categories.map((c) => (
-          <TouchableOpacity key={c.label} style={s.categoryRow} onPress={() => onSelectCategory(c)} activeOpacity={0.7}>
+          <TouchableOpacity key={c.label} style={s.categoryRow} onPress={() => { haptic.tap(); onSelectCategory(c); }} activeOpacity={0.7}>
             <View style={[s.dot, { backgroundColor: c.color }]} />
             <Text style={s.categoryLabel} numberOfLines={1}>{c.label}</Text>
             <View style={s.categoryBarTrack}>

@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { ymd, todayISO } from '@/utils/date';
+import { haptic } from '@/utils/haptics';
 import { eventCoversDay, type CalendarEvent } from '@/types/calendar';
 import MonthViewModal from './MonthViewModal';
 
@@ -77,13 +78,14 @@ export default function WeekMonthCalendar({
   }, [weekDays, events]);
 
   const selectDay = (dateYMD: string) => {
+    haptic.tap();
     onSelectDate(dateYMD);
     onOpenDay(dateYMD);
   };
 
   return (
     <View style={s.card}>
-      <TouchableOpacity style={s.header} onPress={() => setMonthOpen(true)} activeOpacity={0.7}>
+      <TouchableOpacity style={s.header} onPress={() => { haptic.tap(); setMonthOpen(true); }} activeOpacity={0.7}>
         <Text style={s.headerLabel}>Ten tydzień</Text>
         <ChevronDown size={16} color={colors.text.muted} />
       </TouchableOpacity>

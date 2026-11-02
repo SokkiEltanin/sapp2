@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 import { themedStyles } from '@/theme';
+import { haptic } from '@/utils/haptics';
 
 // `Toggle` (spec: `.tog`, design/app-design.html) — przełącznik monochromatyczny,
 // NIE natywny `Switch` (2026-11-02, user: "miało być 1do1" po Ustawieniach — natywny
@@ -22,7 +23,7 @@ export default function Toggle({ value, onValueChange }: { value: boolean; onVal
   const translateX = anim.interpolate({ inputRange: [0, 1], outputRange: [0, 18] });
 
   return (
-    <Pressable onPress={onValueChange} style={[s.track, value ? s.trackOn : s.trackOff]} hitSlop={6}>
+    <Pressable onPress={() => { haptic.tap(); onValueChange(); }} style={[s.track, value ? s.trackOn : s.trackOff]} hitSlop={6}>
       <Animated.View style={[s.dot, value ? s.dotOn : s.dotOff, { transform: [{ translateX }] }]} />
     </Pressable>
   );

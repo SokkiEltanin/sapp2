@@ -4,6 +4,7 @@ import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { ymd, todayISO } from '@/utils/date';
+import { haptic } from '@/utils/haptics';
 
 // Dodawanie zadania (2026-10-30, user: "może od razu z... działające zadania"). Jedno
 // pole terminu napędza kategoryzację na TERAZ/TERMINOWE/BEZTERMINOWE w tasks.tsx
@@ -58,6 +59,7 @@ export default function AddTaskCard({
   const handleSave = () => {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) return;
+    haptic.success();
     let deadline: string | undefined;
     if (deadlineChoice !== 'none') {
       const d = new Date();
@@ -94,7 +96,7 @@ export default function AddTaskCard({
           <TouchableOpacity
             key={opt.key}
             style={[s.chip, deadlineChoice === opt.key && s.chipActive]}
-            onPress={() => setDeadlineChoice(opt.key)}
+            onPress={() => { haptic.tap(); setDeadlineChoice(opt.key); }}
             activeOpacity={0.7}
           >
             <Text style={[s.chipLabel, deadlineChoice === opt.key && s.chipLabelActive]}>{opt.label}</Text>
@@ -102,7 +104,7 @@ export default function AddTaskCard({
         ))}
       </View>
       <View style={s.actions}>
-        <TouchableOpacity style={s.cancelBtn} onPress={reset} activeOpacity={0.7}>
+        <TouchableOpacity style={s.cancelBtn} onPress={() => { haptic.tap(); reset(); }} activeOpacity={0.7}>
           <Text style={s.cancelLabel}>Anuluj</Text>
         </TouchableOpacity>
         <TouchableOpacity

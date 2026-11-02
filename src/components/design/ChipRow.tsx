@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { spacing, themedStyles } from '@/theme';
+import { haptic } from '@/utils/haptics';
 
 // `ChipRow` — design/app-design.html §Komponenty: "poziomy ScrollView, fade na
 // krawędziach, chipy 34–40px". Spec ma DWA układy chipów: zawijający się
@@ -34,7 +35,7 @@ export default function ChipRow({
     return (
       <Pressable
         key={it.key}
-        onPress={() => onToggle(it.key)}
+        onPress={() => { haptic.tap(); onToggle(it.key); }}
         style={[s.chip, size === 'sm' ? s.chipSm : s.chipMd, on && s.chipOn]}
       >
         <Text style={[s.label, on && s.labelOn]} numberOfLines={1}>{it.label}</Text>
