@@ -305,20 +305,50 @@ JAWNIE z kontekstu (`col = (W − 2·S.x − 3·S.gap) / 4`, `tile(span) = span�
 od tego ile kafli/jakiego `span` jest w rzędzie obok. Fonty/zaokrąglenia/odstępy
 zgodne, zero błędów w konsoli przeglądarki.
 
-**Stary `src/components/design/{Tile,StatTile,Row,PricePill,Bars,FitList}.tsx`
-ZOSTAJĄ** — wciąż używane przez Daily/Finanse/Zadania (jeszcze nie przeniesione na
-kit), usunięcie dopiero gdy wszystkie 4 ekrany będą na `src/ui/`.
+**Faza 3.10 dokończona (2026-11-02) — wszystkie 4 główne ekrany na kicie.** Po
+Dashboardzie (wyżej) ten sam traktament dostały, screen po screenie, zawsze z
+pętlą wizualną `expo start --web` + Playwright 390×844 obok `design/app-design.html`,
+zrzuty pokazane userowi po każdym:
+- **Daily** — kit nie ma `DailyScreen`, więc przebudowa poszła wprost z
+  `design/DESIGN.md`'s "twardych zasad" + `src/ui/layout.tsx`'s prymitywów
+  (`Screen`/`Row`/`Tile`/`StatTile`/`Cap`). Sen/Kroki/Tętno/Waga/Woda — `StatTile
+  value={null}` (wbudowany zaprojektowany stan pusty), Sen dostał dedykowany
+  "0h 00m" + "Połącz zegarek" 1:1 z kitu's Dashboard sleep-tile. Nastrój bez zmian
+  logiki (`useMoodStore`/`MoodModal`).
+- **Finanse** — też bez odpowiednika w kicie, ta sama metoda. Przy okazji
+  złapany i naprawiony drobny, sprzed-tej-rundy bug: "Podział" pokazywał
+  "0,003 PLN" (suma `Math.max(x,0.001)` floorów używanych tylko do proporcji
+  słupka, nie prawdziwa suma) — rozdzielone na osobne wartości dla słupka i dla
+  wyświetlanego tekstu. Praca/Najbliższa opłata (brak store'a `bills`) →
+  `StatTile value={null}`, zastępuje stare ręczne "wkrótce — kalendarz/rachunki"
+  (łamało regułę "nigdy wkrótce" sformalizowaną w DESIGN.md już PO napisaniu
+  tamtego kodu). FAB "+"/wszystkie popupy bez zmian (realne funkcje, poza
+  zakresem kitu).
+- **Zadania** — też bez odpowiednika w kicie. Nowość: nagłówek dostał zakres
+  tygodnia ("2 – 8 LIS", lokalny `weekRangeLabel`) — brakowało go względem
+  mockupu. `WeekMonthCalendar.tsx`/`TaskRow.tsx` bez zmian logiki (realny
+  kalendarz/store zadań), Segmented+"+" inline (nie floating FAB, zgodnie ze
+  spec) bez zmian.
+- **Ustawienia** — ŚWIADOMIE bez zmian w tej rundzie. Wcześniejsza decyzja
+  (2026-11-02, przed Fazą 3.9) już ustaliła, że to przeszukiwalna, sekcjonowana
+  lista dziesiątek realnych ustawień, nie grid 4-kolumnowy jak spec's `#set`
+  (5 prostych demo-kafli) — kolory już wyrównane do `theme.ts` globalnie, zero
+  dodatkowej pracy potrzebne. Kit nie ma tu zastosowania (nie jest listą
+  ustawień, tylko siatką kafli).
 
-**Następne fazy** — ekran po ekranie, zawsze przez kit i zawsze z pętlą wizualną
-(PROMPT_CLAUDE_CODE.md's kolejność): Daily → Finanse → Zadania → Ustawienia. Kit ma
-na razie TYLKO `DashboardScreen` — pozostałe ekrany nie mają jeszcze odpowiednika w
-`design/rn/`, więc ich przebudowa idzie wprost z `design/DESIGN.md`'s "twardych
-zasad" (jawna siatka, zaprojektowane stany puste, `FitList` z ghost-wierszami),
-reużywając `src/ui/layout.tsx`'s prymitywów (`Screen`/`Row`/`Tile`/`StatTile`/
-`Cap`/`FitList`/`Item`/`Tag`/`Price`/`Bars`/`StackBar`/`Progress`), NIE pisząc
-nowych odpowiedników. "Płatności cykliczne" (store `bills`, odblokuje pełne
-"Bezpieczne wydatki"/"Najbliższe 48h") i Health Connect (Sen/Kroki/Tętno/Waga/
-Woda) — wciąż osobne, odłożone fazy, bez zmian względem Fazy 3.9.
+**Stary `src/components/design/{Tile,StatTile,Row,PricePill,Bars,StackBar,
+FitList}.tsx` USUNIĘTE** (2026-11-02, po potwierdzeniu grepem zera pozostałych
+importów) — wszystkie 4 ekrany są teraz na `src/ui/layout.tsx`. `Segmented.tsx`/
+`Tag.tsx`/`ChipRow.tsx`/`AppBottomSheet.tsx`/`MoodPad.tsx`/`Toggle.tsx` ZOSTAJĄ,
+wciąż żywe, poza zakresem tej migracji.
+
+**Następne fazy** — "Płatności cykliczne" (store `bills`, odblokuje pełne
+"Bezpieczne wydatki"/"Najbliższe 48h"/Finanse's Praca+Najbliższa opłata) i
+Health Connect (Sen/Kroki/Tętno/Waga/Woda na Dashboardzie+Daily) — osobne,
+odłożone fazy, bez zmian względem Fazy 3.9. Rzeczywisty render/dotyk na
+urządzeniu (scroll vs no-scroll, gesty, FitList ghost-wiersze, kolejność
+navbaru) nadal NIE był możliwy do zweryfikowania w tym środowisku — PRIORYTET
+na następny test na telefonie, lista w NEXT_STEPS.md "Faza 3.10".
 
 ## DASHBOARD [GE]
 

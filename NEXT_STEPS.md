@@ -2520,26 +2520,43 @@ PROMPT_CLAUDE_CODE.md): kolejność zakładek w navbarze — bez jawnego
 kolejności z dysku, co zamieniało miejscami ikony "Finanse"/"Zadania" względem
 zamierzonej kolejności Dashboard→Daily→Finanse→Zadania.
 
-`src/components/design/{Tile,StatTile,Row,PricePill,Bars,FitList}.tsx` ZOSTAJĄ —
-wciąż żywe, używane przez Daily/Finanse/Zadania (jeszcze nie na kicie). Stary
 `src/components/ui/TabBar.tsx` USUNIĘTY (zastąpiony `src/ui/NavBar.tsx`, jedyny
 użytkownik).
 
-**Następny krok (PROMPT_CLAUDE_CODE.md krok 6): Daily, tą samą pętlą.** Kit NIE
-MA jeszcze `DailyScreen`/`FinanceScreen`/`TasksScreen`/`SettingsScreen` —
-`design/rn/` dostarczył na razie tylko Dashboard. Przebudowa pozostałych 3+1
-ekranów idzie wprost z `design/DESIGN.md`'s "twardych zasad", reużywając
-`src/ui/layout.tsx`'s gotowych prymitywów (`Screen`/`Row`/`Tile`/`StatTile`/
-`Cap`/`FitList`/`Item`/`Tag`/`Price`/`Bars`/`StackBar`/`Progress`/`splitTag`),
-NIE pisząc nowych odpowiedników obok starych. Po każdym ekranie — oba
-screenshoty (appka vs `app-design.html`) do usera, jak przy Dashboardzie.
+## Faza 3.10 c.d. — Daily/Finanse/Zadania na kicie, stary system USUNIĘTY (2026-11-02)
+
+Dokończone tą samą metodą (kit nie ma `DailyScreen`/`FinanceScreen`/
+`TasksScreen` — przebudowa poszła wprost z `design/DESIGN.md`'s "twardych
+zasad" + `src/ui/layout.tsx`'s prymitywów, zawsze z pętlą wizualną, zrzuty
+pokazane userowi po każdym ekranie):
+
+- **Daily**: Sen/Kroki/Tętno/Waga/Woda → `StatTile value={null}` (wbudowany
+  zaprojektowany stan pusty), Sen dostał "0h 00m" + "Połącz zegarek" jak
+  Dashboard. Nastrój bez zmian logiki.
+- **Finanse**: przy okazji naprawiony drobny bug — "Podział" pokazywał
+  "0,003 PLN" zamiast "0 PLN" (floor `Math.max(x,0.001)` dla proporcji słupka
+  mylnie wchodził też do sumy tekstu). Praca/Najbliższa opłata →
+  `StatTile value={null}`, zastępuje stare "wkrótce — kalendarz/rachunki".
+- **Zadania**: nagłówek dostał brakujący zakres tygodnia ("2 – 8 LIS").
+- **Ustawienia**: ŚWIADOMIE bez zmian (wcześniejsza decyzja — lista, nie grid,
+  patrz ARCHITECTURE.md).
+- **Sprzątanie**: stary `src/components/design/{Tile,StatTile,Row,PricePill,
+  Bars,StackBar,FitList}.tsx` USUNIĘTY (zero pozostałych importów,
+  zweryfikowane grepem) — wszystkie 4 główne ekrany są teraz na `src/ui/
+  layout.tsx`, PROMPT_CLAUDE_CODE.md's plan (kroki 1-6) jest kompletny.
+
+tsc/jest 170/170 + `expo export --platform android` czyste po każdym kroku.
 
 **DO PRZETESTOWANIA NA URZĄDZENIU (dochodzi do listy z Fazy 3.9):**
-- Dashboard — siatka 4-kolumnowa wyrównana między WSZYSTKIMI rzędami (to był
-  główny realny bug tej rundy, web-test go potwierdza ale nie zastępuje
-  prawdziwego Androida).
+- Dashboard/Daily/Finanse/Zadania — siatka 4-kolumnowa wyrównana między
+  WSZYSTKIMI rzędami na KAŻDYM z 4 ekranów (to był główny realny bug tej
+  rundy, web-test go potwierdza ale nie zastępuje prawdziwego Androida).
 - Dolny pasek nawigacji — kolejność ikon Dashboard/Daily/Finanse/Zadania,
   podświetlenie aktywnej zakładki, kwadrat Ustawień osobno po lewej.
-- Scroll — żaden z 5 rzędów Dashboardu nie powinien się scrollować (poza
+- Scroll — żaden rząd żadnego z 4 ekranów nie powinien się scrollować (poza
   `FitList`-ami wewnątrz kafli, które same nie scrollują, tylko dopasowują
-  liczbę wierszy).
+  liczbę wierszy i ghost-wiersze).
+- Finanse: FAB "+" wciąż poprawnie pozycjonowany (prawy-dolny róg) nad
+  nowym `Screen`-em kitu, nie zasłonięty przez ostatni rząd.
+- Zadania: `WeekMonthCalendar` wewnątrz nowego `Tile` (padding 6 override)
+  wciąż w pełni klikalna/czytelna, nie ściśnięta.
