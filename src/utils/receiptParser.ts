@@ -627,35 +627,101 @@ function parseKaufland(text: string): ParsedReceipt {
 
 const BIE_ITEM_RE = /([A-Za-zżźćńółęąśŻŹĆĄŚĘÓŁŃ][^\n]*?)\s+([ABC])\s*(\d+[.,]\d{1,3})\s*[x×*]\s*(\d+[.,]\d{1,2})/g;
 
-function parseBiedronka(text: string): ParsedReceipt {
-  const items: ReceiptItem[] = [];
-  const flat = text.replace(/\r/g, '');
-  let m: RegExpExecArray | null;
-  BIE_ITEM_RE.lastIndex = 0;
-  while ((m = BIE_ITEM_RE.exec(flat)) !== null) {
-    let rawName = m[1].trim();
-    rawName = rawName.replace(/^.*?\d+[.,]\d{2}[A-C]?\s+/, '');
-    rawName = rawName.replace(/^.*[x×*]\s*\d+[.,]\d{1,2}\s+/i, '');
-    rawName = rawName.replace(/^(discount|rabat|opust)\s+/i, '');
-    rawName = rawName.trim();
-    const qty = parseFloat(m[3].replace(',', '.'));
-    const unit = parseFloat(m[4].replace(',', '.'));
-    if (unit <= 0 || unit > 5000) continue;
-    const name = cleanName(rawName);
-    if (name.length < 2) continue;
-    const price = Math.round(qty * unit * 100) / 100;
-    if (price <= 0 || price > 5000) continue;
-    items.push({ name, quantity: qty, unitPrice: unit, price, foodSubcat: categorizeFoodSubcat(name) });
+// ─── Biedronka — zeskanowany/poszarpany OCR (np. Samsung "skopiuj tekst" ze
+// screena paragonu) — user: "pokazało mi tylko ser jeden 8.99", bo
+// BIE_ITEM_RE wyżej wymaga nazwy+litery-VAT+ilości×ceny na JEDNEJ nieprzerwanej
+// linii, a ten format tabeli ("Nazwa" / VAT / "ilość x cena" / "Rabat" / "Suma")
+// czytany przez zewnętrzny OCR wizualnie wiersz-po-wierszu rozsypuje się na
+// osobne linie, czasem ze SKLEJONYMI resztkami z SĄSIEDNIEJ pozycji (OCR gubi
+// kolumnowy układ). Przetestowane na dokładnym stringu ze zrzutu (CLAUDE.md
+// zasada #5) — zero dopasowań ze starym regexem na realnym paragonie
+// Biedronki (2x Ketchup Pikantny Pudliszki, 4x Ser Gouda Holenderski).
+//
+// Jedyne NIEZAWODNE sygnały w tym chaosie:
+// 1. Linia nazwy ZAWSZE kończy się słowem "Discount" (ten konkretny
+//    format kasy drukuje nagłówki po angielsku, mimo polskiego adresu) —
+//    liczba takich linii = liczba pozycji na paragonie.
+// 2. Para "cena_jednostkowa+litera_VAT  -rabat" (np. "8,99C -3,99") występuje
+//    DOKŁADNIE RAZ NA POZYCJĘ, w kolejności pozycji — nawet gdy poprzedzona
+//    resztką SUMY poprzedniej pozycji przesuniętą o wiersz do przodu przez OCR
+//    (np. "7.99B 12,99B -5,00" — pierwsza liczba to suma POPRZEDNIEJ pozycji,
+//    reszta linii to jednostkowa+rabat TEJ pozycji). Regex dopasowuje tylko
+//    końcówkę "cenaLitera -rabat", więc ten śmieć z przodu linii nic nie psuje.
+// Kolumnę "Suma" (najbardziej poszarpaną, czasem zdublowaną) ŚWIADOMIE
+// pomijamy — liczymy sumę sami: cena = jednostkowa - rabat (ilość w tym
+// formacie zawsze "1.0", nie widzieliśmy dotąd paragonu z inną).
+const BIE_OCR_NAME_RE = /^(.+?)\s+Discount\s*$/i;
+const BIE_OCR_UNIT_DISCOUNT_RE = /(\d+[.,]\s?\d{1,3})\s*([ABC])\s*[-–]\s*(\d+[.,]\d{2})/g;
+
+function parseBiedronkaScrambledOcr(text: string, lines: string[]): ReceiptItem[] {
+  const names: string[] = [];
+  for (const l of lines) {
+    const m = l.match(BIE_OCR_NAME_RE);
+    if (m) names.push(cleanName(m[1].replace(/\s+discount\s*$/i, '')));
   }
 
+  const pairs: { unit: number; discount: number }[] = [];
+  let m: RegExpExecArray | null;
+  BIE_OCR_UNIT_DISCOUNT_RE.lastIndex = 0;
+  while ((m = BIE_OCR_UNIT_DISCOUNT_RE.exec(text)) !== null) {
+    pairs.push({ unit: parsePrice(m[1].replace(/\s+/g, '')), discount: parsePrice(m[3]) });
+  }
+
+  const items: ReceiptItem[] = [];
+  const n = Math.min(names.length, pairs.length);
+  for (let i = 0; i < n; i++) {
+    const name = names[i];
+    if (name.length < 2) continue;
+    const { unit, discount } = pairs[i];
+    if (unit <= 0 || unit > 5000) continue;
+    const price = Math.max(0, Math.round((unit - discount) * 100) / 100);
+    items.push({
+      name, quantity: 1, unitPrice: unit, price,
+      discount: discount > 0 ? discount : undefined,
+      foodSubcat: categorizeFoodSubcat(name),
+    });
+  }
+  return items;
+}
+
+function parseBiedronka(text: string): ParsedReceipt {
+  const flat = text.replace(/\r/g, '');
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  let items: ReceiptItem[] = [];
+  let totalDiscount = 0;
+
+  const ocrItems = parseBiedronkaScrambledOcr(flat, lines);
+  if (ocrItems.length > 0) {
+    items = ocrItems;
+    totalDiscount = items.reduce((s, it) => s + (it.discount ?? 0), 0);
+  } else {
+    let m: RegExpExecArray | null;
+    BIE_ITEM_RE.lastIndex = 0;
+    while ((m = BIE_ITEM_RE.exec(flat)) !== null) {
+      let rawName = m[1].trim();
+      rawName = rawName.replace(/^.*?\d+[.,]\d{2}[A-C]?\s+/, '');
+      rawName = rawName.replace(/^.*[x×*]\s*\d+[.,]\d{1,2}\s+/i, '');
+      rawName = rawName.replace(/^(discount|rabat|opust)\s+/i, '');
+      rawName = rawName.trim();
+      const qty = parseFloat(m[3].replace(',', '.'));
+      const unit = parseFloat(m[4].replace(',', '.'));
+      if (unit <= 0 || unit > 5000) continue;
+      const name = cleanName(rawName);
+      if (name.length < 2) continue;
+      const price = Math.round(qty * unit * 100) / 100;
+      if (price <= 0 || price > 5000) continue;
+      items.push({ name, quantity: qty, unitPrice: unit, price, foodSubcat: categorizeFoodSubcat(name) });
+    }
+  }
+
   const subtotal = items.reduce((s, p) => s + p.price, 0);
   const total = detectTotal(text);
   return {
     storeName: detectStoreName(text, lines) ?? 'Biedronka',
     date: detectDate(text),
     paymentMethod: detectPaymentMethod(text),
-    items, subtotal, totalDiscount: 0, total: total || subtotal, raw: text,
+    items, subtotal, totalDiscount, total: total || subtotal, raw: text,
   };
 }
 

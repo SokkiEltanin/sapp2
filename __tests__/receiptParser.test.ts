@@ -364,6 +364,79 @@ describe('parseReceiptText — Lidl paragon z opłatą kaucji "wydania"', () => 
   });
 });
 
+// Dokładny string ze zrzutu ekranu usera (Samsung "skopiuj tekst" ze screena paragonu,
+// 2026-11-03: "pokazało mi tylko ser jeden 8.99" — BIE_ITEM_RE wymagał nazwy+VAT+ilości×ceny
+// na JEDNEJ linii, ten format OCR rozsypuje kolumny po osobnych liniach, czasem ze sklejonymi
+// resztkami sąsiedniej pozycji). CLAUDE.md zasada #5 — test na DOKŁADNYM stringu, nie
+// przybliżeniu, żeby złapać dokładnie to co złapał user.
+const BIEDRONKA_SCRAMBLED_OCR = `Store 1517 ul. Siemienskiego 14, 35-234 RzesZÓm Jeronimo Martins Polska S.A. ul. żniwna 5, 62-025 Kostrzyr NIP 779-10-11-327
+2026-11-03 10:26
+NON-FISCAL RECEIPT
+KetPikantnyPud 990 g Discount
+1.0 x
+12,99
+B
+12,99B -5,00
+7.99B 12,99B -5,00
+KetPikantnyPud 990 g Discount
+1.0 x
+12,99
+B
+7.99B 8, 99C -3,99
+SerGoudHolend 300c Discount
+1.0 x
+8, 99
+5.0C 8,99C -4,00
+SerGoudHolend 300c Discount
+C 1.0 x
+8, 99
+4.99C 8,99C -3,99
+SerGoudHolend 300c Discount
+1.0x
+8,99
+5.0C 8,99C -4,00
+SerGoudHolend 300c Discount
+4.99C
+C
+C
+TAXED SALE B
+15,98
+PTU B 8%
+1, 18
+TAXED SALE C
+19,98
+PTU C 5%
+0,95
+TOTAL PTU
+2,13
+TOTAL
+35,96`;
+
+describe('parseReceiptText — Biedronka, poszarpany OCR ze screena (kolumny rozsypane po liniach)', () => {
+  test('wszystkie 6 pozycji złapane (2× Ketchup, 4× Ser), nie tylko jedna', () => {
+    const r = parseReceiptText(BIEDRONKA_SCRAMBLED_OCR);
+    expect(r.items.length).toBe(6);
+  });
+
+  test('rabat faktycznie odjęty od ceny jednostkowej (7,99 nie 12,99; 5,00/4,99 nie 8,99)', () => {
+    const r = parseReceiptText(BIEDRONKA_SCRAMBLED_OCR);
+    const prices = r.items.map(it => it.price).sort((a, b) => a - b);
+    expect(prices).toEqual([4.99, 4.99, 5, 5, 7.99, 7.99]);
+  });
+
+  test('suma pozycji zgadza się z sumą na paragonie co do grosza (35,96)', () => {
+    const r = parseReceiptText(BIEDRONKA_SCRAMBLED_OCR);
+    expect(r.total).toBe(35.96);
+    expect(r.subtotal).toBeCloseTo(35.96, 2);
+  });
+
+  test('nazwy produktów zachowane (bez zjedzenia przez rozsypane kolumny)', () => {
+    const r = parseReceiptText(BIEDRONKA_SCRAMBLED_OCR);
+    expect(r.items.filter(it => it.name.includes('KetPikantnyPud')).length).toBe(2);
+    expect(r.items.filter(it => it.name.includes('SerGoudHolend')).length).toBe(4);
+  });
+});
+
 describe('getFoodTags/foodSubcat — 8 kategorii spiżarniowych + "sosy"', () => {
   test('nowe samodzielne kategorie', () => {
     expect(subcatFor('Jajka M 10szt')).toBe('jajka');
