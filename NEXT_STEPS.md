@@ -2746,40 +2746,40 @@ true, quiet:false`) / Pełny ekran cichy (`quiet:true`) / Pełny ekran + budzik
 USUNIĘTY jako osobny wiersz UI (funkcja/parametry w kodzie zostają, po prostu
 nie zaśmieca już listy czwartym niemal identycznym przyciskiem).
 
-**6. "Daj humor" nie otwiera się w ogóle — NIE ZNALEZIONO PRZYCZYNY W
-KODZIE, mimo dogłębnego audytu. Status: NIEROZWIĄZANE, wymaga więcej danych
-z urządzenia.** Co sprawdzone i wykluczone:
-- `Tile` w `daily.tsx` (`onPress={() => setMoodOpen(true)}`) — zwykły
-  `Pressable`, bez konkurującego gestu (`MoodPad mini` NIE renderuje
-  `GestureDetector` — warunek `!mini && onChange` w `MoodPad.tsx` gwarantuje
-  to, mini-pad jest czysto wizualny).
-- `AppBottomSheet`/`BottomSheetModalProvider` — poprawnie owinięty w
-  `app/_layout.tsx` (`GestureHandlerRootView > BottomSheetModalProvider`), ten
-  sam dokładnie wzorzec jak w `DayDetailModal`/`MonthViewModal`/`AddExpenseModal`
-  (zero skarg na te popupy), więc to nie systemowy problem z samym sheetem.
-- `MoodModal.tsx` — struktura identyczna do innych działających popupów
-  (header+footer+AppBottomSheet), `useMoodStore`/`sortMoodTags` już i tak
-  wykonują się na KAŻDYM renderze Daily (czyli przy starcie ekranu), więc
-  gdyby rzucały, cały ekran Daily by padł, nie tylko tap na Nastrój.
-  `useHealthSync()` (nowe w tej rundzie) — cichy no-op gdy `connected===
-  false`, złapane w `.catch(()=>{})`, nie może zablokować JS threada.
-  `web` test (Playwright, tap na wiersz Nastrój) — ZERO błędów w konsoli
-  (`pageerror`/`console.error`), ale `BottomSheetModal.present()` i tak nie
-  renderuje się pod `react-native-web` w ogóle (znany od Fazy 3.9 ślepy
-  punkt tej metody weryfikacji) — więc to NIE potwierdza że na urządzeniu
-  jest OK, tylko że nic nie rzuca wyjątkiem w JS.
-- Commit `8bc7137` (migracja Humoru na `AppBottomSheet`) sam przyznawał:
-  "Rzeczywisty render na urządzeniu... nie był możliwy w tym środowisku" —
-  ta migracja NIGDY nie była zweryfikowana na prawdziwym telefonie przed
-  wysłaniem do usera, więc jest głównym podejrzanym mimo braku dowodu w
-  statycznej analizie kodu.
-  **Następnym razem gdy to się powtórzy, potrzebne od usera: czy INNE
-  popupy (np. "+" w Zadaniach, "+" w Finansach) TEŻ nie otwierają się w tym
-  samym momencie?** Jeśli tak — problem jest systemowy (`BottomSheetModal
-  Provider`/gorhom, nie Humor). Jeśli NIE — problem jest specyficzny dla
-  `MoodModal`/`MoodPad`, szukać dalej tam. Warto też sprawdzić
-  Ustawienia→Diagnostyka→"Commit" przy zgłoszeniu, żeby mieć pewność który
-  dokładnie build jest testowany (ten sam mechanizm po to tam jest).
+**6. "Daj humor" nie otwiera się w ogóle — ZNALEZIONO PRZYCZYNĘ, naprawione
+(2026-11-03, Faza 3.14), czeka na potwierdzenie na urządzeniu.** Dwie rundy
+statycznej analizy kodu (patrz Faza 3.13 wyżej) nic nie znalazły — przełom
+dał dopytanie usera wprost (`AskUserQuestion`): **"czuję wibrację przy
+tapnięciu" (JS działa, stan się zmienia) + "inne popupy (np. + w Zadaniach)
+też nie działają"** — czyli to NIGDY nie był bug specyficzny dla Humoru,
+tylko systemowy problem z KAŻDYM `AppBottomSheet` w appce naraz, czego nie
+dało się odróżnić bez tej jednej odpowiedzi (user wcześniej zgłaszał tylko
+Humor, bo to jedyny popup który akurat testował).
+
+Root cause znaleziony WPROST w źródle `@gorhom/bottom-sheet`
+(`utilities/animate.ts`), autorski komentarz biblioteki: *"Users might have
+an accessibility setting to reduce motion turned on. This prevents the
+animation from running when presenting the sheet, which results in the
+bottom sheet not even appearing"*. Android ma systemowe ustawienie ułatwień
+dostępu "Zmniejsz ruch"/"Usuń animacje" — gdy włączone, `BottomSheet.tsx`
+(ok. linii 1035-1047) w stanie "zamknięty, nie animuje" robi WCZESNY
+`return` bez ustawienia pozycji wcale, więc sheet zostaje TRWALE
+niewidoczny mimo udanego `.present()` — zero błędu w konsoli, bo to nie
+crash, po prostu nigdy niedomknięta animacja. Pasuje 1:1 do WSZYSTKICH
+objawów: haptic/stan działa (JS się wykonuje), zero błędu, dotyczy
+jednakowo każdego popupu.
+
+Fix: `overrideReduceMotion={ReduceMotion.Never}` na `BottomSheetModal` w
+`src/components/design/AppBottomSheet.tsx` (WSPÓLNY komponent każdego
+popupu w appce) — wymusza że animacja prezentacji ZAWSZE się wykonuje,
+niezależnie od systemowego ustawienia telefonu. Jeden fix w jednym miejscu
+naprawia każdy popup naraz.
+
+**DO POTWIERDZENIA NA URZĄDZENIU:** czy Humor/Zadania "+"/Finanse "+" itd.
+TERAZ się otwierają. Jeśli NIE — sprawdzić czy user ma faktycznie
+"Zmniejsz ruch" włączone (Ustawienia telefonu → Ułatwienia dostępu →
+Ruch/Zmniejsz ruch) jako potwierdzenie teorii, i czy `overrideReduceMotion`
+w ogóle dotarł do zainstalowanego builda (Ustawienia→Diagnostyka→"Commit").
 
 **7. Zadania: WSZYSTKIE/TERAZ/BEZTERMINOWE — ZROBIONE.** `buckets` w
 `app/(tabs)/tasks.tsx` przeliczone na 3 kategorie (było Teraz/Terminowe/Bez

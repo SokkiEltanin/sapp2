@@ -113,6 +113,15 @@ zdrowia POTWIERDZONE jako osobna, odłożona faza (opcja 1 z dwóch zaproponowan
   `paddingBottom`, żeby treść się pod nią nie chowała. `TextInput`y WEWNĄTRZ sheeta
   muszą być gorhom's `BottomSheetTextInput` (nie zwykły `TextInput` z 'react-native' —
   gubi fokus/zaznaczenie przy przewijaniu).
+  **`overrideReduceMotion={ReduceMotion.Never}` (2026-11-03, Faza 3.14, KRYTYCZNE,
+  patrz NEXT_STEPS.md punkt 6) — bez tego, gdy user ma w systemowych Ustawieniach
+  ułatwień dostępu telefonu włączone "Zmniejsz ruch"/"Usuń animacje", `@gorhom/
+  bottom-sheet` (autorski komentarz w ich `utilities/animate.ts`) CAŁKOWICIE
+  pomija animację prezentacji — sheet zostaje TRWALE niewidoczny mimo udanego
+  `.present()`, zero błędu w konsoli. Dotyczyło KAŻDEGO popupu w appce naraz,
+  nie dało się tego złapać bez dopytania usera wprost "czy INNE popupy też nie
+  działają" — jeśli ktoś kiedyś to usunie "bo wygląda na nieużywane", wróci ten
+  dokładny bug.**
 - **Pierwszy realny konsument: `MoodModal.tsx`** (2026-11-02, patrz §DAILY). Pozostałe
   popupy (AddExpenseModal/ProductsModal/TransactionsModal/WydatkiModal, balance-edit,
   DayDetailModal, AddTaskCard-composer) wciąż `Modal` — migracja screen-po-screenie,
