@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet, Dimensions, Alert } from 'react-native';
 import {
   BottomSheetModal, BottomSheetView, BottomSheetScrollView, BottomSheetBackdrop, BottomSheetFooter,
   type BottomSheetBackdropProps, type BottomSheetFooterProps,
@@ -59,8 +59,19 @@ export default function AppBottomSheet({
   const ref = useRef<BottomSheetModal>(null);
 
   useEffect(() => {
-    if (visible) ref.current?.present();
-    else ref.current?.dismiss();
+    if (visible) {
+      // TYMCZASOWA diagnostyka (2026-11-03, Faza 3.14 c.d. — user: "nadal nie
+      // działa" NAWET z `overrideReduceMotion` fixem) — `Alert.alert` to zupełnie
+      // INNY natywny mechanizm renderowania (systemowy AlertDialog Androida), zero
+      // wspólnego kodu z gorhom/reanimated. Jeśli TO się pokaże a sheet dalej nie —
+      // problem jest w 100% izolowany do @gorhom/bottom-sheet na tym urządzeniu,
+      // nie w ogólnym renderowaniu/dotyku/JS threadzie appki. Jeśli TO TEŻ się nie
+      // pokaże — problem jest głębszy niż ta biblioteka. USUNĄĆ po diagnozie.
+      Alert.alert('Debug', 'present() wywołane — jeśli WIDZISZ ten alert ale sheet się nie otwiera, napisz to.');
+      ref.current?.present();
+    } else {
+      ref.current?.dismiss();
+    }
   }, [visible]);
 
   const renderBackdrop = useCallback(
