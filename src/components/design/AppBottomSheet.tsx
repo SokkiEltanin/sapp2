@@ -4,6 +4,7 @@ import {
   BottomSheetModal, BottomSheetView, BottomSheetScrollView, BottomSheetBackdrop, BottomSheetFooter,
   type BottomSheetBackdropProps, type BottomSheetFooterProps,
 } from '@gorhom/bottom-sheet';
+import { ReduceMotion } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { colors } from '@/theme/colors';
 import { spacing, radius } from '@/theme';
@@ -105,6 +106,24 @@ export default function AppBottomSheet({
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
       android_keyboardInputMode="adjustResize"
+      // `overrideReduceMotion={Never}` (2026-11-03, user: "klikam [Humor/Nastrój]
+      // i nic się nie dzieje... [potwierdzone] inne popupy (+ w Zadaniach) też nie
+      // działają" — NIE bug tylko w Humorze, każdy AppBottomSheet w appce). Root
+      // cause ZNALEZIONY w źródle @gorhom/bottom-sheet (utilities/animate.ts,
+      // komentarz autorów biblioteki wprost): gdy w systemowych Ustawieniach
+      // ułatwień dostępu telefonu jest włączone "Zmniejsz ruch"/"Usuń animacje",
+      // reanimated całkowicie pomija animację otwarcia sheeta — a KOD samego
+      // BottomSheet.tsx (ok. linii 1035-1047) w tym stanie robi WCZESNY `return`
+      // bez ustawienia pozycji wcale, więc sheet zostaje TRWALE zamknięty/
+      // niewidoczny mimo udanego `.present()` (stąd haptic/stan się zmienia,
+      // user to potwierdził, ale nic się wizualnie nie pojawia — zero błędu w
+      // konsoli, bo to nie crash, to po prostu nigdy nie domknięta animacja).
+      // Domyślne zachowanie biblioteki honoruje to ustawienie systemowe (sensowne
+      // dla zwykłych animacji), ale TUTAJ to accessibility-setting psuje
+      // PODSTAWOWĄ funkcjonalność (otwieranie popupu w ogóle), nie tylko wygląd —
+      // `Never` wymusza że animacja prezentacji ZAWSZE się wykonuje, niezależnie
+      // od ustawienia telefonu.
+      overrideReduceMotion={ReduceMotion.Never}
     >
       {header && <BottomSheetView style={s.header}>{header}</BottomSheetView>}
       <Body style={scrollable ? s.scroll : bodyStyle} contentContainerStyle={scrollable ? bodyStyle : undefined} keyboardShouldPersistTaps="handled">
