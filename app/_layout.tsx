@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { View, ActivityIndicator, AppState } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, ActivityIndicator, AppState, Dimensions } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -42,6 +42,42 @@ import { useExpensesStore } from '@/store/expensesStore';
 // `(tabs)`, więc widoczna w segmentach) — jeden efekt pokrywa oba przekierowania:
 // niezalogowany gdzieś poza /login → na /login; zalogowany wciąż na /login (np. wrócił
 // gestem "wstecz" po sukcesie) → na /.
+// Samochodowa siatka (Screen/Row/Tile w src/ui/layout.tsx) już liczy kolumny z
+// reaktywnego `useWindowDimensions()`, co POWINNO wystarczyć — ale user zgłosił
+// (2026-11-03, zrzut z Samsunga): po wejściu w split-screen layout się rozjechał
+// (kafle ucięte poza ekranem) i NIE WRÓCIŁO do normy nawet po pełnym zamknięciu i
+// ponownym otwarciu appki. To wygląda na znany bug Androida (głównie Samsung One
+// UI) — system "zapamiętuje" geometrię okna z multi-window dla danego taska i
+// aplikuje ją do KOLEJNEGO uruchomienia, więc nawet świeża instancja appki dostaje
+// od Androida BŁĘDNE wymiary okna od samego startu (to nie jest "React nie
+// zauważył zmiany", to "Android podaje złą liczbę") — żaden kod JS tego nie
+// naprawi, bo wejściowe dane są złe, nie samo ich przetworzenie.
+// To co appka MOŻE zrobić: nasłuchiwać `Dimensions`'owego eventu 'change' (NIE
+// tylko polegać na samym `useWindowDimensions()` — udokumentowany na innych
+// urządzeniach przypadek gdzie ten hook czasem nie łapie zmiany przy wejściu/
+// wyjściu z multi-window) i wymusić PEŁNY remount drzewa ekranów za każdym razem
+// gdy wymiary faktycznie się zmienią — więc jeśli/gdy Android w końcu sam sobie
+// poprawi zapamiętaną geometrię (kolejne przełączenie multi-window, restart
+// telefonu), appka złapie to NATYCHMIAST zamiast zostać zamrożona na starej,
+// błędnej wartości do następnego pełnego restartu appki. `AppState`-owy trigger
+// (każde wejście na pierwszy plan) ŚWIADOMIE pominięty — remontowałby cały stack
+// nawigacji (gubiąc scroll/stan ekranów) przy KAŻDYM zwykłym przełączeniu appek,
+// nie tylko przy realnej zmianie rozmiaru.
+function useRemountOnDimensionChange(): number {
+  const [key, setKey] = useState(0);
+  const last = useRef(Dimensions.get('window'));
+  useEffect(() => {
+    const sub = Dimensions.addEventListener('change', ({ window }) => {
+      if (window.width !== last.current.width || window.height !== last.current.height) {
+        last.current = window;
+        setKey((k) => k + 1);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+  return key;
+}
+
 function useAuthGate(user: User | null, initializing: boolean) {
   const segments = useSegments();
   const router = useRouter();
@@ -71,6 +107,7 @@ export default function RootLayout() {
 
   const { user, initializing } = useAuthUser();
   useAuthGate(user, initializing);
+  const dimensionKey = useRemountOnDimensionChange();
   // Deep-link z pełnoekranowego alertu notifee na dedykowany ekran alarmu (patrz
   // app/alert-test.tsx) — patrz komentarz w src/hooks/useNotifeeAlertLaunch.ts.
   useNotifeeAlertLaunch();
@@ -129,7 +166,7 @@ export default function RootLayout() {
       <BottomSheetModalProvider>
         <SafeAreaProvider>
           <StatusBar style="light" />
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg.primary } }} />
+          <Stack key={dimensionKey} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg.primary } }} />
         </SafeAreaProvider>
       </BottomSheetModalProvider>
     </GestureHandlerRootView>
