@@ -2746,40 +2746,53 @@ true, quiet:false`) / Pełny ekran cichy (`quiet:true`) / Pełny ekran + budzik
 USUNIĘTY jako osobny wiersz UI (funkcja/parametry w kodzie zostają, po prostu
 nie zaśmieca już listy czwartym niemal identycznym przyciskiem).
 
-**6. "Daj humor" nie otwiera się w ogóle — ZNALEZIONO PRZYCZYNĘ, naprawione
-(2026-11-03, Faza 3.14), czeka na potwierdzenie na urządzeniu.** Dwie rundy
-statycznej analizy kodu (patrz Faza 3.13 wyżej) nic nie znalazły — przełom
-dał dopytanie usera wprost (`AskUserQuestion`): **"czuję wibrację przy
-tapnięciu" (JS działa, stan się zmienia) + "inne popupy (np. + w Zadaniach)
-też nie działają"** — czyli to NIGDY nie był bug specyficzny dla Humoru,
-tylko systemowy problem z KAŻDYM `AppBottomSheet` w appce naraz, czego nie
-dało się odróżnić bez tej jednej odpowiedzi (user wcześniej zgłaszał tylko
-Humor, bo to jedyny popup który akurat testował).
+**6. "Daj humor"/żaden popup w appce nie otwierał się w ogóle — ROZWIĄZANE
+(2026-11-04, Faza 3.15, trzecia i ostateczna runda).** Pełna historia
+dochodzenia (zostawiona, bo trasa diagnozy jest tu bardziej pouczająca niż
+sam fix):
 
-Root cause znaleziony WPROST w źródle `@gorhom/bottom-sheet`
-(`utilities/animate.ts`), autorski komentarz biblioteki: *"Users might have
-an accessibility setting to reduce motion turned on. This prevents the
-animation from running when presenting the sheet, which results in the
-bottom sheet not even appearing"*. Android ma systemowe ustawienie ułatwień
-dostępu "Zmniejsz ruch"/"Usuń animacje" — gdy włączone, `BottomSheet.tsx`
-(ok. linii 1035-1047) w stanie "zamknięty, nie animuje" robi WCZESNY
-`return` bez ustawienia pozycji wcale, więc sheet zostaje TRWALE
-niewidoczny mimo udanego `.present()` — zero błędu w konsoli, bo to nie
-crash, po prostu nigdy niedomknięta animacja. Pasuje 1:1 do WSZYSTKICH
-objawów: haptic/stan działa (JS się wykonuje), zero błędu, dotyczy
-jednakowo każdego popupu.
+1. Dwie rundy statycznej analizy kodu (Faza 3.13) nic nie znalazły.
+2. Dopytanie usera wprost (`AskUserQuestion`): "czuję wibrację przy
+   tapnięciu" (JS działa) + "inne popupy też nie działają" — wykluczyło
+   "to bug tylko w Humorze", wskazało na WSPÓLNY `AppBottomSheet`.
+3. Fix #1: `overrideReduceMotion={ReduceMotion.Never}` (biblioteka
+   `@gorhom/bottom-sheet` sama dokumentuje że "Zmniejsz ruch" w systemie
+   może zablokować animację prezentacji) — user potwierdził "nadal nie
+   działa" na najnowszym buildzie. Teoria prawdopodobnie prawdziwa dla
+   INNYCH przypadków tego buga, ale nie była (jedyną) przyczyną tutaj.
+4. Fix #2 (diagnostyka, nie naprawa): `Alert.alert()` tuż przed
+   `.present()` — POTWIERDZONE zrzutami ekranu że alert się pokazuje.
+   Czyli: JS działa, dotyk działa, natywne nakładki działają OGÓLNIE na
+   tym telefonie — problem w 100% izolowany do samej biblioteki
+   `@gorhom/bottom-sheet` (jej reanimated/worklet-driven mechanizmu
+   pozycjonowania), nie do appki czy do systemu szerzej.
+5. Fix #3 (ostateczny): zamiast dalej zgadywać wewnątrz cudzej biblioteki,
+   `AppBottomSheet.tsx` PRZEBUDOWANY OD ZERA na goły, wbudowany RN `Modal`
+   (`animationType="slide"`) — natywna animacja okna systemu, ZERO
+   zależności od reanimated/worklets/gorhom. Backdrop własny (blur+
+   przyciemnienie+tap-zamknij), "dynamiczny" rozmiar przez zwykły
+   `maxHeight`+`flexShrink:1` (bez biblioteki pomiarowej). Zewnętrzny
+   kontrakt (`visible`/`onClose`/`header`/`footer`/`scrollable`/
+   `children`) bez zmian — 10 konsumentów działa bez modyfikacji logiki;
+   jedyna zmiana to `BottomSheetTextInput`/`BottomSheetFlatList` z powrotem
+   na zwykłe `TextInput`/`FlatList` (6 plików), bo nie ma już z czym
+   konkurować o fokus skoro sheet nie ma własnego gestu przeciągania.
+   `BottomSheetModalProvider` usunięty z `app/_layout.tsx` (martwy).
 
-Fix: `overrideReduceMotion={ReduceMotion.Never}` na `BottomSheetModal` w
-`src/components/design/AppBottomSheet.tsx` (WSPÓLNY komponent każdego
-popupu w appce) — wymusza że animacja prezentacji ZAWSZE się wykonuje,
-niezależnie od systemowego ustawienia telefonu. Jeden fix w jednym miejscu
-naprawia każdy popup naraz.
+**Pierwsze w tej sesji rzeczywiste potwierdzenie wizualne** — `expo web`+
+Playwright nigdy wcześniej nie pokazywał ŻADNEJ treści bottom-sheeta (znany
+ślepy punkt tej metody weryfikacji od Fazy 3.9, bo gorhom's portal nie
+renderuje się pod `react-native-web`). Z nowym `Modal`-em: Humor i "Nowe
+zadanie" oba renderują się w pełni (nagłówek, pola, przyciski, MoodPad z
+osiami) — pierwszy dowód że mechanizm otwierania faktycznie działa, nie
+tylko "nie rzuca błędem".
 
-**DO POTWIERDZENIA NA URZĄDZENIU:** czy Humor/Zadania "+"/Finanse "+" itd.
-TERAZ się otwierają. Jeśli NIE — sprawdzić czy user ma faktycznie
-"Zmniejsz ruch" włączone (Ustawienia telefonu → Ułatwienia dostępu →
-Ruch/Zmniejsz ruch) jako potwierdzenie teorii, i czy `overrideReduceMotion`
-w ogóle dotarł do zainstalowanego builda (Ustawienia→Diagnostyka→"Commit").
+**DO POTWIERDZENIA NA URZĄDZENIU (ostatni krok):** czy Humor/Zadania "+"/
+Finanse "+"/wszystkie popupy TERAZ się otwierają na realnym telefonie
+usera. Jeśli jeszcze nie — to już nie problem samego `@gorhom/bottom-sheet`
+(ten jest całkowicie wyeliminowany z appki), tylko czegoś bardziej
+fundamentalnego w RN `Modal`u na tym urządzeniu, co byłoby zaskakujące
+(jeden z najstarszych, najbardziej przetestowanych prymitywów frameworka).
 
 **7. Zadania: WSZYSTKIE/TERAZ/BEZTERMINOWE — ZROBIONE.** `buckets` w
 `app/(tabs)/tasks.tsx` przeliczone na 3 kategorie (było Teraz/Terminowe/Bez
@@ -2792,3 +2805,19 @@ RUSZONE.** User explicite: "na razie tego nie rób na potem zapisz żebym
 przemyślał co z tym" — nie wiadomo jeszcze czy appka ma w ogóle śledzić te 3
 nawyki. Zero zmian w `habitsStore.ts`/`HabitsModal.tsx`/Dashboard do czasu aż
 user zdecyduje; ten zapis to WYŁĄCZNIE przypomnienie dla kolejnej sesji.
+
+## Dodatkowe poprawki tej rundy (2026-11-04)
+
+- **Split-screen/multi-window layout rozjechany na Samsungu — POTWIERDZONE
+  NAPRAWIONE** przez usera ("okno się naprawiło") po
+  `useRemountOnDimensionChange` w `app/_layout.tsx` (nasłuch `Dimensions`
+  'change', pełny remount `<Stack>` gdy wymiary faktycznie się zmienią —
+  patrz komentarz w pliku po pełne wyjaśnienie dlaczego to był prawdopodobnie
+  bug Androida/Samsunga, nie appki, i czemu ten fix mimo to pomógł).
+- **Daily: nagłówek "ŚRODA, 4 LISTOPADA" zawijał się dziwnie — ZROBIONE.**
+  `numberOfLines={1}` na `right` Text w Daily/Finanse/Zadania (prewencyjnie
+  wszędzie, nie tylko Daily — ten sam potencjalny problem czai się wszędzie
+  gdzie długość tekstu zależy od bieżącej daty).
+- **Finanse: angielska nazwa miesiąca obok polskiej — ZROBIONE.** User:
+  "zawsze mam z nimi problem" — nagłówek "LISTOPAD 2026" → "LISTOPAD ·
+  NOVEMBER 2026".

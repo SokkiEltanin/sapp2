@@ -95,44 +95,49 @@ zdrowia POTWIERDZONE jako osobna, odłożona faza (opcja 1 z dwóch zaproponowan
   legenda), `Bars` (słupkowy wykres kolumnowy, `Math.max(1,...)` na mianowniku to
   obowiązek wołającego, jak już w `foodStats.ts`).
 - **`AppBottomSheet`** (`src/components/design/AppBottomSheet.tsx`) — `visible`/
-  `onClose`/`children` + opcjonalne `header`/`footer`/`scrollable` (ostatnie dwa,
-  2026-11-02, dodane przy migracji `MoodModal.tsx`, pierwszego realnego konsumenta).
-  WEWNĄTRZ `BottomSheetModal` (nie plain `BottomSheet` — portal poza drzewem
-  wołającego ekranu). `detached`+`bottomInset` (jedyny sposób w v5 na pływający sheet
-  z marginesem z KAŻDEJ strony, nie tylko z góry — spec: `left/right/bottom:8px`).
-  `enableDynamicSizing`+`maxDynamicContentSize`=78% wysokości ekranu. Backdrop:
-  `BottomSheetBackdrop` + `BlurView` (`expo-blur`) + 60% czarny, dziecko nad dzieckiem
-  (blur nie steruje przezroczystością tła, tylko rozmyciem pod nim).
-  `header` renderuje się w stałym `BottomSheetView` NAD treścią (nie scrolluje —
-  tytuł/przyciski-ikony zawsze widoczne). `children` idzie przez `BottomSheetScrollView`
-  domyślnie (`scrollable=false` → zwykły `BottomSheetView`, dla krótkiej, statycznej
-  treści bez potrzeby scrolla). `footer`, jeśli podany, idzie przez `footerComponent`
-  (`BottomSheetFooter`) — osobna, ABSOLUTNIE pozycjonowana warstwa, zawsze przypięta
-  do dołu sheeta i automatycznie odpychana przez klawiaturę (`keyboardBehavior=
-  "interactive"`, `android_keyboardInputMode="adjustResize"`); `body` dostaje dodatkowy
-  `paddingBottom`, żeby treść się pod nią nie chowała. `TextInput`y WEWNĄTRZ sheeta
-  muszą być gorhom's `BottomSheetTextInput` (nie zwykły `TextInput` z 'react-native' —
-  gubi fokus/zaznaczenie przy przewijaniu).
-  **`overrideReduceMotion={ReduceMotion.Never}` (2026-11-03, Faza 3.14, KRYTYCZNE,
-  patrz NEXT_STEPS.md punkt 6) — bez tego, gdy user ma w systemowych Ustawieniach
-  ułatwień dostępu telefonu włączone "Zmniejsz ruch"/"Usuń animacje", `@gorhom/
-  bottom-sheet` (autorski komentarz w ich `utilities/animate.ts`) CAŁKOWICIE
-  pomija animację prezentacji — sheet zostaje TRWALE niewidoczny mimo udanego
-  `.present()`, zero błędu w konsoli. Dotyczyło KAŻDEGO popupu w appce naraz,
-  nie dało się tego złapać bez dopytania usera wprost "czy INNE popupy też nie
-  działają" — jeśli ktoś kiedyś to usunie "bo wygląda na nieużywane", wróci ten
-  dokładny bug.**
-- **Pierwszy realny konsument: `MoodModal.tsx`** (2026-11-02, patrz §DAILY). Pozostałe
-  popupy (AddExpenseModal/ProductsModal/TransactionsModal/WydatkiModal, balance-edit,
-  DayDetailModal, AddTaskCard-composer) wciąż `Modal` — migracja screen-po-screenie,
-  patrz "Następne fazy" niżej.
+  `onClose`/`children` + opcjonalne `header`/`footer`/`scrollable`. Kontrakt bez
+  zmian od Fazy 3.1, ale WEWNĘTRZNA implementacja PRZEBUDOWANA OD ZERA w Fazie
+  3.15 (2026-11-04, KRYTYCZNE — patrz NEXT_STEPS.md punkt 6 po pełną historię
+  dochodzenia). **Już NIE `@gorhom/bottom-sheet`** (biblioteka CAŁKOWICIE
+  usunięta z appki po tym jak user na realnym Samsungu zgłosił, powtarzalnie,
+  że ŻADEN popup w ogóle się nie otwierał — dwa targetowane fixy w gorhom
+  samym, włącznie z `overrideReduceMotion`, nie pomogły; diagnostyka
+  `Alert.alert()` potwierdziła że JS/dotyk/natywne nakładki działają OGÓLNIE
+  na urządzeniu, problem był w 100% izolowany do samej biblioteki).
+  Teraz: goły, wbudowany RN `Modal` (`animationType="slide"`, `transparent`,
+  `statusBarTranslucent`) — natywna animacja okna systemu, ZERO zależności od
+  reanimated/worklets/gorhom. Backdrop własny: `TouchableWithoutFeedback`
+  (tap=zamknij) + `BlurView` (`expo-blur`) + `rgba(0,0,0,.6)`, fade przez
+  JS-driven `Animated` z 'react-native' (ŚWIADOMIE nie reanimated — cel
+  przebudowy był wyeliminować tę warstwę jako podejrzaną, nie wciągnąć ją z
+  powrotem). "Dynamiczny" rozmiar (rośnie do treści, max 78% ekranu, od tego
+  momentu scrolluje) osiągnięty BEZ żadnej biblioteki pomiarowej — `sheet`
+  ma `maxHeight`, `header`/`footer` są zwykłymi (nie-flex) dziećmi, środkowa
+  `ScrollView`/`View` treści dostaje `flexShrink:1` (nie `flex:1`) —
+  standardowy trik RN: kurczy się gdy treść za duża, nie rozciąga na siłę gdy
+  treści mało. `TextInput`y WEWNĄTRZ sheeta to zwykły `TextInput` z
+  'react-native' (NIE gorhom's `BottomSheetTextInput` — ten sheet nie ma już
+  własnego gestu przeciągania, więc nie ma z czym konkurować o fokus; 6
+  konsumentów z `BottomSheetTextInput`/`BottomSheetFlatList` przełączonych z
+  powrotem na zwykłe `TextInput`/`FlatList`). `BottomSheetModalProvider`
+  USUNIĘTY z `app/_layout.tsx` (nic go już nie potrzebuje) —
+  `GestureHandlerRootView` ZOSTAJE (MoodPad/Toggle/Segmented nadal używają
+  `react-native-gesture-handler` bezpośrednio, niezależnie od sheeta).
+- **Wszystkie popupy w appce** używają `AppBottomSheet` (MoodModal/
+  AddExpenseModal/ProductsModal/TransactionsModal/WydatkiModal/HabitsModal/
+  FoodCategoryItemsModal/DayDetailModal/MonthViewModal/AddTaskCard-composer/
+  balance-edit) — zero plain `Modal` nigdzie w repo (Faza 3.8 dokończyła
+  migrację; Faza 3.15 wymieniła implementację pod spodem, bez dotykania
+  żadnego z tych konsumentów poza usunięciem gorhom-specific TextInput/
+  FlatList wariantów).
 
-Zweryfikowane: `npx tsc --noEmit` czysto, `npx jest` 170/170 zielone (bez zmian w
-testach — nowa warstwa to czyste komponenty UI, nic do testowania jednostkowo na
-tym etapie), `npx expo export --platform android` bez błędów (fonty 600/800
-spakowane), `npx expo prebuild --platform android` generuje poprawny natywny projekt
-z nowymi zależnościami (zero nowych wpisów w `app.json`'s `plugins` — `expo-blur`/
-`@gorhom/bottom-sheet` autolinkują się bez config-pluginu).
+Zweryfikowane: `npx tsc --noEmit`/`npx jest` 180/180 czysto, `npx expo prebuild
+--platform android` generuje poprawny natywny projekt (Faza 3.15 to czysto JS
+fix, zero zmian natywnych). **Pierwsza w całej tej serii sesji rzeczywista
+weryfikacja WIZUALNA treści popupu** — `expo web`+Playwright nigdy wcześniej
+nie renderował ŻADNEJ zawartości bottom-sheeta pod `react-native-web` (znany
+ślepy punkt od Fazy 3.9, bo gorhom's portal tam nie działał); z nowym
+`Modal`-em Humor i "Nowe zadanie" oba renderują się w pełni.
 
 **Faza 3.2 (Dashboard) — ZROBIONA (2026-11-01, "dawaj")**, patrz §DASHBOARD wyżej
 po pełny opis co realne/co stub.
