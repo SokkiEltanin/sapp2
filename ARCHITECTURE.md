@@ -104,25 +104,51 @@ zdrowia POTWIERDZONE jako osobna, odłożona faza (opcja 1 z dwóch zaproponowan
   samym, włącznie z `overrideReduceMotion`, nie pomogły; diagnostyka
   `Alert.alert()` potwierdziła że JS/dotyk/natywne nakładki działają OGÓLNIE
   na urządzeniu, problem był w 100% izolowany do samej biblioteki).
-  Teraz: goły, wbudowany RN `Modal` (`animationType="slide"`, `transparent`,
-  `statusBarTranslucent`) — natywna animacja okna systemu, ZERO zależności od
-  reanimated/worklets/gorhom. Backdrop własny: `TouchableWithoutFeedback`
-  (tap=zamknij) + `BlurView` (`expo-blur`) + `rgba(0,0,0,.6)`, fade przez
-  JS-driven `Animated` z 'react-native' (ŚWIADOMIE nie reanimated — cel
-  przebudowy był wyeliminować tę warstwę jako podejrzaną, nie wciągnąć ją z
-  powrotem). "Dynamiczny" rozmiar (rośnie do treści, max 78% ekranu, od tego
-  momentu scrolluje) osiągnięty BEZ żadnej biblioteki pomiarowej — `sheet`
-  ma `maxHeight`, `header`/`footer` są zwykłymi (nie-flex) dziećmi, środkowa
-  `ScrollView`/`View` treści dostaje `flexShrink:1` (nie `flex:1`) —
-  standardowy trik RN: kurczy się gdy treść za duża, nie rozciąga na siłę gdy
-  treści mało. `TextInput`y WEWNĄTRZ sheeta to zwykły `TextInput` z
-  'react-native' (NIE gorhom's `BottomSheetTextInput` — ten sheet nie ma już
-  własnego gestu przeciągania, więc nie ma z czym konkurować o fokus; 6
-  konsumentów z `BottomSheetTextInput`/`BottomSheetFlatList` przełączonych z
-  powrotem na zwykłe `TextInput`/`FlatList`). `BottomSheetModalProvider`
-  USUNIĘTY z `app/_layout.tsx` (nic go już nie potrzebuje) —
-  `GestureHandlerRootView` ZOSTAJE (MoodPad/Toggle/Segmented nadal używają
-  `react-native-gesture-handler` bezpośrednio, niezależnie od sheeta).
+  Teraz: goły, wbudowany RN `Modal` (`transparent`, `statusBarTranslucent`,
+  `animationType="none"` — WŁASNA animacja zamiast wbudowanej, patrz niżej),
+  ZERO zależności od reanimated/worklets/gorhom w samym mechanizmie
+  prezentacji. Backdrop własny: `TouchableWithoutFeedback` (tap=zamknij) +
+  `BlurView` (`expo-blur`, `experimentalBlurMethod="dimezisBlurView"` na
+  Androidzie — domyślny tryb tam to `'none'`, czyli CICHE spadnięcie do
+  samego przyciemnienia bez realnego rozmycia) + `rgba(0,0,0,.6)`.
+  Backdrop (opacity) i sheet (translateY) animowane NIEZALEŻNIE przez
+  OSOBNE JS-driven `Animated.Value`y z 'react-native' (ŚWIADOMIE nie
+  reanimated — cel przebudowy był wyeliminować tę warstwę jako podejrzaną)
+  — konieczne bo `Modal`'s wbudowane `animationType="slide"` animowało
+  CAŁĄ zawartość (backdrop+sheet) jako jedną bryłę, więc blur wjeżdżał od
+  dołu razem z sheetem zamiast po prostu płynnie się pojawić w miejscu
+  (2026-11-04, user: "ten blur powinien być natychmiastowy smooth a on się
+  wysuwa od dołu"); `modalVisible` (stan lokalny, osobny od propa
+  `visible`) trzyma `Modal` zamontowany przez czas trwania animacji
+  zamykania. "Dynamiczny" rozmiar (rośnie do treści, max 78% ekranu, od
+  tego momentu scrolluje) osiągnięty BEZ żadnej biblioteki pomiarowej —
+  `sheet` ma `maxHeight`, `header`/`footer` są zwykłymi (nie-flex) dziećmi,
+  środkowy `ScrollView` dostaje WŁASNY `style` (NIE tylko
+  `contentContainerStyle`!) z `flexShrink:1` — bez tego `style` na samym
+  komponencie `ScrollView` nie ma ograniczonej wysokości i rośnie do pełnej
+  treści zamiast przycinać się i scrollować (2026-11-04, user: długi
+  paragon w Finansach — "nadal nie działa scroll... nie da się
+  scrollować" — DRUGI, inny bug niż wcześniejszy konflikt zagnieżdżonych
+  scrolli, patrz `nestedScrollEnabled` w ChipRow/ReceiptItemRow). `TextInput`y
+  WEWNĄTRZ sheeta to zwykły `TextInput` z 'react-native' (NIE gorhom's
+  `BottomSheetTextInput` — ten sheet nie ma już własnego gestu
+  przeciągania, więc nie ma z czym konkurować o fokus; 6 konsumentów z
+  `BottomSheetTextInput`/`BottomSheetFlatList` przełączonych z powrotem na
+  zwykłe `TextInput`/`FlatList`). `BottomSheetModalProvider` USUNIĘTY z
+  `app/_layout.tsx` (nic go już nie potrzebuje) — `GestureHandlerRootView`
+  w `app/_layout.tsx` ZOSTAJE, ale `AppBottomSheet` ma TERAZ WŁASNY, DRUGI
+  `GestureHandlerRootView` WEWNĄTRZ `Modal`-a — `Modal` renderuje swoją
+  treść w OSOBNYM natywnym oknie (Android `ReactModalHostView`), poza
+  hierarchią głównego roota, więc gesty `react-native-gesture-handler`
+  (MoodPad's `Gesture.Pan()`, `Toggle`/`Segmented`) bez własnego roota W TYM
+  oknie po prostu się nie rejestrują (2026-11-04, user: w Humorze "nie mogę
+  kliknąć" — regresja z przejścia na `Modal`, dokładnie ten mechanizm który
+  `MoodModal.tsx`'s stary komentarz już raz opisywał jako "rozwiązany"
+  pod gorhom). Klawiatura: `KeyboardAvoidingView behavior="height"` na
+  Androidzie (nie `undefined`) — `Modal` jako własne natywne okno NIE
+  dziedziczy `android:windowSoftInputMode="adjustResize"` z manifestu
+  Activity, więc bez tego klawiatura całkowicie zasłaniała sheet zamiast
+  go przesunąć (2026-11-04, user: zrzut z zasłoniętym "Nowe zadanie").
 - **Wszystkie popupy w appce** używają `AppBottomSheet` (MoodModal/
   AddExpenseModal/ProductsModal/TransactionsModal/WydatkiModal/HabitsModal/
   FoodCategoryItemsModal/DayDetailModal/MonthViewModal/AddTaskCard-composer/
@@ -523,15 +549,28 @@ opcjonalnym tekstem, zapisywanym w formie pamiętnika DZIEŃ DATA")
   `store/moodStore.ts` — wzorzec `calendarStore` (AsyncStorage, bez auto-Firestore
   jak sapp miało wbudowane — ta granica żyje gdzie indziej w sapp2, patrz Finanse).
 - **`MoodEnergyGrid.tsx` → `src/components/design/MoodPad.tsx` (Faza 3.3)** —
-  siatka 5×5 nastrój×energia, `Gesture.Pan()`/`GestureDetector`/`runOnJS`
-  PRZENIESIONE bez zmian (już battle-tested na urządzeniu, port sapp) — zmienił się
-  WYGLĄD, nie mechanika: zero emoji (było `MOOD_EMOJIS` jako tekst kropki — reguła
-  #5 ze spec, "Zero emoji"), zero widocznych linii siatki 5×5 (subtelny krzyż przez
-  środek zamiast), nowy `mini` wariant (podgląd w Daily, czysto wizualny, bez
-  `GestureDetector`) i `big` wariant (etykiety narożników, w `MoodModal`). Model
-  danych BEZ ZMIAN (wciąż kwantyzacja do 5 poziomów — "już dobrze zaprojektowany").
-  ŚWIADOMIE uproszczone vs spec: brak tekstury tła z powtarzających się kropek i
-  blurowanego "glow" pod kropką (wymagałoby SVG-wzoru/obrazka, kosmetyczny niuans).
+  `Gesture.Pan()`/`GestureDetector`/`runOnJS` PRZENIESIONE bez zmian (już
+  battle-tested na urządzeniu, port sapp), ale **od Fazy 3.16 (2026-11-04)
+  JUŻ NIE kwantyzuje do siatki 5×5** (user: "humor musi być smooth a nie
+  punktowy... liczy się w procentach... 0,0 na środku i droga to promień w
+  każdym kierunku jakby smooth") — `onUpdate` liczy teraz `mood`/`energy`
+  jako CIĄGŁĄ ułamkową pozycję palca na padzie (`1 + frakcjaX*4`, zasięg
+  1..5 bez zmian, więc stare całkowitoliczbowe wpisy są dalej poprawne —
+  zero migracji danych), throttlowaną do kroku 0,02 żeby nie zalewać
+  mostka JS `runOnJS`-em co klatkę gestu. `MoodEntry.mood`/`energy` (patrz
+  `types/mood.ts`) to teraz `number`, NIE `MoodLevel` — `MoodLevel` (unia
+  `1|2|3|4|5`) żyje dalej TYLKO jako klucz do `MOOD_COLORS`/`MOOD_LABELS`
+  itp., każde miejsce pokazujące kolor/etykietę z continuous wartości
+  przechodzi przez `roundLevel()`. Zero emoji w kropce/odczycie (reguła #5
+  ze spec, "Zero emoji"), zero widocznych linii siatki (subtelny krzyż przez
+  środek zamiast), nowy `mini` wariant (podgląd w Daily, czysto wizualny,
+  bez `GestureDetector`) i `big` wariant (etykiety narożników, w
+  `MoodModal`). "Glow" pod kropką (`react-native-svg`'s `RadialGradient`) i
+  PIONOWE (obrócone `transform:rotate`) etykiety osi lewej/prawej DOSTAŁY
+  realną implementację w Fazie 3.16 (2026-11-04, user po zrzucie: "napisy
+  bokiem... i gradient"). Tekstura tła z powtarzających się kropek nadal
+  ŚWIADOMIE pominięta (wymagałaby SVG-wzoru/obrazka, zbyt kosmetyczny
+  niuans).
 - **Brak limitu wpisów/dzień** (jak w sapp) — UI liczy "ile już dziś" i tytułuje kolejne
   check-iny "Humor 2. raz dziś" itd. — to NATURALNIE realizuje "raz, potem drugi raz
   dziennie" z prośby usera, bez sztywnej reguły w danych.
@@ -545,12 +584,13 @@ opcjonalnym tekstem, zapisywanym w formie pamiętnika DZIEŃ DATA")
   "Dodaj"). **Brak NOWEGO pola na "dziennik dnia"** — notatka żyje na `MoodEntry.note`
   jak w sapp, "dopisać więcej o dniu" = kolejny check-in tego dnia z własną notatką.
   Tap na wpis w Pamiętniku → edycja.
-  `GestureHandlerRootView`+RNGH `ScrollView`, które port z sapp wymagał wewnątrz
-  pełnoekranowego `Modal`-a, ODPADŁY — `AppBottomSheet` renderuje się WEWNĄTRZ
-  jedynego `GestureHandlerRootView` z `app/_layout.tsx` (przez
-  `BottomSheetModalProvider`), więc `MoodPad`'owy `Gesture.Pan()` routuje się
-  poprawnie bez dodatkowego roota; `TextInput`y zamienione na gorhom's
-  `BottomSheetTextInput` (zwykły `TextInput` gubi fokus przy przewijaniu sheeta).
+  `TextInput`y to zwykły `TextInput` z 'react-native' (nie gorhom's
+  `BottomSheetTextInput`, usunięty razem z gorhom w Fazie 3.15 — patrz
+  `AppBottomSheet` opis wyżej); `MoodPad`'owy `Gesture.Pan()` routuje się
+  poprawnie dzięki DRUGIEMU `GestureHandlerRootView` WEWNĄTRZ
+  `AppBottomSheet`'s `Modal` (też Faza 3.15, patrz tam — `Modal` renderuje
+  się w osobnym natywnym oknie, poza hierarchią jedynego roota w
+  `app/_layout.tsx`).
 - **Wejście**: `app/(tabs)/daily.tsx`'s "Nastrój" kafel (rząd 5, Faza 3.3) — `Tile`
   z `MoodPad mini` + ostatni dzisiejszy wpis, tap na CAŁY kafel otwiera `MoodModal`
   (wcześniej: "Humor" wiersz, `LiveSectionRow` — ZASTĄPIONE przy przebudowie grida).

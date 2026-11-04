@@ -6,15 +6,27 @@
 // co naturalnie realizuje "raz, potem drugi raz".
 export type MoodLevel = 1 | 2 | 3 | 4 | 5;
 
+// `mood`/`energy` NIE SĄ już ograniczone do `MoodLevel` (2026-11-04, user: "humor musi być
+// smooth a nie punktowy... liczy się w procentach... 0,0 na środku i droga to promień w
+// każdym kierunku") — `MoodPad` kwantyzowało przeciąganie do siatki 5×5, user chciał
+// płynne/ciągłe śledzenie palca. Zasięg (1..5) BEZ ZMIAN — stare, całkowitoliczbowe wpisy
+// są po prostu szczególnym przypadkiem continuous value, więc żadnej migracji danych nie
+// trzeba. `MoodLevel` żyje dalej TYLKO jako klucz do `MOOD_COLORS`/`MOOD_LABELS` itp. —
+// każde miejsce wyświetlające kolor/etykietę z continuous wartości musi przejść przez
+// `roundLevel()` poniżej.
 export interface MoodEntry {
   id: string;
   date: string;        // YYYY-MM-DD
-  mood: MoodLevel;      // 1=fatalnie, 5=świetnie (walencja)
-  energy: MoodLevel;    // 1=bez energii, 5=pełna energia (pobudzenie)
+  mood: number;         // 1..5 continuous, 1=fatalnie, 5=świetnie (walencja)
+  energy: number;       // 1..5 continuous, 1=bez energii, 5=pełna energia (pobudzenie)
   note?: string;
   tags: string[];
   createdAt: string;
   updatedAt: string;
+}
+
+export function roundLevel(value: number): MoodLevel {
+  return Math.min(5, Math.max(1, Math.round(value))) as MoodLevel;
 }
 
 export const MOOD_LABELS: Record<MoodLevel, string> = {

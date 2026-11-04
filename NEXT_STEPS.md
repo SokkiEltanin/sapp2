@@ -2821,3 +2821,115 @@ user zdecyduje; ten zapis to WYŁĄCZNIE przypomnienie dla kolejnej sesji.
 - **Finanse: angielska nazwa miesiąca obok polskiej — ZROBIONE.** User:
   "zawsze mam z nimi problem" — nagłówek "LISTOPAD 2026" → "LISTOPAD ·
   NOVEMBER 2026".
+- **CI build pierdolił — ZROBIONE.** `expo-build-properties`'s
+  `android.compileSdkVersion`/`targetSdkVersion` 35→36 w `app.json`
+  (`react-native-health-connect@4.1.3`'s `androidx.health.connect:
+  connect-client:1.1.0` wymaga compileSdk 36+, `minSdkVersion` zostaje 26).
+- **Paragon Biedronka ze zdjęcia Samsunga — parser łapał tylko 1 pozycję
+  zamiast 6 — ZROBIONE.** User wkleił realny tekst "skopiowany ze screena z
+  odczytywania Samsunga" — poszarpany OCR, nazwy i ceny NIE na jednej linii
+  (stary `BIE_ITEM_RE` wymagał wszystkiego w jednym wierszu, nigdy nie
+  trafiał). Nowa `parseBiedronkaScrambledOcr()` w `receiptParser.ts` łapie
+  się niezawodnych strukturalnych markerów zamiast układu linii: nazwy
+  ZAWSZE kończą się słowem "Discount", a pary `ilość+literaVAT -rabat`
+  pojawiają się dokładnie raz na pozycję, PO KOLEI — więc regex dopasowuje
+  tylko OGON linii (`BIE_OCR_NAME_RE`/`BIE_OCR_UNIT_DISCOUNT_RE`), odporne na
+  śmieci OCR-a na początku linii. `parseBiedronka()` próbuje tej ścieżki
+  NAJPIERW, stary jednoliniowy regex zostaje jako fallback. Przy okazji fix
+  realnego buga: stara ścieżka NIGDY nie odejmowała rabatu od ceny
+  (`price = qty*unit`) — nowa liczy `price = unit - discount` poprawnie.
+  Test w `__tests__/receiptParser.test.ts` z DOKŁADNYM stringiem usera (6
+  pozycji, rabatowane ceny `[4.99,4.99,5,5,7.99,7.99]`, suma `35.96`).
+
+## Runda poprawek 11 (2026-11-04, Faza 3.16) — regresje po przebudowie na `Modal` + MoodPad continuous
+
+Po potwierdzeniu że popupy TERAZ się otwierają ("Nice dziala" — patrz punkt 6
+wyżej), trzy kolejne rundy realnego testu na urządzeniu ujawniły regresje z
+samej przebudowy na `Modal` + dwie dalsze prośby. Wszystko w `AppBottomSheet.tsx`
+chyba że zaznaczono inaczej — patrz ARCHITECTURE.md §Komponenty "AppBottomSheet"
+po pełny, aktualny opis mechanizmu.
+
+**1. Humor: "nie mogę kliknąć tam" (przyciski/MoodPad martwe wewnątrz sheeta)
+— ZROBIONE.** `Modal` renderuje swoją treść w OSOBNYM natywnym oknie
+(Android `ReactModalHostView`), poza hierarchią jedynego `GestureHandlerRootView`
+w `app/_layout.tsx` — gesty `react-native-gesture-handler` (MoodPad's
+`Gesture.Pan()`, `Toggle`/`Segmented`) bez WŁASNEGO roota w tym oknie po
+prostu się nie rejestrują. Fix: DRUGI `GestureHandlerRootView` wewnątrz
+`Modal`-a, opakowujący całą treść sheeta. (User explicite złapał że to
+powtórka problemu, który `MoodModal.tsx`'s stary komentarz już raz opisywał
+jako "rozwiązany" pod gorhom — dobra uwaga, ten komentarz powinien był być
+sygnałem ZANIM user to zgłosił, nie po.)
+**2. "Nie dziala scroll" w Humorze — ZROBIONE (częściowo, patrz punkt 5
+niżej po PRAWDZIWĄ przyczynę w dłuższych listach).** Konflikt zagnieżdżonych
+`ScrollView`ów (poziomy scroll tagów WEWNĄTRZ pionowego scrolla sheeta) —
+fix: `nestedScrollEnabled` na poziomych `ScrollView`ach w `ChipRow.tsx` i
+`ReceiptItemRow.tsx`.
+**3. "Nie ma blur z tyłu" — ZROBIONE.** `expo-blur`'s domyślny tryb na
+Androidzie to `'none'` (ciche spadnięcie do zwykłego przyciemnienia bez
+realnego rozmycia — to był stan OD ZAWSZE, nawet pod gorhom, po prostu
+niewidoczne dotąd bo żaden sheet się nie otwierał). Fix:
+`experimentalBlurMethod="dimezisBlurView"` na Androidzie.
+**4. Wizualny polish Humoru jak w prezencie — ZROBIONE.** User: "napisy
+bokiem tak śmiesznie i gradient i widoczne wcześniejsze oznaczenia jako takie
+mniej widoczne kropki". Pionowe etykiety osi lewej/prawej przez
+wyśrodkowany (flex) wrapper + `transform:[{rotate:'-90deg'/'90deg'}]`
+(rotacja w RN jest PRZY MALOWANIU, nie zmienia layoutu — wrapper musi
+wyśrodkować tekst PRZED obrotem, inaczej pivot ucieka). "Glow" pod kropką
+przez `react-native-svg`'s `RadialGradient`/`Circle`/`Defs`/`Stop` (appka już
+miała tę zależność). Przygaszone kropki historii — `MoodPad` już to UMIAŁ
+renderować (`history` prop), tylko nikt nie podawał w `MoodModal.tsx` —
+podpięte (7 dni, edytowany wpis wykluczony, żywa wartość jako ostatni
+element bo `MoodPad` i tak go wyklucza z przygaszonych).
+**5. Klawiatura CAŁKOWICIE zasłaniała sheet (np. "Nowe zadanie") — ZROBIONE.**
+`Modal` jako własne natywne okno (Android `Dialog`) NIE dziedziczy
+`android:windowSoftInputMode="adjustResize"` z manifestu `MainActivity` (to
+ustawienie dotyczy samej Activity, nie dowolnego Dialogu nad nią). Fix:
+`KeyboardAvoidingView behavior="height"` na Androidzie (było `undefined`) —
+przez `sheetOuter`'s `justifyContent:'flex-end'` wypycha sheet w górę
+dokładnie o wysokość klawiatury.
+**6. Dashboard: tap w konkretny wydatek nie otwierał TEGO wydatku — ZROBIONE.**
+`onOpen('tx', id)` w `app/(tabs)/index.tsx` ignorował `id` całkowicie. Fix:
+`expenses.find((e) => e.id === id)` → `editingExpense` state →
+`AddExpenseModal` w trybie edycji (ten sam wzorzec co już działał w
+`finances.tsx`).
+**7. "Nadal nie działa scroll" w długim paragonie (15 pozycji) — DRUGI,
+INNY bug niż punkt 2 — ZROBIONE.** `ScrollView` treści sheeta dostawał
+TYLKO `contentContainerStyle` (padding), NIGDY `style` — a to WŁAŚNIE
+`style` ogranicza wysokość samego komponentu `ScrollView` (nie jego
+wewnętrznej treści). Bez tego `ScrollView` rósł do pełnej wysokości treści
+zamiast przycinać się do `sheet`'s `maxHeight` i scrollować. Fix: nowy
+`scroll: { flexShrink: 1 }` styl na samym `ScrollView` (`contentContainerStyle`
+zostaje osobno, tylko do paddingu).
+**8. Blur "wysuwał się od dołu" zamiast być natychmiastowy/smooth — ZROBIONE.**
+`Modal`'s wbudowane `animationType="slide"` animowało CAŁĄ zawartość modala
+(backdrop+sheet) jako JEDNĄ bryłę, więc blur jechał w górę razem z sheetem.
+Fix: `animationType="none"` + DWA niezależne `Animated.Value`y własnoręcznie
+animowane (`backdropOpacity` fade, `sheetY` translateY) przez `Animated.parallel`,
+różne czasy trwania (backdrop szybszy, 200/160ms niż sheet 240/200ms) dla
+naturalniejszego odczucia. `modalVisible` (stan lokalny) trzyma `Modal`
+zamontowany przez czas animacji zamykania.
+**9. Humor "musi być smooth a nie punktowy... liczy się w procentach... 0,0
+na środku i droga to promień w każdym kierunku" — ZROBIONE.** `MoodPad`'s
+`Gesture.Pan()` kwantyzował przeciąganie do siatki 5×5 (`Math.floor(evt.x/cell)`)
+— user chciał kropkę śledzącą palec w 100% ciągłych współrzędnych, nie
+skacząca komórka-po-komórce. Fix: `onUpdate` liczy teraz `mood`/`energy`
+jako ciągły ułamek pozycji (`1 + (evt.x/size)*4`, zasięg 1..5 BEZ ZMIAN —
+stare całkowitoliczbowe wpisy są po prostu szczególnym przypadkiem, zero
+migracji danych), throttlowany do kroku 0,02 (nie co klatkę gestu, żeby nie
+zalewać `runOnJS`-a). `MoodEntry.mood`/`energy` (`types/mood.ts`) to teraz
+`number`, nie `MoodLevel` — `MoodLevel` żyje dalej TYLKO jako klucz do
+`MOOD_COLORS`/`MOOD_LABELS` itp. (5 kluczy, całkowite), nowa funkcja
+`roundLevel()` zaokrągla continuous wartość do najbliższego klucza w KAŻDYM
+miejscu które pokazuje kolor/etykietę (`MoodPad`'s odczyt, `MoodModal`'s
+chip/wpisy pamiętnika).
+
+**Zweryfikowane:** `tsc --noEmit` czysty, 180/180 testów jest (logika
+`sortMoodTags`/`moodTags.test.ts` nietknięta — już przyjmowała `number`, nie
+`MoodLevel`, więc zero zmian tam). Wizualnie przez `expo web`+Playwright:
+Humor otwiera się, scrolluje, tło fejduje bez wysuwania się, obrócone
+etykiety osi + glow renderują się, kropka ląduje w pozycji NIE wyrównanej do
+siatki 5×5 (potwierdza że przeciąganie faktycznie jest ciągłe, nie tylko że
+kod się kompiluje). **DO POTWIERDZENIA NA URZĄDZENIU:** scroll długiego
+paragonu, smooth fade blura, smooth drag Humoru — `react-native-web`+
+Playwright nie jest tym samym silnikiem dotyku/gestów co realny Android, więc
+to nadal nie jest ostatecznym dowodem na telefonie usera.

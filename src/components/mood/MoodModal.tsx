@@ -5,7 +5,7 @@ import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { todayISO } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
-import { type MoodEntry, type MoodLevel, MOOD_COLORS, MOOD_LABELS, ENERGY_LABELS } from '@/types/mood';
+import { type MoodEntry, MOOD_COLORS, MOOD_LABELS, ENERGY_LABELS, roundLevel } from '@/types/mood';
 import { useMoodStore } from '@/store/moodStore';
 import { PRESET_TAGS, sortMoodTags } from '@/utils/moodTags';
 import MoodPad from '@/components/design/MoodPad';
@@ -36,8 +36,8 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
 
   const [view, setView] = useState<'checkin' | 'diary'>('checkin');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [mood, setMood] = useState<MoodLevel | undefined>();
-  const [energy, setEnergy] = useState<MoodLevel | undefined>();
+  const [mood, setMood] = useState<number | undefined>();
+  const [energy, setEnergy] = useState<number | undefined>();
   const [note, setNote] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState('');
@@ -109,7 +109,7 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
       .map((e) => ({ mood: e.mood, energy: e.energy }));
   }, [entries, editingEntry]);
   const padHistory = useMemo(
-    () => [...recentHistory, { mood: mood ?? 3, energy: energy ?? 3 }] as { mood: MoodLevel; energy: MoodLevel }[],
+    () => [...recentHistory, { mood: mood ?? 3, energy: energy ?? 3 }] as { mood: number; energy: number }[],
     [recentHistory, mood, energy],
   );
 
@@ -121,7 +121,7 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
       .map(([date, list]) => [date, list.sort((a, b) => a.createdAt.localeCompare(b.createdAt))] as const);
   }, [entries]);
 
-  const chipColor = mood ? MOOD_COLORS[mood] : undefined;
+  const chipColor = mood ? MOOD_COLORS[roundLevel(mood)] : undefined;
 
   const header = (
     <View style={s.header}>
@@ -221,8 +221,8 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
                   <TouchableOpacity key={e.id} style={s.entryCard} onPress={() => openForEdit(e)} activeOpacity={0.7}>
                     <View style={s.entryTopRow}>
                       <View style={s.entryMoodRow}>
-                        <View style={[s.entryDot, { backgroundColor: MOOD_COLORS[e.mood] }]} />
-                        <Text style={s.entryMood}>{MOOD_LABELS[e.mood]} · {ENERGY_LABELS[e.energy]}</Text>
+                        <View style={[s.entryDot, { backgroundColor: MOOD_COLORS[roundLevel(e.mood)] }]} />
+                        <Text style={s.entryMood}>{MOOD_LABELS[roundLevel(e.mood)]} · {ENERGY_LABELS[roundLevel(e.energy)]}</Text>
                       </View>
                       <Text style={s.entryTime}>{new Date(e.createdAt).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}</Text>
                     </View>
