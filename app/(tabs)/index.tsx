@@ -6,6 +6,7 @@ import { Cap, Tag, splitTag } from '@/ui/layout';
 import { T, S, R, C, F } from '@/ui/theme';
 import WydatkiModal from '@/components/dashboard/WydatkiModal';
 import HabitsModal from '@/components/dashboard/HabitsModal';
+import AddExpenseModal from '@/components/finances/AddExpenseModal';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { colors } from '@/theme/colors';
 import { useCalendarStore } from '@/store/calendarStore';
@@ -20,6 +21,7 @@ import { useWydatkiData } from '@/hooks/useWydatkiData';
 import { getBalanceOffset, accountBalance, affectsBalance } from '@/utils/balance';
 import type { CalendarEvent } from '@/types/calendar';
 import type { HabitKey } from '@/types/habits';
+import type { Expense } from '@/types/finances';
 import { haptic } from '@/utils/haptics';
 
 // Faza 3.11 (2026-11-02, user: "zrób tę apkę w pełni funkcjonalną") — Woda/
@@ -82,6 +84,13 @@ export default function Dashboard() {
   const [nextOpen, setNextOpen] = useState(false);
   const [habitsOpen, setHabitsOpen] = useState(false);
   const [habitsFocus, setHabitsFocus] = useState<HabitKey | undefined>();
+  // Tap na konkretną transakcję w "Ostatnie transakcje" (2026-11-04, user: "klikam
+  // w wydatek dany to pokazuje mi konkretnie ten wydatek") — wcześniej `onOpen('tx',
+  // id)` IGNOROWAŁ `id` i zawsze otwierał ogólny WydatkiModal (zakładka "Zmienne"),
+  // ten sam popup niezależnie KTÓRĄ pozycję się tapnęło. Teraz: ten sam wzorzec co
+  // finances.tsx (TransactionsModal→tap→edycja) — `AddExpenseModal` w trybie edycji
+  // konkretnego `Expense`.
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [offset, setOffset] = useState(0);
   const calendarTasks = useCalendarStore((st) => st.tasks);
   const calendarEvents = useCalendarStore((st) => st.events);
@@ -196,7 +205,11 @@ export default function Dashboard() {
     onOpen: (what, id) => {
       if (what === 'fact') setFactIndex((i) => ((i ?? 0) + 1) % FACTS.length);
       else if (what === 'foodDay' || what === 'foodMonth') { setWydatkiTab('food'); setWydatkiOpen(true); }
-      else if (what === 'tx' || what === 'safe') { setWydatkiTab('variable'); setWydatkiOpen(true); }
+      else if (what === 'tx') {
+        const expense = expenses.find((e) => e.id === id);
+        if (expense) setEditingExpense(expense);
+      }
+      else if (what === 'safe') { setWydatkiTab('variable'); setWydatkiOpen(true); }
       else if (what === 'next' && upcomingEvent) setNextOpen(true);
       else if (what === 'streak') { setHabitsFocus(id as HabitKey | undefined); setHabitsOpen(true); }
       // sleep/upcoming — jeszcze bez docelowego popupu (szczegół pojedynczego
@@ -216,6 +229,11 @@ export default function Dashboard() {
   return (
     <>
       <DashboardScreen {...data} />
+      <AddExpenseModal
+        visible={!!editingExpense}
+        onClose={() => setEditingExpense(null)}
+        editingExpense={editingExpense}
+      />
       <WydatkiModal
         visible={wydatkiOpen}
         onClose={() => setWydatkiOpen(false)}

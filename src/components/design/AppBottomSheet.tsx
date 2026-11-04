@@ -120,8 +120,22 @@ export default function AppBottomSheet({
           </Animated.View>
         </TouchableWithoutFeedback>
 
+        {/* `behavior="height"` na Androidzie (2026-11-04, user: zrzut — po
+            tapnięciu w pole tekstowe klawiatura CAŁKOWICIE zasłaniała sheet,
+            który zostawał na swojej stałej pozycji "flush bottom" zamiast
+            wjechać wyżej) — `Modal` z 'react-native' renderuje się jako
+            WŁASNE natywne okno (Android `Dialog`), które NIE dziedziczy
+            `android:windowSoftInputMode="adjustResize"` z manifestu
+            MainActivity (to ustawienie dotyczy samej Activity, nie
+            dowolnego Dialogu nad nią) — stąd klawiatura po prostu nakłada
+            się na sheet, nic go nie przesuwa. `"height"` (nie `undefined`
+            jak wcześniej) każe `KeyboardAvoidingView` samemu skurczyć się o
+            wysokość klawiatury, co przez `sheetOuter`'s
+            `justifyContent:'flex-end'` wypycha sheet w górę dokładnie o
+            tyle ile trzeba. iOS zostaje przy `"padding"` (standardowy,
+            sprawdzony wybór dla tego wzorca na obu platformach). */}
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={s.sheetOuter}
           pointerEvents="box-none"
         >
