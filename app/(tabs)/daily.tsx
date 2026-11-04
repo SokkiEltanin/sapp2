@@ -43,7 +43,7 @@ export default function DailyScreen() {
   const hydrationVal = health?.hydrationMl != null ? (health.hydrationMl / 1000).toFixed(1).replace('.', ',') : null;
 
   return (
-    <Screen title="Daily" right={<Text style={T.small}>{dayLabel}</Text>}>
+    <Screen title="Daily" right={<Text style={T.small} numberOfLines={1}>{dayLabel}</Text>}>
       <Row>
         <Tile span={4}>
           <Cap l="Sen" />

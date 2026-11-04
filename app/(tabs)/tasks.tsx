@@ -136,7 +136,7 @@ export default function TasksScreen() {
   };
 
   return (
-    <Screen title="Zadania" right={<Text style={T.small}>{weekRangeLabel(new Date())}</Text>}>
+    <Screen title="Zadania" right={<Text style={T.small} numberOfLines={1}>{weekRangeLabel(new Date())}</Text>}>
       <Row>
         <Tile span={4} style={s.weekTile}>
           <WeekMonthCalendar
