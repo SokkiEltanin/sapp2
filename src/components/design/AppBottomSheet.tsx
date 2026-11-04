@@ -3,6 +3,7 @@ import {
   Modal, View, StyleSheet, ScrollView, TouchableWithoutFeedback,
   KeyboardAvoidingView, Platform, Animated, Dimensions,
 } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
 import { colors } from '@/theme/colors';
 import { spacing, radius } from '@/theme';
@@ -87,10 +88,35 @@ export default function AppBottomSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={s.root}>
+      {/* `GestureHandlerRootView` WŁASNY, drugi w appce (2026-11-04, user: w
+          Humorze "nie mogę kliknąć" MoodPada) — `Modal` z 'react-native'
+          renderuje swoją treść w OSOBNYM natywnym oknie (Android:
+          `ReactModalHostView`), poza hierarchią którą opakowuje jedyny
+          `GestureHandlerRootView` w `app/_layout.tsx`. `react-native-
+          gesture-handler`-owe gesty (MoodPad's `Gesture.Pan()`, `Toggle`/
+          `Segmented`'s `Pressable` z tej biblioteki) bez WŁASNEGO roota W
+          TYM oknie po prostu się nie rejestrują — dokładnie ten sam
+          mechanizm, który `MoodModal.tsx`'s stary komentarz opisywał jako
+          "rozwiązany" przejściem z `Modal` na gorhom (portal WEWNĄTRZ
+          głównego roota) — Faza 3.15's powrót do `Modal` przywrócił ten
+          problem, ten `GestureHandlerRootView` go naprawia ponownie. */}
+      <GestureHandlerRootView style={s.root}>
         <TouchableWithoutFeedback onPress={onClose}>
           <Animated.View style={[s.backdrop, { opacity: backdropOpacity }]}>
-            <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} />
+            {/* `experimentalBlurMethod="dimezisBlurView"` (2026-11-04, user:
+                "nie ma blur z tyłu") — `expo-blur`'s domyślny tryb na Androidzie
+                to `'none'`, czyli CICHO spada do zwykłego przyciemnienia bez
+                realnego rozmycia (to był stan rzeczy OD ZAWSZE, nawet pod
+                gorhom — po prostu niewidoczny dotąd, bo żaden sheet w ogóle się
+                nie otwierał żeby to zobaczyć). Jawne włączenie eksperymentalnej
+                natywnej implementacji blura na Androidzie (iOS ma realny blur
+                domyślnie, nie dotyczy). */}
+            <BlurView
+              intensity={24}
+              tint="dark"
+              style={StyleSheet.absoluteFill}
+              experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
+            />
           </Animated.View>
         </TouchableWithoutFeedback>
 
@@ -106,7 +132,7 @@ export default function AppBottomSheet({
             {footer && <View style={s.footer}>{footer}</View>}
           </View>
         </KeyboardAvoidingView>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

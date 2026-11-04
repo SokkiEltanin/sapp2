@@ -49,7 +49,7 @@ export default function ChipRow({
 
   return (
     <View style={s.scrollWrap}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
+      <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
         {chips}
       </ScrollView>
       <LinearGradient colors={['#000000', 'transparent']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[s.fade, s.fadeLeft]} pointerEvents="none" />

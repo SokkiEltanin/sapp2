@@ -172,7 +172,7 @@ export default function ReceiptItemRow({
       </View>
 
       {tagPickerOpen && item.kind !== 'deposit' && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.pickerScroll}>
+        <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={s.pickerScroll}>
           <TouchableOpacity
             style={[s.pickerChip, !item.foodSubcat && s.pickerChipActive]}
             onPress={() => { haptic.tap(); onChange({ foodSubcat: undefined }); setTagPickerOpen(false); }}

@@ -172,7 +172,7 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
                 onSubmitEditing={addCustomTag}
                 returnKeyType="done"
               />
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tagsScroll}>
+              <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={s.tagsScroll}>
                 {allDisplayTags.map((tag) => {
                   const selected = tags.includes(tag);
                   return (

@@ -165,7 +165,7 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
                   </View>
 
                   <Text style={[s.editLabel, s.editLabelGap]}>Kategoria jedzenia</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false}>
                     <TouchableOpacity
                       style={[s.pickerChip, !entry.foodSubcat && s.pickerChipActive]}
                       onPress={() => setSubcat(entry, undefined)}
