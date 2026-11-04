@@ -1,7 +1,7 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import {
   Modal, View, StyleSheet, ScrollView, TouchableWithoutFeedback,
-  KeyboardAvoidingView, Platform, Animated, Dimensions,
+  KeyboardAvoidingView, Platform, Animated, Easing, Dimensions,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
@@ -54,6 +54,11 @@ import { spacing, radius } from '@/theme';
 // się na siłę gdy treści mało (to dawał `enableDynamicSizing` w gorhom).
 const SCREEN_H = Dimensions.get('window').height;
 const MAX_SHEET_HEIGHT = SCREEN_H * 0.78;
+// Startowe/końcowe przesunięcie sheeta w dół przy animacji wjazdu/zjazdu —
+// stały piksel, nie pełna wysokość ekranu: sheet ma dynamiczny rozmiar (rośnie
+// do treści), więc nie znamy jego realnej wysokości z góry; 80px daje wyraźny,
+// czytelny "wjazd z dołu" bez próby liczenia dokładnej wysokości treści.
+const SHEET_OFFSET = 80;
 
 export default function AppBottomSheet({
   visible,
@@ -71,23 +76,51 @@ export default function AppBottomSheet({
   children: React.ReactNode;
 }) {
   const s = makeS();
-  // Prosty fade na backdrop (JS-driven `Animated`, NIE reanimated/worklets —
-  // świadomie, patrz komentarz wyżej: cel jest wyeliminować tę warstwę jako
-  // podejrzaną, nie wciągnąć ją z powrotem tylnymi drzwiami). `Modal`'s
-  // własna `animationType="slide"` i tak animuje treść, to tylko dla
-  // płynniejszego przyciemnienia tła pod spodem.
+  // Backdrop i sheet animowane OSOBNO, własnym JS-driven `Animated` (NIE
+  // reanimated/worklets — świadomie, patrz komentarz wyżej: cel przebudowy był
+  // wyeliminować tę warstwę jako podejrzaną, nie wciągnąć ją z powrotem
+  // tylnymi drzwiami) — `Modal`'s wbudowane `animationType="slide"` (poprzednia
+  // wersja) animowało CAŁĄ zawartość modala jako jedną bryłę, więc blur/
+  // przyciemnienie TEŻ wjeżdżało od dołu razem z sheetem zamiast po prostu
+  // natychmiast/płynnie się pojawić w miejscu (2026-11-04, user: "ten blur
+  // powinien być natychmiastowy smooth a on się wysuwa od dołu"). Teraz
+  // `animationType="none"` na `Modal`u, a backdrop (fade opacity) i sheet
+  // (translateY) mają NIEZALEŻNE animacje — `modalVisible` (stan lokalny,
+  // osobny od propa `visible`) trzyma `Modal` zamontowany przez czas trwania
+  // animacji ZAMYKANIA, zanim faktycznie zniknie.
+  const [modalVisible, setModalVisible] = useState(visible);
   const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const sheetY = useRef(new Animated.Value(SHEET_OFFSET)).current;
   useEffect(() => {
-    Animated.timing(backdropOpacity, { toValue: visible ? 1 : 0, duration: 180, useNativeDriver: true }).start();
-  }, [visible, backdropOpacity]);
+    if (visible) {
+      setModalVisible(true);
+      backdropOpacity.setValue(0);
+      sheetY.setValue(SHEET_OFFSET);
+      Animated.parallel([
+        Animated.timing(backdropOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(sheetY, { toValue: 0, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, { toValue: 0, duration: 160, useNativeDriver: true }),
+        Animated.timing(sheetY, { toValue: SHEET_OFFSET, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+      ]).start(() => setModalVisible(false));
+    }
+  }, [visible, backdropOpacity, sheetY]);
 
   const Body = scrollable ? ScrollView : View;
   const bodyProps = scrollable
-    ? { contentContainerStyle: [s.body, !!footer && s.bodyWithFooter], keyboardShouldPersistTaps: 'handled' as const }
+    // `style` (NIE tylko `contentContainerStyle`) z `flexShrink:1` — bez tego
+    // `ScrollView` sam, jako komponent, nie ma OGRANICZONEJ wysokości (tylko
+    // jego WEWNĘTRZNA treść ją miała), więc po prostu rósł do pełnej
+    // wysokości treści zamiast przycinać się do `sheet`'s `maxHeight` i
+    // scrollować — user: "nadal nie działa scroll np w paragonie... nie da
+    // się scrollować" (2026-11-04).
+    ? { style: s.scroll, contentContainerStyle: [s.body, !!footer && s.bodyWithFooter], keyboardShouldPersistTaps: 'handled' as const }
     : { style: [s.body, !!footer && s.bodyWithFooter] };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible={modalVisible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       {/* `GestureHandlerRootView` WŁASNY, drugi w appce (2026-11-04, user: w
           Humorze "nie mogę kliknąć" MoodPada) — `Modal` z 'react-native'
           renderuje swoją treść w OSOBNYM natywnym oknie (Android:
@@ -139,12 +172,12 @@ export default function AppBottomSheet({
           style={s.sheetOuter}
           pointerEvents="box-none"
         >
-          <View style={s.sheet}>
+          <Animated.View style={[s.sheet, { transform: [{ translateY: sheetY }] }]}>
             <View style={s.handleWrap}><View style={s.handle} /></View>
             {header && <View style={s.header}>{header}</View>}
             <Body {...bodyProps}>{children}</Body>
             {footer && <View style={s.footer}>{footer}</View>}
-          </View>
+          </Animated.View>
         </KeyboardAvoidingView>
       </GestureHandlerRootView>
     </Modal>
@@ -166,7 +199,13 @@ const makeS = () => StyleSheet.create({
   handleWrap: { alignItems: 'center', paddingTop: spacing[2], paddingBottom: spacing[1] },
   handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.ui.dim },
   header: { paddingHorizontal: spacing[4], paddingTop: spacing[1] },
-  body: { paddingHorizontal: spacing[4], paddingTop: spacing[1], paddingBottom: spacing[4], flexShrink: 1 },
+  // `flexShrink:1` TUTAJ (na samym `ScrollView`, nie tylko na jego
+  // `contentContainerStyle`) — to jest to co faktycznie ogranicza jego
+  // wysokość do miejsca zostawionego przez `header`/`footer` w `sheet`'s
+  // `maxHeight`, więc treść dłuższa niż to miejsce faktycznie scrolluje
+  // zamiast rozpychać `sheet` w nieskończoność.
+  scroll: { flexShrink: 1 },
+  body: { paddingHorizontal: spacing[4], paddingTop: spacing[1], paddingBottom: spacing[4] },
   bodyWithFooter: { paddingBottom: spacing[2] },
   footer: {
     paddingHorizontal: spacing[4], paddingTop: spacing[2], paddingBottom: spacing[4],
