@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { X, Check, BookOpen, SquarePen } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -19,14 +18,11 @@ import AppBottomSheet from '@/components/design/AppBottomSheet';
 //
 // Przebudowa na `AppBottomSheet` (2026-11-02, user: "animacje jak blur wylatuje...
 // wyglądało 1do1 jak tam" — mockup ma KAŻDĄ interakcję jako bottom sheet z blur
-// backdropem, nie pełnoekranowy `Modal` ze slide'm, którym to było dotąd). Dzięki temu
-// odpadł cały `GestureHandlerRootView`/`SafeAreaView`/`ScrollView`-z-gesture-handler
-// rytuał, który był potrzebny TYLKO bo `Modal` portuje się poza jedyny root w
-// `app/_layout.tsx` — `AppBottomSheet` renderuje się WEWNĄTRZ tego roota (przez
-// `BottomSheetModalProvider`), więc `Gesture.Pan()` w `MoodPad` routuje się poprawnie
-// bez dodatkowego wrappera, a zwykły `ScrollView`/`TextInput` z 'react-native' działają
-// normalnie. `TextInput`y zamienione na `BottomSheetTextInput` (gorhom) — zwykły
-// `TextInput` wewnątrz sheeta gubi fokus/zaznaczenie przy przewijaniu treści.
+// backdropem, nie pełnoekranowy `Modal` ze slide'm, którym to było dotąd).
+// `AppBottomSheet` od Fazy 3.15 (2026-11-04) jest WŁASNYM `Modal`-em, nie
+// `@gorhom/bottom-sheet` — zwykły `TextInput`/`ScrollView` z 'react-native',
+// bez specjalnych `BottomSheet*` wariantów (ten sheet nie ma gestu
+// przeciągania, więc nie ma już z czym konkurować o dotyk/fokus).
 //
 // Model danych: BEZ nowego pola na "dziennik dnia" — `MoodEntry.note` jest już
 // per-wpisem notatką; widok "Pamiętnik" grupuje wpisy po `date` pod nagłówkiem
@@ -167,7 +163,7 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
           <View style={s.section}>
             <Text style={s.sectionLabel}>Co czujesz?</Text>
             <View style={s.tagsRow}>
-              <BottomSheetTextInput
+              <TextInput
                 value={customTag}
                 onChangeText={setCustomTag}
                 placeholder="+ własny"
@@ -196,7 +192,7 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
 
           <View style={s.section}>
             <Text style={s.sectionLabel}>Notatka dnia (opcjonalnie)</Text>
-            <BottomSheetTextInput
+            <TextInput
               value={note}
               onChangeText={setNote}
               placeholder="Co słychać? Trafi do pamiętnika pod dzisiejszą datą."

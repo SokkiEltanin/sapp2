@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { X, Search, ChevronDown, ChevronUp, GitMerge } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -22,8 +21,7 @@ import AppBottomSheet from '@/components/design/AppBottomSheet';
 //
 // Przebudowany na `AppBottomSheet` (2026-11-02, kontynuacja migracji z Faza 3.6) —
 // tytuł+szukajka jako `header` (nieruchome, ten sam wzorzec co TransactionsModal),
-// duplikaty+lista produktów jako scrollowalna treść. `TextInput`y zamienione na
-// gorhom's `BottomSheetTextInput`.
+// duplikaty+lista produktów jako scrollowalna treść.
 export default function ProductsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const s = makeS();
   const expenses = useExpensesStore((st) => st.expenses);
@@ -97,7 +95,7 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
 
       <View style={s.searchRow}>
         <Search size={14} color={colors.text.muted} />
-        <BottomSheetTextInput
+        <TextInput
           value={search}
           onChangeText={setSearch}
           placeholder="Szukaj produktu…"
@@ -160,7 +158,7 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
                 <View style={s.editArea}>
                   <Text style={s.editLabel}>Nazwa</Text>
                   <View style={s.editNameRow}>
-                    <BottomSheetTextInput value={editName} onChangeText={setEditName} style={s.editNameInput} />
+                    <TextInput value={editName} onChangeText={setEditName} style={s.editNameInput} />
                     <TouchableOpacity style={s.editSaveBtn} onPress={() => saveName(entry)}>
                       <Text style={s.editSaveLabel}>Zapisz</Text>
                     </TouchableOpacity>

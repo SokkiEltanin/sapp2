@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { X, Receipt, Banknote, ClipboardPaste, Plus, ChevronDown, ChevronUp, Trash2, CalendarDays } from 'lucide-react-native';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
@@ -31,13 +30,11 @@ import ReceiptItemRow from './ReceiptItemRow';
 // najbardziej złożony popup w appce) — tytuł+usuń/zamknij jako `header`, kwota+
 // "Zapisz" jako `footer` (przypięte, jak MoodModal). Pływający FAB "wklej ze
 // schowka" ("bliżej prawego kciuka", user 2026-11-01) ZOSTAJE pływający, ale teraz
-// jako SIBLING `s.footer`-a WEWNĄTRZ `footer`-a (nie osobny prop na `AppBottomSheet`
-// — `bottom:'100%'` go wynosi NAD przypiętą stopkę, własny mechanizm
-// `BottomSheetFooter` już i tak trzyma to wszystko ponad klawiaturą, nie trzeba
-// kolejnej warstwy API). `useKeyboardHeight`/`paddingBottom:kb` ODPADŁY — to był fix
-// na niewiarygodny `KeyboardAvoidingView` WEWNĄTRZ `Modal`-a (osobna natywna
-// hierarchia); `AppBottomSheet`'s `keyboardBehavior="interactive"` rozwiązuje to
-// należycie dla sheeta. Wszystkie `TextInput`y zamienione na `BottomSheetTextInput`.
+// jako SIBLING `s.footer`-a WEWNĄTRZ `footer`-a (nie osobny prop na `AppBottomSheet`)
+// — `bottom:'100%'` go wynosi NAD stopkę, kotwicząc się do górnej krawędzi
+// `footerRoot` (standardowe zachowanie RN/Yoga, niezależne od tego CZYM jest sam
+// `footer` w `AppBottomSheet`). `AppBottomSheet`'s własny `KeyboardAvoidingView`
+// (Faza 3.15) odpycha to wszystko ponad klawiaturę.
 function genId(): string {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -313,7 +310,7 @@ export default function AddExpenseModal({
       {type === 'expense' && (
         <View style={s.section}>
           <Text style={s.label}>Wklej tekst paragonu</Text>
-          <BottomSheetTextInput
+          <TextInput
             value={pasteText}
             onChangeText={setPasteText}
             placeholder="Wklej tekst paragonu ze sklepu / SMS-a / aplikacji banku…"
@@ -332,7 +329,7 @@ export default function AddExpenseModal({
       {type === 'expense' && (
         <View style={s.section}>
           <Text style={s.label}>Sklep / firma</Text>
-          <BottomSheetTextInput
+          <TextInput
             value={storeName}
             onChangeText={setStoreName}
             placeholder="np. Lidl, Orlen…"
@@ -399,7 +396,7 @@ export default function AddExpenseModal({
         <View style={s.section}>
           <Text style={s.label}>Kwota</Text>
           <View style={s.amountRow}>
-            <BottomSheetTextInput
+            <TextInput
               value={amountInput}
               onChangeText={setAmountInput}
               placeholder="0,00"
@@ -414,7 +411,7 @@ export default function AddExpenseModal({
 
       <View style={s.section}>
         <Text style={s.label}>Notatka</Text>
-        <BottomSheetTextInput
+        <TextInput
           value={note}
           onChangeText={setNote}
           placeholder="opcjonalny opis…"
@@ -489,7 +486,7 @@ export default function AddExpenseModal({
       <View style={s.section}>
         <Text style={s.label}>Tagi</Text>
         <View style={s.tagInputRow}>
-          <BottomSheetTextInput
+          <TextInput
             value={tagInput}
             onChangeText={setTagInput}
             placeholder="np. Wakacje, Prezent…"

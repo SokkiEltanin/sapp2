@@ -1,45 +1,58 @@
-import { useEffect, useRef, useCallback } from 'react';
-import { StyleSheet, Dimensions, Alert } from 'react-native';
+import { useRef, useEffect } from 'react';
 import {
-  BottomSheetModal, BottomSheetView, BottomSheetScrollView, BottomSheetBackdrop, BottomSheetFooter,
-  type BottomSheetBackdropProps, type BottomSheetFooterProps,
-} from '@gorhom/bottom-sheet';
-import { ReduceMotion } from 'react-native-reanimated';
+  Modal, View, StyleSheet, ScrollView, TouchableWithoutFeedback,
+  KeyboardAvoidingView, Platform, Animated, Dimensions,
+} from 'react-native';
 import { BlurView } from 'expo-blur';
 import { colors } from '@/theme/colors';
 import { spacing, radius } from '@/theme';
 
-// Popup uniwersalny z design/app-design.html §Komponenty "BottomSheet" (Faza 3.1,
-// user: "UZNAJ TEN DESIGN JAKO ABSOLUTNY CORE" — "Każda interakcja otwiera bottom
-// sheet"). API ŚWIADOMIE `visible`/`onClose`/`children` — ten sam zewnętrzny kontrakt
-// co istniejące `Modal`-owe popupy (WydatkiModal/TransactionsModal/
-// FoodCategoryItemsModal/AddExpenseModal), żeby w kolejnych fazach (migracja
-// screen-po-screenie, patrz ARCHITECTURE.md) dało się je zamienić na to bez zmiany
-// wołającego kodu — tylko WEWNĄTRZ owija `@gorhom/bottom-sheet`'s imperatywne
-// `present()`/`dismiss()` (`BottomSheetModal`, nie plain `BottomSheet` — potrzebujemy
-// portal-renderingu POZA drzewem wołającego ekranu, inaczej by się przycinało do
-// jego granic).
+// Popup uniwersalny z design/app-design.html §Komponenty "BottomSheet".
 //
-// `detached + bottomInset` (nie domyślne "flush to bottom") — jedyny sposób w v5 żeby
-// dostać pływający sheet z marginesem 8px z KAŻDEJ strony (lewo/prawo/dół), zgodnie ze
-// spec (`.sheet{left:8px;right:8px;bottom:8px}`), nie tylko z góry.
-// `enableDynamicSizing` + `maxDynamicContentSize` = 78% wysokości ekranu — sheet
-// rośnie do wysokości treści, ale nigdy więcej niż 78% (spec: `max-height:78%`), od
-// tego momentu scrolluje WEWNĄTRZ.
+// PRZEBUDOWANY OD ZERA (2026-11-04, Faza 3.15, KRYTYCZNE) — poprzednia wersja
+// (Faza 3.1-3.14) owijała `@gorhom/bottom-sheet`'s `BottomSheetModal`. User
+// zgłosił, powtarzalnie na realnym Samsungu: KAŻDY popup w appce (Humor,
+// "+" w Zadaniach, Finanse...) nie otwierał się WCALE — zero błędu, haptic
+// działał (stan się zmieniał), ale nic się wizualnie nie pojawiało. Dwa
+// targetowane fixy w `@gorhom/bottom-sheet` (overrideReduceMotion, patrz git
+// log) NIE pomogły. Diagnostyka `Alert.alert()` tuż przed `.present()`
+// POTWIERDZIŁA: alert się pokazywał (więc JS/dotyk/natywne nakładki działają
+// OGÓLNIE na tym telefonie), ale sam sheet dalej nie — czyli problem był
+// w 100% izolowany do samej biblioteki `@gorhom/bottom-sheet`/jej
+// reanimated-worklet-driven mechanizmu pozycjonowania na tym konkretnym
+// urządzeniu (znany, udokumentowany na GitHubie projektu jako klasa bugów
+// na Androidzie/Samsungu, bez jednego pewnego fixu).
 //
-// `header`/`footer` (2026-11-02, user zgłosił: "animacje jak blur wylatuje" brakuje —
-// pierwsza wersja miała TYLKO `children` w jednym `BottomSheetView`, co dla prostych
-// popupów starczało, ale dla złożonych ekranów jak Humor (nagłówek z przełącznikiem
-// widoku + przewijalna treść + przypięty przycisk "Zapisz") zmuszałoby do upychania
-// WSZYSTKIEGO w jeden scroll — nagłówek i stopka by uciekały poza ekran przy
-// przewijaniu/klawiaturze. `header` renderuje się w stałym `BottomSheetView` NAD
-// scrollem; `footer`, jeśli podany, idzie przez `footerComponent` (`BottomSheetFooter`)
-// — to osobny, ABSOLUTNIE pozycjonowany warstwa POZA treścią, zawsze przypięta do dołu
-// sheeta i automatycznie odpychana przez klawiaturę, dlatego `body` dostaje dodatkowy
-// `paddingBottom`, żeby treść nie chowała się pod nią.
+// Zamiast dalej zgadywać kolejne opcje głęboko wewnątrz cudzej biblioteki,
+// CAŁY mechanizm prezentacji zamieniony na goły, wbudowany RN `Modal`
+// (`animationType="slide"`) — to natywna animacja okna systemu
+// (Android/iOS), ZERO zależności od reanimated/worklets/gorhom. Jeśli to
+// też nie zadziała na jakimś urządzeniu, to już nie problem tej appki, tylko
+// samego RN `Modal`-a (skrajnie mało prawdopodobne — to jeden z
+// najstarszych, najbardziej przetestowanych prymitywów frameworka).
+// Backdrop (blur+przyciemnienie, tap=zamknij) własny, prosty `View`+
+// `TouchableWithoutFeedback`, bez animacji (świadomie — cel tej przebudowy
+// to USUNĄĆ wszystkie ruchome części które mogły być winne, nie dodać nowe).
+//
+// Zewnętrzny kontrakt (`visible`/`onClose`/`header`/`footer`/`scrollable`/
+// `children`) BEZ ZMIAN — każdy z ~10 konsumentów w appce działa bez
+// modyfikacji. JEDNA zmiana dotykająca konsumentów: `BottomSheetTextInput`/
+// `BottomSheetFlatList` (gorhom, wymagały `BottomSheetModalProvider`z
+// kontekstu którego już nie ma) zamienione z powrotem na zwykłe
+// `TextInput`/`FlatList` z 'react-native' wszędzie gdzie były użyte —
+// bezpieczne, bo oryginalny powód ich użycia ("zwykły TextInput gubi
+// fokus przy przewijaniu Z GESTEM sheeta") już nie dotyczy: ten sheet nie
+// ma własnego gestu przeciągania wcale (zamykanie TYLKO przez przycisk X/
+// tap w tło), więc nie ma już z czym konkurować o dotyk.
+//
+// "Dynamiczny" rozmiar (rośnie do treści, max 78% ekranu, od tego momentu
+// scrolluje) osiągnięty BEZ żadnej biblioteki pomiarowej — `sheet` ma
+// `maxHeight`, `header`/`footer` są zwykłymi (nie-flex) dziećmi, środkowy
+// `ScrollView` dostaje `flexShrink: 1` (nie `flex: 1`) — standardowy trik
+// RN: kurczy się do dostępnego miejsca gdy treść za duża, ale NIE rozciąga
+// się na siłę gdy treści mało (to dawał `enableDynamicSizing` w gorhom).
 const SCREEN_H = Dimensions.get('window').height;
 const MAX_SHEET_HEIGHT = SCREEN_H * 0.78;
-const FOOTER_SPACE = 76;
 
 export default function AppBottomSheet({
   visible,
@@ -56,109 +69,65 @@ export default function AppBottomSheet({
   scrollable?: boolean;
   children: React.ReactNode;
 }) {
-  const ref = useRef<BottomSheetModal>(null);
-
+  const s = makeS();
+  // Prosty fade na backdrop (JS-driven `Animated`, NIE reanimated/worklets —
+  // świadomie, patrz komentarz wyżej: cel jest wyeliminować tę warstwę jako
+  // podejrzaną, nie wciągnąć ją z powrotem tylnymi drzwiami). `Modal`'s
+  // własna `animationType="slide"` i tak animuje treść, to tylko dla
+  // płynniejszego przyciemnienia tła pod spodem.
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    if (visible) {
-      // TYMCZASOWA diagnostyka (2026-11-03, Faza 3.14 c.d. — user: "nadal nie
-      // działa" NAWET z `overrideReduceMotion` fixem) — `Alert.alert` to zupełnie
-      // INNY natywny mechanizm renderowania (systemowy AlertDialog Androida), zero
-      // wspólnego kodu z gorhom/reanimated. Jeśli TO się pokaże a sheet dalej nie —
-      // problem jest w 100% izolowany do @gorhom/bottom-sheet na tym urządzeniu,
-      // nie w ogólnym renderowaniu/dotyku/JS threadzie appki. Jeśli TO TEŻ się nie
-      // pokaże — problem jest głębszy niż ta biblioteka. USUNĄĆ po diagnozie.
-      Alert.alert('Debug', 'present() wywołane — jeśli WIDZISZ ten alert ale sheet się nie otwiera, napisz to.');
-      ref.current?.present();
-    } else {
-      ref.current?.dismiss();
-    }
-  }, [visible]);
+    Animated.timing(backdropOpacity, { toValue: visible ? 1 : 0, duration: 180, useNativeDriver: true }).start();
+  }, [visible, backdropOpacity]);
 
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        opacity={1}
-        style={[props.style, s.backdropBase]}
-      >
-        <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} />
-      </BottomSheetBackdrop>
-    ),
-    [],
-  );
-
-  const renderFooter = useCallback(
-    (props: BottomSheetFooterProps) => (
-      <BottomSheetFooter {...props} style={s.footer}>
-        {footer}
-      </BottomSheetFooter>
-    ),
-    [footer],
-  );
-
-  const bodyStyle = [s.body, !!footer && s.bodyWithFooter];
-  const Body = scrollable ? BottomSheetScrollView : BottomSheetView;
+  const Body = scrollable ? ScrollView : View;
+  const bodyProps = scrollable
+    ? { contentContainerStyle: [s.body, !!footer && s.bodyWithFooter], keyboardShouldPersistTaps: 'handled' as const }
+    : { style: [s.body, !!footer && s.bodyWithFooter] };
 
   return (
-    <BottomSheetModal
-      ref={ref}
-      onDismiss={onClose}
-      detached
-      bottomInset={spacing[2]}
-      style={s.detachedMargin}
-      backgroundStyle={s.background}
-      handleIndicatorStyle={s.handle}
-      enableDynamicSizing
-      maxDynamicContentSize={MAX_SHEET_HEIGHT}
-      backdropComponent={renderBackdrop}
-      footerComponent={footer ? renderFooter : undefined}
-      keyboardBehavior="interactive"
-      keyboardBlurBehavior="restore"
-      android_keyboardInputMode="adjustResize"
-      // `overrideReduceMotion={Never}` (2026-11-03, user: "klikam [Humor/Nastrój]
-      // i nic się nie dzieje... [potwierdzone] inne popupy (+ w Zadaniach) też nie
-      // działają" — NIE bug tylko w Humorze, każdy AppBottomSheet w appce). Root
-      // cause ZNALEZIONY w źródle @gorhom/bottom-sheet (utilities/animate.ts,
-      // komentarz autorów biblioteki wprost): gdy w systemowych Ustawieniach
-      // ułatwień dostępu telefonu jest włączone "Zmniejsz ruch"/"Usuń animacje",
-      // reanimated całkowicie pomija animację otwarcia sheeta — a KOD samego
-      // BottomSheet.tsx (ok. linii 1035-1047) w tym stanie robi WCZESNY `return`
-      // bez ustawienia pozycji wcale, więc sheet zostaje TRWALE zamknięty/
-      // niewidoczny mimo udanego `.present()` (stąd haptic/stan się zmienia,
-      // user to potwierdził, ale nic się wizualnie nie pojawia — zero błędu w
-      // konsoli, bo to nie crash, to po prostu nigdy nie domknięta animacja).
-      // Domyślne zachowanie biblioteki honoruje to ustawienie systemowe (sensowne
-      // dla zwykłych animacji), ale TUTAJ to accessibility-setting psuje
-      // PODSTAWOWĄ funkcjonalność (otwieranie popupu w ogóle), nie tylko wygląd —
-      // `Never` wymusza że animacja prezentacji ZAWSZE się wykonuje, niezależnie
-      // od ustawienia telefonu.
-      overrideReduceMotion={ReduceMotion.Never}
-    >
-      {header && <BottomSheetView style={s.header}>{header}</BottomSheetView>}
-      <Body style={scrollable ? s.scroll : bodyStyle} contentContainerStyle={scrollable ? bodyStyle : undefined} keyboardShouldPersistTaps="handled">
-        {children}
-      </Body>
-    </BottomSheetModal>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <View style={s.root}>
+        <TouchableWithoutFeedback onPress={onClose}>
+          <Animated.View style={[s.backdrop, { opacity: backdropOpacity }]}>
+            <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} />
+          </Animated.View>
+        </TouchableWithoutFeedback>
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={s.sheetOuter}
+          pointerEvents="box-none"
+        >
+          <View style={s.sheet}>
+            <View style={s.handleWrap}><View style={s.handle} /></View>
+            {header && <View style={s.header}>{header}</View>}
+            <Body {...bodyProps}>{children}</Body>
+            {footer && <View style={s.footer}>{footer}</View>}
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
   );
 }
 
-// `#000000` przy 60% (spec: `rgba(0,0,0,.6)`) + blur — `BottomSheetBackdrop`'s własne
-// `opacity` kontroluje FADE przy otwieraniu/zamykaniu, nie finalną przezroczystość, więc
-// kolor tła ustawiamy bezpośrednio na 0.6 alpha, blur jako dziecko nad nim.
-const s = StyleSheet.create({
-  backdropBase: { backgroundColor: 'rgba(0,0,0,0.6)' },
-  detachedMargin: { marginHorizontal: spacing[2] },
-  background: {
-    backgroundColor: colors.bg.card, borderRadius: radius.sheet,
-    borderWidth: 1, borderColor: '#1f1f1f',
+const makeS = () => StyleSheet.create({
+  root: { flex: 1 },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
+  sheetOuter: {
+    flex: 1, justifyContent: 'flex-end',
+    paddingHorizontal: spacing[2], paddingBottom: spacing[2],
   },
-  handle: { width: 36, height: 4, backgroundColor: colors.ui.dim },
+  sheet: {
+    maxHeight: MAX_SHEET_HEIGHT,
+    backgroundColor: colors.bg.card, borderRadius: radius.sheet,
+    borderWidth: 1, borderColor: '#1f1f1f', overflow: 'hidden',
+  },
+  handleWrap: { alignItems: 'center', paddingTop: spacing[2], paddingBottom: spacing[1] },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.ui.dim },
   header: { paddingHorizontal: spacing[4], paddingTop: spacing[1] },
-  scroll: {},
-  body: { paddingHorizontal: spacing[4], paddingBottom: spacing[4] },
-  bodyWithFooter: { paddingBottom: FOOTER_SPACE },
+  body: { paddingHorizontal: spacing[4], paddingTop: spacing[1], paddingBottom: spacing[4], flexShrink: 1 },
+  bodyWithFooter: { paddingBottom: spacing[2] },
   footer: {
     paddingHorizontal: spacing[4], paddingTop: spacing[2], paddingBottom: spacing[4],
     backgroundColor: colors.bg.card, borderTopWidth: 1, borderTopColor: '#1f1f1f',

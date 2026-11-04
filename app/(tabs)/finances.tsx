@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { Plus, Package, ChevronRight } from 'lucide-react-native';
 import { spacing, radius, themedStyles } from '@/theme';
 import { Screen, Row, Tile, StatTile, Cap, FitList, Item, Price, StackBar } from '@/ui/layout';
@@ -126,7 +125,14 @@ export default function FinancesScreen() {
   const foodTotal = parseZl(wydatkiData.food.total);
 
   return (
-    <Screen title="Finanse" right={<Text style={T.small}>{wydatkiData.month.toUpperCase()} {now.getFullYear()}</Text>}>
+    <Screen
+      title="Finanse"
+      right={(
+        <Text style={T.small} numberOfLines={1}>
+          {wydatkiData.month.toUpperCase()} · {now.toLocaleDateString('en-US', { month: 'long' }).toUpperCase()} {now.getFullYear()}
+        </Text>
+      )}
+    >
       <Row>
         <Tile span={4} onPress={openEditBalance}>
           <Cap l="Saldo" r="stuknij, by skalibrować" />
@@ -237,7 +243,7 @@ export default function FinancesScreen() {
           <Text style={s.editTitle}>Ustaw aktualne saldo</Text>
           <Text style={s.editHint}>Tyle realnie masz teraz na koncie — appka doliczy od tego wszystkie kolejne wydatki/przychody kartą.</Text>
           <View style={s.editInputRow}>
-            <BottomSheetTextInput
+            <TextInput
               value={balanceInput}
               onChangeText={setBalanceInput}
               keyboardType="decimal-pad"

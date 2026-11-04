@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { ymd, todayISO } from '@/utils/date';
@@ -75,7 +74,7 @@ export default function AddTaskCard({
   return (
     <View style={s.card}>
       <Text style={s.title}>Nowe zadanie</Text>
-      <BottomSheetTextInput
+      <TextInput
         value={title}
         onChangeText={setTitle}
         placeholder="Co trzeba zrobić?"
@@ -83,7 +82,7 @@ export default function AddTaskCard({
         style={s.titleInput}
         autoFocus
       />
-      <BottomSheetTextInput
+      <TextInput
         value={tag}
         onChangeText={setTag}
         placeholder="Tag (opcjonalnie, np. UR)"

@@ -4,7 +4,6 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import type { User } from 'firebase/auth';
 import {
   useFonts,
@@ -142,33 +141,31 @@ export default function RootLayout() {
   // dashboardu) na czas zanim pierwszy `onAuthStateChanged` zdąży odpowiedzieć —
   // zwykle poniżej jednej klatki (odczyt z AsyncStorage), więc krótki spinner tu nie
   // jest realnym kosztem.
-  // `GestureHandlerRootView`/`BottomSheetModalProvider` (Faza 3.1, design/app-design.html)
-  // — `@gorhom/bottom-sheet` wymaga obu, zamontowanych RAZ na szczycie drzewa (nie per
-  // ekran), żeby `AppBottomSheet` (src/components/design/AppBottomSheet.tsx) działało z
-  // każdego miejsca w appce, włącznie z ekranem spinnera logowania.
+  // `GestureHandlerRootView` (Faza 3.1, design/app-design.html) — zamontowany RAZ na
+  // szczycie drzewa (nie per ekran), bo `react-native-gesture-handler` (MoodPad's
+  // `Gesture.Pan()`, `Toggle`/`Segmented`'s `Pressable` z tej biblioteki) tego wymaga.
+  // `BottomSheetModalProvider` USUNIĘTY (Faza 3.15, 2026-11-04) razem z
+  // `@gorhom/bottom-sheet` — `AppBottomSheet` jest teraz własnym `Modal`-em, nie
+  // potrzebuje już tego providera (patrz src/components/design/AppBottomSheet.tsx).
   if (initializing) {
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <BottomSheetModalProvider>
-          <SafeAreaProvider>
-            <StatusBar style="light" />
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg.primary }}>
-              <ActivityIndicator color={colors.text.primary} />
-            </View>
-          </SafeAreaProvider>
-        </BottomSheetModalProvider>
+        <SafeAreaProvider>
+          <StatusBar style="light" />
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg.primary }}>
+            <ActivityIndicator color={colors.text.primary} />
+          </View>
+        </SafeAreaProvider>
       </GestureHandlerRootView>
     );
   }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <BottomSheetModalProvider>
-        <SafeAreaProvider>
-          <StatusBar style="light" />
-          <Stack key={dimensionKey} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg.primary } }} />
-        </SafeAreaProvider>
-      </BottomSheetModalProvider>
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <Stack key={dimensionKey} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg.primary } }} />
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

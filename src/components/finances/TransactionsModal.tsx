@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { BottomSheetFlatList, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList } from 'react-native';
 import { X, Search } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -16,12 +15,11 @@ import { haptic } from '@/utils/haptics';
 // zamknięciu edycji user wracał TUTAJ, do listy, nie od razu do głównego ekranu.
 //
 // Przebudowany na `AppBottomSheet` (2026-11-02, kontynuacja migracji z Faza 3.6).
-// `BottomSheetFlatList` (nie plain `FlatList`, NIE generyczny scroll `AppBottomSheet`
-// sam dodaje) — lista transakcji może być długa, gorhom's wariant to jedyny sposób
-// żeby jej scroll poprawnie współpracował z gestem przeciągania sheeta i z
-// `enableDynamicSizing`/`maxDynamicContentSize` (sheet rośnie do treści, od 78%
-// scrolluje wewnątrz FlatlLista, nie całego sheeta). `header` niesie TAKŻE pole
-// szukania (nie tylko tytuł) — ma zostać NIEruchome, nie przewijać się z listą.
+// Plain `FlatList` z 'react-native' (`scrollable={false}` na `AppBottomSheet`, bo
+// lista transakcji może być długa i potrzebuje własnego scrolla, nie generycznego
+// z `AppBottomSheet`) — `style={s.list}` z `flexShrink:1` daje ten sam efekt co
+// wcześniej "rośnie do treści, od 78% scrolluje w środku". `header` niesie TAKŻE
+// pole szukania (nie tylko tytuł) — ma zostać NIEruchome, nie przewijać się z listą.
 export default function TransactionsModal({
   visible, onClose, expenses, onSelect,
 }: {
@@ -56,7 +54,7 @@ export default function TransactionsModal({
       </View>
       <View style={s.searchRow}>
         <Search size={15} color={colors.text.muted} />
-        <BottomSheetTextInput
+        <TextInput
           value={query}
           onChangeText={setQuery}
           placeholder="Szukaj sklepu, notatki, tagu…"
@@ -69,7 +67,8 @@ export default function TransactionsModal({
 
   return (
     <AppBottomSheet visible={visible} onClose={onClose} header={header} scrollable={false}>
-      <BottomSheetFlatList
+      <FlatList
+        style={s.list}
         data={filtered}
         keyExtractor={(e) => e.id}
         showsVerticalScrollIndicator={false}
@@ -112,11 +111,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
     paddingHorizontal: spacing[3], paddingVertical: spacing[2],
   },
   searchInput: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: c.text.primary },
+  list: { flexShrink: 1 },
 
   // Brak własnego paddingu na liście (2026-11-02) — przy `scrollable={false}`
-  // `AppBottomSheet` opakowuje `children` w `BottomSheetView` z paddingiem już
-  // ustawionym (`paddingHorizontal`/`paddingBottom`); dokładanie go też tutaj
-  // dałoby podwójny odstęp od krawędzi.
+  // `AppBottomSheet` opakowuje `children` w `View` z paddingiem już ustawionym
+  // (`paddingHorizontal`/`paddingBottom`); dokładanie go też tutaj dałoby
+  // podwójny odstęp od krawędzi.
   empty: { fontSize: 12.5, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', paddingVertical: spacing[6] },
 
   row: {
