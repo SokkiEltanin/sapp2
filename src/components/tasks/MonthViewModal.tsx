@@ -30,6 +30,17 @@ const MONTH_NAMES = [
 ];
 const MAX_CHIPS_PER_CELL = 2;
 
+// ZAWSZE 6 tygodni (42 komórki), nie "ile akurat trzeba" (2026-11-09, user:
+// "kalendarz niech ma stałą wysokość najlepiej tę większą, bo tak między
+// miesiącami skacze bez sensu") — miesiąc potrzebuje 4-6 wierszy w zależności
+// od tego na jaki dzień tygodnia wypada 1. dzień (Grudzień 2026: 5, Listopad
+// 2026: 6) i `AppBottomSheet`'s sheet ma DYNAMICZNĄ wysokość (rośnie/kurczy
+// się do treści) — więc mniej wierszy = fizycznie niższy sheet, widoczny
+// "skok" wysokości przy strzałce miesiąc-w-przód/wstecz. 6 wierszy (42
+// komórki) to MAKSIMUM jakiego jakikolwiek miesiąc może potrzebować (6
+// wiodących pustych + do 31 dni mieści się zawsze w 42), więc dopełnienie
+// zawsze DO 42 (nie do najbliższej wielokrotności 7) daje stałą, zawsze-
+// największą wysokość siatki niezależnie od miesiąca.
 function getMonthGrid(monthCursor: Date): (Date | null)[][] {
   const year = monthCursor.getFullYear();
   const month = monthCursor.getMonth();
@@ -38,7 +49,7 @@ function getMonthGrid(monthCursor: Date): (Date | null)[][] {
   const firstWeekday = (firstOfMonth.getDay() + 6) % 7;
   const cells: (Date | null)[] = Array(firstWeekday).fill(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
-  while (cells.length % 7 !== 0) cells.push(null);
+  while (cells.length < 42) cells.push(null);
   const weeks: (Date | null)[][] = [];
   for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
   return weeks;
