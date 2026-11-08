@@ -53,7 +53,7 @@ import { spacing, radius } from '@/theme';
 // RN: kurczy się do dostępnego miejsca gdy treść za duża, ale NIE rozciąga
 // się na siłę gdy treści mało (to dawał `enableDynamicSizing` w gorhom).
 const SCREEN_H = Dimensions.get('window').height;
-const MAX_SHEET_HEIGHT = SCREEN_H * 0.78;
+const DEFAULT_MAX_HEIGHT_RATIO = 0.78;
 // Startowe/końcowe przesunięcie sheeta w dół przy animacji wjazdu/zjazdu —
 // stały piksel, nie pełna wysokość ekranu: sheet ma dynamiczny rozmiar (rośnie
 // do treści), więc nie znamy jego realnej wysokości z góry; 80px daje wyraźny,
@@ -66,6 +66,7 @@ export default function AppBottomSheet({
   header,
   footer,
   scrollable = true,
+  maxHeightRatio = DEFAULT_MAX_HEIGHT_RATIO,
   children,
 }: {
   visible: boolean;
@@ -73,9 +74,15 @@ export default function AppBottomSheet({
   header?: React.ReactNode;
   footer?: React.ReactNode;
   scrollable?: boolean;
+  // Opcjonalny, wyższy sufit dla sheetów z nietypowo wysoką treścią (2026-11-08,
+  // user o Humorze: "nie widać całej siatki jakby bo nie wysuwa się wystarczająco
+  // wysoko") — domyślne 78% zostaje dla reszty appki, pojedynczy konsument może
+  // poprosić o więcej miejsca zamiast appka globalnie zjadała więcej ekranu
+  // wszędzie (np. krótkim popupom nie potrzeba 90% wysokości).
+  maxHeightRatio?: number;
   children: React.ReactNode;
 }) {
-  const s = makeS();
+  const s = makeS(maxHeightRatio);
   // Backdrop i sheet animowane OSOBNO, własnym JS-driven `Animated` (NIE
   // reanimated/worklets — świadomie, patrz komentarz wyżej: cel przebudowy był
   // wyeliminować tę warstwę jako podejrzaną, nie wciągnąć ją z powrotem
@@ -184,7 +191,7 @@ export default function AppBottomSheet({
   );
 }
 
-const makeS = () => StyleSheet.create({
+const makeS = (maxHeightRatio: number) => StyleSheet.create({
   root: { flex: 1 },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
   sheetOuter: {
@@ -192,7 +199,7 @@ const makeS = () => StyleSheet.create({
     paddingHorizontal: spacing[2], paddingBottom: spacing[2],
   },
   sheet: {
-    maxHeight: MAX_SHEET_HEIGHT,
+    maxHeight: SCREEN_H * maxHeightRatio,
     backgroundColor: colors.bg.card, borderRadius: radius.sheet,
     borderWidth: 1, borderColor: '#1f1f1f', overflow: 'hidden',
   },

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS, useSharedValue } from 'react-native-reanimated';
@@ -65,10 +65,27 @@ export default function MoodPad({
   const glowSize = mini ? 70 : 180;
 
   const commit = (m: number, e: number) => onChange?.(m, e);
+  // `dragging` (2026-11-08, user: "laguje tylko wtedy gdy przesuwam palec, jak
+  // klikam w miejscu pojedyńczym skacze płynnie") — przyczyna: PONIŻSZY
+  // `useEffect` odpalał `Animated.spring` przy KAŻDYM (throttlowanym, ale wciąż
+  // częstym w trakcie przeciągania) commicie, więc kolejna sprężyna przerywała
+  // poprzednią w połowie lotu i startowała od nowa z jej aktualnej, "w locie"
+  // pozycji — seria przerywanych, walczących ze sobą animacji zamiast jednego
+  // płynnego ruchu. Pojedynczy tap robi to RAZ, więc wygląda płynnie. Fix:
+  // podczas aktywnego gestu kropka skacze NATYCHMIAST na pozycję palca
+  // (`setValue`, zero animacji — i tak jest 1:1 z ruchem palca, animacja by tu
+  // tylko dokładała opóźnienie), sprężynowe "doskoczenie" zostaje WYŁĄCZNIE dla
+  // zmian programowych (np. otwarcie edycji istniejącego wpisu, początkowy
+  // render) gdzie faktycznie wygląda ładnie.
+  const [dragging, setDragging] = useState(false);
 
   const pan = useMemo(() => Gesture.Pan()
     .minDistance(0)
     .enabled(!mini && !!onChange)
+    .onBegin(() => {
+      'worklet';
+      runOnJS(setDragging)(true);
+    })
     .onUpdate((evt) => {
       'worklet';
       const fracX = Math.min(1, Math.max(0, evt.x / size));
@@ -83,6 +100,10 @@ export default function MoodPad({
         lastKey.value = key;
         runOnJS(commit)(m, e);
       }
+    })
+    .onFinalize(() => {
+      'worklet';
+      runOnJS(setDragging)(false);
     }),
   [size, mini, onChange]);
 
@@ -93,9 +114,14 @@ export default function MoodPad({
     const e = energy ?? 3;
     const px = ((m - 1) / 4) * size - dotSize / 2;
     const py = (1 - (e - 1) / 4) * size - dotSize / 2;
-    Animated.spring(dotX, { toValue: px, useNativeDriver: true, damping: 16, stiffness: 220 }).start();
-    Animated.spring(dotY, { toValue: py, useNativeDriver: true, damping: 16, stiffness: 220 }).start();
-  }, [mood, energy, size, dotSize]);
+    if (dragging) {
+      dotX.setValue(px);
+      dotY.setValue(py);
+    } else {
+      Animated.spring(dotX, { toValue: px, useNativeDriver: true, damping: 16, stiffness: 220 }).start();
+      Animated.spring(dotY, { toValue: py, useNativeDriver: true, damping: 16, stiffness: 220 }).start();
+    }
+  }, [mood, energy, size, dotSize, dragging]);
 
   const hasValue = !!mood && !!energy;
   const ringColor = energy ? ENERGY_COLORS[roundLevel(energy)] : colors.text.muted;

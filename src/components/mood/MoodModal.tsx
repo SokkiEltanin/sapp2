@@ -7,7 +7,7 @@ import { todayISO } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
 import { type MoodEntry, MOOD_COLORS, MOOD_LABELS, ENERGY_LABELS, roundLevel } from '@/types/mood';
 import { useMoodStore } from '@/store/moodStore';
-import { PRESET_TAGS, sortMoodTags } from '@/utils/moodTags';
+import { PRESET_TAGS, sortMoodTags, levelSignal } from '@/utils/moodTags';
 import MoodPad from '@/components/design/MoodPad';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 
@@ -47,7 +47,18 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
   const editingEntry = editingId ? entries.find((e) => e.id === editingId) ?? null : null;
   const ordinal = editingEntry ? null : todayCount + 1;
 
-  const sortedPresetTags = useMemo(() => sortMoodTags(mood, energy, entries), [mood, energy, entries]);
+  // Zależność na `levelSignal` (bucket -1/0/1), NIE na surowym continuous
+  // `mood`/`energy` (2026-11-08) — od Fazy 3.16 te wartości zmieniają się przy
+  // KAŻDYM throttlowanym kroku przeciągania (setki razy na jeden gest), a
+  // `sortMoodTags` i tak patrzy tylko na te 3 kubełki wewnątrz, więc
+  // przeliczanie przy każdej mikro-zmianie było czystym, kosztownym
+  // (56 tagów × historia wpisów) marnotrawstwem współtworzącym lag przy
+  // przeciąganiu — tagi i tak nie mogły wizualnie zmienić kolejności między
+  // tymi mikro-krokami.
+  const sortedPresetTags = useMemo(
+    () => sortMoodTags(mood, energy, entries),
+    [levelSignal(mood), levelSignal(energy), entries],
+  );
   const allDisplayTags = [...tags.filter((t) => !PRESET_TAGS.includes(t)), ...sortedPresetTags];
 
   const resetForm = () => {
@@ -157,7 +168,17 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
   ) : undefined;
 
   return (
-    <AppBottomSheet visible={visible} onClose={handleClose} header={header} footer={footer}>
+    <AppBottomSheet
+      visible={visible}
+      onClose={handleClose}
+      header={header}
+      footer={footer}
+      // 2026-11-08, user: "jak klikam dodaj humor to nie widac całej siatki
+      // jakby bo nie wysuwa sie wystarczająco wysoko" — ten sheet ma więcej
+      // treści nad siatką (tagi + notatka) niż inne popupy, domyślne 78%
+      // wysokości ekranu je ucinało. Reszta appki zostaje przy domyślnym.
+      maxHeightRatio={0.92}
+    >
       {view === 'checkin' ? (
         <View style={s.checkinBody}>
           <View style={s.section}>

@@ -44,7 +44,7 @@ export const LOW_ENERGY_TAGS = new Set([
   'leniwy', 'rozbity',
 ]);
 
-function levelSignal(level: number | undefined): -1 | 0 | 1 {
+export function levelSignal(level: number | undefined): -1 | 0 | 1 {
   if (level == null) return 0;
   if (level <= 2) return -1;
   if (level >= 4) return 1;
