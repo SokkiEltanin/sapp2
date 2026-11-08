@@ -2933,3 +2933,76 @@ kod się kompiluje). **DO POTWIERDZENIA NA URZĄDZENIU:** scroll długiego
 paragonu, smooth fade blura, smooth drag Humoru — `react-native-web`+
 Playwright nie jest tym samym silnikiem dotyku/gestów co realny Android, więc
 to nadal nie jest ostatecznym dowodem na telefonie usera.
+
+## Runda poprawek 12 (2026-11-08) — 9 zgłoszeń + follow-up lagu Humoru
+
+User przetestował rundę 11 na urządzeniu i zgłosił 9 nowych rzeczy naraz, plus
+jeden follow-up po mojej odpowiedzi. Każda w osobnym commicie (patrz git log),
+tu tylko skrót.
+
+**1. Humor laguje przy przeciąganiu (follow-up: "laguje tylko wtedy gdy
+przesuwam palec, jak klikam w miejscu pojedyńczym skacze płynnie") —
+ZROBIONE.** Dwie osobne przyczyny: `Animated.spring` w `MoodPad.tsx` odpalany
+na KAŻDYM throttlowanym commicie podczas drag (kolejna sprężyna przerywała
+poprzednią w locie — "walczące" animacje); fix: podczas aktywnego gestu kropka
+skacze natychmiast (`setValue`, zero animacji), sprężyna tylko dla zmian
+programowych. Drugie: `MoodModal.tsx`'s `sortMoodTags` (56 tagów × historia)
+przeliczał się przy KAŻDEJ mikro-zmianie continuous mood/energy zamiast tylko
+przy zmianie "kubełka" (-1/0/1) — `levelSignal` wyeksportowany z `moodTags.ts`,
+`useMemo` zależny od niego zamiast od surowej wartości.
+
+**2. Humor: sheet nie wysuwał się wystarczająco wysoko ("nie widac całej
+siatki") — ZROBIONE.** `AppBottomSheet` dostał opcjonalny `maxHeightRatio`
+(domyślnie 0.78 jak dotąd), `MoodModal` prosi o 0.92 (więcej treści nad
+siatką niż inne popupy).
+
+**3-5. Dashboard: tag na kafelku "next" + ikony zadania/event + sync
+kalendarza — ZROBIONE.** Biały kafelek "najbliższe wydarzenie" wyciągał tag
+przez `splitTag()` ale go odrzucał (renderował tylko `.title`) — teraz
+pokazuje `Tag` nad tytułem. "Najbliższe eventy": nowa stała ikonka per `kind`
+(`ListTodo` czerwony dla zadań, `CalendarClock` szary dla eventów) — wcześniej
+różniły się tylko kolorem paska/boldem przy pilnych, za subtelne. Kalendarz
+Google synchronizował się TYLKO w Zadaniach (`useEffect` w `tasks.tsx`) —
+wydzielony `useGoogleCalendarSync` (wzorzec `useHealthSync`: dedup+throttle
+5 min) wołany teraz z OBU ekranów.
+
+**6. Zadania: edycja + potwierdzenie usunięcia — ZROBIONE.** `AddTaskCard`
+dostał `editingTask` prop (ten sam wzorzec co `AddExpenseModal`'s
+`editingExpense`) — tap na treść wiersza (`TaskRow`) otwiera edycję zamiast
+nic nie robić. Tap na kosz już NIE usuwa od razu — mały potwierdzający
+`AppBottomSheet` (Anuluj/czerwony Usuń) pokazuje tytuł zadania przed
+faktycznym `deleteTask`.
+
+**7. Zadania: dokładny termin "w stylu Samsunga" — ZROBIONE.** Piąty chip
+"Dokładny termin" otwiera natywny `DateTimePickerAndroid` (data → godzina,
+połączone) — DOKŁADNIE ten sam, już sprawdzony wzorzec co
+`AddExpenseModal`'s `openDatePicker`. Na Samsungu z One UI to WŁAŚNIE jest
+"styl Samsunga" (systemowy dialog), zero własnego UI kalendarza/scrolla do
+budowania.
+
+**8. Finanse: przelew własny — ZROBIONE.** Nowy `fvOverride: 'transfer'`
+(typ `FvOverride = FvBucket | 'transfer'`, osobny od `FvBucket` — `fvSplitOf`
+traktuje go jako "zero wkładu do wszystkich trzech kubłów", nie czwarty
+kubeł). Piąty chip w AddExpenseModal's już istniejącym rzędzie "Rozlicz
+jako". Transakcja dalej istnieje (widoczna w transakcjach, dalej rusza
+saldo) — tylko nie liczy się w Stałe/Zmienne/Jedzenie.
+
+**9. Nowe logo — ZROBIONE.** User nadpisał icon/adaptive-icon/splash
+bezpośrednio przez upload na GitHubie (poza tą sesją) + dodał 3 warianty
+`Logo_Sapp2_*.png`. Dwa miejsca w SAMYM kodzie appki (nie konfiguracji Expo)
+nadal pokazywały placeholder/goły spinner: `login.tsx`'s `logoWrap` (była
+generyczna ikona `LogIn` z lucide) i `_layout.tsx`'s ekran ładowania (goły
+`ActivityIndicator`) — oba dostały `Logo_Sapp2_OrangeTranspare.png`
+(sprawdzona prawdziwa alpha-transparencja przez `identify`).
+
+**Zweryfikowane:** tsc czysty, jest 181/181 (nowy test dla
+`fvOverride:'transfer'`). Wizualnie przez `expo web`+Playwright z
+localStorage zasianym przykładowymi danymi (bo świeża sesja web ma puste
+store'y) — potwierdzone: tag na kafelku "next", ikony zadanie/event w
+"Najbliższe eventy", edycja zadania wypełnia formularz poprawnie (w tym
+aktywny chip dokładnego terminu z podaną datą/godziną), potwierdzenie
+usunięcia pokazuje tytuł zadania. **NIE dało się zweryfikować wizualnie:**
+`/login` (auth gate przekierowuje zalogowanego/zmockowanego usera z powrotem
+na Dashboard w tym środowisku) i sam natywny `DateTimePickerAndroid` (moduł
+natywny, nie działa pod `react-native-web`) — oba wymagają testu na
+realnym urządzeniu.

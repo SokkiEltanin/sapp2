@@ -652,20 +652,34 @@ otwiera go teraz przycisk "+" przy `Segmented`, nie floating FAB.
   Czyta `events`+`gcalEvents` z `calendarStore`. Zaznaczenie dnia (`selectedDate`)
   jest na razie czysto wizualne/nawigacyjne, NIE filtruje listy zadań niżej (dwa
   osobne widoki tego samego ekranu, nie master-detail).
-- `TaskRow.tsx` — checkbox (ukończ, znika z listy), tytuł, tagi (neutralne szare
-  chipy), kosz (usuń od razu, bez potwierdzenia).
-- `AddTaskCard.tsx` — formularz dodawania: tytuł, jeden tag (tekst), termin przez
-  4 szybkie wybory (Dziś/Jutro/Za tydzień/Bez terminu — brak date-pickera jako
-  zależności).
+- `TaskRow.tsx` — checkbox (ukończ, znika z listy), tytuł (2026-11-08: TAP
+  otwiera edycję — `onEdit`), tagi (neutralne szare chipy), kosz (2026-11-08:
+  JUŻ NIE usuwa od razu — `onRequestDelete`, `tasks.tsx` pokazuje mały
+  potwierdzający `AppBottomSheet` zanim faktycznie wywoła `deleteTask`, user:
+  "potwierdzenie usunięcia taskow").
+- `AddTaskCard.tsx` — formularz dodawania ORAZ edycji (2026-11-08, `editingTask`
+  prop, ten sam wzorzec co `AddExpenseModal`'s `editingExpense`): tytuł, jeden
+  tag (tekst), termin przez 4 szybkie wybory (Dziś/Jutro/Za tydzień/Bez
+  terminu) + piąty "Dokładny termin" (2026-11-08, user: "termin dokładny w
+  stylu samsunga scroll plus klikalny kalendarz") — otwiera natywny
+  `DateTimePickerAndroid` (data → godzina, połączone w jeden ISO-literal
+  string `YYYY-MM-DDTHH:MM:00`, lokalny czas bez strefy jak `eventStart()` w
+  dashboardzie) — DOKŁADNIE ten sam wzorzec co `AddExpenseModal`'s
+  `openDatePicker`, zero własnego UI kalendarza/scrolla (na Samsungu z One UI
+  to WŁAŚNIE jest "styl Samsunga" — systemowy dialog).
 - **Lista zadań** — kategoryzacja TERAZ/TERMINOWE/BEZTERMINOWE napędzana jednym
   polem `deadline` (logika sekcji wzięta z `sapp`, zadanie #42 tam, ale UI/UX
   zupełnie nowy, jak ustalone 2026-10-26). `deadline <= dziś` → Teraz, w przyszłości
   → Terminowe, brak → Bezterminowe.
-- **Offline-first, ŚWIADOMIE bez auto-sync do Firestore/Google Calendar** przy
-  CRUD z tego ekranu — leci tylko przez `useCalendarStore` (AsyncStorage). Pełny
-  dwukierunkowy sync to osobny krok (patrz NEXT_STEPS.md), już istnieje jako
-  ręczny test w Ustawieniach → Diagnostyka → "Sync kalendarza", ale nie spięty z
-  normalnym UI.
+- **Offline-first, ŚWIADOMIE bez auto-sync do Firestore** przy CRUD z tego
+  ekranu — leci tylko przez `useCalendarStore` (AsyncStorage). Pełny
+  dwukierunkowy Firestore sync to osobny krok (patrz NEXT_STEPS.md), już
+  istnieje jako ręczny test w Ustawieniach → Diagnostyka → "Sync kalendarza",
+  ale nie spięty z normalnym UI. Google Calendar `gcalEvents` TO już auto-
+  synchronizowane — `useGoogleCalendarSync` (`src/hooks/`, wzorzec 1:1 z
+  `useHealthSync`: dedup `inFlight` + throttle 5 min) wołany z Dashboardu I
+  Zadań (2026-11-08, user: "jak wchodzę do apki to kalendarz sie nie ładuje
+  na dashbordzie" — wcześniej TYLKO ten ekran odświeżał `gcalEvents`).
 - Zewnętrzna referencja zachowania kalendarza: TickTick (pasek kalendarza u góry +
   lista pod spodem) — zachowana.
 
@@ -1043,11 +1057,19 @@ otwiera systemowy ekran, `Linking.sendIntent`) — appka nie może tego zrobić 
   kwota wchodzi TAK JAK PODANA (bez przeliczenia) — user widzi walutę w karcie
   przeglądu i może ręcznie poprawić kwotę przed zatwierdzeniem.
 - **Przelew własny (Revolut/inne konto) — ZAWSZE do ręcznego przeglądu**.
-  `fixedVariable.ts`'s `FvBucket` ma tylko `fixed`/`variable`/`food`, bez
-  sapp's pseudo-kategorii `'transfer'` wykluczonej ze statystyk wydatków. Zamiast
-  rozszerzać `FvBucket` dla jednego, wąskiego przypadku, przelew własny dostaje
-  `flagReason` i tag `'przelew własny'` — user może ręcznie ustawić `fvOverride` po
-  dodaniu, jeśli chce go wykluczyć z sum Stałe/Zmienne/Jedzenie.
+  `bankIngest.ts`'s `tx.selfTransfer` oznacza kolejkową pozycję tagiem
+  `'przelew własny'` + `flagReason` sugerującym "rozważ ręczne wyłączenie z
+  sum" — DOTĄD był to dead-end (sugestia bez sposobu jej zrealizować,
+  `fixedVariable.ts`'s `FvBucket` miał tylko `fixed`/`variable`/`food`).
+  ZAMKNIĘTE 2026-11-08 (user: "opcje przelewu własnego ktory nie wlicza się
+  do liczenia stałych zmiennych i jedzenia") — `FvOverride = FvBucket |
+  'transfer'` (OSOBNY typ od `FvBucket`, nie czwarty liczbowy kubeł —
+  `fvSplitOf` traktuje `'transfer'` jako zero wkładu do wszystkich trzech),
+  piąty chip "Przelew własny" w `AddExpenseModal`'s "Rozlicz jako". `bank-
+  review.tsx` ŚWIADOMIE bez własnej kopii tego chipa (fv-klasyfikacja żyje
+  WYŁĄCZNIE w `AddExpenseModal`, ten sam podział odpowiedzialności co reszta
+  appki) — user realizuje sugestię z `flagReason` PO zaakceptowaniu, edytując
+  wydatek normalnie.
 - **Toasty — brak** (sapp2 nie ma jeszcze systemu toastów, żaden inny ekran go nie
   używa) — znikająca kolejka + log diagnostyczny w Ustawieniach (reużyty istniejący
   `append()`) to dotychczasowy sposób dawania feedbacku w tej appce.
