@@ -136,7 +136,19 @@ export default function WorkScreen() {
             {viewing.hidden && <Text style={s.hiddenNote}>Ukryty z łącznych statystyk — dane zostają, można odkryć.</Text>}
           </View>
 
-          {/* Tryb liczenia */}
+          {/* Tryb liczenia — 2026-11-09, user: "dodawanie pracodawców chujowe,
+              wszystko ma być automatycznie jak w sapp... godziny z kalendarza,
+              wypłata z finansów musi być po [prefiksie]" — WCZEŚNIEJ ten kard
+              zawsze pokazywał WSZYSTKIE pola naraz (prefiks+kolor+pensja+godziny),
+              wyglądające jak ręczna konfiguracja każdego z osobna, choć
+              `computeWorkRate` i tak liczy wszystko samo z prefiksu. Teraz: tryb
+              Kalendarz pokazuje TYLKO prefiks (jedyne co trzeba wpisać — reszta,
+              godziny z kalendarza + wypłata z Finansów, dopasowuje się
+              automatycznie przez ten prefiks, bez dalszej konfiguracji). Pensja/
+              godziny/kolor przeniesione do "Nadpisania" jako wartości ZAPASOWE
+              (używane TYLKO dopóki appka nie ma jeszcze żadnej realnej wypłaty/
+              zmiany do policzenia) — tryb Ręczny jest wyjątkiem, tam SĄ jedynym
+              wejściem, więc zostają tu widoczne. */}
           <View style={s.card}>
             <Text style={s.label}>Tryb liczenia</Text>
             <Segmented
@@ -155,31 +167,28 @@ export default function WorkScreen() {
                   placeholderTextColor={colors.text.muted}
                   autoCapitalize="none"
                 />
-                <Text style={[s.label, s.labelSpaced]}>Albo kolor wydarzenia (hex, opcjonalnie)</Text>
+                <Text style={s.hiddenNote}>
+                  I tyle — oznacz zmiany w kalendarzu i wypłatę w Finansach (tag albo notatka) tym samym prefiksem, appka sama policzy godziny, stawkę i średnią. Reszta pól (pensja zapasowa, kolor, nadpisania) w "Nadpisania" niżej, opcjonalne.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={[s.label, s.labelSpaced]}>Pensja miesięczna</Text>
                 <TextInput
-                  value={viewing.workColor ?? ''}
-                  onChangeText={(t) => updateEmployer(viewing.id, { workColor: t || undefined })}
+                  value={String(viewing.monthlySalary)}
+                  onChangeText={(t) => updateEmployer(viewing.id, { monthlySalary: parseFloat(t.replace(',', '.')) || 0 })}
                   style={s.input}
-                  placeholder="#FF0000"
-                  placeholderTextColor={colors.text.muted}
-                  autoCapitalize="none"
+                  keyboardType="decimal-pad"
+                />
+                <Text style={[s.label, s.labelSpaced]}>Godziny miesięcznie</Text>
+                <TextInput
+                  value={String(viewing.hoursPerMonth)}
+                  onChangeText={(t) => updateEmployer(viewing.id, { hoursPerMonth: parseFloat(t.replace(',', '.')) || 0 })}
+                  style={s.input}
+                  keyboardType="decimal-pad"
                 />
               </>
-            ) : null}
-            <Text style={[s.label, s.labelSpaced]}>Pensja miesięczna</Text>
-            <TextInput
-              value={String(viewing.monthlySalary)}
-              onChangeText={(t) => updateEmployer(viewing.id, { monthlySalary: parseFloat(t.replace(',', '.')) || 0 })}
-              style={s.input}
-              keyboardType="decimal-pad"
-            />
-            <Text style={[s.label, s.labelSpaced]}>Godziny miesięcznie</Text>
-            <TextInput
-              value={String(viewing.hoursPerMonth)}
-              onChangeText={(t) => updateEmployer(viewing.id, { hoursPerMonth: parseFloat(t.replace(',', '.')) || 0 })}
-              style={s.input}
-              keyboardType="decimal-pad"
-            />
+            )}
           </View>
 
           {/* Nadpisania — zwinięte, ten sam wzorzec co AddExpenseModal's "Rozlicz jako" */}
@@ -190,6 +199,34 @@ export default function WorkScreen() {
             </TouchableOpacity>
             {overridesOpen && (
               <View style={s.overridesBody}>
+                {(viewing.workMode ?? 'calendar') === 'calendar' && (
+                  <>
+                    <Text style={s.hiddenNote}>Poniższe liczą się TYLKO dopóki appka nie ma jeszcze żadnej realnej wypłaty/zmiany do policzenia z prefiksu — potem są ignorowane.</Text>
+                    <Text style={[s.label, s.labelSpaced]}>Pensja miesięczna (zapasowa)</Text>
+                    <TextInput
+                      value={String(viewing.monthlySalary)}
+                      onChangeText={(t) => updateEmployer(viewing.id, { monthlySalary: parseFloat(t.replace(',', '.')) || 0 })}
+                      style={s.input}
+                      keyboardType="decimal-pad"
+                    />
+                    <Text style={[s.label, s.labelSpaced]}>Godziny miesięcznie (zapasowe)</Text>
+                    <TextInput
+                      value={String(viewing.hoursPerMonth)}
+                      onChangeText={(t) => updateEmployer(viewing.id, { hoursPerMonth: parseFloat(t.replace(',', '.')) || 0 })}
+                      style={s.input}
+                      keyboardType="decimal-pad"
+                    />
+                    <Text style={[s.label, s.labelSpaced]}>Albo kolor wydarzenia (hex, zamiast/obok prefiksu)</Text>
+                    <TextInput
+                      value={viewing.workColor ?? ''}
+                      onChangeText={(t) => updateEmployer(viewing.id, { workColor: t || undefined })}
+                      style={s.input}
+                      placeholder="#FF0000"
+                      placeholderTextColor={colors.text.muted}
+                      autoCapitalize="none"
+                    />
+                  </>
+                )}
                 <Text style={[s.label, s.labelSpaced]}>Stała stawka zł/h (nadpisuje wszystko)</Text>
                 <TextInput
                   value={viewing.rateOverride != null ? String(viewing.rateOverride) : ''}

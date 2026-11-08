@@ -3260,3 +3260,35 @@ test.ts` — porty 1:1 sapp's testów + nowe dla `currentOdometer`/
 miesiąc na Statystykach faktycznie się zaktualizowały, wpis widoczny w
 historii z przyciskiem usuń). **DO POTWIERDZENIA NA URZĄDZENIU:** realny
 wygląd/dotyk na telefonie (ten sam ciągły gap web-only weryfikacji).
+
+## Finanse: "Najbliższa opłata" → "Odliczanie"; Praca form uproszczony (2026-11-09)
+
+User zrzutem z Finansów: "zamiast tego kafelka po prawej zróbmy odliczanie i
+tam będzie pokazywać ile dni do eventu, że wybieram event kalendarza i
+pokazuje dni ile potem godzin a potem minut" — martwy `StatTile value={null}`
+("Najbliższa opłata", appka nie ma store'a "bills") zamieniony na realną
+funkcję: user RĘCZNIE wybiera JEDEN event z kalendarza (nowy picker w
+`AppBottomSheet`, `src/store/countdownStore.ts` pamięta wybór), kafel liczy
+do niego w dół, coraz drobniejsza jednostka w miarę zbliżania się ("3 dni 3h"
+→ "3h 30m" → "20 min", `src/utils/countdown.ts`). Tick co 60s (NIE co
+sekundę — appka świadomie unika żywych tickerów po historii lagu w sapp).
+
+**"Dodawanie pracodawców chujowe, wszystko ma być automatycznie jak w sapp...
+godziny z kalendarza, wypłata z finansów musi być po [prefiksie]"** —
+`app/work.tsx`'s "Tryb liczenia" kard WCZEŚNIEJ pokazywał WSZYSTKIE pola
+naraz (prefiks+kolor+pensja+godziny) jak gdyby wszystkie trzeba było ręcznie
+wypełnić, mimo że `computeWorkRate` i tak liczy wszystko samo z samego
+prefiksu. Uproszczone: tryb Kalendarz pokazuje TYLKO prefiks + jawny opis
+("appka sama policzy godziny z kalendarza i dopasuje wypłaty z Finansów po
+tym prefiksie") — pensja/godziny/kolor przeniesione do zwiniętych
+"Nadpisania" jako jawnie opisane wartości ZAPASOWE (liczą się tylko dopóki
+nie ma jeszcze realnej wypłaty/zmiany do policzenia). Tryb Ręczny bez zmian
+(tam pensja/godziny SĄ jedynym wejściem, zostają widoczne od razu).
+
+**Zweryfikowane:** tsc czysty, jest 272/272 (6 nowych testów
+`countdown.test.ts`). Wizualnie `expo web`+Playwright — kafelek "Odliczanie"
+renderuje się, picker otwiera się z poprawnym stanem pustym, uproszczony
+formularz Pracy renderuje się (Nadpisania zwinięte, opis automatyzacji
+widoczny). **DO POTWIERDZENIA NA URZĄDZENIU:** picker z realnymi
+wydarzeniami kalendarza (pusty kalendarz tutaj, nic do wybrania), tick co
+60s na żywym urządzeniu.
