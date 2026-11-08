@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, Search, X,
   Info, Stethoscope, Clock, Bell, Copy,
   LogIn, LogOut, User as UserIcon, Database, CalendarDays, AlertTriangle, Rocket,
-  BatteryWarning, AlarmClock, Landmark, Zap, Vibrate, ShieldCheck, History, Watch,
+  BatteryWarning, AlarmClock, Landmark, Zap, Vibrate, ShieldCheck, History, Watch, Download,
 } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -126,6 +126,13 @@ function buildSections(
         { kind: 'action' as const, tier: 'sub' as const, key: 'bank-review', label: 'Płatności do zatwierdzenia', description: bank.pending > 0 ? `${bank.pending} czeka — stuknij, żeby przejrzeć` : 'pusto — nic nie czeka na zatwierdzenie', icon: Rocket },
         { kind: 'action' as const, tier: 'sub' as const, key: 'bank-history', label: 'Historia i szablony', description: 'co już złapaliśmy — cofnij błędną pozycję albo zapisz sklep jako szablon', icon: History },
       ] : []),
+      // 2026-11-09, user: "musimy dodac zeby eksport zrobic z sapp danych do
+      // sapp2 - glownie zalezy mi na finansach i paragonach wstecz oraz humor"
+      // — sapp JUŻ ma gotowy eksport (Ustawienia → Dane → "Kopia zapasowa" →
+      // eksportuje cały JSON snapshot), ta pozycja to WYŁĄCZNIE strona
+      // IMPORTU w sapp2 (app/import-sapp.tsx), patrz src/services/
+      // dataImportFromSapp.ts po pełny opis mapowania pól.
+      { kind: 'action' as const, key: 'import-sapp', label: 'Importuj dane z sapp', description: 'wydatki/paragony i humor z eksportu sapp — wklej skopiowany JSON', icon: Download },
     ],
   },
   // Faza 3.13 (2026-11-02, user: "podziel ustawienia na kategorie porozmieszczaj to
@@ -703,6 +710,7 @@ export default function SettingsScreen() {
     'bank-test': testBankCapture,
     'bank-review': () => router.push('/bank-review' as any),
     'bank-history': () => router.push('/bank-history' as any),
+    'import-sapp': () => router.push('/import-sapp' as any),
     'haptics-enabled': toggleHaptics,
   };
 

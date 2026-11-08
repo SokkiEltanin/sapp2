@@ -3292,3 +3292,40 @@ formularz Pracy renderuje się (Nadpisania zwinięte, opis automatyzacji
 widoczny). **DO POTWIERDZENIA NA URZĄDZENIU:** picker z realnymi
 wydarzeniami kalendarza (pusty kalendarz tutaj, nic do wybrania), tick co
 60s na żywym urządzeniu.
+
+## Import danych z sapp (finanse/paragony + humor) (2026-11-09)
+
+User: "musimy dodac zeby eksport zrobic z sapp danych do sapp2 - głównie
+zależy mi na finansach i paragonach wstecz oraz humor". sapp i sapp2 to
+OSOBNE projekty Firebase (różne `projectId`), więc appka nie może po prostu
+sama sięgnąć po dane sapp — ale sapp JUŻ ma gotowy eksport (Ustawienia →
+Dane → "Kopia zapasowa" → `backupService.ts`'s `exportSnapshotToFile()`,
+Share Sheet → plik JSON), zero zmian w sapp było potrzebne. Zbudowana tylko
+POŁÓWKA importu w sapp2:
+
+- Nowy ekran `app/import-sapp.tsx` (Ustawienia → Finanse → "Importuj dane z
+  sapp") — textarea do wklejenia treści wyeksportowanego pliku (user otwiera
+  go gdziekolwiek wylądował — mail/Drive/Pliki — zaznacza całość, kopiuje;
+  ten sam paste-w-textarea wzorzec co parser paragonów, zero nowej
+  zależności jak `expo-document-picker`).
+- `src/services/dataImportFromSapp.ts` — parsuje `cloud.expenses`/
+  `cloud.mood` z eksportu (JEDYNE dwa bloki, reszta — kalendarz/zadania/
+  subskrypcje/praca/pojazdy — ŚWIADOMIE pomijana, sapp2 ma te podsystemy
+  własne, mieszanie starych danych byłoby zgadywaniem), mapuje na sapp2's
+  nieco inny schemat Expense/MoodEntry (sapp's `category` enum → dodatkowy
+  tag, np. `groceries`→`spożywcze`, `salary`→`wypłata` — ta sama etykieta co
+  bank-ingest już używa; `payer` wolny tekst → `'me'`/`'partner'` przez
+  heurystykę "ja" vs cokolwiek innego; waluta obca nieprzeliczona →
+  `amount:0` + `originalAmount`/`originalCurrency`, ta sama konwencja co
+  Runda 13's bank-commit), wstawia offline-first przez istniejące store'y.
+  DEDUP po id (prefiks `sapp_` + oryginalny id sapp) — bezpieczne odpalić
+  import tego samego pliku wielokrotnie, nic się nie zdubluje.
+
+**Zweryfikowane:** tsc czysty, jest 283/283 (11 nowych testów
+`dataImportFromSapp.test.ts` — mapowanie pól, dedup, waluta obca, payer,
+pozycje paragonu, pusty/niepoprawny JSON). Wizualnie `expo web`+Playwright —
+pełny przepływ end-to-end z przykładowym payloadem: wklej→Importuj→"2
+nowych/1 nowych"→Finanse's Saldo i Ostatnie transakcje faktycznie
+odzwierciedlają zaimportowane dane. **DO POTWIERDZENIA NA URZĄDZENIU:**
+realny eksport z prawdziwego sapp (tu tylko ręcznie sklecony przykładowy
+payload — prawdziwy plik może mieć pola/kształty nieprzewidziane w testach).
