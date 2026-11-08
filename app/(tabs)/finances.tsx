@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { router } from 'expo-router';
-import { Plus, Package, ChevronRight } from 'lucide-react-native';
+import { Plus, Package, Car, ChevronRight } from 'lucide-react-native';
 import { spacing, radius, themedStyles } from '@/theme';
 import { Screen, Row, Tile, StatTile, Cap, FitList, Item, Price, StackBar } from '@/ui/layout';
 import { C, T } from '@/ui/theme';
@@ -187,10 +187,16 @@ export default function FinancesScreen() {
       <Row>
         <Tile span={4}>
           <Cap l="Jedzenie · kategorie" r={`${foodTotal} PLN`} />
-          <TouchableOpacity onPress={() => setProductsOpen(true)} style={s.productsLink} hitSlop={6}>
-            <Package size={11} color={C.mut} />
-            <Text style={s.productsLinkLabel}>Produkty {productCount > 0 ? `(${productCount})` : ''}</Text>
-          </TouchableOpacity>
+          <View style={s.areasRow}>
+            <TouchableOpacity onPress={() => setProductsOpen(true)} style={s.productsLink} hitSlop={6}>
+              <Package size={11} color={C.mut} />
+              <Text style={s.productsLinkLabel}>Produkty {productCount > 0 ? `(${productCount})` : ''}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => { haptic.tap(); router.push('/vehicles'); }} style={s.productsLink} hitSlop={6}>
+              <Car size={11} color={C.mut} />
+              <Text style={s.productsLinkLabel}>Pojazdy</Text>
+            </TouchableOpacity>
+          </View>
           {foodCats.length === 0 ? (
             <Text style={[T.small, s.emptyInline]}>Brak jedzenia w tym miesiącu</Text>
           ) : (
@@ -316,7 +322,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
   balanceOut: { fontSize: 12, fontFamily: 'Inter_700Bold', color: C.mut },
 
   barSpace: { marginTop: spacing[3] },
-  productsLink: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: -4, marginBottom: spacing[1] },
+  areasRow: { flexDirection: 'row', gap: spacing[3], marginTop: -4, marginBottom: spacing[1] },
+  productsLink: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   productsLinkLabel: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: C.mut },
   emptyInline: { textAlign: 'center', marginTop: spacing[3] },
 

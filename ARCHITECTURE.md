@@ -1168,8 +1168,9 @@ zamyka obie dziury bez dodawania drugiego, równoległego mechanizmu dopasowywan
   zrobione na popupie jak w sap na dashboardzie"), patrz §DASHBOARD.
 
 **PRACA** [PE] — ZBUDOWANA (2026-11-09), patrz `## PRACA [PE]` niżej, po pełny
-opis. **SUBSKRYPCJE** [PE] — bez zmian względem wcześniejszego ustalenia
-(niżej), wciąż osobny, mniejszy podekran. **POJAZDY** [PE] — wciąż odłożone.
+opis. **POJAZDY** [PE] — ZBUDOWANA (2026-11-09), patrz `## POJAZDY [PE]`
+niżej. **SUBSKRYPCJE** [PE] — bez zmian względem wcześniejszego ustalenia
+(niżej), wciąż osobny, mniejszy podekran.
 
 - **UI/UX kompletnie inny niż w `sapp`** (user, 2026-10-26, ta sama zasada co w Zadaniach)
   — dotyczy WYGLĄDU, nie logiki danych (ta jest portowana 1:1 jak opisano wyżej).
@@ -1243,6 +1244,61 @@ wszystkich 8 gałęzi kolejności pierwszeństwa). Wizualnie `expo web`+Playwrig
 **DO POTWIERDZENIA NA URZĄDZENIU**: cały przepływ z prawdziwym kalendarzem i
 prawdziwymi wypłatami z banku — testy mają tylko fixture'y, zero realnych
 danych do zweryfikowania parsera tytułów zmian tutaj.
+
+## POJAZDY [PE]
+
+Port z sapp, ULEPSZONY (2026-11-09, user: "zależy mi na monitoringu jak w sapp
+tylko lepszym"). Satelicki ekran `app/vehicles.tsx`, wejście z Finanse's
+"Jedzenie · kategorie" tile (link "Pojazdy" obok już istniejącego "Produkty").
+
+**Pliki**: `src/types/vehicles.ts` (`Vehicle`/`FuelLog`/`OdometerReading`/
+`VehicleMaintenance`), `src/store/vehiclesStore.ts` (`vehicles[]`,
+AsyncStorage-persist), `src/utils/vehicleMatch.ts` (dopasowanie wydatek↔pojazd
++ statystyki, port z sapp), `src/services/vehicleFuelLog.ts` (tworzy
+powiązany, otagowany `Expense` przy każdym "Zatankuj").
+
+**Dopasowanie wydatku do pojazdu** (`expenseMatchesVehicle`, bez
+`Expense.vehicleId` jak sapp — sapp2 nie dotyka schematu `Expense`, WYŁĄCZNIE
+przez `Expense.tags`/prefiks `#tag`/`[T]` w notatce, już w pełni obsługiwane
+przez istniejące pole Tagi w `AddExpenseModal`): tag pojazdu na wydatku, LUB
+(tylko dla wyznaczonego `isMainCar`) wydatek "wygląda jak paliwo"
+(`looksLikeFuel` — tag/sklep/notatka).
+
+**ULEPSZENIE względem sapp (nie tylko port)**: sapp trzyma `OdometerReading`
+({date,km}) ZUPEŁNIE osobno od wydatków na paliwo — nie wie ile litrów wlano
+przy którym przebiegu. Nowy `FuelLog` zapisuje przebieg+typ paliwa+litry+
+kwotę RAZEM, jednym "Zatankuj" (`services/vehicleFuelLog.ts`'s
+`logFuelFillUp`) — tworzy prawdziwy `Expense` otagowany tagiem pojazdu (+
+"paliwo"), więc wpada w ISTNIEJĄCE agregaty Finansów (saldo, Stałe/Zmienne,
+Ostatnie transakcje) za darmo. Odblokowuje FUNKCJE NIEMOŻLIWE W SAPP:
+`avgFuelConsumption` (L/100km między kolejnymi tankowaniami TEGO SAMEGO typu
+paliwa — istotne dla pojazdów dwupaliwowych, np. LPG+benzyna) i
+`currentOdometer` (max km z `fuelLog`+samodzielnego `odometerLog` razem).
+
+**"Kreator pojazdu"**: progresywne ujawnianie pól w JEDNYM formularzu wg
+`kind` (ten sam wzorzec co `AddExpenseModal`), nie osobny wielostronicowy
+wizard — sekcje "Co pije" (`FuelType[]`, wielokrotny wybór) i "Główny
+samochód" renderują się TYLKO dla `vehicleHasFuel(kind)` (car/motorcycle/
+scooter), znikają całkiem dla roweru/innego. Tag auto-sugerowany ze
+slugified nazwy (`#rower`-styl), edytowalny.
+
+**Port z sapp bez zmian** (`src/utils/vehicleMatch.ts`): `summarizeVehicle`
+(total/paliwo/inne/ten-miesiąc), `vehicleYearSummary` (12 mies. vs poprzednie
+12 mies., % zmiany), `costPerKm` (pierwszy/ostatni odczyt licznika — teraz
+łączy `odometerLog`+`fuelLog`'s przebiegi), `maintenanceDueMonths`/
+`maintenanceDueLabel`/`maintenancePresets` (kind-aware: rower → "Smarowanie
+łańcucha", auto → "Klocki hamulcowe"/"Przegląd techniczny").
+
+**Świadomie NIE portowane**: `Expense.vehicleId` (ręczne, wyłączne
+przypisanie — tag wystarcza, zero nowego UI), `tireSeason` (przypomnienie o
+sezonowej wymianie opon — mniejsza, osobna funkcja, do dobudowania później).
+
+**Zweryfikowane**: tsc czysty, jest 266/266 (37 nowych testów
+`vehicleMatch.test.ts` — porty 1:1 sapp's testów + nowe dla
+`currentOdometer`/`avgFuelConsumption`). Wizualnie `expo web`+Playwright, w
+tym pełny przepływ "Zatankuj" end-to-end (formularz→zapis→Statystyki się
+realnie zaktualizowały→wpis w historii z usuwaniem). **DO POTWIERDZENIA NA
+URZĄDZENIU**: realny wygląd/dotyk na telefonie.
 
 ## PUPIL — USUNIĘTY (Faza 3.1, 2026-11-01)
 

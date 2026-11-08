@@ -3213,3 +3213,50 @@ nadpisaniami, kafelek "Praca" w Finanse pokazuje realną stawkę.
 **DO POTWIERDZENIA NA URZĄDZENIU:** cały przepływ z prawdziwym kalendarzem +
 prawdziwymi wypłatami z banku (parser tytułów zmian/dopasowanie miesięcy nie
 miał tu żadnych realnych danych do przetestowania, tylko fixture'y w testach).
+
+## Zakładka "Pojazdy" — port z sapp, ULEPSZONY (2026-11-09)
+
+User: "musimy zrobić zakładkę pojazdy i produkty, zależy mi na monitoringu jak w
+sapp tylko lepszym... aktualny przebieg, cena i ilość litrów czy LPG czy benzyna
+czy co tam [to będzie w kreatorze pojazdu co pije]... rower... jakie części
+zmieniałem... żeby można było podpiąć np. że to paliwo i domyślnie pod pojazd X,
+tak samo pod rower że kupuję coś i ma tag rower". ("Produkty" już istniało —
+`ProductsModal`/pamięć cen od Fazy 2.1 — link do niego teraz obok nowego linku
+"Pojazdy" w Finanse's "Jedzenie · kategorie" tile.) Nowy satelicki ekran
+`app/vehicles.tsx`.
+
+**Port z sapp** (`src/utils/vehicleMatch.ts`): `expenseMatchesVehicle`
+(dopasowanie wydatku do pojazdu przez tag / prefiks `#tag`/`[T]` w notatce /
+dla WYZNACZONEGO głównego samochodu — generyczne "wygląda jak paliwo"),
+`mainCarId`, `summarizeVehicle`, `vehicleYearSummary` (12 mies. vs poprzednie
+12 mies.), `maintenanceDueMonths`/`maintenanceDueLabel`/`maintenancePresets`
+(kind-aware: rower dostaje "Smarowanie łańcucha", auto "Klocki hamulcowe"),
+`costPerKm`.
+
+**ULEPSZENIE względem sapp (nie tylko port)**: sapp trzyma `OdometerReading`
+({date,km}) ZUPEŁNIE osobno od wydatków na paliwo — nie wie ile litrów wlano
+przy którym przebiegu, więc nie da się policzyć realnego zużycia. Nowy
+`FuelLog` (`src/types/vehicles.ts`) zapisuje przebieg+typ paliwa+litry+kwotę
+RAZEM, jednym "Zatankuj" w ekranie — i tworzy prawdziwy, otagowany `Expense`
+(`src/services/vehicleFuelLog.ts`), więc wpada w ISTNIEJĄCE agregaty Finansów
+za darmo. To odblokowuje NOWĄ funkcję niemożliwą w sapp: `avgFuelConsumption`
+(L/100km między kolejnymi tankowaniami TEGO SAMEGO typu paliwa — ważne dla
+pojazdów dwupaliwowych jak LPG+benzyna) i `currentOdometer` (max km ze
+WSZYSTKICH odczytów, łączonych z `fuelLog`+samodzielnym `odometerLog`).
+
+**"Kreator pojazdu"** = progresywne ujawnianie pól w JEDNYM formularzu wg
+wybranego rodzaju (ten sam wzorzec co `AddExpenseModal`), nie osobny
+wielostronicowy wizard: sekcja "Co pije" (Benzyna/Diesel/LPG/Elektryczny,
+wielokrotny wybór — dwupaliwowe auto) i "Główny samochód" znikają całkiem dla
+roweru/innego. Tag auto-sugerowany ze slugified nazwy, edytowalny — to ten
+sam tag co user wpisuje w polu Tagi w `AddExpenseModal`, zero nowego UI tam
+potrzebne (sapp2 NIE dotyka `Expense.vehicleId` jak sapp, dopasowanie
+wyłącznie przez tag).
+
+**Zweryfikowane:** tsc czysty, jest 266/266 (37 nowych testów `vehicleMatch.
+test.ts` — porty 1:1 sapp's testów + nowe dla `currentOdometer`/
+`avgFuelConsumption`). Wizualnie `expo web`+Playwright, w tym pełny przepływ
+"Zatankuj" (wypełniony formularz → zapisane tankowanie → przebieg/zł-ten-
+miesiąc na Statystykach faktycznie się zaktualizowały, wpis widoczny w
+historii z przyciskiem usuń). **DO POTWIERDZENIA NA URZĄDZENIU:** realny
+wygląd/dotyk na telefonie (ten sam ciągły gap web-only weryfikacji).
