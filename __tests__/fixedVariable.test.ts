@@ -9,9 +9,10 @@ import type { Expense, ReceiptItem } from '@/types/finances';
 // przez `subscriptionId`/dopasowanie słownika rachunków zamiast
 // `category === 'housing'/'subscriptions'`, Jedzenie przez `ReceiptItem.foodSubcat`
 // zamiast `category === 'groceries'` + tagi `tags:['pieczywo']`/`['nie jedzenie']`.
-// Pominięte testy sapp'a zależne od funkcji nieportowanych w Fazie 2.1:
-// `workFixedProgress` (czeka na ekran Praca) i self-transfer (czeka na Fazę 2.5,
-// powiadomienia z banku).
+// Pominięty test sapp'a zależny od funkcji nieportowanej: `workFixedProgress`
+// (czeka na ekran Praca). Self-transfer: AUTOMATYCZNE wykrywanie z heurystyki
+// bank-parsingu dalej czeka na Fazę 2.5/powiadomienia z banku, ale RĘCZNE
+// oznaczenie (`fvOverride: 'transfer'`, 2026-11-08) ma własny test niżej.
 const e = (o: Partial<Expense>): Expense => ({
   id: 'x', type: 'expense', amount: 0, date: '2026-08-04', note: '', tags: [],
   source: 'manual', createdAt: '', updatedAt: '', ...o,
@@ -165,6 +166,19 @@ describe('fixedVariable — fvSplitOf (rozbicie mieszanego paragonu jedzenie/zmi
     const afterTag = e({ amount: 50, receiptItems: [item({ name: 'cukierki', price: 50 })] });
     expect(fvSplitOf(beforeTag)).toEqual({ fixed: 0, variable: 0, food: 50 });
     expect(fvSplitOf(afterTag)).toEqual({ fixed: 0, variable: 50, food: 0 });
+  });
+
+  // 2026-11-08, user: "opcje przelewu własnego ktory nie wlicza się do liczenia
+  // stałych zmiennych i jedzenia" — `fvOverride: 'transfer'` musi wygrywać nad
+  // KAŻDĄ heurystyką (nawet jawny rachunek stały/paragon spożywczy), zero wkładu
+  // do wszystkich trzech kubłów.
+  test('fvOverride: "transfer" — zero wkładu do wszystkich trzech kubłów, nawet dla rachunku/paragonu spożywczego', () => {
+    expect(fvSplitOf(e({ note: 'Na oszczędności', amount: 500, fvOverride: 'transfer' }))).toEqual({ fixed: 0, variable: 0, food: 0 });
+    expect(fvSplitOf(e({ note: 'Czynsz', amount: 1000, fvOverride: 'transfer' }))).toEqual({ fixed: 0, variable: 0, food: 0 });
+    expect(fvSplitOf(e({
+      note: 'Biedronka', amount: 100, fvOverride: 'transfer',
+      receiptItems: [item({ name: 'chleb', price: 100, foodSubcat: 'pieczywo' })],
+    }))).toEqual({ fixed: 0, variable: 0, food: 0 });
   });
 
   test('fvOverride na CAŁYM wydatku wygrywa ze wszystkim, nawet z mieszanym paragonem', () => {

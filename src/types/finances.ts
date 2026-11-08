@@ -8,6 +8,14 @@
 // `Task.tags` w Zadaniach) do swobodnego, krzyżowego grupowania — jeden wydatek może
 // nosić i "Transport", i "Wakacje" naraz, bez wymuszania jednej szufladki.
 export type FvBucket = 'fixed' | 'variable' | 'food';
+// 'transfer' — "przelew własny" (2026-11-08, user: "opcje przelewu własnego ktory
+// nie wlicza się do liczenia stałych zmiennych i jedzenia") — przesunięcie
+// pieniędzy między WŁASNYMI kontami (np. na oszczędności), nie realny wydatek.
+// Osobny wariant od `FvBucket`, nie czwarty kubeł w nim — `FvSplit`/`bucketOf`/itp.
+// zakładają DOKŁADNIE 3 liczbowe kubły (fixed/variable/food sumują się do 100%
+// zwykłego wydatku), `fvSplitOf` traktuje `'transfer'` jako "zero wkładu do
+// wszystkich trzech", nie jako nowy kubeł do sumowania.
+export type FvOverride = FvBucket | 'transfer';
 export type ExpenseSource = 'manual' | 'receipt' | 'bank' | 'bank-auto';
 export type PaymentMethod = 'cash' | 'card' | 'blik' | 'transfer';
 
@@ -44,7 +52,7 @@ export interface Expense {
   subscriptionId?: string;
   // Ręczne przeklasyfikowanie CAŁEGO wydatku — zawsze wygrywa nad automatyką
   // (patrz `fvSplitOf` w utils/fixedVariable.ts). `null` = brak nadpisania.
-  fvOverride?: FvBucket | null;
+  fvOverride?: FvOverride | null;
   paymentMethod?: PaymentMethod;
   // Kto faktycznie zapłacił — `undefined`/`'me'` (domyślnie) = ja. `'partner'` = Olesia.
   // Napędza `utils/balance.ts`'s `affectsBalance` — saldo ma odzwierciedlać WYŁĄCZNIE

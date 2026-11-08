@@ -6,10 +6,11 @@ import { foodAmountOf } from './food';
 // `e.category === 'housing' || e.category === 'subscriptions'` — sapp2 nie ma sztywnej
 // kategorii (patrz types/finances.ts), więc Stałe = obecność `subscriptionId` ZAMIAST
 // kategorii 'subscriptions', reszta (dopasowanie słownika rachunków) bez zmian.
-// `isSelfTransfer` (wykrywanie przelewu do siebie/Revolut, sapp-specific heurystyka
-// bank-parsingu) pominięte na razie — wraca w Fazie 2.5 razem z powiadomieniami z
-// banku, nie ma sensu teraz (ręczne/paragonowe wydatki nie generują fałszywych
-// trafień).
+// `isSelfTransfer` — automatyczne WYKRYWANIE przelewu do siebie/Revolut z heurystyki
+// bank-parsingu (sapp-specific) dalej pominięte, nie ma sensu bez tej warstwy. Ale
+// RĘCZNE oznaczenie "przelew własny" na pojedynczym wydatku (2026-11-08, user:
+// "opcje przelewu własnego ktory nie wlicza się do liczenia stałych zmiennych i
+// jedzenia") JEST zaimplementowane — `fvOverride === 'transfer'`, patrz `fvSplitOf`.
 export function isFixedExpense(e: Expense): boolean {
   if (e.type === 'income') return false;
   if (e.subscriptionId) return true;
@@ -25,6 +26,11 @@ export interface FvSplit { fixed: number; variable: number; food: number }
 // pierwszeństwo i idą w 100% do jednego kubła — rozbicie dotyczy tylko zwykłych
 // zakupów.
 export function fvSplitOf(e: Expense): FvSplit {
+  // Zero wkładu do WSZYSTKICH trzech kubłów (nie czwarty kubeł, patrz komentarz
+  // przy `FvOverride` w types/finances.ts) — transakcja dalej istnieje (widoczna
+  // np. w "Ostatnie transakcje", dalej rusza saldo), po prostu nie liczy się jako
+  // Stałe/Zmienne/Jedzenie.
+  if (e.fvOverride === 'transfer') return { fixed: 0, variable: 0, food: 0 };
   if (e.fvOverride === 'fixed') return { fixed: e.amount, variable: 0, food: 0 };
   if (e.fvOverride === 'variable') return { fixed: 0, variable: e.amount, food: 0 };
   if (e.fvOverride === 'food') return { fixed: 0, variable: 0, food: e.amount };

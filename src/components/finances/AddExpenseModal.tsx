@@ -14,7 +14,7 @@ import {
 } from '@/utils/productMemory';
 import { buildProductCatalog } from '@/utils/productCatalog';
 import { haptic } from '@/utils/haptics';
-import type { Expense, ReceiptItem, PaymentMethod, FvBucket } from '@/types/finances';
+import type { Expense, ReceiptItem, PaymentMethod, FvOverride } from '@/types/finances';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import ReceiptItemRow from './ReceiptItemRow';
 
@@ -41,11 +41,16 @@ function genId(): string {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-const FV_CHOICES: { key: FvBucket | 'auto'; label: string }[] = [
+const FV_CHOICES: { key: FvOverride | 'auto'; label: string }[] = [
   { key: 'auto', label: 'Auto' },
   { key: 'fixed', label: 'Stałe' },
   { key: 'variable', label: 'Zmienne' },
   { key: 'food', label: 'Jedzenie' },
+  // 2026-11-08, user: "opcje przelewu własnego ktory nie wlicza się do liczenia
+  // stałych zmiennych i jedzenia" — piąty wybór w TYM SAMYM "Rozlicz jako" rzędzie
+  // (nie osobny toggle) bo to WYKLUCZAJĄCE się klasyfikacje tego samego wydatku,
+  // dokładnie jak Auto/Stałe/Zmienne/Jedzenie już są.
+  { key: 'transfer', label: 'Przelew własny' },
 ];
 
 const PAYMENT_CHOICES: { key: PaymentMethod; label: string }[] = [
@@ -104,7 +109,7 @@ export default function AddExpenseModal({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   const [payer, setPayer] = useState<'me' | 'partner'>('me');
   const [paidOpen, setPaidOpen] = useState(false);
-  const [fvChoice, setFvChoice] = useState<FvBucket | 'auto'>('auto');
+  const [fvChoice, setFvChoice] = useState<FvOverride | 'auto'>('auto');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
 
