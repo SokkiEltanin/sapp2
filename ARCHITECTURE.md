@@ -1167,8 +1167,9 @@ zamyka obie dziury bez dodawania drugiego, równoległego mechanizmu dopasowywan
   niezależna poprawka w tej samej rundzie (user: "jak klikam w jedzenie nie mam tam
   zrobione na popupie jak w sap na dashboardzie"), patrz §DASHBOARD.
 
-**PRACA / SUBSKRYPCJE** [PE] — bez zmian względem wcześniejszego ustalenia (niżej),
-wciąż osobne, mniejsze podekrany. **POJAZDY** [PE] — wciąż odłożone.
+**PRACA** [PE] — ZBUDOWANA (2026-11-09), patrz `## PRACA [PE]` niżej, po pełny
+opis. **SUBSKRYPCJE** [PE] — bez zmian względem wcześniejszego ustalenia
+(niżej), wciąż osobny, mniejszy podekran. **POJAZDY** [PE] — wciąż odłożone.
 
 - **UI/UX kompletnie inny niż w `sapp`** (user, 2026-10-26, ta sama zasada co w Zadaniach)
   — dotyczy WYGLĄDU, nie logiki danych (ta jest portowana 1:1 jak opisano wyżej).
@@ -1183,6 +1184,65 @@ wciąż osobne, mniejsze podekrany. **POJAZDY** [PE] — wciąż odłożone.
   automatycznie z powiadomienia. **Rozwiązane (2026-10-31): FAB**, dokładnie jak
   rekomendowano w "Kolizja lewy dolny róg" (`NEXT_STEPS.md`) — ten sam wzorzec już
   sprawdzony w Zadaniach.
+
+## PRACA [PE]
+
+Port z sapp (2026-11-09, user: "lecimy z zakładką Praca" → "Pełny port z sapp od
+razu"). Satelicki ekran `app/work.tsx`, wejście z Finanse's kafelka "Praca"
+(`StatTile`, teraz REALNY — stawka zł/h aktywnego pracodawcy, tap→`/work`).
+
+**Pliki**: `src/types/work.ts` (`Employer`/`ConfirmedMonth`), `src/store/
+workStore.ts` (`employers[]`+`activeEmployerId`, AsyncStorage-persist),
+`src/utils/workEvents.ts` (parsowanie godzin zmiany z tytułu eventu kalendarza,
+`isWorkEvent` kolor-LUB-prefiks), `src/utils/paycheck.ts` (`paycheckTargetMonth`
+— "WYPŁATA ZA <miesiąc>" w notatce, fallback: wypłata z dołu = miesiąc przed
+datą; `isPaycheck` — przychód z tagiem/notatką pasującą do prefiksu), `src/
+utils/workSummary.ts` (`computePayMonths`/`payMonthsSummary`/
+`computePayMonthsForEmployers`/`shiftsForEmployerInMonth`), `src/utils/
+workRate.ts` (`computeWorkRate` — statyczna stawka zł/h, kolejność pierwszeństwa
+niżej).
+
+**Architektura celowo PROSTSZA niż sapp**: `Employer[]` + `activeEmployerId` to
+JEDYNE źródło prawdy. sapp ma `Employer` jako warstwę NAD osobnym, mirrorowanym
+`WorkSettings` — tam ~17 miejsc (dashboard/bank/osiągnięcia) czyta
+`workSettings.workPrefix` BEZPOŚREDNIO, bez pojęcia o liście pracodawców, więc
+`workService.setActiveEmployer()` musi zwierciadlić pola aktywnego pracodawcy do
+tego osobnego store'a. sapp2 nie ma ŻADNEGO takiego dotychczasowego konsumenta
+(Praca nie istniała tu wcześniej) — zero potrzeby na mirrorującą otoczkę,
+migrację z legacy, czy `syncActiveEmployerFromSettings`.
+
+**Kolejność pierwszeństwa stawki** (`computeWorkRate`, identyczna jak sapp's
+`useWorkEarnings.ts`'s `perSecond`, ale zł/h nie zł/s): 1) `rateOverride` (stałe
+nadpisanie) → 2) średnia napędzana realnymi wypłatami (Σwypłata ÷ Σgodziny
+kalendarza miesiąca za który jest, po jednej na docelowy miesiąc, pomijając
+`excludedPayMonths`) → 3) `confirmedMonths` (Σpensja/Σgodziny po
+potwierdzonych, nie-wykluczonych) → 4) `hoursOverride` lub godziny poprzedniego
+miesiąca z kalendarza → 5) tryb ręczny: `monthlySalary ÷ hoursPerMonth` wprost.
+
+**Świadomie NIE portowane** (nie przeoczenie, pełne uzasadnienie w
+`src/types/work.ts`): `WorkShift` (ręczne zmiany/"clock in-out" bez
+kalendarza) i sapp's żywy, sekundowy licznik zarobków (`setInterval` 1Hz,
+aktywna zmiana TERAZ, powiadomienia początek/koniec zmiany — sapp's własna
+historia: ten licznik kiedyś SAM powodował realny lag przez wymuszone
+re-rendery co sekundę). `monthRateOverride` (nadpisanie tylko-na-ten-miesiąc,
+rzadki edge case) i `fixedVariable.ts`'s `workFixedProgress` (pasek "zarobki
+pokrywają stałe wydatki" na dashboardzie, zależny od żywych zarobków) też
+pominięte. Dobudowanie jako osobna, świadoma runda, jeśli faktycznie potrzebne.
+
+**UI**: jeden scroll (nie 2 osobne ekrany jak sapp's Ustawienia→Praca +
+work/add.tsx + work/history.tsx — ten sam "jeden ujednolicony" wzorzec co
+`AddExpenseModal` scaliło sapp's scan.tsx+manual.tsx) — chipy pracodawców (gdy
+>1), nazwa+aktywny/ukryty, tryb (`Segmented` Kalendarz/Ręczny)+prefiks/kolor/
+pensja/godziny, zwinięte "Nadpisania", statystyki (stawka/godziny tego
+miesiąca/suma), historia wypłat z "Potwierdź"/"Wyklucz ze średniej" (`Toggle`)
+per miesiąc.
+
+**Zweryfikowane**: tsc czysty, jest 229/229 (44 nowe testy — `workEvents`/
+`paycheck`/`workSummary` porty 1:1 sapp's testów, nowy `workRate.test.ts` dla
+wszystkich 8 gałęzi kolejności pierwszeństwa). Wizualnie `expo web`+Playwright.
+**DO POTWIERDZENIA NA URZĄDZENIU**: cały przepływ z prawdziwym kalendarzem i
+prawdziwymi wypłatami z banku — testy mają tylko fixture'y, zero realnych
+danych do zweryfikowania parsera tytułów zmian tutaj.
 
 ## PUPIL — USUNIĘTY (Faza 3.1, 2026-11-01)
 

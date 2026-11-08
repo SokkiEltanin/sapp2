@@ -3159,3 +3159,57 @@ poszerzony kafelek "Teraz" po prawej; #JedzeniePerMiesiąc zajmuje cały Rząd
 zostaje sporo pustej przestrzeni między nimi w tym luźnym `flex:1` rzędzie —
 kosmetyczne, nie błąd. **DO POTWIERDZENIA NA URZĄDZENIU:** realny wygląd na
 prawdziwym telefonie (ten sam ciągły gap sapp2-owej weryfikacji web-only).
+
+## Zakładka "Praca" — port z sapp (2026-11-09)
+
+User: "potem lecimy z zakładką Praca", potem dopytany o zakres (prosty start vs
+pełny port) wybrał **"Pełny port z sapp od razu"**. Nowy satelicki ekran
+`app/work.tsx` (wejście: kafelek "Praca" w Finanse, teraz REALNY zamiast
+`StatTile value={null}`).
+
+**Co jest 1:1 z sapp** (pełna funkcjonalność, nowe UI pod sapp2's styl):
+- Wielu pracodawców (`Employer[]`), każdy z własnym trybem (kalendarz:
+  prefiks tytułu/kolor eventu, albo ręczny: pensja÷godziny wprost), własnymi
+  nadpisaniami (stała stawka / nadpisanie godzin / nadpisanie kwoty wypłaty),
+  potwierdzonymi miesiącami, listą wykluczonych ze średniej.
+- Dopasowywanie realnych wypłat z `expensesStore` do docelowego miesiąca
+  (`paycheckTargetMonth` — "WYPŁATA ZA <miesiąc>" w tytule, albo zaliczka
+  wsteczna gdy brak nazwy miesiąca), godziny z kalendarza przez
+  prefiks/kolor (`isWorkEvent`, parsowanie zakresu godzin Z TYTUŁU eventu,
+  np. "[JD] 10:00-21:00 (11h)", nie tylko z czasów samego eventu).
+  Ukrywanie starych pracodawców (dane zostają, łączne statystyki je pomijają).
+- Historia wypłat per pracodawca z akcjami "Potwierdź" (miesiąc wchodzi do
+  `confirmedMonths`, średnia zaczyna liczyć się z potwierdzonych zamiast
+  zgadywać) i "Wyklucz ze średniej" (`Toggle`, per miesiąc).
+
+**Świadomie NIE portowane** (udokumentowane w `src/types/work.ts`, nie
+przeoczenie): `WorkShift` (ręczne zmiany/"clock in-out" bez kalendarza) i
+sapp's żywy, sekundowy licznik zarobków (`useWorkEarnings.ts`'s `setInterval`
+1Hz + aktywna zmiana TERAZ + powiadomienia początek/koniec zmiany) — osobna,
+znacznie większa funkcja (sapp's własna historia: ten licznik kiedyś SAM
+powodował realny lag przez wymuszone re-rendery co sekundę). Zamiast tego
+`utils/workRate.ts`'s `computeWorkRate()` — statyczna funkcja z TĄ SAMĄ
+kolejnością pierwszeństwa stawek (nadpisanie → średnia z wypłat → potwierdzone
+miesiące → fallback godzin/poprzedni miesiąc → tryb ręczny), bez tickera.
+Też pominięte: `monthRateOverride` (nadpisanie "tylko na ten miesiąc" — rzadki
+edge case), `fixedVariable.ts`'s `workFixedProgress` (pasek "zarobki pokrywają
+stałe wydatki" na dashboardzie, zależny od żywych zarobków).
+
+Architektura **celowo prostsza niż sapp**: `Employer[]` + `activeEmployerId`
+to JEDYNE źródło prawdy (`store/workStore.ts`) — sapp ma `Employer` jako
+warstwę NAD osobnym, mirrorowanym `WorkSettings` (bo ~17 miejsc w sapp czyta
+`workSettings.workPrefix` bezpośrednio, bez pojęcia o liście pracodawców).
+sapp2 nie ma ŻADNEGO takiego dotychczasowego konsumenta (Praca nie istniała
+w sapp2 przed tą rundą), więc cała mirrorująca otoczka (`setActiveEmployer`/
+`syncActiveEmployerFromSettings`/migracja z legacy) jest zbędna — pełny opis
+w `src/types/work.ts`.
+
+**Zweryfikowane:** tsc czysty, jest 229/229 (44 nowe testy: `workEvents.ts`/
+`paycheck.ts`/`workSummary.ts` porty 1:1 sapp's testów + nowy `workRate.test.ts`
+dla `computeWorkRate`'s kolejności pierwszeństwa, wszystkie 8 gałęzi
+sprawdzone). Wizualnie `expo web`+Playwright (tymczasowy fikcyjny klucz
+Firebase, patrz commit wyżej) — ekran pusty/z pracodawcą/z rozwiniętymi
+nadpisaniami, kafelek "Praca" w Finanse pokazuje realną stawkę.
+**DO POTWIERDZENIA NA URZĄDZENIU:** cały przepływ z prawdziwym kalendarzem +
+prawdziwymi wypłatami z banku (parser tytułów zmian/dopasowanie miesięcy nie
+miał tu żadnych realnych danych do przetestowania, tylko fixture'y w testach).

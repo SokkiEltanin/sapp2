@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { router } from 'expo-router';
 import { Plus, Package, ChevronRight } from 'lucide-react-native';
 import { spacing, radius, themedStyles } from '@/theme';
 import { Screen, Row, Tile, StatTile, Cap, FitList, Item, Price, StackBar } from '@/ui/layout';
@@ -11,6 +12,9 @@ import WydatkiModal from '@/components/dashboard/WydatkiModal';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useExpensesStore } from '@/store/expensesStore';
 import { useShareReceiptStore } from '@/store/shareReceiptStore';
+import { useWorkStore } from '@/store/workStore';
+import { useCalendarStore } from '@/store/calendarStore';
+import { computeWorkRate } from '@/utils/workRate';
 import { getBalanceOffset, setBalanceOffset, accountBalance, affectsBalance } from '@/utils/balance';
 import { buildProductCatalog } from '@/utils/productCatalog';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
@@ -25,12 +29,14 @@ import type { Expense } from '@/types/finances';
 // 1fr`): Saldo(4) → Podział(4, StackBar) → Jedzenie kategorie(4, StackBar) →
 // Praca(2)|Najbliższa opłata(2) → Ostatnie transakcje(4, fill, FitList).
 //
-// Praca/Najbliższa opłata — appka nie ma store'a "bills"/godzin z kalendarza
-// (patrz ARCHITECTURE.md §FINANSE). `StatTile value={null}` daje DESIGN.md's
-// zaprojektowany stan pusty ("0" dim + "brak") — zastępuje poprzednie ręczne
-// "wkrótce — kalendarz"/"wkrótce — rachunki", które łamało regułę "nigdy
-// 'wkrótce'" sformalizowaną dopiero w DESIGN.md (Faza 3.9), nie było błędem w
-// chwili pisania.
+// Najbliższa opłata — appka nie ma store'a "bills" (patrz ARCHITECTURE.md
+// §FINANSE). `StatTile value={null}` daje DESIGN.md's zaprojektowany stan pusty
+// ("0" dim + "brak") — zastępuje poprzednie ręczne "wkrótce — rachunki", które
+// łamało regułę "nigdy 'wkrótce'" sformalizowaną dopiero w DESIGN.md (Faza 3.9),
+// nie było błędem w chwili pisania.
+// Praca — REALNA od 2026-11-09 (user: "lecimy z zakładką Praca", "Pełny port z
+// sapp od razu"), patrz app/work.tsx. Kafelek pokazuje stawkę zł/h aktywnego
+// pracodawcy (`workStore.ts`), tap → pełny ekran.
 //
 // "Produkty" (pamięć cen, realna funkcja) NIE WYSTĘPUJE w spec — zostaje jako
 // mały link pod `Cap`'em kafla "Jedzenie · kategorie" (ta sama decyzja co
@@ -77,6 +83,20 @@ export default function FinancesScreen() {
   useEffect(() => {
     if (pendingShareText) { setEditingExpense(null); setAddOpen(true); }
   }, [pendingShareText]);
+
+  // "Praca" (2026-11-09, user: "lecimy z zakładką Praca") — kafelek pokazuje realną
+  // stawkę zł/h aktywnego pracodawcy (`app/work.tsx` po pełny ekran). `null` zamiast 0
+  // gdy brak aktywnego pracodawcy — `StatTile value={null}` już ma zaprojektowany stan
+  // pusty, nie trzeba nowego.
+  const workEmployers = useWorkStore((st) => st.employers);
+  const activeEmployerId = useWorkStore((st) => st.activeEmployerId);
+  const calendarEvents = useCalendarStore((st) => st.events);
+  const gcalEvents = useCalendarStore((st) => st.gcalEvents);
+  const activeEmployer = workEmployers.find((e) => e.id === activeEmployerId) ?? null;
+  const workRate = useMemo(
+    () => (activeEmployer ? computeWorkRate(activeEmployer, [...calendarEvents, ...gcalEvents], expenses) : null),
+    [activeEmployer, calendarEvents, gcalEvents, expenses],
+  );
 
   const today = todayISO();
   const now = useMemo(() => new Date(), [today]);
@@ -182,7 +202,13 @@ export default function FinancesScreen() {
       </Row>
 
       <Row>
-        <StatTile value={null} unit="kalendarz" label="Praca" span={2} />
+        <StatTile
+          value={workRate?.rate != null ? workRate.rate.toFixed(0) : null}
+          unit="zł / h"
+          label="Praca"
+          span={2}
+          onPress={() => { haptic.tap(); router.push('/work'); }}
+        />
         <StatTile value={null} unit="rachunki" label="Najbliższa opłata" span={2} />
       </Row>
 
