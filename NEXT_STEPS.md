@@ -3006,3 +3006,76 @@ usunięcia pokazuje tytuł zadania. **NIE dało się zweryfikować wizualnie:**
 na Dashboard w tym środowisku) i sam natywny `DateTimePickerAndroid` (moduł
 natywny, nie działa pod `react-native-web`) — oba wymagają testu na
 realnym urządzeniu.
+
+## Runda poprawek 13 (2026-11-08/09) — ikona, klawiatura, kalendarz, paragon, waluta obca, etykiety Humoru
+
+**1. Ikona appki dalej szara, nie pomarańczowa marka — ZROBIONE.** User:
+"Ale ikona aplikacji nadal stara.. zmieniłeś wszystko?" — `icon.png`/
+`adaptive-icon.png`/`splash.png` (te na które wskazuje `app.json`) zostały
+wcześniej nadpisane przez usera, ale okazało się że to był szary/blady
+szkic znaku "S", NIE jeden z 3 właściwych pomarańczowych wariantów
+(`Logo_Sapp2_*.png`) które user TEŻ dodał do repo — poprzednia runda
+założyła że te pliki są już "zrobione" po samej historii commitów, nie
+zajrzała w ich faktyczną treść. Fix: `icon.png` ← `Logo_Sapp2_BlackOrange.png`,
+`adaptive-icon.png`/`splash.png` ← `Logo_Sapp2_OrangeTranspare.png`.
+Zweryfikowane przez `expo prebuild` + konwersję wygenerowanego
+`ic_launcher.webp` do PNG i obejrzenie — faktycznie pomarańczowy.
+
+**2. Sheet po zamknięciu klawiatury zostawał w złej pozycji — ZROBIONE.**
+User: "jak dodaje Płatność, to... gdy wyłączam klawiaturę to zostaje w złej
+pozycji jakby kafelek". `KeyboardAvoidingView` (`behavior="height"` na
+Androidzie) zastąpiony jawnym śledzeniem `Keyboard.addListener`
+(`keyboardDidShow`/`Hide`) + `Animated.Value` jako dodatkowy `paddingBottom`
+na `AppBottomSheet`'s `sheetOuter` — RN-owe `behavior="height"` czasem nie
+przelicza się z powrotem poprawnie na Androidzie przy dynamicznie
+zmieniającej się wysokości dziecka (nasz `sheet`'s `maxHeight`). Jawny
+listener zawsze animuje do 0 na `keyboardDidHide`.
+
+**3. Pole wklejania paragonu za duże — ZROBIONE.** Zwinięte domyślnie (ten
+sam wzorzec co "Zapłacono"), `minHeight` też zmniejszony (90→64) gdy
+rozwinięte.
+
+**4. Widok miesiąca skacze wysokością między miesiącami — ZROBIONE.**
+`getMonthGrid()` (MonthViewModal.tsx) dopełniała siatkę tylko do
+najbliższej wielokrotności 7 (4-6 wierszy zależnie od miesiąca) — teraz
+ZAWSZE 42 komórki (6 tygodni, maksimum jakiego jakikolwiek miesiąc może
+potrzebować), więc wysokość jest stała niezależnie od miesiąca.
+
+**5. Auto-wykrywanie paragonu w schowku + skondensowane "Rozlicz jako" —
+ZROBIONE.** Przy każdym świeżym otwarciu "Nowy wydatek" appka sama sprawdza
+schowek (heurystyka: długość + wzorzec kwoty), pokazuje baner "Wykryto
+możliwy paragon" z Rozpoznaj/X. "Rozlicz jako" (Auto/Stałe/Zmienne/
+Jedzenie/Przelew własny) zwinięte za podsumowującym rzędem, ten sam wzorzec
+co "Zapłacono" — user: "większość funkcji... rzadko klikam a zajmują sporo
+miejsca i chaosu".
+
+**6. Płatności w obcej walucie — ZROBIONE.** User: "jak jest płatność w
+obcej walucie niech też od razu dodaje automatycznie... jak obca waluta
+niech się nie liczy bezpośrednio tylko po kliknięciu trzeba wprowadzić ile
+to w PLN żeby zapisać i wtedy się liczy". `bankIngest.ts`: waluta obca już
+NIE wymusza ręcznego przeglądu (tylko nietypowo wysoka kwota dalej to robi,
+niezależnie od waluty). `bankCommit.ts`: każdy committowany wydatek/przychód
+w obcej walucie dostaje `amount: 0` + `originalAmount`/`originalCurrency`
+(pole `originalAmount` już istniało w `MatchExpense`/`amountMatches` jako
+hak na dedup, po prostu nigdy nie było zapisywane na `Expense` — teraz
+redostarczone powiadomienie o TEJ SAMEJ obcej płatności dalej trafia w
+dedup). `AddExpenseModal.tsx`: edycja takiego wydatku pokazuje baner z
+oryginałem i wymaga wpisania PLN w polu Kwota żeby zapisać (naturalnie
+wymuszone przez `canSave = amount > 0`).
+
+**7. Pionowe etykiety osi Humoru ("Nieprzyjemnie"/"Przyjemnie") renderowały
+się połamane — ZROBIONE.** User zrzutem: porozrzucane, nachodzące na siebie
+fragmenty zamiast jednego słowa bokiem. Przyczyna: wąski (22px) wrapper +
+Text bez własnych wymiarów → Yoga mierzy tekst WEWNĄTRZ tego ograniczenia
+nawet przy `alignItems:'center'` (nie tylko `'stretch'`), więc zawijał się
+PRZED obrotem. `numberOfLines={1}` samo nie wystarczyło (zweryfikowane —
+nadal obcinało z "…"). Fix: jawne `width:110, height:14` na samym Tekście
+(Exactly tryb na obu osiach, zero pomiaru).
+
+**Zweryfikowane:** tsc czysty, jest 185/185 (nowe testy dla waluty obcej w
+bankCommit.test.ts). Wizualnie przez `expo web`+Playwright (w tym
+`navigator.clipboard` z prawdziwymi permissions dla punktu 5, konwersja
+wygenerowanych `.webp` ikon dla punktu 1, inspekcja computed style dla
+punktu 7). **DO POTWIERDZENIA NA URZĄDZENIU:** smooth powrót sheeta po
+klawiaturze (punkt 2), sam `DateTimePickerAndroid`/auth-gate'owane `/login`
+(niezweryfikowalne pod `react-native-web`, jak już wcześniej).
