@@ -109,6 +109,12 @@ export default function AddExpenseModal({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   const [payer, setPayer] = useState<'me' | 'partner'>('me');
   const [paidOpen, setPaidOpen] = useState(false);
+  // 2026-11-09, user: "ten parser paragonu miejsce wklejania tekstu moze być
+  // mniejsze albo wgle pominięte" — pole ręcznego wklejania jest TYLKO ścieżką
+  // zapasową (FAB "wklej ze schowka" w stopce to droga główna, jedno
+  // tapnięcie), a mimo to zajmowało stałe miejsce na samej górze formularza
+  // za każdym razem. Zwinięte domyślnie, ten sam wzorzec co "Zapłacono" niżej.
+  const [pasteBoxOpen, setPasteBoxOpen] = useState(false);
   const [fvChoice, setFvChoice] = useState<FvOverride | 'auto'>('auto');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
@@ -116,7 +122,7 @@ export default function AddExpenseModal({
   const reset = () => {
     setType('expense'); setPasteText(''); setUsedPaste(false); setItems([]); setParsedTotal(0);
     setStoreName(''); setNote(''); setAmountInput(''); setDate(todayISO()); setPaymentMethod('card');
-    setPayer('me'); setPaidOpen(false); setFvChoice('auto'); setTags([]); setTagInput('');
+    setPayer('me'); setPaidOpen(false); setPasteBoxOpen(false); setFvChoice('auto'); setTags([]); setTagInput('');
   };
 
   // Wypełnienie formularza przy otwarciu w trybie edycji — `editingExpense` jest
@@ -314,20 +320,27 @@ export default function AddExpenseModal({
 
       {type === 'expense' && (
         <View style={s.section}>
-          <Text style={s.label}>Wklej tekst paragonu</Text>
-          <TextInput
-            value={pasteText}
-            onChangeText={setPasteText}
-            placeholder="Wklej tekst paragonu ze sklepu / SMS-a / aplikacji banku…"
-            placeholderTextColor={colors.text.muted}
-            style={s.pasteInput}
-            multiline
-            textAlignVertical="top"
-          />
-          <TouchableOpacity style={[s.parseBtn, !pasteText.trim() && s.btnDisabled]} onPress={handleParse} disabled={!pasteText.trim()} activeOpacity={0.7}>
-            <ClipboardPaste size={14} color={colors.bg.primary} />
-            <Text style={s.parseBtnLabel}>Rozpoznaj paragon</Text>
+          <TouchableOpacity style={s.paidSummaryRow} onPress={() => setPasteBoxOpen((v) => !v)} activeOpacity={0.7}>
+            <Text style={s.label}>Wklej tekst paragonu ręcznie</Text>
+            {pasteBoxOpen ? <ChevronUp size={14} color={colors.text.muted} /> : <ChevronDown size={14} color={colors.text.muted} />}
           </TouchableOpacity>
+          {pasteBoxOpen && (
+            <View style={s.paidDetail}>
+              <TextInput
+                value={pasteText}
+                onChangeText={setPasteText}
+                placeholder="Wklej tekst paragonu ze sklepu / SMS-a / aplikacji banku…"
+                placeholderTextColor={colors.text.muted}
+                style={s.pasteInput}
+                multiline
+                textAlignVertical="top"
+              />
+              <TouchableOpacity style={[s.parseBtn, !pasteText.trim() && s.btnDisabled]} onPress={handleParse} disabled={!pasteText.trim()} activeOpacity={0.7}>
+                <ClipboardPaste size={14} color={colors.bg.primary} />
+                <Text style={s.parseBtnLabel}>Rozpoznaj paragon</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
 
@@ -549,7 +562,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   pasteInput: {
     fontSize: 13, fontFamily: 'Inter_500Medium', color: c.text.primary,
     backgroundColor: c.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default,
-    padding: spacing[3], minHeight: 90, marginBottom: spacing[2],
+    padding: spacing[3], minHeight: 64, marginBottom: spacing[2],
   },
   parseBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,

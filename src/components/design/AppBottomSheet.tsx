@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import {
   Modal, View, StyleSheet, ScrollView, TouchableWithoutFeedback,
-  KeyboardAvoidingView, Platform, Animated, Easing, Dimensions,
+  Platform, Animated, Easing, Dimensions, Keyboard,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
@@ -115,6 +115,39 @@ export default function AppBottomSheet({
     }
   }, [visible, backdropOpacity, sheetY]);
 
+  // Klawiatura: WŁASNE śledzenie przez `Keyboard` eventy zamiast
+  // `KeyboardAvoidingView` (2026-11-09, user: "jak wyłączam klawiaturę to
+  // zostaje w złej pozycji jakby kafelek") — `behavior="height"` kazało
+  // `KeyboardAvoidingView` samemu ZMIERZYĆ i ustawić swoją wysokość gdy
+  // klawiatura się pokazuje, ale na Androidzie to mierzenie czasem nie
+  // przelicza się z powrotem poprawnie po schowaniu klawiatury (znany
+  // RN-owy problem z `behavior="height"` + dynamicznie rosnącą/malejącą
+  // treścią dziecka, jak nasz `sheet`'s `maxHeight`) — sheet zostawał
+  // wsunięty w górę na stałe. Teraz jawny `Animated.Value` (`keyboardOffset`)
+  // odpychany TYLKO przez explicit `keyboardDidShow`/`keyboardDidHide`
+  // eventy — `keyboardDidHide` ZAWSZE animuje z powrotem do 0, więc nie ma
+  // czego "zaciąć się" w pół drogi.
+  const keyboardOffset = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvt, (e) => {
+      Animated.timing(keyboardOffset, {
+        toValue: e.endCoordinates.height,
+        duration: e.duration || 220,
+        useNativeDriver: false,
+      }).start();
+    });
+    const hideSub = Keyboard.addListener(hideEvt, (e) => {
+      Animated.timing(keyboardOffset, {
+        toValue: 0,
+        duration: e.duration || 200,
+        useNativeDriver: false,
+      }).start();
+    });
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, [keyboardOffset]);
+
   const Body = scrollable ? ScrollView : View;
   const bodyProps = scrollable
     // `style` (NIE tylko `contentContainerStyle`) z `flexShrink:1` — bez tego
@@ -160,32 +193,26 @@ export default function AppBottomSheet({
           </Animated.View>
         </TouchableWithoutFeedback>
 
-        {/* `behavior="height"` na Androidzie (2026-11-04, user: zrzut — po
-            tapnięciu w pole tekstowe klawiatura CAŁKOWICIE zasłaniała sheet,
-            który zostawał na swojej stałej pozycji "flush bottom" zamiast
-            wjechać wyżej) — `Modal` z 'react-native' renderuje się jako
-            WŁASNE natywne okno (Android `Dialog`), które NIE dziedziczy
+        {/* `Modal` z 'react-native' renderuje się jako WŁASNE natywne okno
+            (Android `Dialog`), które NIE dziedziczy
             `android:windowSoftInputMode="adjustResize"` z manifestu
             MainActivity (to ustawienie dotyczy samej Activity, nie
-            dowolnego Dialogu nad nią) — stąd klawiatura po prostu nakłada
-            się na sheet, nic go nie przesuwa. `"height"` (nie `undefined`
-            jak wcześniej) każe `KeyboardAvoidingView` samemu skurczyć się o
-            wysokość klawiatury, co przez `sheetOuter`'s
+            dowolnego Dialogu nad nią) — stąd klawiatura sama z siebie
+            nakłada się na sheet, nic go nie przesuwa. `keyboardOffset`
+            (patrz hook wyżej) daje dodatkowy `paddingBottom`, który przez
             `justifyContent:'flex-end'` wypycha sheet w górę dokładnie o
-            tyle ile trzeba. iOS zostaje przy `"padding"` (standardowy,
-            sprawdzony wybór dla tego wzorca na obu platformach). */}
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={s.sheetOuter}
-          pointerEvents="box-none"
-        >
+            wysokość klawiatury — i, kluczowe, ZAWSZE wraca do 0 jawnie na
+            `keyboardDidHide`, bez polegania na `KeyboardAvoidingView`'s
+            własnym (zawodnym na Androidzie przy dynamicznej wysokości
+            dziecka) przeliczaniu. */}
+        <Animated.View style={[s.sheetOuter, { paddingBottom: Animated.add(spacing[2], keyboardOffset) }]} pointerEvents="box-none">
           <Animated.View style={[s.sheet, { transform: [{ translateY: sheetY }] }]}>
             <View style={s.handleWrap}><View style={s.handle} /></View>
             {header && <View style={s.header}>{header}</View>}
             <Body {...bodyProps}>{children}</Body>
             {footer && <View style={s.footer}>{footer}</View>}
           </Animated.View>
-        </KeyboardAvoidingView>
+        </Animated.View>
       </GestureHandlerRootView>
     </Modal>
   );
