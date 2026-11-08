@@ -41,6 +41,16 @@ function genId(): string {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+// Luźny, celowo permisywny heurystyk (2026-11-09, user wybrał "auto-wykrywanie
+// przy otwarciu" zamiast samego FAB-a) — fałszywy pozytyw kosztuje tylko
+// niegroźny baner do zignorowania, fałszywy negatyw i tak ma FAB jako pewną
+// ścieżkę zapasową, więc nie trzeba próbować być precyzyjnym jak sam parser.
+// Sygnał: przyzwoita długość + co najmniej jedna kwota w stylu "12,34"/"12.34".
+function looksLikeReceiptText(text: string): boolean {
+  const t = text.trim();
+  return t.length >= 15 && /\d+[.,]\d{2}/.test(t);
+}
+
 const FV_CHOICES: { key: FvOverride | 'auto'; label: string }[] = [
   { key: 'auto', label: 'Auto' },
   { key: 'fixed', label: 'Stałe' },
@@ -115,14 +125,28 @@ export default function AddExpenseModal({
   // tapnięcie), a mimo to zajmowało stałe miejsce na samej górze formularza
   // za każdym razem. Zwinięte domyślnie, ten sam wzorzec co "Zapłacono" niżej.
   const [pasteBoxOpen, setPasteBoxOpen] = useState(false);
+  const [fvOpen, setFvOpen] = useState(false);
   const [fvChoice, setFvChoice] = useState<FvOverride | 'auto'>('auto');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+  // 2026-11-09, user wybrał "auto-wykrywanie przy otwarciu" zamiast polegania
+  // WYŁĄCZNIE na FAB-ie "wklej ze schowka" — przy KAŻDYM świeżym otwarciu (nie
+  // edycji — tam schowek nie ma znaczenia) appka sama zerka w schowek; jeśli
+  // wygląda jak paragon, pokazuje baner z opcją "Rozpoznaj" zamiast czekać aż
+  // user sam to zauważy i tapnie FAB-a.
+  const [clipboardSuggestion, setClipboardSuggestion] = useState<string | null>(null);
+  useEffect(() => {
+    if (!visible || editingExpense) { setClipboardSuggestion(null); return; }
+    Clipboard.getStringAsync().then((text) => {
+      if (text && looksLikeReceiptText(text)) setClipboardSuggestion(text);
+    });
+  }, [visible, editingExpense]);
 
   const reset = () => {
     setType('expense'); setPasteText(''); setUsedPaste(false); setItems([]); setParsedTotal(0);
     setStoreName(''); setNote(''); setAmountInput(''); setDate(todayISO()); setPaymentMethod('card');
-    setPayer('me'); setPaidOpen(false); setPasteBoxOpen(false); setFvChoice('auto'); setTags([]); setTagInput('');
+    setPayer('me'); setPaidOpen(false); setPasteBoxOpen(false); setFvOpen(false);
+    setFvChoice('auto'); setTags([]); setTagInput(''); setClipboardSuggestion(null);
   };
 
   // Wypełnienie formularza przy otwarciu w trybie edycji — `editingExpense` jest
@@ -189,6 +213,15 @@ export default function AddExpenseModal({
     setPasteText(text);
     runParse(text);
   };
+
+  const acceptClipboardSuggestion = () => {
+    if (!clipboardSuggestion) return;
+    haptic.success();
+    setPasteText(clipboardSuggestion);
+    runParse(clipboardSuggestion);
+    setClipboardSuggestion(null);
+  };
+  const dismissClipboardSuggestion = () => { haptic.tap(); setClipboardSuggestion(null); };
 
   const addBlankItem = () => setItems((prev) => [...prev, { name: '', price: 0, quantity: 1, unitPrice: 0 }]);
   const updateItem = (idx: number, patch: Partial<ReceiptItem>) =>
@@ -318,6 +351,21 @@ export default function AddExpenseModal({
         </TouchableOpacity>
       </View>
 
+      {type === 'expense' && clipboardSuggestion && (
+        <View style={[s.section, s.clipboardBanner]}>
+          <Text style={s.clipboardBannerText}>Wykryto możliwy paragon w schowku</Text>
+          <View style={s.clipboardBannerActions}>
+            <TouchableOpacity onPress={dismissClipboardSuggestion} hitSlop={8} style={s.clipboardDismissBtn}>
+              <X size={14} color={colors.text.muted} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={acceptClipboardSuggestion} style={s.clipboardAcceptBtn} activeOpacity={0.7}>
+              <ClipboardPaste size={13} color={colors.bg.primary} />
+              <Text style={s.clipboardAcceptLabel}>Rozpoznaj</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {type === 'expense' && (
         <View style={s.section}>
           <TouchableOpacity style={s.paidSummaryRow} onPress={() => setPasteBoxOpen((v) => !v)} activeOpacity={0.7}>
@@ -440,19 +488,30 @@ export default function AddExpenseModal({
 
       {type === 'expense' && (
         <View style={s.section}>
-          <Text style={s.label}>Rozlicz jako</Text>
-          <View style={s.chips}>
-            {FV_CHOICES.map((opt) => (
-              <TouchableOpacity
-                key={opt.key}
-                style={[s.chip, fvChoice === opt.key && s.chipActive]}
-                onPress={() => setFvChoice(opt.key)}
-                activeOpacity={0.7}
-              >
-                <Text style={[s.chipLabel, fvChoice === opt.key && s.chipLabelActive]}>{opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {/* Zwinięte domyślnie (2026-11-09, user: "auto przydzielenie wydatku...
+              rzadko klikam a zajmują sporo miejsca i chaosu") — ten sam wzorzec co
+              "Zapłacono" niżej: "Auto" trafnie zgaduje kubeł w ~zdecydowanej
+              większości przypadków, więc pełny rząd 5 chipów nie zasługuje na
+              stałe miejsce, ale wartość (i tak że JEST coś wybrane) musi być
+              widoczna bez rozwijania. */}
+          <TouchableOpacity style={s.paidSummaryRow} onPress={() => setFvOpen((v) => !v)} activeOpacity={0.7}>
+            <Text style={s.label}>Rozlicz jako: {FV_CHOICES.find((o) => o.key === fvChoice)?.label}</Text>
+            {fvOpen ? <ChevronUp size={14} color={colors.text.muted} /> : <ChevronDown size={14} color={colors.text.muted} />}
+          </TouchableOpacity>
+          {fvOpen && (
+            <View style={[s.paidDetail, s.chips]}>
+              {FV_CHOICES.map((opt) => (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[s.chip, fvChoice === opt.key && s.chipActive]}
+                  onPress={() => setFvChoice(opt.key)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[s.chipLabel, fvChoice === opt.key && s.chipLabelActive]}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
       )}
 
@@ -658,4 +717,21 @@ const makeS = themedStyles((c) => StyleSheet.create({
   paidDetail: { marginTop: spacing[2], gap: spacing[2] },
   subLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
   subLabelGap: { marginTop: spacing[1] },
+
+  // Baner auto-wykrytego paragonu w schowku (2026-11-09) — `c.accent.blue` zamiast
+  // zwykłego `c.bg.card` żeby wyraźnie odróżniał się od reszty formularza (jedyny
+  // element na ekranie który wymaga decyzji OD RAZU, zanim user przewinie dalej).
+  clipboardBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2],
+    backgroundColor: `${c.accent.blue}1A`, borderRadius: radius.md, borderWidth: 1, borderColor: `${c.accent.blue}55`,
+    paddingHorizontal: spacing[3], paddingVertical: spacing[2],
+  },
+  clipboardBannerText: { flex: 1, fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  clipboardBannerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  clipboardDismissBtn: { padding: 2 },
+  clipboardAcceptBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: c.text.bright, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 6,
+  },
+  clipboardAcceptLabel: { fontSize: 11.5, fontFamily: 'Inter_900Black', color: c.bg.primary },
 }));
