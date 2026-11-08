@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Plus } from 'lucide-react-native';
-import { spacing, themedStyles } from '@/theme';
+import { spacing, radius, themedStyles } from '@/theme';
+import { colors } from '@/theme/colors';
 import { Screen, Row, Tile, FitList } from '@/ui/layout';
 import { C, T, R } from '@/ui/theme';
 import { haptic } from '@/utils/haptics';
@@ -62,6 +63,8 @@ export default function TasksScreen() {
   const deleteTask = useCalendarStore((st) => st.deleteTask);
 
   const [composerOpen, setComposerOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [detailDate, setDetailDate] = useState<string | null>(null);
   const [segment, setSegment] = useState<'wszystkie' | 'teraz' | 'bezterminowe'>('wszystkie');
 
@@ -112,19 +115,24 @@ export default function TasksScreen() {
 
   const activeList = buckets[segment];
 
-  const handleAdd = (input: { title: string; tags: string[]; deadline?: string }) => {
+  const handleSaveTask = (input: { title: string; tags: string[]; deadline?: string }) => {
     const now = new Date().toISOString();
-    addTask({
-      id: genId(),
-      title: input.title,
-      tags: input.tags,
-      deadline: input.deadline,
-      status: 'pending',
-      priority: 'normal',
-      createdAt: now,
-      updatedAt: now,
-    });
+    if (editingTask) {
+      updateTask(editingTask.id, { title: input.title, tags: input.tags, deadline: input.deadline, updatedAt: now });
+    } else {
+      addTask({
+        id: genId(),
+        title: input.title,
+        tags: input.tags,
+        deadline: input.deadline,
+        status: 'pending',
+        priority: 'normal',
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
   };
+  const closeComposer = () => { setComposerOpen(false); setEditingTask(null); };
 
   const handleToggleDone = (id: string) => {
     updateTask(id, { status: 'done', updatedAt: new Date().toISOString() });
@@ -150,7 +158,14 @@ export default function TasksScreen() {
             minRowH={56}
             maxRowH={56}
             renderItem={(t, i) => (
-              <TaskRow key={t.id} task={t} isLast={i === activeList.length - 1} onToggleDone={handleToggleDone} onDelete={deleteTask} />
+              <TaskRow
+                key={t.id}
+                task={t}
+                isLast={i === activeList.length - 1}
+                onToggleDone={handleToggleDone}
+                onRequestDelete={setDeletingTask}
+                onEdit={setEditingTask}
+              />
             )}
             emptyText="Pusto"
           />
@@ -171,8 +186,35 @@ export default function TasksScreen() {
         </Tile>
       </Row>
 
-      <AppBottomSheet visible={composerOpen} onClose={() => setComposerOpen(false)}>
-        <AddTaskCard onAdd={handleAdd} onClose={() => setComposerOpen(false)} />
+      <AppBottomSheet visible={composerOpen || !!editingTask} onClose={closeComposer}>
+        <AddTaskCard editingTask={editingTask} onSave={handleSaveTask} onClose={closeComposer} />
+      </AppBottomSheet>
+
+      {/* Potwierdzenie usunięcia (2026-11-08, user: "dodac... potwierdzenie
+          usunięcia taskow") — mały, nie-scrollowalny sheet zamiast natywnego
+          `Alert.alert` (jedyny `Alert` w appce był tymczasową diagnostyką
+          bottom-sheeta, usuniętą — appka konsekwentnie NIE używa natywnego
+          chrome tam gdzie to widoczna, częsta interakcja, tylko tam gdzie
+          oszczędza realną złożoność, jak natywny date/time picker wyżej). */}
+      <AppBottomSheet visible={!!deletingTask} onClose={() => setDeletingTask(null)} scrollable={false}>
+        {deletingTask && (
+          <View style={s.confirmBody}>
+            <Text style={s.confirmTitle}>Usunąć zadanie?</Text>
+            <Text style={s.confirmText} numberOfLines={2}>{deletingTask.title}</Text>
+            <View style={s.confirmActions}>
+              <TouchableOpacity style={s.confirmCancel} onPress={() => { haptic.tap(); setDeletingTask(null); }} activeOpacity={0.7}>
+                <Text style={s.confirmCancelLabel}>Anuluj</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.confirmDelete}
+                onPress={() => { haptic.warn(); deleteTask(deletingTask.id); setDeletingTask(null); }}
+                activeOpacity={0.7}
+              >
+                <Text style={s.confirmDeleteLabel}>Usuń</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </AppBottomSheet>
 
       <DayDetailModal
@@ -189,7 +231,7 @@ function genId(): string {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
-const makeS = themedStyles(() => StyleSheet.create({
+const makeS = themedStyles((c) => StyleSheet.create({
   weekTile: { padding: 6 },
   listTile: { gap: spacing[2] },
   bottomRow: { flexDirection: 'row', gap: spacing[2], alignItems: 'center' },
@@ -197,4 +239,12 @@ const makeS = themedStyles(() => StyleSheet.create({
     width: 48, height: 48, borderRadius: R.btn, backgroundColor: C.hi,
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
+  confirmBody: { gap: spacing[2], paddingVertical: spacing[1] },
+  confirmTitle: { fontSize: 18, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },
+  confirmText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: c.text.secondary },
+  confirmActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing[2], marginTop: spacing[2] },
+  confirmCancel: { paddingHorizontal: spacing[3], paddingVertical: spacing[2] },
+  confirmCancelLabel: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  confirmDelete: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md, backgroundColor: colors.accent.red },
+  confirmDeleteLabel: { fontSize: 12.5, fontFamily: 'Inter_900Black', color: '#fff' },
 }));

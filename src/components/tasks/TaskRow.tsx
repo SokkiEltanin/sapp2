@@ -5,32 +5,39 @@ import { spacing, radius, themedStyles } from '@/theme';
 import { haptic } from '@/utils/haptics';
 import type { Task } from '@/types/calendar';
 
-// Wiersz zadania — kosz z LEWEJ (tap = usuń od razu, bez potwierdzenia — świadomie
-// proste, zgodnie z CLAUDE.md "nie dodawaj walidacji/fallbacków dla scenariuszy
-// które nie muszą tu być"), tytuł + opcjonalne tagi (neutralne szare chipy — brak
-// koloru w modelu `Task.tags`, kolorowe tagi z Dashboardu to mock-dane z osobnym
-// polem `color`, nie port tego samego typu), checkbox z PRAWEJ (tap = oznacz
-// ukończone, znika z listy, patrz app/(tabs)/tasks.tsx: sekcje filtrują
-// `status === 'pending'`). Kolejność odwrócona 2026-10-30 na wyraźną prośbę usera:
+// Wiersz zadania — kosz z LEWEJ (tap = ZAPYTAJ o potwierdzenie, patrz
+// `onRequestDelete`/tasks.tsx's confirm sheet — 2026-11-08, user: "dodac...
+// potwierdzenie usunięcia taskow"; PRZED tą zmianą usuwało od razu, bez
+// potwierdzenia, co dla przypadkowego stuknięcia jest nieodwracalne), tytuł +
+// opcjonalne tagi (neutralne szare chipy — brak koloru w modelu `Task.tags`,
+// kolorowe tagi z Dashboardu to mock-dane z osobnym polem `color`, nie port
+// tego samego typu) — TAP na całą treść otwiera edycję (`onEdit`, też
+// 2026-11-08, user: "dodac edycje... taskow" — wcześniej jedyną akcją na
+// istniejącym zadaniu było usuń/odznacz, zero sposobu poprawić literówkę czy
+// zmienić termin), checkbox z PRAWEJ (tap = oznacz ukończone, znika z listy,
+// patrz app/(tabs)/tasks.tsx: sekcje filtrują `status === 'pending'`).
+// Kolejność kosz/checkbox odwrócona 2026-10-30 na wyraźną prośbę usera:
 // "odznaczenie po prawej a usuń po lewej" (wcześniej było odwrotnie).
 export default function TaskRow({
   task,
   isLast,
   onToggleDone,
-  onDelete,
+  onRequestDelete,
+  onEdit,
 }: {
   task: Task;
   isLast?: boolean;
   onToggleDone: (id: string) => void;
-  onDelete: (id: string) => void;
+  onRequestDelete: (task: Task) => void;
+  onEdit: (task: Task) => void;
 }) {
   const s = makeS();
   return (
     <View style={[s.row, !isLast && s.rowDivider]}>
-      <TouchableOpacity onPress={() => { haptic.warn(); onDelete(task.id); }} hitSlop={8}>
+      <TouchableOpacity onPress={() => { haptic.tap(); onRequestDelete(task); }} hitSlop={8}>
         <Trash2 size={16} color={colors.text.muted} />
       </TouchableOpacity>
-      <View style={s.content}>
+      <TouchableOpacity style={s.content} onPress={() => { haptic.tap(); onEdit(task); }} activeOpacity={0.7}>
         <Text style={s.title} numberOfLines={2}>{task.title}</Text>
         {task.tags.length > 0 && (
           <View style={s.tags}>
@@ -41,7 +48,7 @@ export default function TaskRow({
             ))}
           </View>
         )}
-      </View>
+      </TouchableOpacity>
       <TouchableOpacity onPress={() => { haptic.success(); onToggleDone(task.id); }} hitSlop={8}>
         {task.status === 'done'
           ? <CheckCircle2 size={20} color={colors.text.bright} />

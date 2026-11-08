@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { ymd, todayISO } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
+import type { Task } from '@/types/calendar';
 
 // Dodawanie zadania (2026-10-30, user: "może od razu z... działające zadania"). Jedno
 // pole terminu napędza kategoryzację na TERAZ/TERMINOWE/BEZTERMINOWE w tasks.tsx
@@ -28,31 +30,105 @@ import { haptic } from '@/utils/haptics';
 // w pudełku" dublowałoby chrome. Tytuł "Nowe zadanie" dodany na górze — odpowiednik
 // spec's `taskAdd` popupu (`.st`/`.sh`), bez redundantnej drugiej linii "Dodaj",
 // której mockup używa jako generycznego szablonu wszystkich popupów formularzy.
+//
+// `editingTask` + "Dokładny termin" (2026-11-08, user: "edycja zadan, mozliwosc
+// ustawienia przy dodawaniu terminu dokładnego w stylu samsunga scroll plus
+// klikalny kalendarz" + "dodac edycje... taskow") — dwie osobne prośby, ten sam
+// plik. Edycja: ten sam formularz co dodawanie (jak `AddExpenseModal`'s
+// `editingExpense`), wstępnie wypełniony z `editingTask`, `onSave` zamiast `onAdd`
+// (parent w `tasks.tsx` decyduje `addTask` vs `updateTask` po tym czy
+// `editingTask` było ustawione przy otwarciu). Dokładny termin: PIĄTY chip
+// otwiera naTYWny `DateTimePickerAndroid` (data → potem godzina, połączone w
+// jedno) — to DOKŁADNIE ten sam, już sprawdzony wzorzec co w `AddExpenseModal`
+// (`openDatePicker`), świadomie NIE własny UI kalendarza/scrolla do budowania —
+// na Samsungu z One UI to WŁAŚNIE jest "styl Samsunga" (systemowy dialog, nie
+// jego imitacja).
 const DEADLINE_OPTIONS = [
   { key: 'none', label: 'Bez terminu' },
   { key: 'today', label: 'Dziś' },
   { key: 'tomorrow', label: 'Jutro' },
   { key: 'week', label: 'Za tydzień' },
 ] as const;
-type DeadlineChoice = (typeof DEADLINE_OPTIONS)[number]['key'];
+type DeadlineChoice = (typeof DEADLINE_OPTIONS)[number]['key'] | 'custom';
+
+// Parsuje zarówno stare, "data-only" deadliny (`YYYY-MM-DD`, bez godziny — jak
+// zapisywały dotychczasowe szybkie opcje) jak i nowe precyzyjne
+// (`YYYY-MM-DDTHH:MM:00`, lokalny czas bez strefy — ten sam zapis co
+// `eventStart()` w `app/(tabs)/index.tsx` już używa gdzie indziej w appce).
+function parseDeadline(deadline: string): Date {
+  return deadline.includes('T') ? new Date(deadline) : new Date(`${deadline}T00:00:00`);
+}
+
+function formatCustomLabel(d: Date): string {
+  const day = d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+  const time = d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+  return `${day} · ${time}`;
+}
 
 export default function AddTaskCard({
-  onAdd,
+  editingTask,
+  onSave,
   onClose,
 }: {
-  onAdd: (input: { title: string; tags: string[]; deadline?: string }) => void;
+  editingTask?: Task | null;
+  onSave: (input: { title: string; tags: string[]; deadline?: string }) => void;
   onClose: () => void;
 }) {
   const s = makeS();
   const [title, setTitle] = useState('');
   const [tag, setTag] = useState('');
   const [deadlineChoice, setDeadlineChoice] = useState<DeadlineChoice>('none');
+  const [customDeadline, setCustomDeadline] = useState<Date | null>(null);
+
+  useEffect(() => {
+    if (editingTask) {
+      setTitle(editingTask.title);
+      setTag(editingTask.tags[0] ?? '');
+      if (editingTask.deadline) {
+        setDeadlineChoice('custom');
+        setCustomDeadline(parseDeadline(editingTask.deadline));
+      } else {
+        setDeadlineChoice('none');
+        setCustomDeadline(null);
+      }
+    } else {
+      setTitle('');
+      setTag('');
+      setDeadlineChoice('none');
+      setCustomDeadline(null);
+    }
+  }, [editingTask]);
 
   const reset = () => {
     setTitle('');
     setTag('');
     setDeadlineChoice('none');
+    setCustomDeadline(null);
     onClose();
+  };
+
+  const pickCustomDeadline = () => {
+    haptic.tap();
+    const base = customDeadline ?? new Date();
+    DateTimePickerAndroid.open({
+      value: base,
+      mode: 'date',
+      onChange: (dateEvent, selectedDate) => {
+        if (dateEvent.type !== 'set' || !selectedDate) return;
+        DateTimePickerAndroid.open({
+          value: selectedDate,
+          mode: 'time',
+          is24Hour: true,
+          onChange: (timeEvent, selectedTime) => {
+            if (timeEvent.type !== 'set' || !selectedTime) return;
+            const combined = new Date(selectedDate);
+            combined.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+            setCustomDeadline(combined);
+            setDeadlineChoice('custom');
+          },
+        });
+      },
+    });
   };
 
   const handleSave = () => {
@@ -60,20 +136,24 @@ export default function AddTaskCard({
     if (!trimmedTitle) return;
     haptic.success();
     let deadline: string | undefined;
-    if (deadlineChoice !== 'none') {
+    if (deadlineChoice === 'custom' && customDeadline) {
+      const hh = String(customDeadline.getHours()).padStart(2, '0');
+      const mm = String(customDeadline.getMinutes()).padStart(2, '0');
+      deadline = `${ymd(customDeadline)}T${hh}:${mm}:00`;
+    } else if (deadlineChoice !== 'none') {
       const d = new Date();
       if (deadlineChoice === 'tomorrow') d.setDate(d.getDate() + 1);
       else if (deadlineChoice === 'week') d.setDate(d.getDate() + 7);
       deadline = deadlineChoice === 'today' ? todayISO() : ymd(d);
     }
     const trimmedTag = tag.trim();
-    onAdd({ title: trimmedTitle, tags: trimmedTag ? [trimmedTag] : [], deadline });
+    onSave({ title: trimmedTitle, tags: trimmedTag ? [trimmedTag] : [], deadline });
     reset();
   };
 
   return (
     <View style={s.card}>
-      <Text style={s.title}>Nowe zadanie</Text>
+      <Text style={s.title}>{editingTask ? 'Edytuj zadanie' : 'Nowe zadanie'}</Text>
       <TextInput
         value={title}
         onChangeText={setTitle}
@@ -101,6 +181,15 @@ export default function AddTaskCard({
             <Text style={[s.chipLabel, deadlineChoice === opt.key && s.chipLabelActive]}>{opt.label}</Text>
           </TouchableOpacity>
         ))}
+        <TouchableOpacity
+          style={[s.chip, deadlineChoice === 'custom' && s.chipActive]}
+          onPress={pickCustomDeadline}
+          activeOpacity={0.7}
+        >
+          <Text style={[s.chipLabel, deadlineChoice === 'custom' && s.chipLabelActive]}>
+            {deadlineChoice === 'custom' && customDeadline ? formatCustomLabel(customDeadline) : 'Dokładny termin'}
+          </Text>
+        </TouchableOpacity>
       </View>
       <View style={s.actions}>
         <TouchableOpacity style={s.cancelBtn} onPress={() => { haptic.tap(); reset(); }} activeOpacity={0.7}>
@@ -112,7 +201,7 @@ export default function AddTaskCard({
           disabled={!title.trim()}
           activeOpacity={0.7}
         >
-          <Text style={s.saveLabel}>Dodaj</Text>
+          <Text style={s.saveLabel}>{editingTask ? 'Zapisz' : 'Dodaj'}</Text>
         </TouchableOpacity>
       </View>
     </View>
