@@ -598,7 +598,12 @@ export default function AddExpenseModal({
         </View>
       )}
 
-      <View style={s.section}>
+      {/* 2026-11-09, user zrzutem: przycisk "+" Tagów (ostatnia sekcja, prawy dolny
+          róg body) nachodził na pływający `pasteFab` — ten floatuje `bottom:'100%'`
+          NAD `footerRoot`em niezależnie od scrolla body, więc body musi świadomie
+          zarezerwować pod nim pustą przestrzeń (48 wysokość FAB-a + 12 jego
+          marginBottom + zapas), inaczej ostatnia sekcja zawsze ląduje pod nim. */}
+      <View style={[s.section, s.lastSectionClearsFab]}>
         <Text style={s.label}>Tagi</Text>
         <View style={s.tagInputRow}>
           <TextInput
@@ -750,6 +755,9 @@ const makeS = themedStyles((c) => StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
     elevation: 6,
   },
+  // 48 (pasteFab's wysokość) + 12 (jego marginBottom) + zapas = miejsce pod ostatnią
+  // sekcją body, żeby `tagAddBtn` (tej samej, prawej krawędzi co FAB) na nim nie lądował.
+  lastSectionClearsFab: { marginBottom: 72 },
 
   paidSummaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   paidDetail: { marginTop: spacing[2], gap: spacing[2] },

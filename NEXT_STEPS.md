@@ -3119,3 +3119,43 @@ przepływ Android Share Sheet → appka (wymaga realnego "Udostępnij" z innej
 appki na telefonie) — w szczególności trzeci trigger (`Linking` 'url' przy
 appce już aktywnej na innej zakładce), który nie ma odpowiednika do
 przetestowania pod `react-native-web`/Playwright.
+
+## Przycisk "+" Tagów nachodził na FAB wklejania (2026-11-09)
+
+User zrzutem z `AddExpenseModal`: czarny "+" Tagów (ostatnia sekcja body) i
+biały pływający `pasteFab` (zakotwiczony `bottom:'100%'` nad stopką,
+niezależnie od scrolla body) wizualnie się nakładały — body miało za mało
+zarezerwowanego miejsca pod ostatnią sekcją. Fix: `lastSectionClearsFab:
+{ marginBottom: 72 }` na sekcji Tagów (48 wysokość FAB-a + 12 jego
+marginBottom + zapas). Zweryfikowane zrzutem z `expo web`+Playwright — czysty
+odstęp między przyciskami.
+
+## Dashboard: usunięte streaki + "Jedzenie PLN/dzień" (2026-11-09)
+
+User: "wywalimy streaki zastąpimy je tak że kafelek NOW... będzie x2 szerszy
+a na drugiej połowie damy coś innego" → odpowiedział "zostaw pusty kafelek"
+(lewa połowa Rzędu 1 pusta, prawa = poszerzony kafelek "Teraz"/hot event,
+`span={2}` zamiast `span={1}`). "Jedzenie PLN/dzień" w Rzędzie 3 → "Usunąć
+całkiem" (user wybrał wprost) — `#JedzeniePerMiesiąc` dostał cały rząd
+(`span={4}`), `onOpen('foodMonth')` już otwierał ten sam `WydatkiModal`, więc
+nic się nie traci.
+
+**Ważne, żeby nie zostawić dead-endu**: kafle Woda/Słodycze/Trening były
+JEDYNYM wejściem do `HabitsModal` (odhaczanie nawyków, `habitsStore.ts`) —
+usunięcie ich z Dashboardu bez przeniesienia gdzie indziej zablokowałoby całą
+funkcję. Przeniesione do `app/(tabs)/daily.tsx`, nowy rząd "Nawyki" w dole
+już istniejącego, luźnego `flex:1` "Ćwiczenia" (osobny `TouchableOpacity`, nie
+`Tile`'s własny `onPress` — tap na "Ćwiczenia" wyżej nie powinien otwierać
+modala o nawykach).
+
+**Zweryfikowane:** tsc czysty, jest 185/185. Wizualnie `expo web`+Playwright
+(z tymczasowym `.env` z format-poprawnym, ale FAŁSZYWYM kluczem Firebase —
+inaczej appka cała pada na `auth/invalid-api-key` zanim cokolwiek się
+wyrenderuje; `.env` gitignored, nie trafia do repo, klucz nieużywalny do
+niczego poza ominięciem tego jednego crasha przy lokalnym podglądzie).
+Dashboard: lewa połowa Rzędu 1 realnie pusta (czarne tło, bez karty),
+poszerzony kafelek "Teraz" po prawej; #JedzeniePerMiesiąc zajmuje cały Rząd
+3. Daily: nowy rząd "Nawyki" pod "Ćwiczenia" renderuje się poprawnie, choć
+zostaje sporo pustej przestrzeni między nimi w tym luźnym `flex:1` rzędzie —
+kosmetyczne, nie błąd. **DO POTWIERDZENIA NA URZĄDZENIU:** realny wygląd na
+prawdziwym telefonie (ten sam ciągły gap sapp2-owej weryfikacji web-only).

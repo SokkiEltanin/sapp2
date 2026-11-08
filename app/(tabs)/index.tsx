@@ -5,29 +5,28 @@ import { DashboardScreen, type DashData } from '@/ui/DashboardScreen';
 import { Cap, Tag, splitTag } from '@/ui/layout';
 import { T, S, R, C, F } from '@/ui/theme';
 import WydatkiModal from '@/components/dashboard/WydatkiModal';
-import HabitsModal from '@/components/dashboard/HabitsModal';
 import AddExpenseModal from '@/components/finances/AddExpenseModal';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { colors } from '@/theme/colors';
 import { useCalendarStore } from '@/store/calendarStore';
 import { useExpensesStore } from '@/store/expensesStore';
-import { useHabitsStore } from '@/store/habitsStore';
 import { useHealthStore } from '@/store/healthStore';
 import { useHealthSync } from '@/hooks/useHealthSync';
 import { useGoogleCalendarSync } from '@/hooks/useGoogleCalendarSync';
 import { todayISO } from '@/utils/date';
-import { foodByMonth, foodDailyAverageThisMonth } from '@/utils/foodStats';
-import { habitStreak } from '@/utils/habitStreak';
+import { foodByMonth } from '@/utils/foodStats';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
 import { getBalanceOffset, accountBalance, affectsBalance } from '@/utils/balance';
 import type { CalendarEvent } from '@/types/calendar';
-import type { HabitKey } from '@/types/habits';
 import type { Expense } from '@/types/finances';
 import { haptic } from '@/utils/haptics';
 
 // Faza 3.11 (2026-11-02, user: "zrób tę apkę w pełni funkcjonalną") — Woda/
-// Słodycze/Trening DOSTAŁY realny store (`habitsStore.ts`/`utils/habitStreak.ts`/
-// `HabitsModal.tsx`).
+// Słodycze/Trening dostały realny store (`habitsStore.ts`/`utils/habitStreak.ts`/
+// `HabitsModal.tsx`). 2026-11-09: kafle streak USUNIĘTE stąd (user: "wywalimy
+// streaki"), ich miejsce (lewa połowa Rzędu 1) zostaje świadomie puste —
+// odhaczanie nawyków przeniesione do `app/(tabs)/daily.tsx`'s rząd "Nawyki",
+// żeby nie zostawić dead-endu (ta sama logika/store, nowe wejście).
 // Faza 3.12 (2026-11-02, user: "masz w sapp jak były połączenia z health czemu
 // nie możesz tego zrobić na podstawie jak tam") — Sen DOSTAŁ realny Health
 // Connect (port z sapp, `src/services/healthConnectService.ts`), ten sam
@@ -83,8 +82,6 @@ export default function Dashboard() {
   const [wydatkiTab, setWydatkiTab] = useState<'food' | 'fixed' | 'variable'>('food');
   const [factIndex, setFactIndex] = useState<number | null>(null);
   const [nextOpen, setNextOpen] = useState(false);
-  const [habitsOpen, setHabitsOpen] = useState(false);
-  const [habitsFocus, setHabitsFocus] = useState<HabitKey | undefined>();
   // Tap na konkretną transakcję w "Ostatnie transakcje" (2026-11-04, user: "klikam
   // w wydatek dany to pokazuje mi konkretnie ten wydatek") — wcześniej `onOpen('tx',
   // id)` IGNOROWAŁ `id` i zawsze otwierał ogólny WydatkiModal (zakładka "Zmienne"),
@@ -98,7 +95,6 @@ export default function Dashboard() {
   const gcalEvents = useCalendarStore((st) => st.gcalEvents);
   const setSelectedDate = useCalendarStore((st) => st.setSelectedDate);
   const expenses = useExpensesStore((st) => st.expenses);
-  const habitDays = useHabitsStore((st) => st.days);
   const healthToday = useHealthStore((st) => st.today);
   useHealthSync();
   // 2026-11-08, user: "jak wchodzę do apki to kalendarz sie nie ładuje na
@@ -115,7 +111,6 @@ export default function Dashboard() {
   useEffect(() => { getBalanceOffset().then(setOffset); }, []);
   useEffect(() => { setFactIndex(dayOfYear(now) % FACTS.length); }, [now]);
 
-  const dailyFoodAvg = useMemo(() => foodDailyAverageThisMonth(expenses, now), [expenses, now]);
   const wydatkiData = useWydatkiData(expenses, now);
   const foodMonths = useMemo(() => foodByMonth(expenses, 4, now), [expenses, now]);
 
@@ -173,12 +168,6 @@ export default function Dashboard() {
     return out.sort((a, b) => a.at.getTime() - b.at.getTime());
   }, [allEvents, calendarTasks, now]);
 
-  const streaks = useMemo(() => ({
-    water: habitStreak(habitDays, 'water', today),
-    sweets: habitStreak(habitDays, 'sweets', today),
-    training: habitStreak(habitDays, 'training', today),
-  }), [habitDays, today]);
-
   const sleep = useMemo(() => {
     if (!healthToday || healthToday.sleepMinutes == null || !healthToday.sleepFrom || !healthToday.sleepTo) return null;
     const phases: { kind: 'deep' | 'light' | 'rem' | 'awake'; min: number }[] = [
@@ -191,11 +180,9 @@ export default function Dashboard() {
   }, [healthToday]);
 
   const data: DashData = {
-    streaks,
     next: upcomingEvent ? { title: upcomingEvent.e.title, start: upcomingEvent.start } : null,
     fact: FACTS[factIndex ?? 0],
     sleep,
-    foodPerDay: dailyFoodAvg,
     foodMonths: foodMonths.map((m) => ({ label: m.label, value: m.value })),
     transactions: recentExpenses.map((e) => ({
       id: e.id,
@@ -213,16 +200,17 @@ export default function Dashboard() {
     })),
     onOpen: (what, id) => {
       if (what === 'fact') setFactIndex((i) => ((i ?? 0) + 1) % FACTS.length);
-      else if (what === 'foodDay' || what === 'foodMonth') { setWydatkiTab('food'); setWydatkiOpen(true); }
+      else if (what === 'foodMonth') { setWydatkiTab('food'); setWydatkiOpen(true); }
       else if (what === 'tx') {
         const expense = expenses.find((e) => e.id === id);
         if (expense) setEditingExpense(expense);
       }
       else if (what === 'safe') { setWydatkiTab('variable'); setWydatkiOpen(true); }
       else if (what === 'next' && upcomingEvent) setNextOpen(true);
-      else if (what === 'streak') { setHabitsFocus(id as HabitKey | undefined); setHabitsOpen(true); }
       // sleep/upcoming — jeszcze bez docelowego popupu (szczegół pojedynczego
       // wydarzenia/terminu z listy "Najbliższe eventy"), świadomie bez akcji na razie.
+      // 'streak' — przeniesione do Daily (`app/(tabs)/daily.tsx`'s rząd "Nawyki"),
+      // patrz komentarz w DashboardScreen.tsx przy usunięciu kafli streak.
     },
   };
 
@@ -252,7 +240,6 @@ export default function Dashboard() {
         fixed={wydatkiData.fixed}
         variable={wydatkiData.variable}
       />
-      <HabitsModal visible={habitsOpen} onClose={() => setHabitsOpen(false)} focusKey={habitsFocus} />
       <AppBottomSheet visible={nextOpen} onClose={() => setNextOpen(false)} scrollable={false}>
         {upcomingEvent && nextTag ? (
           <View style={ns.card}>

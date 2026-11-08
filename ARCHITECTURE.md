@@ -480,10 +480,17 @@ sized, rzędy 4-5 `flex:1`/`flex:1.3`). Listy w rzędach 4-5 używają `FitList`
 `onLayout` i docinają dane do tego co się zmieści, zero sztywnego "pierwsze 4"
 (CLAUDE.md regl #1, dosłowny przepis `onLayout→Math.floor(h/rowH)→slice`).
 
-**Rząd 1** — 3× `StatTile` streak (Woda/Słodycze/Trening) + hot event tile.
+**Rząd 1 (2026-11-09, user: "wywalimy streaki")** — 3× `StatTile` streak
+(Woda/Słodycze/Trening) USUNIĘTE; lewa połowa świadomie pusty `Tile`
+(`backgroundColor:'transparent'`, user wybrał "zostaw pusty kafelek" zamiast
+czegoś nowego), hot event tile poszerzony na `span={2}` (prawa połowa).
+Odhaczanie nawyków przeniesione do `app/(tabs)/daily.tsx`'s rząd "Nawyki" —
+patrz NEXT_STEPS.md "Dashboard: usunięte streaki..." po pełny opis (żeby nie
+zostawić dead-endu, ten sam `HabitsModal`/`habitsStore` co wcześniej).
 **Rząd 2 (96px)** — Ciekawostka + Sen.
-**Rząd 3** — Jedzenie PLN/dzień (`StatTile`, tap→`WydatkiModal`) + #JedzeniePerMiesiąc
-(`Bars`, tap→`WydatkiModal`).
+**Rząd 3 (2026-11-09)** — Jedzenie PLN/dzień USUNIĘTE całkiem (user wybrał
+wprost); #JedzeniePerMiesiąc (`Bars`, tap→`WydatkiModal`) dostał cały rząd
+(`span={4}`).
 **Rząd 4 (flex:1)** — Ostatnie transakcje (`FitList`+`Row`+`PricePill`) + Bezpieczne
 wydatki.
 **Rząd 5 (flex:1.3, najwyższy)** — Najbliższe 48h (`FitList`+`Row`).

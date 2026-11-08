@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Screen, Row, Tile, StatTile, Cap } from '@/ui/layout';
 import { C, T, S } from '@/ui/theme';
 import MoodPad from '@/components/design/MoodPad';
@@ -8,6 +8,9 @@ import { useMoodStore } from '@/store/moodStore';
 import { useHealthStore } from '@/store/healthStore';
 import { useHealthSync } from '@/hooks/useHealthSync';
 import MoodModal from '@/components/mood/MoodModal';
+import { useHabitsStore } from '@/store/habitsStore';
+import { habitStreak } from '@/utils/habitStreak';
+import HabitsModal from '@/components/dashboard/HabitsModal';
 
 // Faza 3.10 (design/rn kit) — Daily przebudowany na kitu's `src/ui/layout.tsx`
 // prymitywy (Screen/Row/Tile/StatTile/Cap), ten sam powód co Dashboard (Faza
@@ -33,6 +36,19 @@ export default function DailyScreen() {
   const [moodOpen, setMoodOpen] = useState(false);
   const health = useHealthStore((st) => st.today);
   useHealthSync();
+
+  // 2026-11-09, user: "wywalimy streaki" (z Dashboardu) — odhaczanie nawyków
+  // (Woda/Słodycze/Trening, `habitsStore.ts`) przeniesione tu, żeby nie
+  // zostawić dead-endu (`HabitsModal` z `components/dashboard/` — nazwa
+  // folderu to tylko historia, komponent nie jest dashboard-specyficzny).
+  const habitDays = useHabitsStore((st) => st.days);
+  const today = todayISO();
+  const [habitsOpen, setHabitsOpen] = useState(false);
+  const streaks = useMemo(() => ({
+    water: habitStreak(habitDays, 'water', today),
+    sweets: habitStreak(habitDays, 'sweets', today),
+    training: habitStreak(habitDays, 'training', today),
+  }), [habitDays, today]);
 
   const todayEntries = useMemo(() => entries.filter((e) => e.date === todayISO()), [entries]);
   const lastToday = todayEntries[todayEntries.length - 1];
@@ -72,9 +88,31 @@ export default function DailyScreen() {
       </Row>
 
       <Row flex={1}>
-        <Tile span={4}>
+        <Tile span={4} style={st.exTile}>
           <Cap l="Ćwiczenia" />
           <Text style={[T.small, st.exEmpty]}>Jeszcze nic dziś — appka nie śledzi jeszcze treningów.</Text>
+          {/* 2026-11-09 — odhaczanie nawyków (Woda/Słodycze/Trening, dawniej 3
+              kafle streak na Dashboardzie, USUNIĘTE stamtąd) przeniesione tu, w
+              TEN SAM, już luźny `flex:1` rząd — osobny `TouchableOpacity`
+              (nie `Tile`'s własny `onPress`, żeby tap na "Ćwiczenia" wyżej nie
+              otwierał modala o zupełnie innym temacie). */}
+          <TouchableOpacity style={st.habitsRow} onPress={() => setHabitsOpen(true)} activeOpacity={0.7}>
+            <Cap l="Nawyki" r="dotknij, by odhaczyć" />
+            <View style={st.habitsCols}>
+              <View style={st.habitsCol}>
+                <Text style={T.num}>{streaks.water ?? '—'}</Text>
+                <Text style={T.small}>Woda</Text>
+              </View>
+              <View style={st.habitsCol}>
+                <Text style={T.num}>{streaks.sweets ?? '—'}</Text>
+                <Text style={T.small}>Słodycze</Text>
+              </View>
+              <View style={st.habitsCol}>
+                <Text style={T.num}>{streaks.training ?? '—'}</Text>
+                <Text style={T.small}>Trening</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
         </Tile>
       </Row>
 
@@ -91,13 +129,18 @@ export default function DailyScreen() {
       </Row>
 
       <MoodModal visible={moodOpen} onClose={() => setMoodOpen(false)} />
+      <HabitsModal visible={habitsOpen} onClose={() => setHabitsOpen(false)} />
     </Screen>
   );
 }
 
 const st = StyleSheet.create({
   sleepNum: { color: C.dim, marginTop: 4 },
+  exTile: { justifyContent: 'space-between' },
   exEmpty: { textAlign: 'center', marginTop: S.gap },
+  habitsRow: { marginTop: S.gap },
+  habitsCols: { flexDirection: 'row', justifyContent: 'space-around', marginTop: S.gap },
+  habitsCol: { alignItems: 'center' },
   moodTile: { flexDirection: 'row', alignItems: 'center', gap: S.pad },
   moodTextCol: { flex: 1, minWidth: 0 },
 });

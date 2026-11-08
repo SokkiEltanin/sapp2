@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Globe, Moon, ListTodo, CalendarClock } from 'lucide-react-native';
 import { C, T, F } from './theme';
-import { Screen, Row, Tile, StatTile, Cap, FitList, Item, Tag, Price, Bars, StackBar, Progress, splitTag, PulseDot } from './layout';
+import { Screen, Row, Tile, Cap, FitList, Item, Tag, Price, Bars, StackBar, Progress, splitTag, PulseDot } from './layout';
 
 /**
  * Wzorcowy Dashboard 1:1 z app-design.html.
@@ -10,11 +10,9 @@ import { Screen, Row, Tile, StatTile, Cap, FitList, Item, Tag, Price, Bars, Stac
  * Rzędy: 4×stat | 96px | auto | flex 1 | flex 1.3  → zawsze wypełnia ekran, nic się nie rozjeżdża.
  */
 export type DashData = {
-  streaks: { water: number | null; sweets: number | null; training: number | null };
   next?: { title: string; start: Date } | null;
   fact: string;
   sleep?: { minutes: number; from: string; to: string; phases: { kind: 'deep' | 'light' | 'rem' | 'awake'; min: number }[] } | null;
-  foodPerDay: number | null;
   foodMonths: { label: string; value: number }[];
   transactions: { id: string; name: string; amount: number }[];
   safe: { balance: number | null; unpaidDue: number; daysLeft: number; spentToday: number };
@@ -53,11 +51,17 @@ export function DashboardScreen(d: DashData) {
 
   return (
     <Screen>
+      {/* 2026-11-09, user: "wywalimy streaki... kafelek NOW... x2 szerszy a na
+          drugiej połowie... zostaw pusty" — kafle Woda/Słodycze/Trening
+          usunięte stąd (odhaczanie nawyków przeniesione do Daily, patrz
+          `app/(tabs)/daily.tsx`'s rząd "Nawyki" — appka nie traci realnej
+          funkcji, tylko miejsce). Lewa połowa: świadomie pusty `Tile` (ta sama
+          matematyka szerokości co prawdziwy kafel, `backgroundColor:
+          'transparent'` więc nie rysuje karty) — user chciał PUSTĄ przestrzeń,
+          nie placeholder. */}
       <Row>
-        <StatTile value={d.streaks.water} unit="dni" label="Woda" onPress={() => d.onOpen('streak', 'water')} />
-        <StatTile value={d.streaks.sweets} unit="dni" label="Słodycze" onPress={() => d.onOpen('streak', 'sweets')} />
-        <StatTile value={d.streaks.training} unit="dni" label="Trening" onPress={() => d.onOpen('streak', 'training')} />
-        <Tile hot={!!d.next} center style={st.nextTile} onPress={() => d.onOpen('next')}>
+        <Tile span={2} style={st.emptyHalf} />
+        <Tile span={2} hot={!!d.next} center style={st.nextTile} onPress={() => d.onOpen('next')}>
           {d.next ? (
             <>
               <PulseDot />
@@ -107,9 +111,13 @@ export function DashboardScreen(d: DashData) {
         </Tile>
       </Row>
 
+      {/* 2026-11-09, user: "Jedzenie PLN/dzień... dziwnie to wygląda... usunąć
+          całkiem" — #JedzeniePerMiesiąc dostaje cały rząd (span 4 zamiast 3),
+          `foodPerDay`/`onOpen('foodDay')` USUNIĘTE z `DashData` (poniżej) —
+          `onOpen('foodMonth')` już otwiera dokładnie ten sam `WydatkiModal`
+          ('food' tab), więc nic się nie traci. */}
       <Row>
-        <StatTile value={d.foodPerDay == null ? null : d.foodPerDay.toFixed(1).replace('.', ',')} unit="pln / dzień" label="Jedzenie" onPress={() => d.onOpen('foodDay')} />
-        <Tile span={3} onPress={() => d.onOpen('foodMonth')}>
+        <Tile span={4} onPress={() => d.onOpen('foodMonth')}>
           <Cap l="#JedzeniePerMiesiąc" r="PLN" />
           <Bars showValues height={36} values={d.foodMonths.map((m) => m.value)} labels={d.foodMonths.map((m) => m.label)} />
         </Tile>
@@ -187,6 +195,7 @@ const st = StyleSheet.create({
   bar: { width: 3, height: 16, borderRadius: 2 },
   kindIcon: { marginRight: 1 },
   nextTile: { paddingHorizontal: 6, paddingTop: 14, paddingBottom: 12 },
+  emptyHalf: { backgroundColor: 'transparent' },
   nextTagWrap: { marginTop: 4 },
   nextWhen: { fontFamily: F.sb, fontSize: 9, letterSpacing: 1.2, color: 'rgba(0,0,0,.55)', textTransform: 'uppercase' },
   nextTitle: { fontFamily: F.xb, fontSize: 12, lineHeight: 15, letterSpacing: 0.2, color: '#000', textAlign: 'center', marginTop: 6 },
