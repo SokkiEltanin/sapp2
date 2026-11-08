@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LogIn } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { signInWithGoogle } from '@/services/googleAuth';
@@ -38,8 +37,11 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.center}>
+        {/* 2026-11-08, user: "Dodałem nowe logo dodaj je do appki" — `LogIn`
+            z lucide był tylko tymczasowym placeholderem dopóki nie było
+            realnego znaku marki. */}
         <View style={s.logoWrap}>
-          <LogIn size={40} color={colors.accent.blue} />
+          <Image source={require('../assets/Logo_Sapp2_OrangeTranspare.png')} style={s.logoImg} resizeMode="contain" />
         </View>
         <Text style={s.title}>Sapp2</Text>
         <Text style={s.subtitle}>Zaloguj się kontem Google, żeby zacząć.</Text>
@@ -63,8 +65,9 @@ const makeS = themedStyles((c) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing[3], paddingHorizontal: spacing[6] },
   logoWrap: {
     width: 84, height: 84, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: `${colors.accent.blue}1A`, marginBottom: spacing[2],
+    backgroundColor: `${colors.accent.orange}1A`, marginBottom: spacing[2],
   },
+  logoImg: { width: 44, height: 44 },
   title: { fontSize: 24, fontFamily: 'Inter_900Black', color: c.text.primary },
   subtitle: { fontSize: 13, fontFamily: 'Inter_400Regular', color: c.text.muted, textAlign: 'center', lineHeight: 19, marginBottom: spacing[3] },
   button: {

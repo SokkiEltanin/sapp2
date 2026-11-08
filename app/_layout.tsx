@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, ActivityIndicator, AppState, Dimensions } from 'react-native';
+import { View, ActivityIndicator, AppState, Dimensions, Image } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -152,7 +152,11 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <StatusBar style="light" />
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg.primary }}>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 24, backgroundColor: colors.bg.primary }}>
+            {/* 2026-11-08, user: "Dodałem nowe logo dodaj je do appki" — ten ekran
+                (ładowanie fontów/stanu auth, widoczny KRÓTKO przy każdym zimnym
+                starcie, zaraz po natywnym splashu) był dotąd gołym spinnerem. */}
+            <Image source={require('../assets/Logo_Sapp2_OrangeTranspare.png')} style={{ width: 64, height: 64 }} resizeMode="contain" />
             <ActivityIndicator color={colors.text.primary} />
           </View>
         </SafeAreaProvider>
