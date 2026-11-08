@@ -1080,6 +1080,45 @@ powiadomienia z banku do realnej weryfikacji (CI/`tsc`/`jest`/`expo export` spra
 tylko że kod się kompiluje i plugin generuje poprawny natywny kod — nie że nasłuch
 faktycznie łapie powiadomienia na danym telefonie/OEM).
 
+### Udostępnianie paragonu przez Android Share Sheet (2026-11-09)
+
+CLAUDE.md's zasada #5 ("Brak OCR paragonów. Tylko parser tekstu (share-intent z
+Lidl+: Select All → Share)") była założona od początku projektu, ale nigdy nie
+zbudowana — tylko ręczne wklejanie (FAB "wklej ze schowka"/pole w
+`AddExpenseModal`) istniało dotąd. Port z sapp (`plugins/withReceiptShareIntent.js`/
+`services/shareTextDrain.ts`), ten sam plik-jako-most wzorzec co powiadomienia z
+banku wyżej, ADAPTOWANY bo sapp2 nie ma osobnego ekranu `scan.tsx` — `AddExpenseModal`
+żyje lokalnie w `(tabs)/finances.tsx`.
+
+**Mechanizm**: natywna `ShareReceiverActivity` (`android.intent.action.SEND`,
+`text/plain`, `Theme.NoDisplay` — nigdy nie renderuje nic) łapie Android Share Sheet,
+zapisuje tekst do `shared_receipt_text.json` w `filesDir` i przekierowuje przez
+`sapp2://finances` (deep link, `Intent.FLAG_ACTIVITY_NEW_TASK`). JS strona:
+`services/shareTextDrain.ts` czyta/czyści ten plik, wołane przez NOWY
+`hooks/useShareReceiptLaunch.ts` (zamontowany raz w `app/_layout.tsx`) na TRZECH
+triggerach — mount (cold start, timeout 1500ms, ten sam wzorzec co
+`drainBankNotifications`), `AppState` 'active' (powrót z tła), i dodatkowo `Linking`'s
+'url' event. Ten trzeci trigger nie ma odpowiednika w bank-notification drenażu i jest
+tu potrzebny: `finances.tsx` MOŻE już być zamontowany (user na innej zakładce) gdy
+przychodzi share, więc appka zostaje 'active' przez cały czas (Android dostarcza nowy
+Intent do już istniejącego taska) — sam `AppState` by to przegapił.
+
+Drenaż ląduje w nowym, efemerycznym `store/shareReceiptStore.ts` (`pendingText`, bez
+`persist`) — mostek między `app/_layout.tsx` (gdzie żyje drenaż) i `(tabs)/finances.tsx`
+(gdzie żyje `AddExpenseModal`/`setAddOpen`, layout nie ma do nich dostępu).
+`finances.tsx` subskrybuje, otwiera modal automatycznie i przekazuje tekst jako nowy
+`AddExpenseModal`'s prop `initialPasteText` (+ `onInitialPasteTextConsumed`, czyści
+store po skonsumowaniu — inaczej ten sam tekst sparsowałby się znowu przy następnym
+otwarciu modala). W modalu parsuje się OD RAZU, bez banera do potwierdzenia jak
+`clipboardSuggestion` (auto-wykrywanie schowka, Faza 2.2/Runda 13) — "Udostępnij" to
+już wyraźna, celowa akcja usera, nie zgadywanie.
+
+**DO POTWIERDZENIA NA URZĄDZENIU** (jedyny sposób, `react-native-web`/Playwright nie
+ma Android Share Sheet): cały przepływ "Udostępnij" z innej appki (np. zaznaczony
+tekst SMS-a z banku, albo "Select All → Share" z appki Lidl Plus) → sapp2 otwiera
+Finanse z wypełnionym/sparsowanym formularzem — w szczególności trzeci trigger
+(`Linking` 'url' przy appce już aktywnej na innej zakładce).
+
 ### Historia, cofnięcie, szablony (Faza 2.7, 2026-11-01)
 
 User po teście Fazy 2.5: *"mam nadzieję że zrobiłeś w zatwierdzeniu historię żebym

@@ -3079,3 +3079,43 @@ wygenerowanych `.webp` ikon dla punktu 1, inspekcja computed style dla
 punktu 7). **DO POTWIERDZENIA NA URZĄDZENIU:** smooth powrót sheeta po
 klawiaturze (punkt 2), sam `DateTimePickerAndroid`/auth-gate'owane `/login`
 (niezweryfikowalne pod `react-native-web`, jak już wcześniej).
+
+## Udostępnianie paragonu przez Android Share Sheet (2026-11-09)
+
+User: "a zrobisz jak w sapp udostępnianie paragonu po share?" — CLAUDE.md's
+zasada #5 ("Brak OCR paragonów. Tylko parser tekstu (share-intent z Lidl+:
+Select All → Share)") była założona od początku projektu, ale nigdy nie
+zbudowana — tylko ręczne wklejanie (FAB/pole w `AddExpenseModal`) istniało
+dotąd. Port z `sapp` (`plugins/withReceiptShareIntent.js` +
+`shareTextDrain.ts`), dostosowany do architektury sapp2 (osobny ekran
+`scan.tsx` w sapp vs. `AddExpenseModal` żyjący lokalnie w
+`(tabs)/finances.tsx` w sapp2):
+
+- `plugins/withReceiptShareIntent.js` — nowa natywna `ShareReceiverActivity`
+  (`android.intent.action.SEND`, `text/plain`, `Theme.NoDisplay`), zapisuje
+  udostępniony tekst do `shared_receipt_text.json` w `filesDir` i
+  przekierowuje przez `sapp2://finances` (zamiast sapp's `sapp://expenses/scan`
+  — nie ma tu dedykowanego ekranu).
+- `src/services/shareTextDrain.ts` — port 1:1, czyta+usuwa ten plik.
+- `src/hooks/useShareReceiptLaunch.ts` (NOWY, nie ma odpowiednika w sapp) —
+  drenuje na: mount (cold start, timeout 1500ms, ten sam wzorzec co
+  `drainBankNotifications`), `AppState` 'active' (powrót z tła), ORAZ
+  `Linking`'s 'url' event — ten trzeci trigger jest potrzebny bo w sapp2
+  `finances.tsx` MOŻE już być zamontowany (user na innej zakładce) gdy
+  przychodzi share, więc sam `AppState` nie wystarcza (appka zostaje
+  'active' przez cały czas, Android dostarcza to jako nowy Intent do
+  istniejącego taska). Zamontowany raz w `app/_layout.tsx`.
+- `src/store/shareReceiptStore.ts` (NOWY) — mały efemeryczny mostek
+  (`pendingText`) między drenażem w layout-cie i `(tabs)/finances.tsx`,
+  który faktycznie otwiera `AddExpenseModal` i czyści store po skonsumowaniu.
+- `AddExpenseModal.tsx` — nowy opcjonalny prop `initialPasteText` +
+  `onInitialPasteTextConsumed`: parsuje OD RAZU (bez banera jak
+  `clipboardSuggestion` — "Udostępnij" to już wyraźna, celowa akcja usera).
+
+**Zweryfikowane:** tsc czysty, jest 185/185 (bez zmian w testach — czysty
+file-IO serwis jak `bankNotificationDrain.ts`, bez dedykowanego testu, ta
+sama konwencja). **DO POTWIERDZENIA NA URZĄDZENIU (nie da się tutaj):** cały
+przepływ Android Share Sheet → appka (wymaga realnego "Udostępnij" z innej
+appki na telefonie) — w szczególności trzeci trigger (`Linking` 'url' przy
+appce już aktywnej na innej zakładce), który nie ma odpowiednika do
+przetestowania pod `react-native-web`/Playwright.

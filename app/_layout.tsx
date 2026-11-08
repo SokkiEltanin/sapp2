@@ -18,6 +18,7 @@ import {
 import { colors } from '@/theme/colors';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { useNotifeeAlertLaunch } from '@/hooks/useNotifeeAlertLaunch';
+import { useShareReceiptLaunch } from '@/hooks/useShareReceiptLaunch';
 import { loadOwnName } from '@/utils/ownName';
 import { loadHapticsEnabled } from '@/utils/haptics';
 import { drainBankNotifications } from '@/services/bankNotificationDrain';
@@ -110,6 +111,11 @@ export default function RootLayout() {
   // Deep-link z pełnoekranowego alertu notifee na dedykowany ekran alarmu (patrz
   // app/alert-test.tsx) — patrz komentarz w src/hooks/useNotifeeAlertLaunch.ts.
   useNotifeeAlertLaunch();
+
+  // Udostępnij paragon przez Android Share Sheet (2026-11-09, user: "a zrobisz jak w
+  // sapp udostępnianie paragonu po share?") — patrz komentarz w
+  // src/hooks/useShareReceiptLaunch.ts.
+  useShareReceiptLaunch();
 
   // Faza 2.5 (2026-11-01) — własne imię+nazwisko do wykrywania przelewów do siebie
   // (bankNotification.ts's `selfTransfer`), wczytane raz przy starcie.

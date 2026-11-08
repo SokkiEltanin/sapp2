@@ -10,6 +10,7 @@ import TransactionsModal from '@/components/finances/TransactionsModal';
 import WydatkiModal from '@/components/dashboard/WydatkiModal';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useExpensesStore } from '@/store/expensesStore';
+import { useShareReceiptStore } from '@/store/shareReceiptStore';
 import { getBalanceOffset, setBalanceOffset, accountBalance, affectsBalance } from '@/utils/balance';
 import { buildProductCatalog } from '@/utils/productCatalog';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
@@ -66,6 +67,16 @@ export default function FinancesScreen() {
   const [offset, setOffset] = useState(0);
   const [editingBalance, setEditingBalance] = useState(false);
   const [balanceInput, setBalanceInput] = useState('');
+
+  // Udostępnienie paragonu przez Android Share Sheet (2026-11-09) — `_layout.tsx`'s
+  // `useShareReceiptLaunch` drenuje natywnie zapisany tekst i odkłada go tu, bo to ten
+  // ekran (nie layout) ma dostęp do `setAddOpen`/`AddExpenseModal`. Otwiera modal
+  // automatycznie, zamiast czekać aż user sam tapnie FAB — to deep-linkowana reakcja na
+  // JEGO własne "Udostępnij", nie zgadywanie jak `clipboardSuggestion` w modalu.
+  const pendingShareText = useShareReceiptStore((st) => st.pendingText);
+  useEffect(() => {
+    if (pendingShareText) { setEditingExpense(null); setAddOpen(true); }
+  }, [pendingShareText]);
 
   const today = todayISO();
   const now = useMemo(() => new Date(), [today]);
@@ -220,6 +231,8 @@ export default function FinancesScreen() {
         visible={addOpen || !!editingExpense}
         onClose={() => { setAddOpen(false); setEditingExpense(null); }}
         editingExpense={editingExpense}
+        initialPasteText={pendingShareText}
+        onInitialPasteTextConsumed={() => useShareReceiptStore.getState().clear()}
       />
       <ProductsModal visible={productsOpen} onClose={() => setProductsOpen(false)} />
       <TransactionsModal

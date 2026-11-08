@@ -76,7 +76,7 @@ const PAYER_CHOICES: { key: 'me' | 'partner'; label: string }[] = [
 ];
 
 export default function AddExpenseModal({
-  visible, onClose, editingExpense,
+  visible, onClose, editingExpense, initialPasteText, onInitialPasteTextConsumed,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -84,6 +84,15 @@ export default function AddExpenseModal({
   // wydatek to nie ma edycji" — ten sam modal co dodawanie, tylko wstępnie
   // wypełniony i zapisujący przez `updateExpense`, zero duplikacji formularza.
   editingExpense?: Expense | null;
+  // Udostępnienie paragonu przez Android Share Sheet (2026-11-09) — w
+  // przeciwieństwie do `clipboardSuggestion` (zgadywanie, zawsze z banerem do
+  // potwierdzenia) to jest JUŻ wyraźna, celowa akcja usera ("Udostępnij" → appka),
+  // więc parsuje się od razu, bez pytania. Rodzic (`finances.tsx`) przekazuje tekst
+  // wydrenowany przez `useShareReceiptLaunch.ts` i czyści go w swoim store po
+  // skonsumowaniu, żeby nie sparsować tego samego tekstu drugi raz przy
+  // następnym otwarciu modala.
+  initialPasteText?: string | null;
+  onInitialPasteTextConsumed?: () => void;
 }) {
   const s = makeS();
   const expenses = useExpensesStore((st) => st.expenses);
@@ -225,6 +234,18 @@ export default function AddExpenseModal({
     setClipboardSuggestion(null);
   };
   const dismissClipboardSuggestion = () => { haptic.tap(); setClipboardSuggestion(null); };
+
+  // Udostępnienie przez Share Sheet — już wyraźna akcja usera, parsuje się od razu
+  // (bez banera jak `clipboardSuggestion`). `onInitialPasteTextConsumed` wywołany
+  // zaraz po parsowaniu, żeby rodzic wyczyścił swój store — inaczej ten sam tekst
+  // sparsowałby się znowu przy następnym otwarciu modala (np. edycja innej
+  // transakcji zanim user zdąży zapisać ten wydatek).
+  useEffect(() => {
+    if (!visible || editingExpense || !initialPasteText?.trim()) return;
+    setPasteText(initialPasteText);
+    runParse(initialPasteText);
+    onInitialPasteTextConsumed?.();
+  }, [visible, editingExpense, initialPasteText]);
 
   const addBlankItem = () => setItems((prev) => [...prev, { name: '', price: 0, quantity: 1, unitPrice: 0 }]);
   const updateItem = (idx: number, patch: Partial<ReceiptItem>) =>
