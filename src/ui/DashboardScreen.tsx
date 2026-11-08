@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Globe, Moon, ListTodo, CalendarClock } from 'lucide-react-native';
 import { C, T, F } from './theme';
-import { Screen, Row, Tile, Cap, FitList, Item, Tag, Price, Bars, StackBar, Progress, splitTag, PulseDot } from './layout';
+import { Screen, Row, Tile, Cap, FitList, Item, Tag, Price, Bars, StackBar, splitTag, PulseDot } from './layout';
 
 /**
  * Wzorcowy Dashboard 1:1 z app-design.html.
@@ -15,7 +15,14 @@ export type DashData = {
   sleep?: { minutes: number; from: string; to: string; phases: { kind: 'deep' | 'light' | 'rem' | 'awake'; min: number }[] } | null;
   foodMonths: { label: string; value: number }[];
   transactions: { id: string; name: string; amount: number }[];
-  safe: { balance: number | null; unpaidDue: number; daysLeft: number; spentToday: number };
+  // "Bezpieczne wydatki" ZASTĄPIONE "Odliczaniem" (2026-11-09, user: "ten
+  // kafelek po prawej finansów ostatnich na dashboardzie, ten PLN per dzień"
+  // — DOKŁADNIE ten kafel, nie Finanse's "Najbliższa opłata" jak pierwotnie
+  // zrozumiano) — user RĘCZNIE wybiera jeden event kalendarza
+  // (`countdownStore.ts`), kafel liczy do niego w dół. `balance`-owe pola
+  // USUNIĘTE stąd razem z nieużywanym dalej kodem w index.tsx (ta funkcja
+  // nigdzie indziej się nie pokazywała).
+  countdown: { text: string; eventTitle: string } | null;
   upcoming: { id: string; when: string; title: string; kind: 'event' | 'deadline' | 'bill'; color: string; minutes?: number; amount?: number }[];
   onOpen: (what: string, id?: string) => void; // otwiera bottom sheet
 };
@@ -43,11 +50,6 @@ export function DashboardScreen(d: DashData) {
   // tez" — `splitTag` już wyciągał tag ([UR]/[PUR] itp. prefiks tytułu), ale
   // kafelek renderował TYLKO `.title`, tag po prostu znikał bez śladu.
   const { tag: nextTag, title: nextTitle } = d.next ? splitTag(d.next.title) : { tag: undefined, title: '' };
-
-  // bezpieczne wydatki – nigdy nie pokazuj ujemnej liczby jako "limitu"
-  const free = d.safe.balance == null ? null : d.safe.balance - d.safe.unpaidDue;
-  const perDay = free == null ? null : free / Math.max(1, d.safe.daysLeft);
-  const deficit = perDay != null && perDay < 0;
 
   return (
     <Screen>
@@ -136,19 +138,12 @@ export function DashboardScreen(d: DashData) {
             )}
           />
         </Tile>
-        <Tile onPress={() => d.onOpen('safe')} style={{ justifyContent: 'space-between' }}>
-          <View>
-            <Text style={[T.num, { fontSize: 26 }, (perDay == null || deficit) && { color: deficit ? C.warn : C.dim }]} adjustsFontSizeToFit numberOfLines={1}>
-              {perDay == null ? '0' : deficit ? '0' : Math.round(perDay)}
-            </Text>
-            <Text style={T.unit}>pln / dzień</Text>
-          </View>
-          <View style={{ gap: 5 }}>
-            <Progress value={perDay && perDay > 0 ? d.safe.spentToday / perDay : 1} color={deficit || (perDay != null && d.safe.spentToday > perDay) ? C.warn : C.txt} />
-            <Text style={[st.tiny, deficit && { color: C.warn }]}>
-              {deficit ? `brak ${Math.round(-free!)} zł` : `dziś ${Math.round(d.safe.spentToday)}`}
-            </Text>
-          </View>
+        <Tile onPress={() => d.onOpen('countdown')} center style={{ justifyContent: 'center' }}>
+          <Text style={[T.num, { fontSize: 22 }, !d.countdown && { color: C.dim }]} adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.6}>
+            {d.countdown ? d.countdown.text : '0'}
+          </Text>
+          <Text style={T.unit} numberOfLines={1}>{d.countdown ? d.countdown.eventTitle : 'brak'}</Text>
+          <Text style={T.lab} numberOfLines={1}>Odliczanie</Text>
         </Tile>
       </Row>
 
@@ -190,7 +185,6 @@ export function DashboardScreen(d: DashData) {
 const st = StyleSheet.create({
   icoL: { position: 'absolute', top: 10, left: 10 },
   icoR: { position: 'absolute', top: 10, right: 10 },
-  tiny: { fontFamily: F.b, fontSize: 10, color: C.mut },
   when: { width: 64, fontFamily: F.xb, fontSize: 10, color: C.mut, fontVariant: ['tabular-nums'] },
   bar: { width: 3, height: 16, borderRadius: 2 },
   kindIcon: { marginRight: 1 },

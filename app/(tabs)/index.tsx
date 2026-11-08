@@ -16,7 +16,8 @@ import { useGoogleCalendarSync } from '@/hooks/useGoogleCalendarSync';
 import { todayISO } from '@/utils/date';
 import { foodByMonth } from '@/utils/foodStats';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
-import { getBalanceOffset, accountBalance, affectsBalance } from '@/utils/balance';
+import { useCountdownStore } from '@/store/countdownStore';
+import { countdownParts, formatCountdown } from '@/utils/countdown';
 import type { CalendarEvent } from '@/types/calendar';
 import type { Expense } from '@/types/finances';
 import { haptic } from '@/utils/haptics';
@@ -89,7 +90,6 @@ export default function Dashboard() {
   // finances.tsx (TransactionsModal→tap→edycja) — `AddExpenseModal` w trybie edycji
   // konkretnego `Expense`.
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [offset, setOffset] = useState(0);
   const calendarTasks = useCalendarStore((st) => st.tasks);
   const calendarEvents = useCalendarStore((st) => st.events);
   const gcalEvents = useCalendarStore((st) => st.gcalEvents);
@@ -108,7 +108,6 @@ export default function Dashboard() {
   const today = todayISO();
   const now = useMemo(() => new Date(), [today]);
 
-  useEffect(() => { getBalanceOffset().then(setOffset); }, []);
   useEffect(() => { setFactIndex(dayOfYear(now) % FACTS.length); }, [now]);
 
   const wydatkiData = useWydatkiData(expenses, now);
@@ -129,17 +128,50 @@ export default function Dashboard() {
     return list[0] ?? null;
   }, [allEvents, now]);
 
-  const balance = useMemo(() => accountBalance(expenses, offset), [expenses, offset]);
-  const daysLeftInMonth = useMemo(() => {
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    return Math.max(1, lastDay - now.getDate() + 1);
-  }, [now]);
-  const todaySpend = useMemo(
-    () => expenses
-      .filter((e) => e.type === 'expense' && affectsBalance(e) && e.date.slice(0, 10) === today)
-      .reduce((a, e) => a + e.amount, 0),
-    [expenses, today],
+  // "Odliczanie" (2026-11-09, user: "ten kafelek po prawej finansów ostatnich na
+  // dashboardzie, ten PLN per dzień" — czyli DOKŁADNIE to miejsce, Rząd 4 prawa
+  // strona, dawniej "Bezpieczne wydatki") — zastępuje je realną funkcją: user
+  // RĘCZNIE wybiera JEDEN event kalendarza (`countdownStore.ts`, świadomy wybór,
+  // nie "najbliższy" jak kafelek "Teraz"), kafel liczy do niego w dół, coraz
+  // drobniejsza jednostka w miarę zbliżania (`utils/countdown.ts`). Tick co 60s
+  // (NIE co sekundę — appka świadomie unika żywych tickerów, patrz
+  // src/types/work.ts). `countdownEventStart` (NIE `eventStart` wyżej) — tamten
+  // zwraca `null` dla eventów całodniowych (celowo, zasila "Teraz"/timeline, które
+  // dbają o realny czas zegarowy); odliczanie ma sens też dla "Wakacje" bez
+  // konkretnej godziny, więc pada tu na północ dnia.
+  const [countdownTick, setCountdownTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setCountdownTick((t) => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+  const [countdownPickerOpen, setCountdownPickerOpen] = useState(false);
+  const selectedCountdownId = useCountdownStore((st) => st.selectedEventId);
+  const setSelectedCountdownId = useCountdownStore((st) => st.setSelectedEventId);
+  const countdownEventStart = (e: CalendarEvent): Date => {
+    const d = new Date(`${(e.date || '').slice(0, 10)}T00:00:00`);
+    if (e.startTime) {
+      const [h, mi] = e.startTime.split(':').map(Number);
+      d.setHours(h || 0, mi || 0, 0, 0);
+    }
+    return d;
+  };
+  const upcomingCountdownEvents = useMemo(() => {
+    const nowMs = Date.now();
+    return allEvents
+      .map((e) => ({ e, start: countdownEventStart(e) }))
+      .filter((x) => x.start.getTime() > nowMs)
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
+      .slice(0, 40);
+  }, [allEvents]);
+  const selectedCountdownEvent = useMemo(
+    () => allEvents.find((e) => e.id === selectedCountdownId) ?? null,
+    [allEvents, selectedCountdownId],
   );
+  const countdown = useMemo(() => {
+    void countdownTick;
+    if (!selectedCountdownEvent) return null;
+    return { text: formatCountdown(countdownParts(countdownEventStart(selectedCountdownEvent))), eventTitle: selectedCountdownEvent.title };
+  }, [selectedCountdownEvent, countdownTick]);
 
   const recentExpenses = useMemo(
     () => [...expenses].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
@@ -189,7 +221,7 @@ export default function Dashboard() {
       name: e.note || e.storeName || (e.type === 'income' ? 'Przychód' : 'Płatność'),
       amount: e.type === 'income' ? e.amount : -e.amount,
     })),
-    safe: { balance, unpaidDue: 0, daysLeft: daysLeftInMonth, spentToday: todaySpend },
+    countdown,
     upcoming: upcomingTimeline.map((x) => ({
       id: x.key,
       when: whenLabel(x.at, now),
@@ -205,7 +237,7 @@ export default function Dashboard() {
         const expense = expenses.find((e) => e.id === id);
         if (expense) setEditingExpense(expense);
       }
-      else if (what === 'safe') { setWydatkiTab('variable'); setWydatkiOpen(true); }
+      else if (what === 'countdown') setCountdownPickerOpen(true);
       else if (what === 'next' && upcomingEvent) setNextOpen(true);
       // sleep/upcoming — jeszcze bez docelowego popupu (szczegół pojedynczego
       // wydarzenia/terminu z listy "Najbliższe eventy"), świadomie bez akcji na razie.
@@ -260,6 +292,35 @@ export default function Dashboard() {
           </View>
         ) : null}
       </AppBottomSheet>
+
+      <AppBottomSheet visible={countdownPickerOpen} onClose={() => setCountdownPickerOpen(false)}>
+        <Text style={[T.rowHi, { marginBottom: S.gap }]}>Odliczanie do…</Text>
+        {selectedCountdownEvent && (
+          <TouchableOpacity
+            style={ns.countdownClearBtn}
+            onPress={() => { haptic.tap(); setSelectedCountdownId(null); setCountdownPickerOpen(false); }}
+            activeOpacity={0.8}
+          >
+            <Text style={ns.countdownClearLabel}>Wyłącz odliczanie</Text>
+          </TouchableOpacity>
+        )}
+        {upcomingCountdownEvents.length === 0 ? (
+          <Text style={T.small}>Brak nadchodzących wydarzeń w kalendarzu.</Text>
+        ) : upcomingCountdownEvents.map(({ e, start }) => (
+          <TouchableOpacity
+            key={e.id}
+            style={[ns.countdownRow, e.id === selectedCountdownId && ns.countdownRowOn]}
+            onPress={() => { haptic.success(); setSelectedCountdownId(e.id); setCountdownPickerOpen(false); }}
+            activeOpacity={0.8}
+          >
+            <Text style={T.row} numberOfLines={1}>{e.title}</Text>
+            <Text style={ns.countdownRowDate}>
+              {start.toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })}
+              {e.startTime ? ` · ${e.startTime}` : ''}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </AppBottomSheet>
     </>
   );
 }
@@ -270,4 +331,9 @@ const ns = StyleSheet.create({
   title: { flex: 1 },
   btn: { marginTop: S.gap, height: 48, borderRadius: R.btn, backgroundColor: C.hi, alignItems: 'center', justifyContent: 'center' },
   btnLabel: { fontFamily: F.xb, fontSize: 13, color: '#000' },
+  countdownClearBtn: { marginBottom: S.gap, paddingVertical: 6 },
+  countdownClearLabel: { fontFamily: F.b, fontSize: 12.5, color: C.warn },
+  countdownRow: { marginTop: S.gap, padding: S.pad, borderRadius: R.inner, borderWidth: 1, borderColor: C.line, backgroundColor: C.in },
+  countdownRowOn: { borderColor: C.hi },
+  countdownRowDate: { fontFamily: F.sb, fontSize: 11, color: C.mut, marginTop: 2, textTransform: 'capitalize' },
 });

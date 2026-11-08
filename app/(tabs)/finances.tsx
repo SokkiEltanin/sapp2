@@ -14,10 +14,7 @@ import { useExpensesStore } from '@/store/expensesStore';
 import { useShareReceiptStore } from '@/store/shareReceiptStore';
 import { useWorkStore } from '@/store/workStore';
 import { useCalendarStore } from '@/store/calendarStore';
-import { useCountdownStore } from '@/store/countdownStore';
 import { computeWorkRate } from '@/utils/workRate';
-import { countdownParts, formatCountdown } from '@/utils/countdown';
-import type { CalendarEvent } from '@/types/calendar';
 import { getBalanceOffset, setBalanceOffset, accountBalance, affectsBalance } from '@/utils/balance';
 import { buildProductCatalog } from '@/utils/productCatalog';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
@@ -64,16 +61,6 @@ function fmtAmount(n: number): string {
 function fmtBalance(n: number): string {
   return n.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-// Początek eventu jako `Date` — `startTime` gdy jest, inaczej północ jego dnia
-// (całodniowy event wciąż ma SENSOWNĄ datę do odliczania, np. "Wakacje").
-function eventStartDate(e: CalendarEvent): Date {
-  const d = new Date(`${(e.date || '').slice(0, 10)}T00:00:00`);
-  if (e.startTime) {
-    const [h, mi] = e.startTime.split(':').map(Number);
-    d.setHours(h || 0, mi || 0, 0, 0);
-  }
-  return d;
-}
 
 export default function FinancesScreen() {
   const s = makeS();
@@ -110,40 +97,6 @@ export default function FinancesScreen() {
     () => (activeEmployer ? computeWorkRate(activeEmployer, [...calendarEvents, ...gcalEvents], expenses) : null),
     [activeEmployer, calendarEvents, gcalEvents, expenses],
   );
-
-  // "Odliczanie" (2026-11-09, user: "zamiast tego kafelka po prawej [Najbliższa
-  // opłata, martwy stub] zróbmy odliczanie... wybieram event kalendarza i pokazuje
-  // dni ile potem godzin a potem minut") — zastępuje `StatTile value={null}`
-  // realną funkcją: user RĘCZNIE wybiera JEDEN event (nie "najbliższy" jak
-  // Dashboard's "Teraz" — świadomy wybór, `countdownStore.ts`), kafel liczy do
-  // niego w dół. Tick co 60s (NIE co sekundę — appka świadomie unika żywych
-  // tickerów, patrz src/types/work.ts) tylko po to, żeby minuty/godziny realnie
-  // się przesuwały bez wyjścia/wejścia na ekran.
-  const [countdownTick, setCountdownTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setCountdownTick((t) => t + 1), 60000);
-    return () => clearInterval(id);
-  }, []);
-  const [countdownPickerOpen, setCountdownPickerOpen] = useState(false);
-  const selectedCountdownId = useCountdownStore((st) => st.selectedEventId);
-  const setSelectedCountdownId = useCountdownStore((st) => st.setSelectedEventId);
-  const upcomingCountdownEvents = useMemo(() => {
-    const nowMs = Date.now();
-    return [...calendarEvents, ...gcalEvents]
-      .map((e) => ({ e, start: eventStartDate(e) }))
-      .filter((x) => x.start.getTime() > nowMs)
-      .sort((a, b) => a.start.getTime() - b.start.getTime())
-      .slice(0, 40);
-  }, [calendarEvents, gcalEvents]);
-  const selectedCountdownEvent = useMemo(
-    () => [...calendarEvents, ...gcalEvents].find((e) => e.id === selectedCountdownId) ?? null,
-    [calendarEvents, gcalEvents, selectedCountdownId],
-  );
-  const countdown = useMemo(() => {
-    void countdownTick;
-    if (!selectedCountdownEvent) return null;
-    return countdownParts(eventStartDate(selectedCountdownEvent));
-  }, [selectedCountdownEvent, countdownTick]);
 
   const today = todayISO();
   const now = useMemo(() => new Date(), [today]);
@@ -262,13 +215,7 @@ export default function FinancesScreen() {
           span={2}
           onPress={() => { haptic.tap(); router.push('/work'); }}
         />
-        <StatTile
-          value={countdown ? formatCountdown(countdown) : null}
-          unit={selectedCountdownEvent ? selectedCountdownEvent.title : 'wybierz event'}
-          label="Odliczanie"
-          span={2}
-          onPress={() => { haptic.tap(); setCountdownPickerOpen(true); }}
-        />
+        <StatTile value={null} unit="rachunki" label="Najbliższa opłata" span={2} />
       </Row>
 
       <Row flex={1}>
@@ -361,35 +308,6 @@ export default function FinancesScreen() {
           </View>
         </View>
       </AppBottomSheet>
-
-      <AppBottomSheet visible={countdownPickerOpen} onClose={() => setCountdownPickerOpen(false)}>
-        <Text style={s.editTitle}>Odliczanie do…</Text>
-        {selectedCountdownEvent && (
-          <TouchableOpacity
-            style={s.countdownClearBtn}
-            onPress={() => { haptic.tap(); setSelectedCountdownId(null); setCountdownPickerOpen(false); }}
-            activeOpacity={0.8}
-          >
-            <Text style={s.countdownClearLabel}>Wyłącz odliczanie</Text>
-          </TouchableOpacity>
-        )}
-        {upcomingCountdownEvents.length === 0 ? (
-          <Text style={s.editHint}>Brak nadchodzących wydarzeń w kalendarzu.</Text>
-        ) : upcomingCountdownEvents.map(({ e, start }) => (
-          <TouchableOpacity
-            key={e.id}
-            style={[s.countdownRow, e.id === selectedCountdownId && s.countdownRowOn]}
-            onPress={() => { haptic.success(); setSelectedCountdownId(e.id); setCountdownPickerOpen(false); }}
-            activeOpacity={0.8}
-          >
-            <Text style={s.countdownRowTitle} numberOfLines={1}>{e.title}</Text>
-            <Text style={s.countdownRowDate}>
-              {start.toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })}
-              {e.startTime ? ` · ${e.startTime}` : ''}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </AppBottomSheet>
     </Screen>
   );
 }
@@ -432,16 +350,6 @@ const makeS = themedStyles((c) => StyleSheet.create({
   editActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing[2], marginTop: spacing[1] },
   editCancelBtn: { paddingHorizontal: spacing[3], paddingVertical: spacing[2] },
   editCancelLabel: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
-
-  countdownClearBtn: { marginTop: spacing[2], paddingVertical: spacing[2] },
-  countdownClearLabel: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.accent.red },
-  countdownRow: {
-    marginTop: spacing[2], padding: spacing[3], borderRadius: radius.md,
-    borderWidth: 1, borderColor: c.border.default, backgroundColor: c.bg.elevated,
-  },
-  countdownRowOn: { borderColor: c.text.bright },
-  countdownRowTitle: { fontSize: 13.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
-  countdownRowDate: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 2, textTransform: 'capitalize' },
   editSaveBtn: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md, backgroundColor: c.text.bright },
   editSaveLabel: { fontSize: 12.5, fontFamily: 'Inter_900Black', color: c.bg.primary },
 }));

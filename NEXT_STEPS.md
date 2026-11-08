@@ -3329,3 +3329,29 @@ nowych/1 nowych"→Finanse's Saldo i Ostatnie transakcje faktycznie
 odzwierciedlają zaimportowane dane. **DO POTWIERDZENIA NA URZĄDZENIU:**
 realny eksport z prawdziwego sapp (tu tylko ręcznie sklecony przykładowy
 payload — prawdziwy plik może mieć pola/kształty nieprzewidziane w testach).
+
+## Poprawka: "Odliczanie" miało zastąpić DASHBOARD, nie Finanse (2026-11-09)
+
+User: "niee Najbliższa opłata zostaje, mówiłem o tym kafelku po prawej
+finansów ostatnich na dashboardzie xdd o tym pln per dzień czy coś" —
+pierwotna prośba (punkt wyżej, "Finanse: 'Najbliższa opłata' →
+'Odliczanie'") źle zrozumiana: user miał na myśli Dashboard's Rząd 4,
+prawy kafel "Bezpieczne wydatki" (unit "pln / dzień", obok "Ostatnie
+transakcje"), NIE Finanse's "Najbliższa opłata". Naprawione:
+
+- `app/(tabs)/finances.tsx` — CAŁKOWICIE cofnięte do stanu sprzed poprzedniej
+  rundy (`git diff 89f1b2a~1 89f1b2a -- app/\(tabs\)/finances.tsx | git
+  apply -R`, czysty odwrót bez ręcznego grzebania) — "Najbliższa opłata"
+  wraca jako `StatTile value={null}` stub, zero śladu kafelka odliczania.
+- `app/(tabs)/index.tsx`/`src/ui/DashboardScreen.tsx` — "Bezpieczne wydatki"
+  (balance/dni-do-końca-miesiąca/dzisiejsze-wydatki, `DashData.safe`)
+  USUNIĘTE CAŁKOWICIE razem z martwym kodem który je liczył (nigdzie indziej
+  się nie pokazywało) — w jego miejscu DOKŁADNIE ten sam mechanizm
+  odliczania co wcześniej błędnie trafił do Finansów (`countdownStore.ts`/
+  `utils/countdown.ts` bez zmian, tylko przeniesiony konsument).
+
+**Zweryfikowane:** tsc czysty, jest 283/283 (bez zmian w testach — czysty
+przenosiny UI, logika odliczania już przetestowana w `countdown.test.ts`).
+Wizualnie `expo web`+Playwright — Finanse pokazuje z powrotem "Najbliższa
+opłata", Dashboard's Rząd 4 prawy kafel to teraz "Odliczanie" dokładnie w
+miejscu gdzie była "Bezpieczne wydatki", picker otwiera się poprawnie.
