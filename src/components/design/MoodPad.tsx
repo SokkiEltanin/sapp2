@@ -135,6 +135,23 @@ export default function MoodPad({
         <>
           <Text style={[s.axis, s.axisTop]}>Więcej energii</Text>
           <Text style={[s.axis, s.axisBottom]}>Mniej energii</Text>
+          {/* 2026-11-09, user: zrzut — "Nieprzyjemnie"/"Przyjemnie" renderowały
+              się jako porozrzucane, nachodzące na siebie fragmenty zamiast
+              jednego słowa bokiem. `axisVWrap` jest CELOWO wąski (22px, tyle
+              miejsca ile ma na padzie) — Text bez WŁASNYCH jawnych wymiarów
+              mierzy się WEWNĄTRZ tego ograniczenia (Yoga przekazuje dostępną
+              szerokość rodzica do pomiaru tekstu nawet przy `alignItems:
+              'center'`, nie tylko przy `'stretch'`), więc zawijał się do 22px
+              PRZED obrotem (layout liczy się przed malowaniem/transformem) —
+              rotacja obracała już połamany, wielowierszowy blok. Samo
+              `numberOfLines={1}` nie wystarczyło (zweryfikowane: nadal
+              obcinało się z "…" zamiast wylewać poza wąski kontener). Fix:
+              jawne `width:110, height:14` NA SAMYM Tekście (`axisVRotateLeft/
+              Right`, nie na wrapperze) — oba wymiary Exactly, Yoga nie mierzy
+              tekstu wcale, zero zależności od dostępnej szerokości rodzica.
+              `textAlign:'center'` centruje w TEJ własnej szerokości (pivot
+              obrotu zostaje na środku kolumny, bo rotacja liczy się względem
+              środka elementu niezależnie od tego jak szeroki jest). */}
           <View style={[s.axisVWrap, s.axisVLeft]}>
             <Text style={[s.axis, s.axisVRotateLeft]}>Nieprzyjemnie</Text>
           </View>
@@ -208,8 +225,17 @@ const makeS = themedStyles((c) => StyleSheet.create({
   axisVWrap: { position: 'absolute', top: 0, bottom: 0, width: 22, alignItems: 'center', justifyContent: 'center' },
   axisVLeft: { left: 0 },
   axisVRight: { right: 0 },
-  axisVRotateLeft: { transform: [{ rotate: '-90deg' }] },
-  axisVRotateRight: { transform: [{ rotate: '90deg' }] },
+  // `width` jawnie na samym Tekście (2026-11-09, poprawka na poprawkę —
+  // `numberOfLines={1}` samo zatrzymało zawijanie, ale pod react-native-web
+  // Text i tak obcinał się z "…" do szerokości 22px kolumny-rodzica zamiast
+  // wylewać się poza nią jak przy natywnym Yoga; szeroka, jawna szerokość TU
+  // (nie na wrapperze) to naprawia niezależnie od tego jak dana platforma
+  // liczy szerokość nieograniczonego Tekstu w wyśrodkowanym flex-rodzicu) —
+  // 110 z zapasem nad najdłuższą etykietą ("Nieprzyjemnie", ~90px przy tym
+  // foncie), `textAlign:'center'` bo teraz to WŁASNA szerokość Tekstu, nie
+  // flex-centering rodzica.
+  axisVRotateLeft: { transform: [{ rotate: '-90deg' }], width: 110, height: 14, textAlign: 'center' },
+  axisVRotateRight: { transform: [{ rotate: '90deg' }], width: 110, height: 14, textAlign: 'center' },
   histDot: { position: 'absolute', width: 6, height: 6, borderRadius: 3, backgroundColor: c.ui.dim, marginLeft: -3, marginTop: -3 },
   dotWrap: { position: 'absolute', top: 0, left: 0, alignItems: 'center', justifyContent: 'center' },
   glow: { position: 'absolute', top: '50%', left: '50%' },
