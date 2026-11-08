@@ -62,6 +62,20 @@ export interface Expense {
   // Ten wydatek już dopasowany do złapanej płatności z banku (Faza 2.5) — żeby
   // powiadomienie o tej samej płatności nie dodało duplikatu.
   bankMatched?: boolean;
+  // Płatność w obcej walucie z banku, jeszcze nieprzeliczona (2026-11-09, user:
+  // "jak obca waluta niech się nie liczy bezpośrednio tylko po kliknięciu trzeba
+  // wprowadzić ile to w PLN żeby zapisać i wtedy się liczy") — surowe cyfry
+  // walutowe NIE są automatycznie PLN, więc `amount` jest wtedy 0 (nic nie wnosi
+  // do żadnej sumy/salda — `fvSplitOf`/`accountBalance` nie potrzebują osobnej
+  // obsługi, 0 po prostu nic nie zmienia) dopóki `AddExpenseModal` nie zapisze
+  // tego wydatku z realną kwotą PLN, co czyści oba te pola. `originalAmount` —
+  // NIE nowa nazwa, już istniejące pole w `MatchExpense` (utils/bankNotification.ts,
+  // `amountMatches` już sprawdza je jako fallback) — powtórnie dostarczone
+  // powiadomienie o TEJ SAMEJ obcej płatności (surowa kwota, nie 0) dalej trafi
+  // w dedup zamiast dodać duplikat. Obecność `originalCurrency` = "ten wydatek
+  // czeka na przeliczenie".
+  originalAmount?: number;
+  originalCurrency?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -67,6 +67,44 @@ describe('commitBankTx — wydatek wychodzący', () => {
   });
 });
 
+// 2026-11-09, user: "jak jest platnosc w obcej walucie niech tez od razu dodaje
+// automatycznie... jak obca waluta niech sie nie liczy bezpisrednio tylko po
+// kliknięciu trzeba wprowadzić ile to w PLN zeby zapisac i wtedy sie liczy" —
+// `commitBankTx` samo w sobie (niezależnie od `auto`/kolejki w bankIngest.ts)
+// musi zerować `amount` i zapisywać oryginał dla KAŻDEJ obcej waluty.
+describe('commitBankTx — waluta obca (amount:0 do czasu przeliczenia)', () => {
+  test('nowy wydatek w obcej walucie → amount:0, oryginał w originalAmount/originalCurrency', async () => {
+    const res = await commitBankTx(ptx({ amount: 12.5, currency: 'EUR' }));
+    expect(res.ok).toBe(true);
+    const exps = useExpensesStore.getState().expenses;
+    expect(exps).toHaveLength(1);
+    expect(exps[0]).toMatchObject({ amount: 0, originalAmount: 12.5, originalCurrency: 'EUR' });
+  });
+
+  test('nowy przychód w obcej walucie → ta sama zasada (amount:0)', async () => {
+    const res = await commitBankTx(ptx({ direction: 'in', amount: 50, currency: 'USD' }));
+    expect(res.ok).toBe(true);
+    const exps = useExpensesStore.getState().expenses;
+    expect(exps[0]).toMatchObject({ type: 'income', amount: 0, originalAmount: 50, originalCurrency: 'USD' });
+  });
+
+  test('PLN (bez waluty obcej) → amount jak podano, bez originalAmount/originalCurrency', async () => {
+    await commitBankTx(ptx({ amount: 60, currency: 'PLN' }));
+    const exp = useExpensesStore.getState().expenses[0];
+    expect(exp.amount).toBe(60);
+    expect(exp.originalAmount).toBeUndefined();
+    expect(exp.originalCurrency).toBeUndefined();
+  });
+
+  test('redostarczone powiadomienie o TEJ SAMEJ obcej płatności → dedup dalej działa (amountMatches czyta originalAmount)', async () => {
+    await commitBankTx(ptx({ id: 'p1', amount: 12.5, currency: 'EUR' }));
+    expect(useExpensesStore.getState().expenses).toHaveLength(1);
+    const res2 = await commitBankTx(ptx({ id: 'p2', amount: 12.5, currency: 'EUR' }));
+    expect(res2.matched).toBe(true);
+    expect(useExpensesStore.getState().expenses).toHaveLength(1);
+  });
+});
+
 describe('commitBankTx — przychód przychodzący', () => {
   test('nowy przychód → dodaje, tag "wypłata" tylko gdy isPaycheck', async () => {
     const res = await commitBankTx(ptx({ direction: 'in', amount: 3000, store: 'Pracodawca', storeKey: 'pracodawca', isPaycheck: true }));

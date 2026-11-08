@@ -45,6 +45,19 @@ export async function commitBankTx(
     const st = useExpensesStore.getState();
     const now = new Date().toISOString();
     const source: Expense['source'] = p.auto ? 'bank-auto' : 'bank';
+    // Waluta obca (2026-11-09, user: "jak obca waluta niech się nie liczy
+    // bezpośrednio tylko po kliknięciu trzeba wprowadzić ile to w PLN żeby
+    // zapisać i wtedy się liczy") — surowe cyfry obcej waluty NIE wchodzą jako
+    // `amount` (zafałszowałyby sumy/saldo, które zakładają PLN); zamiast tego
+    // `amount: 0` (0 nic nie wnosi do żadnej sumy, zero specjalnej obsługi
+    // potrzebnej w balance.ts/fixedVariable.ts) + oryginał w `originalAmount`/
+    // `originalCurrency` — `AddExpenseModal.tsx` pokazuje to jako baner i
+    // wymaga realnej kwoty PLN zanim pozwoli zapisać. `originalAmount` to
+    // JUŻ ISTNIEJĄCE pole które `amountMatches` (bankNotification.ts) sprawdza
+    // jako fallback dedup — powtórnie dostarczone powiadomienie o TEJ SAMEJ
+    // płatności (surowa kwota, nie 0) dalej trafi w już-zaksięgowany wpis.
+    const isForeign = p.currency !== 'PLN';
+    const fxFields = isForeign ? { originalAmount: p.amount, originalCurrency: p.currency } : {};
 
     // ── Przelew przychodzący → przychód ────────────────────────────────────
     if (p.direction === 'in') {
@@ -64,9 +77,10 @@ export async function commitBankTx(
       }
       const newIncomeId = genId();
       st.addExpense({
-        id: newIncomeId, type: 'income', amount: p.amount, date: p.dateISO,
+        id: newIncomeId, type: 'income', amount: isForeign ? 0 : p.amount, date: p.dateISO,
         note: p.store || 'Przychód', tags: p.isPaycheck ? ['wypłata'] : [],
         paymentMethod: 'card', bankMatched: true, source, createdAt: now, updatedAt: now,
+        ...fxFields,
       });
       if (p.isPaycheck) rememberPaycheckSender(p.storeKey).catch(() => {});
       return { ok: true, matched: false, expenseId: newIncomeId };
@@ -98,12 +112,13 @@ export async function commitBankTx(
     } else {
       expenseId = genId();
       st.addExpense({
-        id: expenseId, type: 'expense', amount: p.amount, date: p.dateISO,
+        id: expenseId, type: 'expense', amount: isForeign ? 0 : p.amount, date: p.dateISO,
         note: p.store || (p.selfTransfer ? 'Przelew na oszczędności' : 'Płatność'),
         tags: p.tags ?? [],
         ...(p.store ? { storeName: p.store } : {}),
         paymentMethod: p.method === 'cash' ? 'cash' : (p.method === 'blik' ? 'blik' : (p.method === 'transfer' ? 'transfer' : 'card')),
         bankMatched: true, source, createdAt: now, updatedAt: now,
+        ...fxFields,
       });
     }
     let merchant: MerchantInfo | undefined;

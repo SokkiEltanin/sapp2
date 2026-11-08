@@ -33,11 +33,15 @@ export async function ingestBankNotification(title: string, text: string, notifK
   if (!tx) return false;
   if (notifKey) store.markNotificationSeen(notifKey);
 
-  // Waluta obca (płatność kartą za granicą) — sapp2's `Expense` nie ma pola na
-  // oryginalną/przeliczoną kwotę (sapp miał `originalAmount`/`plnOverride`, patrz
-  // bank-review.tsx tam), więc NIGDY nie auto-księgujemy: surowe cyfry obcej waluty
-  // zaksięgowane jako PLN zafałszowałyby sumy. Zawsze do ręcznego przeglądu, gdzie
-  // user widzi walutę i może poprawić kwotę na PLN przed zatwierdzeniem.
+  // Waluta obca (płatność kartą za granicą) — JUŻ NIE blokuje auto-księgowanie
+  // (2026-11-09, user: "wywal wgle to nieufanie wszystko z automatu niech
+  // dodaje tylko" — foreign przestał wymuszać `uncertain`, patrz niżej). Zamiast
+  // tego `commitBankTx` (bankCommit.ts) księguje taką płatność z `amount: 0` +
+  // `pendingFxAmount`/`pendingFxCurrency` (types/finances.ts) — realny wydatek
+  // już JEST na liście, po prostu nie liczy się w żadnej sumie dopóki user nie
+  // otworzy go i nie wpisze prawdziwej kwoty PLN. `foreign` samo w sobie
+  // zostaje (nadal warte wzmianki w `flagReason` gdy coś INNEGO i tak wymusi
+  // ręczny przegląd, np. zbyt duża kwota).
   const foreign = tx.currency !== 'PLN';
 
   // Przelew przychodzący → przychód. Pełny autopilot oznacza PEŁNY autopilot: zwykły
@@ -47,7 +51,7 @@ export async function ingestBankNotification(title: string, text: string, notifK
     const isPaycheck = !!tx.isSalary || await isKnownPaycheckSender(tx.storeKey);
     // Duży przelew, który nie wygląda jak Twoja wypłata, jest wart jednego spojrzenia —
     // to jedyny przypadek gdzie ciche zaksięgowanie mogłoby zafałszować statystyki.
-    const uncertain = foreign || (!isPaycheck && tx.amount > 1500);
+    const uncertain = !isPaycheck && tx.amount > 1500;
     return store.enqueue({
       ...tx,
       tags: [],
@@ -59,16 +63,17 @@ export async function ingestBankNotification(title: string, text: string, notifK
   }
 
   // Przelew na WŁASNE inne konto (Revolut/oszczędności): nie jest to ani przychód, ani
-  // "prawdziwy" wydatek, tylko przesunięcie własnych pieniędzy. sapp2 nie ma jeszcze
-  // osobnego kubła "przelew własny" we fixedVariable.ts (tylko fixed/variable/food) —
-  // ZAWSZE do ręcznego przeglądu, żeby user mógł ewentualnie ustawić `fvOverride`
-  // samodzielnie po dodaniu (patrz AddExpenseModal.tsx).
+  // "prawdziwy" wydatek, tylko przesunięcie własnych pieniędzy. ZAWSZE do ręcznego
+  // przeglądu (świadomie NIE zmienione przy okazji "wywal nieufanie" wyżej — to
+  // osobna prośba usera, tylko o walutę obcą) — `fvOverride: 'transfer'`
+  // (fixedVariable.ts) daje sposób wykluczyć go z sum PO zatwierdzeniu, w
+  // AddExpenseModal.tsx.
   if (tx.selfTransfer) {
     return store.enqueue({
       ...tx,
       tags: ['przelew własny'],
       suggestedTags: ['przelew własny'],
-      flagReason: 'przelew na Twoje inne konto — to nie jest wydatek, rozważ ręczne wyłączenie z sum (Stałe/Zmienne/Jedzenie)',
+      flagReason: 'przelew na Twoje inne konto — to nie jest wydatek, ustaw "Przelew własny" w Rozlicz jako po dodaniu',
     });
   }
 
@@ -77,7 +82,7 @@ export async function ingestBankNotification(title: string, text: string, notifK
   // Nietypowo wysoka kwota (częsty objaw błędnie odczytanej liczby, np. 10,18 jako
   // 1018) jest jedyną rzeczą wartą potwierdzenia — brakująca nazwa sklepu NIE blokuje
   // (po prostu księguje się jako "Płatność").
-  const uncertain = foreign || tx.amount > 1500;
+  const uncertain = tx.amount > 1500;
   const flagReason = foreign ? `płatność w obcej walucie (${tx.currency}) — sprawdź kwotę w PLN` : (uncertain ? 'nietypowo wysoka kwota — potwierdź' : undefined);
   return store.enqueue({
     ...tx,

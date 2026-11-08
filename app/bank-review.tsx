@@ -14,8 +14,10 @@ import { haptic } from '@/utils/haptics';
 // haptyki/toastów — żadnego z nich appka jeszcze nie ma). Największa różnica: sapp ma
 // sztywną listę kategorii (CATS) do wyboru dla wydatku — sapp2 zamiast tego edytuje
 // WOLNE `tags`, ten sam wzorzec tag-input co w AddExpenseModal.tsx (pole + "+"
-// + chipy do usunięcia). Walutę obcą (sapp miał tu konwersję `plnOverride`) pokazujemy
-// tylko jako ostrzeżenie — sapp2 nie ma pola na oryginalną kwotę, patrz bankIngest.ts.
+// + chipy do usunięcia). Walutę obcą TEN ekran dalej pokazuje tylko jako ostrzeżenie
+// (brak edytowalnego pola kwoty tutaj) — realne przeliczenie PLN dzieje się PO
+// zatwierdzeniu, w AddExpenseModal.tsx (2026-11-09, `Expense.originalAmount`/
+// `originalCurrency`, patrz bankCommit.ts).
 //
 // `submittingIds` — commity są teraz SYNCHRONICZNE (patrz bankCommit.ts, offline-first),
 // więc wyścig wielokrotnego naciśnięcia który w sapp wymagał spinnera/10s-timeout jest
@@ -127,7 +129,12 @@ export default function BankReview() {
                   {d.toLocaleDateString('pl-PL', { day: '2-digit', month: 'short' })} · {d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
                 </Text>
               </View>
-              {foreign && <Text style={s.fxHint}>Waluta obca — sprawdź kwotę, sapp2 księguje ją jak podano (bez przeliczenia na PLN).</Text>}
+              {/* 2026-11-09, user: "jak obca waluta niech się nie liczy bezpośrednio
+                  tylko po kliknięciu trzeba wprowadzić ile to w PLN żeby zapisać" —
+                  zatwierdzenie TEŻ idzie przez `commitBankTx`'s `isForeign` ścieżkę
+                  (bankCommit.ts), więc ten tekst musi mówić to samo co dzieje się
+                  naprawdę: kwota=0 dopóki user nie wpisze PLN w edycji wydatku. */}
+              {foreign && <Text style={s.fxHint}>Waluta obca — zostanie dodana z kwotą 0 zł, otwórz ją potem w Finansach i wpisz realną kwotę w PLN.</Text>}
 
               <Text style={s.fieldLabel}>{isIn ? 'Nadawca / tytuł' : 'Sklep'}</Text>
               <TextInput

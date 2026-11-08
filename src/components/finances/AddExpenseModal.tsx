@@ -158,7 +158,10 @@ export default function AddExpenseModal({
     setItems(editingExpense.receiptItems ?? []);
     setStoreName(editingExpense.storeName ?? '');
     setNote(editingExpense.note ?? '');
-    setAmountInput(editingExpense.amount.toFixed(2));
+    // Puste (nie "0,00") gdy czeka na przeliczenie (2026-11-09) — placeholder
+    // "0,00" wtedy czytelnie zaprasza do wpisania, zamiast wyglądać jak już
+    // wypełnione zerowe pole.
+    setAmountInput(editingExpense.originalCurrency ? '' : editingExpense.amount.toFixed(2));
     setDate(editingExpense.date);
     setPaymentMethod(editingExpense.paymentMethod ?? 'card');
     setPayer(editingExpense.payer ?? 'me');
@@ -272,6 +275,11 @@ export default function AddExpenseModal({
       fvOverride: type === 'expense' && fvChoice !== 'auto' ? fvChoice : null,
       paymentMethod: type === 'expense' ? paymentMethod : undefined,
       payer: type === 'expense' && payer !== 'me' ? payer : undefined,
+      // Zapis = rozwiązanie oczekującego przeliczenia waluty (2026-11-09) —
+      // `amount` powyżej to już prawdziwa wpisana kwota PLN, więc oba te pola
+      // czyszczą się, niezależnie czy ten wydatek w ogóle był `originalCurrency`.
+      originalAmount: undefined,
+      originalCurrency: undefined,
     };
     if (editingExpense) {
       updateExpense(editingExpense.id, { ...shared, updatedAt: now });
@@ -455,6 +463,15 @@ export default function AddExpenseModal({
               Na paragonie: {parsedTotal.toFixed(2)} zł — różnica {Math.abs(includedSum - parsedTotal).toFixed(2)} zł, sprawdź pozycje
             </Text>
           )}
+        </View>
+      )}
+
+      {editingExpense?.originalCurrency && (
+        <View style={[s.section, s.clipboardBanner]}>
+          <Text style={s.clipboardBannerText}>
+            Płatność w obcej walucie: {editingExpense.originalAmount?.toFixed(2)} {editingExpense.originalCurrency} —
+            wpisz kwotę w PLN poniżej, żeby zapisać.
+          </Text>
         </View>
       )}
 
