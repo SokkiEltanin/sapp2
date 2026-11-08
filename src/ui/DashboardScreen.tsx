@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Globe, Moon } from 'lucide-react-native';
+import { Globe, Moon, ListTodo, CalendarClock } from 'lucide-react-native';
 import { C, T, F } from './theme';
 import { Screen, Row, Tile, StatTile, Cap, FitList, Item, Tag, Price, Bars, StackBar, Progress, splitTag, PulseDot } from './layout';
 
@@ -41,7 +41,10 @@ function relTime(start: Date, now: Date): string {
 
 export function DashboardScreen(d: DashData) {
   const now = new Date();
-  const nextTitle = d.next ? splitTag(d.next.title).title : '';
+  // 2026-11-08, user: "kafelek ten biały w prawym gornym musi pokazywać tag
+  // tez" — `splitTag` już wyciągał tag ([UR]/[PUR] itp. prefiks tytułu), ale
+  // kafelek renderował TYLKO `.title`, tag po prostu znikał bez śladu.
+  const { tag: nextTag, title: nextTitle } = d.next ? splitTag(d.next.title) : { tag: undefined, title: '' };
 
   // bezpieczne wydatki – nigdy nie pokazuj ujemnej liczby jako "limitu"
   const free = d.safe.balance == null ? null : d.safe.balance - d.safe.unpaidDue;
@@ -59,7 +62,17 @@ export function DashboardScreen(d: DashData) {
             <>
               <PulseDot />
               <Text style={st.nextWhen} numberOfLines={1}>{relTime(d.next.start, now)}</Text>
-              <Text style={st.nextTitle} numberOfLines={2}>{nextTitle}</Text>
+              {nextTag ? (
+                <View style={st.nextTagWrap}>
+                  <Tag label={nextTag} kind={nextTag === 'PUR' || nextTag === 'UR' ? 'ur' : 'default'} />
+                </View>
+              ) : null}
+              {/* `numberOfLines` niższe gdy jest tag — żeby łączna wysokość (tag +
+                  tytuł) dalej mieściła się w stałej wysokości kafla; to ONO
+                  (razem z `ellipsizeMode`) realnie "skraca" za długie nazwy
+                  eventów do "…", user: "skrócone formy niektórych eventow jezeli
+                  sa za długie". */}
+              <Text style={st.nextTitle} numberOfLines={nextTag ? 1 : 2} ellipsizeMode="tail">{nextTitle}</Text>
             </>
           ) : (
             <>
@@ -140,10 +153,17 @@ export function DashboardScreen(d: DashData) {
             renderItem={(x) => {
               const { tag, title } = splitTag(x.title);
               const important = x.kind === 'deadline' || (x.minutes ?? 999) < 60;
+              // 2026-11-08, user: "zadania muszą wyróżniać sie lekko od eventow
+              // z kalendarza" — kolorowy pasek + pogrubienie dla "ważnych" już
+              // było, ale samo w sobie nie mówiło jednoznacznie "to ZADANIE" (bar
+              // event-u może mieć dowolny kolor, pogrubienie dostawał też bliski
+              // event). Osobna, stała (niezależna od pilności) ikonka per `kind`.
+              const KindIcon = x.kind === 'deadline' ? ListTodo : CalendarClock;
               return (
                 <Item onPress={() => d.onOpen(x.kind, x.id)}>
                   <Text style={st.when} numberOfLines={1}>{x.when}</Text>
                   <View style={[st.bar, { backgroundColor: x.color }]} />
+                  <KindIcon size={11} color={x.kind === 'deadline' ? C.warn : C.dim} style={st.kindIcon} />
                   {tag ? <Tag label={tag} kind={tag === 'PUR' || tag === 'UR' ? 'ur' : 'default'} /> : null}
                   <Text style={[T.row, { flex: 1 }, important && { color: C.hi, fontFamily: F.xb }]} numberOfLines={1}>{title}</Text>
                   {x.minutes != null && x.minutes < 60 ? <Tag label={`${x.minutes} MIN`} kind="fr" /> : null}
@@ -165,7 +185,9 @@ const st = StyleSheet.create({
   tiny: { fontFamily: F.b, fontSize: 10, color: C.mut },
   when: { width: 64, fontFamily: F.xb, fontSize: 10, color: C.mut, fontVariant: ['tabular-nums'] },
   bar: { width: 3, height: 16, borderRadius: 2 },
+  kindIcon: { marginRight: 1 },
   nextTile: { paddingHorizontal: 6, paddingTop: 14, paddingBottom: 12 },
+  nextTagWrap: { marginTop: 4 },
   nextWhen: { fontFamily: F.sb, fontSize: 9, letterSpacing: 1.2, color: 'rgba(0,0,0,.55)', textTransform: 'uppercase' },
   nextTitle: { fontFamily: F.xb, fontSize: 12, lineHeight: 15, letterSpacing: 0.2, color: '#000', textAlign: 'center', marginTop: 6 },
 });

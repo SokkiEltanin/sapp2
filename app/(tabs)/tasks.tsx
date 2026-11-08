@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { spacing, themedStyles } from '@/theme';
@@ -9,7 +9,7 @@ import Segmented from '@/components/design/Segmented';
 import { useCalendarStore } from '@/store/calendarStore';
 import { todayISO } from '@/utils/date';
 import { eventCoversDay, type Task } from '@/types/calendar';
-import { googleCalendarService } from '@/services/googleCalendarService';
+import { useGoogleCalendarSync } from '@/hooks/useGoogleCalendarSync';
 import WeekMonthCalendar from '@/components/tasks/WeekMonthCalendar';
 import TaskRow from '@/components/tasks/TaskRow';
 import AddTaskCard from '@/components/tasks/AddTaskCard';
@@ -57,7 +57,6 @@ export default function TasksScreen() {
   const gcalEvents = useCalendarStore((st) => st.gcalEvents);
   const selectedDate = useCalendarStore((st) => st.selectedDate);
   const setSelectedDate = useCalendarStore((st) => st.setSelectedDate);
-  const setGcalEvents = useCalendarStore((st) => st.setGcalEvents);
   const addTask = useCalendarStore((st) => st.addTask);
   const updateTask = useCalendarStore((st) => st.updateTask);
   const deleteTask = useCalendarStore((st) => st.deleteTask);
@@ -66,14 +65,10 @@ export default function TasksScreen() {
   const [detailDate, setDetailDate] = useState<string | null>(null);
   const [segment, setSegment] = useState<'wszystkie' | 'teraz' | 'bezterminowe'>('wszystkie');
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const fetched = await googleCalendarService.fetchEvents();
-      if (!cancelled) setGcalEvents(fetched);
-    })();
-    return () => { cancelled = true; };
-  }, [setGcalEvents]);
+  // 2026-11-08: wydzielone do `useGoogleCalendarSync` (patrz tam) — Dashboard
+  // teraz wola ten sam hook, więc "kalendarz nie ładuje się na dashbordzie"
+  // (user) jest naprawione bez dublowania fetcha w dwóch miejscach.
+  useGoogleCalendarSync();
 
   const today = todayISO();
   const allEvents = useMemo(() => [...events, ...gcalEvents], [events, gcalEvents]);

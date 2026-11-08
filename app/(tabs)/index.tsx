@@ -14,6 +14,7 @@ import { useExpensesStore } from '@/store/expensesStore';
 import { useHabitsStore } from '@/store/habitsStore';
 import { useHealthStore } from '@/store/healthStore';
 import { useHealthSync } from '@/hooks/useHealthSync';
+import { useGoogleCalendarSync } from '@/hooks/useGoogleCalendarSync';
 import { todayISO } from '@/utils/date';
 import { foodByMonth, foodDailyAverageThisMonth } from '@/utils/foodStats';
 import { habitStreak } from '@/utils/habitStreak';
@@ -100,6 +101,14 @@ export default function Dashboard() {
   const habitDays = useHabitsStore((st) => st.days);
   const healthToday = useHealthStore((st) => st.today);
   useHealthSync();
+  // 2026-11-08, user: "jak wchodzę do apki to kalendarz sie nie ładuje na
+  // dashbordzie a powinien... tylko rozsądnie bez lagów" — wcześniej TYLKO
+  // `tasks.tsx` odświeżał `gcalEvents`, więc Dashboard pokazywał cokolwiek
+  // zostało w store z ostatniej sesji dopóki user nie odwiedził Zadań.
+  // Współdzielony hook z throttle'em (5 min, jak `useHealthSync`) — "bez
+  // lagów" znaczy że szybkie przełączanie Dashboard↔Zadania NIE odpala
+  // drugiego fetcha zaraz po pierwszym.
+  useGoogleCalendarSync();
   const today = todayISO();
   const now = useMemo(() => new Date(), [today]);
 
