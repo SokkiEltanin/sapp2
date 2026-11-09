@@ -126,6 +126,46 @@ export function maintenanceDueLabel(due: number): string {
   return `za ~${Math.round(due)} mies.`;
 }
 
+export interface NextMaintenanceDue {
+  vehicleName: string;
+  label: string;
+  dueMonths: number;
+  dueLabel: string;
+}
+
+// Najbliższa wymiana ze WSZYSTKICH pojazdów naraz (2026-11-09, user: "tam gdzie
+// zielony musimy coś zrobić i może zróbmy będzie najbliższa wymiana (oleju,
+// filtra itp z zapisanych)") — zasila Dashboard's wcześniej świadomie pusty
+// kafelek (Rząd 1 lewa połowa, patrz DashboardScreen.tsx). Tylko wpisy z
+// ustawionym `intervalMonths` (jednorazowe pozycje bez interwału nie mają
+// "następnego terminu"). Per (pojazd, etykieta) liczy się TYLKO najnowszy wpis —
+// kolejna "Wymiana oleju" zastępuje poprzednią, starsza przestaje być
+// miarodajna dla "kiedy następna". Z wszystkich tak wyliczonych terminów —
+// NAJMNIEJSZY `dueMonths` (najbliższy w czasie, ujemny = już zaległy, więc
+// zawsze wygrywa pierwszy).
+export function nextMaintenanceDue(
+  vehicles: Pick<Vehicle, 'name' | 'maintenance'>[],
+  now: Date = new Date(),
+): NextMaintenanceDue | null {
+  let best: NextMaintenanceDue | null = null;
+  for (const v of vehicles) {
+    const latestByLabel = new Map<string, VehicleMaintenance>();
+    for (const m of v.maintenance) {
+      if (!m.intervalMonths) continue;
+      const cur = latestByLabel.get(m.label);
+      if (!cur || m.date > cur.date) latestByLabel.set(m.label, m);
+    }
+    for (const m of latestByLabel.values()) {
+      const dueMonths = maintenanceDueMonths(m, now);
+      if (dueMonths == null) continue;
+      if (!best || dueMonths < best.dueMonths) {
+        best = { vehicleName: v.name, label: m.label, dueMonths, dueLabel: maintenanceDueLabel(dueMonths) };
+      }
+    }
+  }
+  return best;
+}
+
 export function maintenancePresets(kind: VehicleKind): { label: string; intervalMonths?: number }[] {
   if (kind === 'bike') return [
     { label: 'Smarowanie łańcucha', intervalMonths: 1 },

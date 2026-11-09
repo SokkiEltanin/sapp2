@@ -1,7 +1,7 @@
 import {
   looksLikeFuel, expenseMatchesVehicle, mainCarId, summarizeVehicle,
   maintenanceDueMonths, maintenanceDueLabel, maintenancePresets, costPerKm,
-  vehicleYearSummary, currentOdometer, avgFuelConsumption,
+  vehicleYearSummary, currentOdometer, avgFuelConsumption, nextMaintenanceDue,
 } from '@/utils/vehicleMatch';
 import type { Expense } from '@/types/finances';
 import type { Vehicle, VehicleMaintenance, OdometerReading, FuelLog } from '@/types/vehicles';
@@ -141,6 +141,50 @@ describe('vehicleMatch — maintenanceDueLabel', () => {
   test('due >= 1 miesiąc → miesiące jak dotychczas', () => {
     expect(maintenanceDueLabel(1)).toBe('za ~1 mies.');
     expect(maintenanceDueLabel(11.4)).toBe('za ~11 mies.');
+  });
+});
+
+// 2026-11-09, user (zrzut Dashboardu): "tam gdzie zielony musimy coś zrobić i
+// może zróbmy będzie najbliższa wymiana (oleju, filtra itp z zapisanych)" —
+// zasila Dashboard's wcześniej świadomie pusty kafelek (Rząd 1 lewa połowa).
+describe('vehicleMatch — nextMaintenanceDue', () => {
+  const m = (o: Partial<VehicleMaintenance>): VehicleMaintenance => ({ id: 'm1', label: 'Serwis', date: '2026-01-01', ...o });
+
+  test('brak pojazdów/wpisów → null', () => {
+    expect(nextMaintenanceDue([])).toBeNull();
+    expect(nextMaintenanceDue([v({ maintenance: [] })])).toBeNull();
+  });
+
+  test('pomija wpisy bez intervalMonths (jednorazowe, bez "następnego terminu")', () => {
+    expect(nextMaintenanceDue([v({ maintenance: [m({ intervalMonths: undefined })] })])).toBeNull();
+  });
+
+  test('wybiera NAJBLIŻSZY termin spośród wielu pojazdów', () => {
+    const now = new Date(2026, 5, 1);
+    const result = nextMaintenanceDue([
+      v({ name: 'Civic', maintenance: [m({ label: 'Olej', date: '2026-01-01', intervalMonths: 6 })] }), // due ~ +1mies
+      v({ name: 'Rower', maintenance: [m({ label: 'Łańcuch', date: '2026-05-15', intervalMonths: 1 })] }), // due ~ +0.5mies, bliżej
+    ], now);
+    expect(result?.vehicleName).toBe('Rower');
+    expect(result?.label).toBe('Łańcuch');
+  });
+
+  test('per (pojazd, etykieta) liczy się TYLKO najnowszy wpis — starszy tej samej etykiety nie zniekształca wyniku', () => {
+    const now = new Date(2026, 5, 1);
+    const result = nextMaintenanceDue([
+      v({ name: 'Civic', maintenance: [
+        m({ id: 'old', label: 'Olej', date: '2026-01-01', intervalMonths: 1 }), // sam dawałby "zaległe"
+        m({ id: 'new', label: 'Olej', date: '2026-05-20', intervalMonths: 1 }), // realnie aktualny
+      ] }),
+    ], now);
+    expect(result?.dueMonths).toBeGreaterThan(0);
+  });
+
+  test('zaległy termin (dueMonths <= 0) dalej jest zwracany, z odpowiednią etykietą', () => {
+    const now = new Date(2026, 5, 1);
+    const result = nextMaintenanceDue([v({ name: 'Civic', maintenance: [m({ label: 'Olej', date: '2026-01-01', intervalMonths: 1 })] })], now);
+    expect(result?.dueMonths).toBeLessThan(0);
+    expect(result?.dueLabel).toBe('zaległe');
   });
 });
 

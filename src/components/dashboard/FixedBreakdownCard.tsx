@@ -1,8 +1,15 @@
-import { View, Text, StyleSheet } from 'react-native';
-import { Repeat, TrendingUp, TrendingDown } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Repeat, TrendingUp, TrendingDown, Pencil } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
-import type { FixedItem, FixedDeviation } from '@/utils/fixedVariable';
+import { haptic } from '@/utils/haptics';
+import type { FixedItem, FixedDeviation, FvTransaction } from '@/utils/fixedVariable';
+
+function fmtTxDate(ymd: string): string {
+  const [y, m, d] = (ymd || '').slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return '';
+  return new Date(y, m - 1, d).toLocaleDateString('pl-PL', { day: '2-digit', month: 'short' });
+}
 
 // Zakładka "Stałe" w popupie Wydatki (Faza 2.4, 2026-11-01) — bliźniak
 // `FoodBreakdownCard.tsx`, ten sam układ karty (nagłówek+suma, porównanie do
@@ -12,8 +19,13 @@ import type { FixedItem, FixedDeviation } from '@/utils/fixedVariable';
 // przetestowane w `fixedVariable.ts`) pokazuje się TYLKO przy pozycji z
 // rozpoznanym, nietypowym skokiem względem jej własnej historii — reszta pozycji
 // bez odznaki, nie "0%" wszędzie.
+//
+// "Wszystkie transakcje" DOŁĄCZONE 2026-11-09 — ten sam fix/uzasadnienie co
+// `VariableBreakdownCard.tsx` (user: "nie moge edytowac tam i klikać co jest
+// zmienna a co nie") — `bucketTransactions` była gotowa i przetestowana, nigdy
+// nie podpięta do żadnego ekranu.
 export default function FixedBreakdownCard({
-  month, total, changePercent, previousTotal, items, deviations,
+  month, total, changePercent, previousTotal, items, deviations, transactions, onSelectTransaction,
 }: {
   month: string;
   total: string;
@@ -21,6 +33,8 @@ export default function FixedBreakdownCard({
   previousTotal: string;
   items: FixedItem[];
   deviations: FixedDeviation[];
+  transactions: FvTransaction[];
+  onSelectTransaction: (id: string) => void;
 }) {
   const s = makeS();
   const maxAmount = Math.max(1, ...items.map((i) => i.amount));
@@ -67,6 +81,27 @@ export default function FixedBreakdownCard({
           })}
         </View>
       )}
+
+      {transactions.length > 0 && (
+        <>
+          <Text style={s.hint}>Wszystkie transakcje · stuknij, żeby przeklasyfikować</Text>
+          <View style={s.txList}>
+            {transactions.map((tx) => (
+              <TouchableOpacity
+                key={tx.id}
+                style={s.txRow}
+                activeOpacity={0.7}
+                onPress={() => { haptic.tap(); onSelectTransaction(tx.id); }}
+              >
+                <Text style={s.txDate}>{fmtTxDate(tx.date)}</Text>
+                <Text style={s.txLabel} numberOfLines={1}>{tx.label}</Text>
+                {tx.overridden ? <Pencil size={11} color={colors.text.muted} style={s.txPencil} /> : null}
+                <Text style={s.txAmount}>{tx.amount} zł</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
     </View>
   );
 }
@@ -101,4 +136,14 @@ const makeS = themedStyles((c) => StyleSheet.create({
   deviationLabel: { fontSize: 9.5, fontFamily: 'Inter_700Bold' },
   deviationLabelUp: { color: colors.accent.red },
   deviationLabelDown: { color: colors.accent.green },
+
+  txList: { gap: spacing[1] },
+  txRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[2],
+    paddingVertical: spacing[2], borderTopWidth: 1, borderTopColor: c.border.default,
+  },
+  txDate: { width: 44, fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  txLabel: { flex: 1, fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  txPencil: { marginRight: 2 },
+  txAmount: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.secondary },
 }));

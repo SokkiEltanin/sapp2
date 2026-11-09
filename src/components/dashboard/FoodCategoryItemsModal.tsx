@@ -15,6 +15,12 @@ import type { FoodCategory } from './FoodBreakdownCard';
 // zero szansy by suma i lista drill-down się rozjechały.
 //
 // Przebudowany na `AppBottomSheet` (2026-11-02, kontynuacja migracji z Faza 3.6).
+//
+// Wiersze TAPPABLE (2026-11-09, user: "nie moge edytowac tam i klikać co jest
+// zmienna a co nie") — `onEditExpense(it.expenseId)` otwiera RODZICA (cały
+// paragon) w AddExpenseModal, tę samą "Rozlicz jako" edycję co w Zmienne/Stałe
+// (WydatkiModal.tsx bubbluje to do `onEditExpense` przekazanego z ekranu
+// Dashboard/Finanse, ten sam mechanizm co "Ostatnie transakcje").
 function fmtDate(ymd: string): string {
   const [y, m, d] = ymd.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('pl-PL', { day: '2-digit', month: 'short' });
@@ -25,11 +31,13 @@ export default function FoodCategoryItemsModal({
   onClose,
   month,
   category,
+  onEditExpense,
 }: {
   visible: boolean;
   onClose: () => void;
   month: string;
   category: FoodCategory | null;
+  onEditExpense: (expenseId: string) => void;
 }) {
   const s = makeS();
   if (!category) return null;
@@ -58,7 +66,12 @@ export default function FoodCategoryItemsModal({
         </View>
       ) : (
         category.items.map((it, i) => (
-          <View key={`${it.expenseId}_${i}`} style={s.row}>
+          <TouchableOpacity
+            key={`${it.expenseId}_${i}`}
+            style={s.row}
+            activeOpacity={0.7}
+            onPress={() => { haptic.tap(); onEditExpense(it.expenseId); }}
+          >
             <View style={s.rowLeft}>
               <Text style={s.itemName} numberOfLines={1}>{it.name}</Text>
               <Text style={s.itemMeta}>
@@ -67,7 +80,7 @@ export default function FoodCategoryItemsModal({
               </Text>
             </View>
             <Text style={s.itemPrice}>{it.price.toFixed(2)} zł</Text>
-          </View>
+          </TouchableOpacity>
         ))
       )}
     </AppBottomSheet>

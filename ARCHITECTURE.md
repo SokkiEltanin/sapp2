@@ -1336,9 +1336,14 @@ dopasowania płatności do powiadomień bankowych z sapp's `subscriptionAuto.ts`
 subskrypcja?"/zmiana ceny/martwa subskrypcja z `DEAD_SUB_THRESHOLD`) — głęboko
 sprzęgnięte z sapp's bank-notification pipeline, którego sapp2 jeszcze nie ma w
 tej formie. `detectRecurringBills` (auto-wykrywanie kandydatów na rachunek z
-historii wydatków + dashboard-suggest banner + dismiss-list) też nie
-portowane — v1 ma wyłącznie RĘCZNE dodawanie. Realne lokalne powiadomienia-
-przypomnienia (`reminderDaysBefore` faktycznie planujące push) NIE wpięte —
+historii wydatków) **DOŁĄCZONE 2026-11-09** (user: "ta ostatnia platnosc
+najbliższą ma być automatyczna po stałych i subskrypcjach łapać... ma
+przewidywać stałe kiedy są") — patrz `upcomingPayments` niżej po pełny opis;
+dashboard-suggest banner + dismiss-list ("czy to Twój rachunek, dodać jako
+Subskrypcję?") WCIĄŻ nie portowane — `detectRecurringBills` tu zasila TYLKO
+przewidywanie terminu, nie proponuje nic userowi do zatwierdzenia. Realne
+lokalne powiadomienia-przypomnienia (`reminderDaysBefore` faktycznie
+planujące push) NIE wpięte —
 pole jest zapisywane/eksportowalne, ale nic jeszcze go nie planuje jako
 notyfikację. `missedCycles` zostaje jako czyste dane (liczone przy
 `rollOverdueSubscription`), bez żadnego UI "martwa subskrypcja" w v1.
@@ -1348,11 +1353,20 @@ notyfikację. `missedCycles` zostaje jako czyste dane (liczone przy
 wyłącza subskrypcje z wygasłym `durationMonths` i przesuwa zaległe
 `nextBillingDate` w przyszłość o tyle cykli, ile potrzeba.
 
-**Dashboard "Stałe opłaty" w "Najbliższych eventach"**: tylko subskrypcje z
-płatnością w ciągu 14 dni (`BILL_WINDOW_DAYS`, `app/(tabs)/index.tsx`) — w
+**Dashboard "Stałe opłaty" w "Najbliższych eventach"**: tylko płatności z
+terminem w ciągu 14 dni (`BILL_WINDOW_DAYS`, `app/(tabs)/index.tsx`) — w
 przeciwieństwie do eventów/terminów (bez limitu czasowego, user: "zamieniamy na
-najbliższe eventy po prostu i tyle bez ograniczenia"), subskrypcja płatna raz w
-roku zaśmiecałaby listę miesiącami z wyprzedzeniem.
+najbliższe eventy po prostu i tyle bez ograniczenia"), subskrypcja/rachunek
+płatny raz w roku zaśmiecałby listę miesiącami z wyprzedzeniem.
+
+**`upcomingPayments`/`nextUpcomingPayment` (2026-11-09)** — łączą realne
+Subskrypcje (`upcomingSubscriptions`) z PRZEWIDYWANYMI terminami rachunków
+stałych wykrytych przez `detectRecurringBills`+`nextBillingDate` (rachunek
+rozpoznany `billTagFor` w ≥2 odrębnych miesiącach, przewidywany dzień = z
+ostatniego wystąpienia) w jedną, posortowaną listę — zasilają Finanse's
+"Najbliższa opłata" i Dashboard's "Stałe opłaty". `upcomingSubscriptions`/
+`nextDueSubscription` ZOSTAJĄ (używane WEWNĄTRZ tych nowych funkcji, też
+nadal eksportowane dla ewentualnych innych konsumentów).
 
 **Eksport szablonów z sapp** — user pytał też o eksport "szablonów do łapania
 powiadomień i stałych" z sapp. Odpowiedź: sapp's `backupService.ts`'s

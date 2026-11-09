@@ -1,23 +1,40 @@
-import { View, Text, StyleSheet } from 'react-native';
-import { ShoppingCart } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { ShoppingCart, Pencil } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
-import type { VariableContributor } from '@/utils/fixedVariable';
+import { haptic } from '@/utils/haptics';
+import type { VariableContributor, FvTransaction } from '@/utils/fixedVariable';
+
+function fmtTxDate(ymd: string): string {
+  const [y, m, d] = (ymd || '').slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return '';
+  return new Date(y, m - 1, d).toLocaleDateString('pl-PL', { day: '2-digit', month: 'short' });
+}
 
 // Zakładka "Zmienne" w popupie Wydatki (Faza 2.4, 2026-11-01) — trzeci kubeł obok
 // Stałe/Jedzenie, ten sam układ karty co `FixedBreakdownCard.tsx`. "Top wydatki"
-// (`topVariableContributors`, już przetestowane) zamiast pełnej listy — to
-// dyskrecjonalne zakupy, zwykle dużo drobnych pozycji; pokazujemy co faktycznie
-// przeważyło, nie każdą pojedynczą transakcję (ta jest dostępna w pełnej liście
-// "Ostatnie transakcje" → "Zobacz wszystkie" na ekranie Finanse).
+// (`topVariableContributors`, już przetestowane) — co faktycznie przeważyło,
+// pogrupowane, nie każda transakcja osobno.
+//
+// "Wszystkie transakcje" DOŁĄCZONE 2026-11-09 (user: "nie moge edytowac tam i
+// klikać co jest zmienna a co nie") — `bucketTransactions` (fixedVariable.ts)
+// JUŻ ISTNIAŁA, w pełni przetestowana, ale nigdy nie była podpięta do żadnego
+// ekranu — czysty "backend gotowy, UI zapomniane". Lista pojedynczych
+// transakcji, tappable → `onSelectTransaction(id)` (WydatkiModal.tsx otwiera
+// AddExpenseModal z jej "Rozlicz jako" — tam user faktycznie przełącza
+// Stałe/Zmienne/Jedzenie/Transfer dla KONKRETNEGO wydatku). `overridden`
+// (ręcznie ustawione przez usera, nie automatyczne rozpoznanie) dostaje małą
+// ikonkę ołówka — widoczny ślad że ktoś już tu grzebał.
 export default function VariableBreakdownCard({
-  month, total, changePercent, previousTotal, top,
+  month, total, changePercent, previousTotal, top, transactions, onSelectTransaction,
 }: {
   month: string;
   total: string;
   changePercent: number;
   previousTotal: string;
   top: VariableContributor[];
+  transactions: FvTransaction[];
+  onSelectTransaction: (id: string) => void;
 }) {
   const s = makeS();
   const maxAmount = Math.max(1, ...top.map((i) => i.amount));
@@ -52,6 +69,27 @@ export default function VariableBreakdownCard({
           ))}
         </View>
       )}
+
+      {transactions.length > 0 && (
+        <>
+          <Text style={s.hint}>Wszystkie transakcje · stuknij, żeby przeklasyfikować</Text>
+          <View style={s.txList}>
+            {transactions.map((tx) => (
+              <TouchableOpacity
+                key={tx.id}
+                style={s.txRow}
+                activeOpacity={0.7}
+                onPress={() => { haptic.tap(); onSelectTransaction(tx.id); }}
+              >
+                <Text style={s.txDate}>{fmtTxDate(tx.date)}</Text>
+                <Text style={s.txLabel} numberOfLines={1}>{tx.label}</Text>
+                {tx.overridden ? <Pencil size={11} color={colors.text.muted} style={s.txPencil} /> : null}
+                <Text style={s.txAmount}>{tx.amount} zł</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
     </View>
   );
 }
@@ -76,4 +114,14 @@ const makeS = themedStyles((c) => StyleSheet.create({
   itemBarTrack: { flex: 1, height: 6, borderRadius: 999, backgroundColor: c.bg.elevated, overflow: 'hidden' },
   itemBar: { height: '100%', borderRadius: 999, backgroundColor: c.text.bright },
   itemAmount: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.secondary, minWidth: 48, textAlign: 'right' },
+
+  txList: { gap: spacing[1] },
+  txRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[2],
+    paddingVertical: spacing[2], borderTopWidth: 1, borderTopColor: c.border.default,
+  },
+  txDate: { width: 44, fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  txLabel: { flex: 1, fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  txPencil: { marginRight: 2 },
+  txAmount: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.secondary },
 }));

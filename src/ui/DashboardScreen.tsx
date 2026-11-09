@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Globe, Moon, ListTodo, CalendarClock } from 'lucide-react-native';
+import { Globe, Moon, ListTodo, CalendarClock, Wrench } from 'lucide-react-native';
 import { C, T, F } from './theme';
 import { Screen, Row, Tile, Cap, FitList, Item, Tag, Price, Bars, StackBar, splitTag } from './layout';
 
@@ -23,6 +23,15 @@ export type DashData = {
   // USUNIĘTE stąd razem z nieużywanym dalej kodem w index.tsx (ta funkcja
   // nigdzie indziej się nie pokazywała).
   countdown: { text: string; eventTitle: string } | null;
+  // Lewa połowa Rzędu 1 (2026-11-09, user: "tam gdzie zielony musimy coś
+  // zrobić i może zróbmy będzie najbliższa wymiana (oleju, filtra itp z
+  // zapisanych)") — wcześniej świadomie pusty `Tile` (user: "zostaw pusty
+  // kafelek"), teraz zasilany `nextMaintenanceDue` (vehicleMatch.ts) ze
+  // WSZYSTKICH pojazdów naraz. CELOWO bez `onPress` — user ustalił wcześniej
+  // (przy decyzji "zostaw pusty"), że to miejsce MUSI zostać czysto
+  // informacyjne, nie klikane, bo jest wysoko na ekranie (trudno dosięgnąć
+  // kciukiem).
+  nextMaintenance: { vehicleName: string; label: string; dueLabel: string; overdue: boolean } | null;
   upcoming: { id: string; when: string; title: string; kind: 'event' | 'deadline' | 'bill'; color: string; minutes?: number; amount?: number }[];
   onOpen: (what: string, id?: string) => void; // otwiera bottom sheet
 };
@@ -57,12 +66,30 @@ export function DashboardScreen(d: DashData) {
           drugiej połowie... zostaw pusty" — kafle Woda/Słodycze/Trening
           usunięte stąd (odhaczanie nawyków przeniesione do Daily, patrz
           `app/(tabs)/daily.tsx`'s rząd "Nawyki" — appka nie traci realnej
-          funkcji, tylko miejsce). Lewa połowa: świadomie pusty `Tile` (ta sama
-          matematyka szerokości co prawdziwy kafel, `backgroundColor:
-          'transparent'` więc nie rysuje karty) — user chciał PUSTĄ przestrzeń,
-          nie placeholder. */}
+          funkcji, tylko miejsce). Lewa połowa: BYŁA świadomie pusta, teraz
+          (ten sam dzień, user zmienił zdanie na zrzucie) pokazuje "Najbliższa
+          wymiana" z Pojazdów — patrz `nextMaintenance` w `DashData` wyżej.
+          CELOWO bez `onPress`/`Pressable` — czysto informacyjny `View`, nie
+          `Tile`'s klikalny wariant, bo to miejsce jest za wysoko na ekranie na
+          wygodne dotknięcie kciukiem (ta sama zasada co reszta tego rzędu). */}
       <Row>
-        <Tile span={2} style={st.emptyHalf} />
+        <Tile span={2} center style={st.maintTile}>
+          {d.nextMaintenance ? (
+            <>
+              <Wrench size={12} color={C.dim} style={st.icoL} />
+              <Text style={[T.num, { fontSize: 20 }, d.nextMaintenance.overdue && { color: C.warn }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                {d.nextMaintenance.dueLabel}
+              </Text>
+              <Text style={T.unit} numberOfLines={1}>{d.nextMaintenance.vehicleName}</Text>
+              <Text style={[T.lab, { textAlign: 'center' }]} numberOfLines={2}>{d.nextMaintenance.label}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={[T.unit, { color: C.dim }]}>brak</Text>
+              <Text style={T.lab} numberOfLines={1}>Najbliższa wymiana</Text>
+            </>
+          )}
+        </Tile>
         <Tile span={2} hot={!!d.next} center style={st.nextTile} onPress={() => d.onOpen('next')}>
           {d.next ? (
             <>
@@ -141,11 +168,15 @@ export function DashboardScreen(d: DashData) {
             )}
           />
         </Tile>
-        <Tile onPress={() => d.onOpen('countdown')} center style={{ justifyContent: 'center' }}>
+        <Tile onPress={() => d.onOpen('countdown')} center style={{ justifyContent: 'center', paddingHorizontal: 8 }}>
           <Text style={[T.num, { fontSize: 22 }, !d.countdown && { color: C.dim }]} adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.6}>
             {d.countdown ? d.countdown.text : '0'}
           </Text>
-          <Text style={T.unit} numberOfLines={1}>{d.countdown ? d.countdown.eventTitle : 'brak'}</Text>
+          {/* 2026-11-09, user: "ten w czerwonym kółku kafelek... on jest wysoki
+              wiec pozwol tekst zawijać zeby bylo wiadomo do jakiego eventu" —
+              `numberOfLines:1` obcinał tytuł eventu do "…" mimo że ten kafel
+              (Row flex:1, sporo wysokości) ma miejsce na więcej. */}
+          <Text style={[T.unit, { textAlign: 'center' }]} numberOfLines={3}>{d.countdown ? d.countdown.eventTitle : 'brak'}</Text>
           <Text style={T.lab} numberOfLines={1}>Odliczanie</Text>
         </Tile>
       </Row>
@@ -196,7 +227,7 @@ const st = StyleSheet.create({
   // nie nachodził niezależnie od długości tekstu/wysokości kafla. `minHeight: 96`
   // — zabezpiecza przed skurczeniem się kafla poniżej tego, gdy tytuł jest krótki.
   nextTile: { paddingHorizontal: 8, paddingTop: 30, paddingBottom: 12, minHeight: 96 },
-  emptyHalf: { backgroundColor: 'transparent' },
+  maintTile: { paddingHorizontal: 8 },
   nextWhenCorner: { position: 'absolute', top: 10, left: 10 },
   nextTagCorner: { position: 'absolute', top: 9, right: 9 },
   nextWhen: { fontFamily: F.sb, fontSize: 9, letterSpacing: 1.2, color: 'rgba(0,0,0,.55)', textTransform: 'uppercase' },

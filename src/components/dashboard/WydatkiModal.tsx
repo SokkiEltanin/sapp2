@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { X } from 'lucide-react-native';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
-import FoodBreakdownCard, { type FoodWeek, type FoodCategory } from './FoodBreakdownCard';
+import FoodBreakdownCard, { type FoodCategory } from './FoodBreakdownCard';
 import FoodCategoryItemsModal from './FoodCategoryItemsModal';
 import FixedBreakdownCard from './FixedBreakdownCard';
 import VariableBreakdownCard from './VariableBreakdownCard';
-import type { FixedItem, FixedDeviation, VariableContributor } from '@/utils/fixedVariable';
+import { bucketTransactions } from '@/utils/fixedVariable';
+import { computeWydatkiData, monthKeyOf } from '@/utils/wydatkiData';
 import { haptic } from '@/utils/haptics';
+import type { Expense } from '@/types/finances';
 
 // Popup "#wydatki" (2026-10-31, user: "lepiej mniej informacji ale popup po kliknięciu
 // na zakładkę #wydatki, w której będzie scroll już jakby bo to popup będzie ze
@@ -47,29 +49,54 @@ const TABS: { key: WydatkiTab; label: string }[] = [
 export default function WydatkiModal({
   visible,
   onClose,
-  month,
+  expenses,
+  today,
   initialTab = 'food',
-  food,
-  fixed,
-  variable,
+  onEditExpense,
 }: {
   visible: boolean;
   onClose: () => void;
-  month: string;
+  expenses: Expense[];
+  today: Date;
   initialTab?: WydatkiTab;
-  food: { total: string; changePercent: number; previousTotal: string; weeks: FoodWeek[]; categories: FoodCategory[] };
-  fixed: { total: string; changePercent: number; previousTotal: string; items: FixedItem[]; deviations: FixedDeviation[] };
-  variable: { total: string; changePercent: number; previousTotal: string; top: VariableContributor[] };
+  onEditExpense: (expense: Expense) => void;
 }) {
   const s = makeS();
   const [tab, setTab] = useState<WydatkiTab>(initialTab);
+  // Nawigacja miesiącami (2026-11-09, user: "nie moge... sprawdzać innych
+  // miesiecy") — `today` od wołającego to ZAWSZE realne "teraz" (Dashboard/
+  // Finanse liczą SWOJE widoki z niego, bez offsetu); `monthOffset` to TYLKO
+  // lokalny stan TEGO popupu, resetowany do 0 przy każdym otwarciu — Dashboard/
+  // Finanse pod spodem zawsze dalej pokazują bieżący miesiąc, nawigacja w
+  // popupie nic tam nie zmienia. `> 0` (przyszłość) celowo zablokowane —
+  // appka nie ma jeszcze żadnych danych z przyszłości do pokazania.
+  const [monthOffset, setMonthOffset] = useState(0);
   // Drill-down popup "co się na to złożyło" (2026-11-01) STACKUJE się na wierchu
   // tego modala, zamiast go zamykać — ten sam wzorzec co TransactionsModal.
   const [selectedCategory, setSelectedCategory] = useState<FoodCategory | null>(null);
 
   useEffect(() => {
-    if (visible) setTab(initialTab);
+    if (visible) { setTab(initialTab); setMonthOffset(0); }
   }, [visible, initialTab]);
+
+  const viewDate = useMemo(
+    () => new Date(today.getFullYear(), today.getMonth() + monthOffset, 1),
+    [today, monthOffset],
+  );
+  const data = useMemo(() => computeWydatkiData(expenses, viewDate), [expenses, viewDate]);
+  const monthKey = useMemo(() => monthKeyOf(viewDate), [viewDate]);
+  const fixedTx = useMemo(() => bucketTransactions(expenses, monthKey, 'fixed'), [expenses, monthKey]);
+  const variableTx = useMemo(() => bucketTransactions(expenses, monthKey, 'variable'), [expenses, monthKey]);
+
+  // Bubbluje do ekranu-wołającego (Dashboard/Finanse) — oba już mają
+  // `editingExpense`/`AddExpenseModal` dla "Ostatnie transakcje", to ten sam
+  // mechanizm, nie drugi. Stuknięcie w transakcję NIE zamyka tego popupu —
+  // AddExpenseModal STACKUJE się na wierzchu (ten sam wzorzec co
+  // FoodCategoryItemsModal niżej), user wraca dokładnie tam gdzie był.
+  const selectExpense = (id: string) => {
+    const exp = expenses.find((e) => e.id === id);
+    if (exp) onEditExpense(exp);
+  };
 
   const header = (
     <>
@@ -77,6 +104,20 @@ export default function WydatkiModal({
         <Text style={s.title}>Wydatki</Text>
         <TouchableOpacity onPress={() => { haptic.tap(); onClose(); }} hitSlop={8} style={s.closeBtn}>
           <X size={18} color={colors.text.secondary} />
+        </TouchableOpacity>
+      </View>
+      <View style={s.monthRow}>
+        <TouchableOpacity onPress={() => { haptic.tap(); setMonthOffset((o) => o - 1); }} style={s.monthNavBtn} hitSlop={8}>
+          <ChevronLeft size={18} color={colors.text.secondary} />
+        </TouchableOpacity>
+        <Text style={s.monthLabel}>{data.month} {viewDate.getFullYear()}</Text>
+        <TouchableOpacity
+          onPress={() => { if (monthOffset < 0) { haptic.tap(); setMonthOffset((o) => Math.min(0, o + 1)); } }}
+          style={[s.monthNavBtn, monthOffset >= 0 && s.monthNavBtnDisabled]}
+          hitSlop={8}
+          disabled={monthOffset >= 0}
+        >
+          <ChevronRight size={18} color={monthOffset >= 0 ? colors.text.muted : colors.text.secondary} />
         </TouchableOpacity>
       </View>
       <View style={s.tabsRow}>
@@ -99,31 +140,35 @@ export default function WydatkiModal({
       <AppBottomSheet visible={visible} onClose={onClose} header={header}>
         {tab === 'fixed' && (
           <FixedBreakdownCard
-            month={month}
-            total={fixed.total}
-            changePercent={fixed.changePercent}
-            previousTotal={fixed.previousTotal}
-            items={fixed.items}
-            deviations={fixed.deviations}
+            month={data.month}
+            total={data.fixed.total}
+            changePercent={data.fixed.changePercent}
+            previousTotal={data.fixed.previousTotal}
+            items={data.fixed.items}
+            deviations={data.fixed.deviations}
+            transactions={fixedTx}
+            onSelectTransaction={selectExpense}
           />
         )}
         {tab === 'variable' && (
           <VariableBreakdownCard
-            month={month}
-            total={variable.total}
-            changePercent={variable.changePercent}
-            previousTotal={variable.previousTotal}
-            top={variable.top}
+            month={data.month}
+            total={data.variable.total}
+            changePercent={data.variable.changePercent}
+            previousTotal={data.variable.previousTotal}
+            top={data.variable.top}
+            transactions={variableTx}
+            onSelectTransaction={selectExpense}
           />
         )}
         {tab === 'food' && (
           <FoodBreakdownCard
-            month={month}
-            total={food.total}
-            changePercent={food.changePercent}
-            previousTotal={food.previousTotal}
-            weeks={food.weeks}
-            categories={food.categories}
+            month={data.month}
+            total={data.food.total}
+            changePercent={data.food.changePercent}
+            previousTotal={data.food.previousTotal}
+            weeks={data.food.weeks}
+            categories={data.food.categories}
             onSelectCategory={setSelectedCategory}
           />
         )}
@@ -131,8 +176,9 @@ export default function WydatkiModal({
       <FoodCategoryItemsModal
         visible={!!selectedCategory}
         onClose={() => setSelectedCategory(null)}
-        month={month}
+        month={data.month}
         category={selectedCategory}
+        onEditExpense={selectExpense}
       />
     </>
   );
@@ -144,6 +190,10 @@ const makeS = themedStyles((c) => StyleSheet.create({
     paddingBottom: spacing[3],
   },
   title: { fontSize: 20, fontFamily: 'Inter_900Black', color: c.text.primary },
+  monthRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[3], marginBottom: spacing[3] },
+  monthNavBtn: { width: 30, height: 30, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.elevated },
+  monthNavBtnDisabled: { opacity: 0.4 },
+  monthLabel: { fontSize: 13.5, fontFamily: 'Inter_900Black', color: c.text.primary, minWidth: 130, textAlign: 'center' },
   tabsRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[1] },
   tabBtn: { flex: 1, alignItems: 'center', paddingVertical: spacing[2], borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default },
   tabBtnActive: { backgroundColor: c.text.bright, borderColor: c.text.bright },

@@ -13,7 +13,7 @@ import type { FixedItem, FixedDeviation, VariableContributor } from './fixedVari
 // tamtego zachowania teraz. Stałe/Zmienne NIE mają takiej rozbieżności (bills i
 // zmienne pozycje liczone są całym wydatkiem, nie pozycjami paragonu), więc tam
 // `fixedVariableMonths` jest jedynym, spójnym źródłem sumy.
-function monthKeyOf(d: Date): string {
+export function monthKeyOf(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 

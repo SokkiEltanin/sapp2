@@ -15,11 +15,12 @@ import { useHealthSync } from '@/hooks/useHealthSync';
 import { useGoogleCalendarSync } from '@/hooks/useGoogleCalendarSync';
 import { todayISO } from '@/utils/date';
 import { foodByMonth } from '@/utils/foodStats';
-import { useWydatkiData } from '@/hooks/useWydatkiData';
 import { useCountdownStore } from '@/store/countdownStore';
 import { countdownParts, formatCountdown } from '@/utils/countdown';
 import { useSubscriptionsStore } from '@/store/subscriptionsStore';
-import { upcomingSubscriptions } from '@/utils/recurringBills';
+import { upcomingPayments } from '@/utils/recurringBills';
+import { useVehiclesStore } from '@/store/vehiclesStore';
+import { nextMaintenanceDue } from '@/utils/vehicleMatch';
 import type { CalendarEvent } from '@/types/calendar';
 import type { Expense } from '@/types/finances';
 import { haptic } from '@/utils/haptics';
@@ -107,6 +108,7 @@ export default function Dashboard() {
   const expenses = useExpensesStore((st) => st.expenses);
   const healthToday = useHealthStore((st) => st.today);
   const subscriptions = useSubscriptionsStore((st) => st.subscriptions);
+  const vehicles = useVehiclesStore((st) => st.vehicles);
   useHealthSync();
   // 2026-11-08, user: "jak wchodzę do apki to kalendarz sie nie ładuje na
   // dashbordzie a powinien... tylko rozsądnie bez lagów" — wcześniej TYLKO
@@ -121,7 +123,6 @@ export default function Dashboard() {
 
   useEffect(() => { setFactIndex(dayOfYear(now) % FACTS.length); }, [now]);
 
-  const wydatkiData = useWydatkiData(expenses, now);
   // 6 zamiast 4 miesięcy (2026-11-09, user: "jak jest średnia jedzenia z innych
   // miesięcy to możesz tam zrobic zeby bylo ich trochę więcej bo wydluzylismy
   // kafelek a tyle zostało samo miesięcy") — kafel dostał pełną szerokość (span 4)
@@ -223,12 +224,17 @@ export default function Dashboard() {
       if (at < now) continue;
       out.push({ key: `t_${t.id}`, at, title: t.title, color: colors.accent.red, kind: 'deadline' });
     }
-    for (const { sub, daysUntil } of upcomingSubscriptions(subscriptions, now)) {
-      if (daysUntil > BILL_WINDOW_DAYS) continue;
-      out.push({ key: `b_${sub.id}`, at: new Date(`${sub.nextBillingDate}T00:00:00`), title: sub.name, color: colors.accent.red, kind: 'bill', amount: sub.amount });
+    // `upcomingPayments` (nie samo `upcomingSubscriptions`) — 2026-11-09, user:
+    // "ta ostatnia platnosc najbliższą ma być automatyczna po stałych i
+    // subskrypcjach łapać" — dolicza też PRZEWIDYWANE terminy rachunków stałych
+    // (czynsz/prąd/internet...) rozpoznanych z historii wydatków, nie tylko
+    // ręcznie dodane Subskrypcje.
+    for (const p of upcomingPayments(expenses, subscriptions, now)) {
+      if (p.daysUntil > BILL_WINDOW_DAYS) continue;
+      out.push({ key: `b_${p.id}`, at: new Date(`${p.dueDate}T00:00:00`), title: p.name, color: colors.accent.red, kind: 'bill', amount: p.amount });
     }
     return out.sort((a, b) => a.at.getTime() - b.at.getTime());
-  }, [allEvents, calendarTasks, subscriptions, now]);
+  }, [allEvents, calendarTasks, subscriptions, expenses, now]);
 
   const sleep = useMemo(() => {
     if (!healthToday || healthToday.sleepMinutes == null || !healthToday.sleepFrom || !healthToday.sleepTo) return null;
@@ -241,11 +247,16 @@ export default function Dashboard() {
     return { minutes: healthToday.sleepMinutes, from: healthToday.sleepFrom, to: healthToday.sleepTo, phases };
   }, [healthToday]);
 
+  const nextMaintenance = useMemo(() => nextMaintenanceDue(vehicles, now), [vehicles, now]);
+
   const data: DashData = {
     next: upcomingEvent ? { title: upcomingEvent.e.title, start: upcomingEvent.start } : null,
     fact: FACTS[factIndex ?? 0],
     sleep,
     foodMonths: foodMonths.map((m) => ({ label: m.label, value: m.value })),
+    nextMaintenance: nextMaintenance
+      ? { vehicleName: nextMaintenance.vehicleName, label: nextMaintenance.label, dueLabel: nextMaintenance.dueLabel, overdue: nextMaintenance.dueMonths <= 0 }
+      : null,
     transactions: recentExpenses.map((e) => ({
       id: e.id,
       name: e.note || e.storeName || (e.type === 'income' ? 'Przychód' : 'Płatność'),
@@ -298,11 +309,10 @@ export default function Dashboard() {
       <WydatkiModal
         visible={wydatkiOpen}
         onClose={() => setWydatkiOpen(false)}
-        month={wydatkiData.month}
         initialTab={wydatkiTab}
-        food={wydatkiData.food}
-        fixed={wydatkiData.fixed}
-        variable={wydatkiData.variable}
+        expenses={expenses}
+        today={now}
+        onEditExpense={setEditingExpense}
       />
       <AppBottomSheet visible={nextOpen} onClose={() => setNextOpen(false)} scrollable={false}>
         {upcomingEvent && nextTag ? (

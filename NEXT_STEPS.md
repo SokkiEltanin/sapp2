@@ -3579,3 +3579,98 @@ po środku wiecej tekstu sie niech zmieści." Dashboard's "Teraz" kafel
 zmian w logice danych). Wizualnie `expo web`+Playwright — odwzorowany
 dokładny tytuł/tag z zrzutu usera (3-liniowy, "PUR") BEZ nachodzenia, oraz
 osobno krótki tytuł bez tagu ("Siłownia").
+
+## Popup Wydatki: nawigacja miesiącami + klikalne transakcje (Zmienne/Stałe/Jedzenie) (2026-11-09)
+
+User: "W wydatki zmienne i jedzenie nie moge edytowac tam i klikać co jest
+zmienna a co nie oraz nie moge sprawdzać innych miesiecy i przełączać widoku
+per dzień miesiąc tydzien". Doprecyzowanie (AskUserQuestion): Dzień/Tydzień
+ŚWIADOMIE odłożone — "Tylko miesiąc nawigowalny (strzałki wstecz/w przód),
+bez dzień/tydzień na razie", żeby nie zgadywać dokładnej semantyki.
+
+- **Nawigacja miesiącami** — `WydatkiModal.tsx` przebudowany: zamiast
+  dostawać gotowe `food`/`fixed`/`variable`/`month` z ekranu-wołającego,
+  dostaje `expenses`+`today` i SAM liczy `computeWydatkiData` dla
+  wewnętrznego `monthOffset` (strzałki ‹ ›, resetowane do 0 przy każdym
+  otwarciu). Dashboard/Finanse pod spodem ZAWSZE dalej liczą bieżący
+  miesiąc — nawigacja w popupie nic tam nie zmienia. `>` zablokowane przy
+  `monthOffset >= 0` (appka nie ma danych z przyszłości).
+- **Klikalne transakcje w Stałe/Zmienne** — `bucketTransactions`
+  (`utils/fixedVariable.ts`) ISTNIAŁA od dawna, w pełni przetestowana,
+  nigdy nie podpięta do żadnego ekranu ("backend gotowy, UI zapomniane").
+  `FixedBreakdownCard`/`VariableBreakdownCard` dostały nową sekcję
+  "Wszystkie transakcje · stuknij, żeby przeklasyfikować" — każda
+  transakcja osobno, stuknięcie otwiera `AddExpenseModal` z jej "Rozlicz
+  jako" (Stałe/Zmienne/Jedzenie/Transfer — JUŻ istniejący mechanizm, nie
+  nowy). Ręcznie przeklasyfikowane (`fvOverride`) dostają małą ikonkę
+  ołówka.
+- **Klikalne pozycje w Jedzenie** — `FoodCategoryItemsModal`'s wiersze
+  (dotąd tylko do wglądu) też tappable — otwierają RODZICA (cały paragon),
+  ten sam mechanizm.
+- Wszystkie trzy bubblują przez nowy `onEditExpense` prop WydatkiModal'a do
+  ekranu-wołającego (Dashboard/Finanse) — oba już miały
+  `editingExpense`/`AddExpenseModal` dla "Ostatnie transakcje", to TEN SAM
+  mechanizm, nie drugi. AddExpenseModal STACKUJE się na wierzchu (ten sam,
+  już istniejący, zweryfikowany wzorzec co TransactionsModal→edycja —
+  sprawdzone zrzutem, że wygląd "nowy sheet blurowany w tle, poprzedni
+  dalej ostry na pierwszym planie" jest identyczny jak w istniejącym,
+  niemodyfikowanym kodzie, nie regresja).
+
+**Zweryfikowane:** tsc czysty, jest 321/321. Wizualnie `expo web`+Playwright:
+nawigacja miesiącem (strzałki, prawa zablokowana na bieżącym), zakładka
+Zmienne z listą transakcji + stuknięcie otwiera edycję, zakładka Jedzenie z
+klikalną pozycją paragonu.
+
+## "Najbliższa opłata"/"Stałe opłaty": teraz też PRZEWIDUJE rachunki stałe, nie tylko Subskrypcje (2026-11-09)
+
+User: "A nie jest git w finansach ta ostatnia platnosc najbliższą ma być
+automatyczna po stałych i subskrypcjach łapać czy cos ma przewidywać stale
+kiedy sa". Poprzednia wersja "Najbliższa opłata" (Finanse) i "Stałe opłaty"
+(Dashboard's "Najbliższe eventy") czytały WYŁĄCZNIE ręcznie dodane
+Subskrypcje (`app/subscriptions.tsx`) — rachunek logowany jako zwykły
+wydatek (czynsz, prąd, internet...) bez założenia mu osobnej Subskrypcji w
+ogóle się nie liczył.
+
+- `detectRecurringBills`/`nextBillingDate` DOŁĄCZONE do `recurringBills.ts`
+  — port sapp's funkcji, wcześniej ŚWIADOMIE pominięty przy pierwszej
+  wersji Subskrypcji ("sapp2 w v1 dostaje tylko RĘCZNE dodawanie"). Rachunek
+  rozpoznany (`billTagFor`) w ≥2 odrębnych miesiącach dostaje PRZEWIDYWANY
+  termin (dzień miesiąca z ostatniego wystąpienia). Pomija typ już pokryty
+  przez aktywną Subskrypcję (bez podwójnego liczenia).
+- Nowe `upcomingPayments`/`nextUpcomingPayment` łączą realne Subskrypcje +
+  przewidywane rachunki w JEDNĄ, posortowaną listę.
+- Finanse's "Najbliższa opłata" i Dashboard's bill-wpisy w "Najbliższych
+  eventach" czytają teraz `upcomingPayments`/`nextUpcomingPayment` zamiast
+  samych `upcomingSubscriptions`/`nextDueSubscription` (te zostają,
+  używane WEWNĄTRZ nowych funkcji).
+
+**Zweryfikowane:** tsc czysty, jest 321/321 (11 nowych testów
+`recurringBills.test.ts`). Wizualnie `expo web`+Playwright: PGE logowane
+jako zwykły wydatek (bez Subskrypcji) 3 miesiące z rzędu → Finanse's
+"Najbliższa opłata" pokazuje realne dni, Dashboard's "Najbliższe eventy"
+pokazuje "Prąd" z przewidywaną kwotą.
+
+## Dashboard: zawijanie tekstu w "Odliczaniu" + "Najbliższa wymiana" zamiast pustego kafla (2026-11-09)
+
+User (zrzut z dwoma zaznaczeniami): "ten w czerwonym kółku kafelek popraw
+wizualnie on jest wysoki wiec pozwol tekst zawijać zeby bylo wiadomo do
+jakiego eventu itp, Tam gdzie zielony musimy cozls zrobic i moze zrobmy
+bedzie najbliższą wymiana (oleju, filtra dafi itp z zapisanych)".
+
+- **"Odliczanie"** (czerwone kółko) — `eventTitle` miał `numberOfLines={1}`
+  mimo że ten kafel (Row flex:1, sporo wysokości) ma miejsce na więcej →
+  `numberOfLines={3}` + `textAlign:'center'`.
+- **Lewa połowa Rzędu 1** (zielone kółko) — wcześniej (tego samego dnia,
+  inna prośba) świadomie pusty `Tile` ("zostaw pusty kafelek") — user
+  zmienił zdanie na tym zrzucie. Nowy `nextMaintenanceDue` (`utils/
+  vehicleMatch.ts`) — najbliższy termin serwisu ze WSZYSTKICH pojazdów
+  naraz (per pojazd+etykieta liczy się TYLKO najnowszy wpis, kolejna
+  "Wymiana oleju" zastępuje poprzednią). Kafel CELOWO bez `onPress` —
+  user wcześniej ustalił, że to miejsce musi zostać czysto informacyjne
+  (za wysoko na ekranie na wygodne dotknięcie kciukiem), ta zasada
+  zostaje nienaruszona mimo że treść się zmieniła.
+
+**Zweryfikowane:** tsc czysty, jest 321/321 (5 nowych testów
+`nextMaintenanceDue` w `vehicleMatch.test.ts`). Wizualnie `expo
+web`+Playwright: pojazd z wpisem serwisowym sprzed 25 dni + interwał 1
+mies. → kafel pokazuje "za 5 dni / CIVIC / WYMIANA OLEJU".

@@ -2,8 +2,10 @@ import {
   looksLikeBill, billTagFor,
   advanceNextBillingDate, isDurationExpired, rollOverdueSubscription,
   upcomingSubscriptions, nextDueSubscription,
+  detectRecurringBills, nextBillingDate, upcomingPayments, nextUpcomingPayment,
 } from '@/utils/recurringBills';
 import type { Subscription } from '@/types/subscriptions';
+import type { Expense } from '@/types/finances';
 
 // Port z sapp (__tests__/recurringBills.test.ts). Faza 2.1: TYLKO słownik +
 // dopasowanie tekstu. 2026-11-09 (port Subskrypcji, patrz ARCHITECTURE.md §
@@ -120,5 +122,104 @@ describe('upcomingSubscriptions / nextDueSubscription — zasila "Najbliższa op
   test('nextDueSubscription zwraca najbliższą', () => {
     const subs = [sub({ id: 'a', nextBillingDate: '2026-11-20' }), sub({ id: 'b', nextBillingDate: '2026-11-12' })];
     expect(nextDueSubscription(subs, now)?.sub.id).toBe('b');
+  });
+});
+
+function exp(patch: Partial<Expense>): Expense {
+  return {
+    id: 'e1', type: 'expense', amount: 100, date: '2026-09-15', note: '', tags: [],
+    source: 'manual', createdAt: '', updatedAt: '', ...patch,
+  };
+}
+
+// 2026-11-09, user: "a nie jest git w finansach ta ostatnia platnosc najbliższą
+// ma być automatyczna po stałych i subskrypcjach łapać czy cos ma przewidywać
+// stale kiedy sa" — rachunki logowane jako zwykłe wydatki (bez osobnej
+// Subskrypcji) dostają przewidywany termin z historii.
+describe('detectRecurringBills — rozpoznaje cykliczne rachunki logowane jako zwykłe wydatki', () => {
+  test('ten sam typ w ≥2 odrębnych miesiącach → kandydat, dayOfMonth z OSTATNIEGO wystąpienia', () => {
+    const out = detectRecurringBills([
+      exp({ id: 'a', storeName: 'PGE', amount: 180, date: '2026-08-05' }),
+      exp({ id: 'b', storeName: 'PGE', amount: 200, date: '2026-09-07' }),
+    ], []);
+    expect(out).toEqual([{ tag: 'prąd', name: 'Prąd', icon: 'Zap', avgAmount: 190, months: 2, lastDate: '2026-09-07', dayOfMonth: 7 }]);
+  });
+
+  test('tylko 1 miesiąc → za mało historii, pomijane', () => {
+    expect(detectRecurringBills([exp({ storeName: 'PGE', date: '2026-09-07' })], [])).toEqual([]);
+  });
+
+  test('typ już pokryty przez AKTYWNĄ Subskrypcję (tag lub nazwa) → pomijany, bez podwójnego liczenia', () => {
+    const expenses = [
+      exp({ id: 'a', storeName: 'PGE', date: '2026-08-05' }),
+      exp({ id: 'b', storeName: 'PGE', date: '2026-09-07' }),
+    ];
+    expect(detectRecurringBills(expenses, [sub({ tags: ['prąd'] })])).toEqual([]);
+    expect(detectRecurringBills(expenses, [sub({ active: false, tags: ['prąd'] })])).toHaveLength(1); // nieaktywna NIE blokuje
+  });
+
+  test('dzień z OSTATNIEGO wystąpienia > 28 (np. 30) przycięty do 28 (bezpieczny dla day-overflow w nextBillingDate)', () => {
+    const out = detectRecurringBills([
+      exp({ id: 'a', storeName: 'PGE', date: '2026-08-05' }),
+      exp({ id: 'b', storeName: 'PGE', date: '2026-09-30' }),
+    ], []);
+    expect(out[0].lastDate).toBe('2026-09-30');
+    expect(out[0].dayOfMonth).toBe(28);
+  });
+
+  test('sortuje po liczbie miesięcy (najdłuższa historia pierwsza)', () => {
+    const out = detectRecurringBills([
+      exp({ id: 'a', storeName: 'PGE', date: '2026-07-05' }),
+      exp({ id: 'b', storeName: 'PGE', date: '2026-08-05' }),
+      exp({ id: 'c', note: 'internet', date: '2026-08-05' }),
+      exp({ id: 'd', note: 'internet', date: '2026-09-05' }),
+      exp({ id: 'e', storeName: 'PGE', date: '2026-09-05' }),
+    ], []);
+    expect(out.map((b) => b.tag)).toEqual(['prąd', 'internet']); // prąd: 3 mies., internet: 2
+  });
+});
+
+describe('nextBillingDate — najbliższe wystąpienie dnia miesiąca', () => {
+  test('dzień jeszcze w tym miesiącu (przed "dziś") → ten miesiąc', () => {
+    expect(nextBillingDate(20, new Date(2026, 10, 9))).toBe('2026-11-20');
+  });
+
+  test('dzień już minął w tym miesiącu → następny miesiąc', () => {
+    expect(nextBillingDate(5, new Date(2026, 10, 9))).toBe('2026-12-05');
+  });
+
+  test('dzień = dokładnie dziś → traktowany jako już miniony, następny miesiąc', () => {
+    expect(nextBillingDate(9, new Date(2026, 10, 9))).toBe('2026-12-09');
+  });
+});
+
+describe('upcomingPayments / nextUpcomingPayment — Subskrypcje + przewidywane rachunki stałe RAZEM', () => {
+  const now = new Date(2026, 10, 9);
+
+  test('łączy i sortuje oba źródła po najbliższym terminie', () => {
+    const expenses = [
+      exp({ id: 'a', storeName: 'PGE', date: '2026-09-07' }),
+      exp({ id: 'b', storeName: 'PGE', date: '2026-10-15' }), // dayOfMonth=15 → przewidywany termin 15 listopada, za 6 dni
+    ];
+    const subs = [sub({ id: 's1', name: 'Netflix', nextBillingDate: '2026-11-20' })]; // za 11 dni, dalej niż rachunek
+    const out = upcomingPayments(expenses, subs, now);
+    expect(out.map((p) => p.kind)).toEqual(['bill', 'subscription']);
+    expect(out[0].name).toBe('Prąd');
+    expect(out[1].name).toBe('Netflix');
+  });
+
+  test('brak subskrypcji i rozpoznanych rachunków → pusta lista, nextUpcomingPayment → null', () => {
+    expect(upcomingPayments([], [], now)).toEqual([]);
+    expect(nextUpcomingPayment([], [], now)).toBeNull();
+  });
+
+  test('nextUpcomingPayment zwraca pierwszy element połączonej listy', () => {
+    const expenses = [
+      exp({ id: 'a', storeName: 'PGE', date: '2026-09-07' }),
+      exp({ id: 'b', storeName: 'PGE', date: '2026-10-07' }),
+    ];
+    const result = nextUpcomingPayment(expenses, [], now);
+    expect(result?.kind).toBe('bill');
+    expect(result?.name).toBe('Prąd');
   });
 });

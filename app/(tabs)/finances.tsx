@@ -16,7 +16,7 @@ import { useWorkStore } from '@/store/workStore';
 import { useCalendarStore } from '@/store/calendarStore';
 import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import { computeWorkRate } from '@/utils/workRate';
-import { nextDueSubscription } from '@/utils/recurringBills';
+import { nextUpcomingPayment } from '@/utils/recurringBills';
 import { getBalanceOffset, setBalanceOffset, accountBalance, affectsBalance } from '@/utils/balance';
 import { buildProductCatalog } from '@/utils/productCatalog';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
@@ -111,9 +111,16 @@ export default function FinancesScreen() {
   // stałych opłatach zaznaczyć kiedy co musimy opłacić"), patrz app/subscriptions.tsx
   // + utils/recurringBills.ts. `StatTile value={null}` (poprzedni, zaprojektowany
   // pusty stan — patrz komentarz wyżej przy Faza 3.10) teraz trafia tylko gdy
-  // user nie ma jeszcze żadnej aktywnej stałej opłaty.
+  // user nie ma jeszcze żadnej aktywnej stałej opłaty ANI rozpoznanego rachunku.
+  //
+  // ROZSZERZONE 2026-11-09 (user: "ta ostatnia platnosc najbliższą ma być
+  // automatyczna po stałych i subskrypcjach łapać... ma przewidywać stałe kiedy
+  // są") — pierwsza wersja czytała WYŁĄCZNIE ręcznie dodane Subskrypcje; teraz
+  // `nextUpcomingPayment` dolicza też PRZEWIDYWANE terminy rachunków stałych
+  // (czynsz/prąd/internet...) rozpoznanych z historii wydatków, bez potrzeby
+  // zakładania im osobnej Subskrypcji.
   const subscriptions = useSubscriptionsStore((st) => st.subscriptions);
-  const nextDue = useMemo(() => nextDueSubscription(subscriptions, now), [subscriptions, now]);
+  const nextDue = useMemo(() => nextUpcomingPayment(expenses, subscriptions, now), [expenses, subscriptions, now]);
 
   useEffect(() => { getBalanceOffset().then(setOffset); }, []);
 
@@ -295,11 +302,10 @@ export default function FinancesScreen() {
       <WydatkiModal
         visible={wydatkiOpen}
         onClose={() => setWydatkiOpen(false)}
-        month={wydatkiData.month}
         initialTab="fixed"
-        food={wydatkiData.food}
-        fixed={wydatkiData.fixed}
-        variable={wydatkiData.variable}
+        expenses={expenses}
+        today={now}
+        onEditExpense={(e) => setEditingExpense(e)}
       />
 
       <AppBottomSheet visible={editingBalance} onClose={() => setEditingBalance(false)} scrollable={false}>
