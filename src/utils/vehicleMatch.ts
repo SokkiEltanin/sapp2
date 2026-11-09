@@ -1,17 +1,14 @@
 import type { Expense } from '@/types/finances';
 import type { Vehicle, VehicleMaintenance, VehicleKind, OdometerReading } from '@/types/vehicles';
+import { addMonthsClipped } from '@/utils/dateMath';
 
 // Port z sapp (src/utils/vehicleMatch.ts) — adaptowane do sapp2 (bez `Expense.
 // vehicleId`/`category` — patrz komentarz w src/types/vehicles.ts). `addMonths`
-// WŁASNA implementacja (sapp używa `date-fns`, sapp2 go nie ma) — przycina dzień
-// nieistniejący w docelowym miesiącu zamiast przewijać (ten sam fix co sapp's
-// komentarz niżej przy `maintenanceDueMonths` opisuje).
-function addMonthsClipped(date: Date, months: number): Date {
-  const targetMonthIndex = date.getMonth() + months;
-  const daysInTarget = new Date(date.getFullYear(), targetMonthIndex + 1, 0).getDate();
-  const result = new Date(date.getFullYear(), targetMonthIndex, Math.min(date.getDate(), daysInTarget));
-  return result;
-}
+// WŁASNA implementacja w `dateMath.ts` (sapp używa `date-fns`, sapp2 go nie ma) —
+// przycina dzień nieistniejący w docelowym miesiącu zamiast przewijać (ten sam
+// fix co sapp's komentarz niżej przy `maintenanceDueMonths` opisuje; wydzielone
+// do `dateMath.ts` 2026-11-09, bo port Subskrypcji potrzebował tej samej funkcji
+// drugi raz).
 
 export interface CostPerKm {
   value: number;

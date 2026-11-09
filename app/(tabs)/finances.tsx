@@ -14,7 +14,9 @@ import { useExpensesStore } from '@/store/expensesStore';
 import { useShareReceiptStore } from '@/store/shareReceiptStore';
 import { useWorkStore } from '@/store/workStore';
 import { useCalendarStore } from '@/store/calendarStore';
+import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import { computeWorkRate } from '@/utils/workRate';
+import { nextDueSubscription } from '@/utils/recurringBills';
 import { getBalanceOffset, setBalanceOffset, accountBalance, affectsBalance } from '@/utils/balance';
 import { buildProductCatalog } from '@/utils/productCatalog';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
@@ -29,11 +31,13 @@ import type { Expense } from '@/types/finances';
 // 1fr`): Saldo(4) → Podział(4, StackBar) → Jedzenie kategorie(4, StackBar) →
 // Praca(2)|Najbliższa opłata(2) → Ostatnie transakcje(4, fill, FitList).
 //
-// Najbliższa opłata — appka nie ma store'a "bills" (patrz ARCHITECTURE.md
-// §FINANSE). `StatTile value={null}` daje DESIGN.md's zaprojektowany stan pusty
-// ("0" dim + "brak") — zastępuje poprzednie ręczne "wkrótce — rachunki", które
-// łamało regułę "nigdy 'wkrótce'" sformalizowaną dopiero w DESIGN.md (Faza 3.9),
-// nie było błędem w chwili pisania.
+// Najbliższa opłata — REALNA od 2026-11-09 (user: "czy w sapp mozemy eksportować
+// szablony te do łapania powiadomien i stałych... w kafelku w stałych opłatach
+// zaznaczyć kiedy co musimy opłacić"), patrz `store/subscriptionsStore.ts` +
+// `utils/recurringBills.ts`'s `nextDueSubscription` + `app/subscriptions.tsx`.
+// `StatTile value={null}` (DESIGN.md's zaprojektowany stan pusty, "0" dim +
+// "brak") teraz trafia tylko gdy user nie ma żadnej aktywnej stałej opłaty —
+// wcześniej trafiał ZAWSZE, bo appka nie miała store'a "bills" w ogóle.
 // Praca — REALNA od 2026-11-09 (user: "lecimy z zakładką Praca", "Pełny port z
 // sapp od razu"), patrz app/work.tsx. Kafelek pokazuje stawkę zł/h aktywnego
 // pracodawcy (`workStore.ts`), tap → pełny ekran.
@@ -101,6 +105,15 @@ export default function FinancesScreen() {
   const today = todayISO();
   const now = useMemo(() => new Date(), [today]);
   const wydatkiData = useWydatkiData(expenses, now);
+
+  // "Najbliższa opłata" — REALNA od 2026-11-09 (user: "czy w sapp mozemy
+  // eksportować szablony te do łapania powiadomien i stałych... w kafelku w
+  // stałych opłatach zaznaczyć kiedy co musimy opłacić"), patrz app/subscriptions.tsx
+  // + utils/recurringBills.ts. `StatTile value={null}` (poprzedni, zaprojektowany
+  // pusty stan — patrz komentarz wyżej przy Faza 3.10) teraz trafia tylko gdy
+  // user nie ma jeszcze żadnej aktywnej stałej opłaty.
+  const subscriptions = useSubscriptionsStore((st) => st.subscriptions);
+  const nextDue = useMemo(() => nextDueSubscription(subscriptions, now), [subscriptions, now]);
 
   useEffect(() => { getBalanceOffset().then(setOffset); }, []);
 
@@ -215,7 +228,13 @@ export default function FinancesScreen() {
           span={2}
           onPress={() => { haptic.tap(); router.push('/work'); }}
         />
-        <StatTile value={null} unit="rachunki" label="Najbliższa opłata" span={2} />
+        <StatTile
+          value={nextDue ? Math.max(0, nextDue.daysUntil) : null}
+          unit="dni"
+          label="Najbliższa opłata"
+          span={2}
+          onPress={() => { haptic.tap(); router.push('/subscriptions'); }}
+        />
       </Row>
 
       <Row flex={1}>

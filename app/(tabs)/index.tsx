@@ -18,6 +18,8 @@ import { foodByMonth } from '@/utils/foodStats';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
 import { useCountdownStore } from '@/store/countdownStore';
 import { countdownParts, formatCountdown } from '@/utils/countdown';
+import { useSubscriptionsStore } from '@/store/subscriptionsStore';
+import { upcomingSubscriptions } from '@/utils/recurringBills';
 import type { CalendarEvent } from '@/types/calendar';
 import type { Expense } from '@/types/finances';
 import { haptic } from '@/utils/haptics';
@@ -77,6 +79,14 @@ function whenLabel(d: Date, now: Date): string {
   const time = d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
   return `${dayLabel} ${time}`;
 }
+// Jak whenLabel, bez godziny — stałe opłaty mają tylko DZIEŃ płatności, nie
+// godzinę, "Dziś 00:00" wyglądałoby jak błąd.
+function whenLabelDayOnly(d: Date, now: Date): string {
+  const dayDiff = Math.round((startOfDay(d).getTime() - startOfDay(now).getTime()) / 86400000);
+  if (dayDiff === 0) return 'Dziś';
+  if (dayDiff === 1) return 'Jutro';
+  return d.toLocaleDateString('pl-PL', { weekday: 'short' });
+}
 
 export default function Dashboard() {
   const [wydatkiOpen, setWydatkiOpen] = useState(false);
@@ -96,6 +106,7 @@ export default function Dashboard() {
   const setSelectedDate = useCalendarStore((st) => st.setSelectedDate);
   const expenses = useExpensesStore((st) => st.expenses);
   const healthToday = useHealthStore((st) => st.today);
+  const subscriptions = useSubscriptionsStore((st) => st.subscriptions);
   useHealthSync();
   // 2026-11-08, user: "jak wchodzę do apki to kalendarz sie nie ładuje na
   // dashbordzie a powinien... tylko rozsądnie bez lagów" — wcześniej TYLKO
@@ -183,7 +194,15 @@ export default function Dashboard() {
   // nie będzie to będzie pusto") — BEZ limitu czasowego, wszystkie przyszłe
   // wydarzenia/terminy. `FitList` i tak pokaże tylko tyle ile się zmieści w
   // kaflu, pusty stan ("Nic zaplanowanego") jest uczciwy, nie coś do unikania.
-  type TimelineEntry = { key: string; at: Date; title: string; color: string; kind: 'event' | 'deadline'; minutes?: number };
+  // `kind:'bill'` DOŁĄCZONY 2026-11-09 (user: "w kafelku w stałych opłatach
+  // zaznaczyć kiedy co musimy opłacić") — ten wariant JUŻ istniał w
+  // DashboardScreen.tsx/`DashData.upcoming` (zaprojektowany, nic go dotąd nie
+  // zasilało), teraz REALNIE zasilany z `subscriptionsStore`. W PRZECIWIEŃSTWIE
+  // do eventów/terminów — stałe opłaty DOSTAJĄ okno czasowe (14 dni): w innym
+  // wypadku subskrypcja płatna raz w roku zaśmiecałaby listę miesiącami z
+  // wyprzedzeniem, czego lista eventów (z natury bliskich w czasie) nie robi.
+  const BILL_WINDOW_DAYS = 14;
+  type TimelineEntry = { key: string; at: Date; title: string; color: string; kind: 'event' | 'deadline' | 'bill'; minutes?: number; amount?: number };
   const upcomingTimeline = useMemo<TimelineEntry[]>(() => {
     const out: TimelineEntry[] = [];
     for (const e of allEvents) {
@@ -197,8 +216,12 @@ export default function Dashboard() {
       if (at < now) continue;
       out.push({ key: `t_${t.id}`, at, title: t.title, color: colors.accent.red, kind: 'deadline' });
     }
+    for (const { sub, daysUntil } of upcomingSubscriptions(subscriptions, now)) {
+      if (daysUntil > BILL_WINDOW_DAYS) continue;
+      out.push({ key: `b_${sub.id}`, at: new Date(`${sub.nextBillingDate}T00:00:00`), title: sub.name, color: colors.accent.red, kind: 'bill', amount: sub.amount });
+    }
     return out.sort((a, b) => a.at.getTime() - b.at.getTime());
-  }, [allEvents, calendarTasks, now]);
+  }, [allEvents, calendarTasks, subscriptions, now]);
 
   const sleep = useMemo(() => {
     if (!healthToday || healthToday.sleepMinutes == null || !healthToday.sleepFrom || !healthToday.sleepTo) return null;
@@ -224,11 +247,12 @@ export default function Dashboard() {
     countdown,
     upcoming: upcomingTimeline.map((x) => ({
       id: x.key,
-      when: whenLabel(x.at, now),
+      when: x.kind === 'bill' ? whenLabelDayOnly(x.at, now) : whenLabel(x.at, now),
       title: x.title,
       kind: x.kind,
       color: x.color,
       minutes: x.minutes,
+      amount: x.amount,
     })),
     onOpen: (what, id) => {
       if (what === 'fact') setFactIndex((i) => ((i ?? 0) + 1) % FACTS.length);
@@ -239,6 +263,7 @@ export default function Dashboard() {
       }
       else if (what === 'countdown') setCountdownPickerOpen(true);
       else if (what === 'next' && upcomingEvent) setNextOpen(true);
+      else if (what === 'bill') router.push('/subscriptions');
       // sleep/upcoming — jeszcze bez docelowego popupu (szczegół pojedynczego
       // wydarzenia/terminu z listy "Najbliższe eventy"), świadomie bez akcji na razie.
       // 'streak' — przeniesione do Daily (`app/(tabs)/daily.tsx`'s rząd "Nawyki"),

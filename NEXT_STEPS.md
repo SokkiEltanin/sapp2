@@ -3355,3 +3355,55 @@ przenosiny UI, logika odliczania już przetestowana w `countdown.test.ts`).
 Wizualnie `expo web`+Playwright — Finanse pokazuje z powrotem "Najbliższa
 opłata", Dashboard's Rząd 4 prawy kafel to teraz "Odliczanie" dokładnie w
 miejscu gdzie była "Bezpieczne wydatki", picker otwiera się poprawnie.
+
+## Zakładka "Stałe opłaty" / Subskrypcje — port z sapp (2026-11-09)
+
+User: "czy w sapp mozemy eksportować szablony te do łapania powiadomien i
+stałych? Zeby przeniesc je do sapp2? I wtedy w kafelku tam w stałych opłatach
+zaznaczyć kiedy co musimy opłacić itp?" Pełny opis portu/ulepszeń/świadomych
+cięć w `ARCHITECTURE.md` §"SUBSKRYPCJE / 'Stałe opłaty' [PE]" — tu tylko
+skrót:
+
+- Nowy satelicki ekran `app/subscriptions.tsx` (ten sam wzorzec co
+  `work.tsx`/`vehicles.tsx`) — dodawanie/edycja/usuwanie, auto-roll zaległych
+  płatności i auto-wyłączanie subskrypcji z wygasłym czasem trwania przy
+  wejściu na ekran (cicho, bez pytania — port sapp's decyzji).
+- `src/types/subscriptions.ts`/`src/store/subscriptionsStore.ts` — port
+  sapp's `Subscription`, UPROSZCZONY (bez `category`/`currency`, patrz plik).
+- `src/utils/recurringBills.ts` rozszerzony o `advanceNextBillingDate`/
+  `rollOverdueSubscription`/`isDurationExpired` (porty 1:1 sapp, day-overflow-
+  safe) + nowe `upcomingSubscriptions`/`nextDueSubscription`.
+- `src/utils/dateMath.ts` (NOWY) — `addMonthsClipped`/`addYearsClipped`
+  wydzielone z `vehicleMatch.ts` (potrzebne drugi raz), ten plik teraz
+  importuje stamtąd zamiast mieć własną kopię.
+- Finanse's "Najbliższa opłata" `StatTile` — REALNA (dni do najbliższej
+  aktywnej subskrypcji, tap → `/subscriptions`), wcześniej na stałe
+  `value={null}`.
+- Dashboard's "Najbliższe eventy" — nowe `kind:'bill'` wpisy (typ już
+  istniał w `DashData.upcoming`/`DashboardScreen.tsx`, nic go dotąd nie
+  zasilało) dla subskrypcji płatnych w ciągu 14 dni, z kwotą (`Price`), tap →
+  `/subscriptions`.
+- **Świadomie NIE portowane** (pełne uzasadnienie w `src/types/
+  subscriptions.ts`): cała bank-auto-matching inteligencja sapp's
+  `subscriptionAuto.ts` (dopasowanie powiadomień, martwa-sub detekcja,
+  zmiana ceny), `detectRecurringBills` (auto-sugestia z historii wydatków),
+  realne lokalne powiadomienia-przypomnienia (`reminderDaysBefore` zapisane,
+  nic go jeszcze nie planuje jako push).
+- **Eksport szablonów z sapp** — sapp's `backupService.ts` JUŻ eksportuje
+  `cloud.subscriptions` w pełnym snapshocie (nic do zmiany po stronie sapp).
+  Rozszerzenie `dataImportFromSapp.ts` o `cloud.subscriptions` ŚWIADOMIE
+  odłożone na kolejną rundę (nie było w pierwotnym ASKu o import "głównie
+  finanse/paragony/humor", a sapp's `nextBillingDate` z przeszłości
+  wymagałaby przemyślenia auto-rollu przy imporcie).
+
+**Zweryfikowane:** tsc czysty, jest 298/298 (15 nowych testów w
+`recurringBills.test.ts` — porty 1:1 sapp's testów dla
+`advanceNextBillingDate`/`isDurationExpired`/`rollOverdueSubscription` +
+nowe dla `upcomingSubscriptions`/`nextDueSubscription`). Wizualnie `expo
+web`+Playwright, pełny przepływ end-to-end: pusty stan → wypełniony
+formularz → dodana subskrypcja z poprawnym kolorem pilności ("za 5 dni",
+pomarańczowy) → Finanse's kafelek pokazuje realne "5 dni" → Dashboard's
+"Najbliższe eventy" pokazuje "Netflix" z kwotą "−55,00" w dniu "sob.".
+**DO POTWIERDZENIA NA URZĄDZENIU:** realny dodaj/edytuj/usuń na telefonie,
+auto-roll po realnym upływie czasu (symulowane tylko przez testy jednostkowe
+z fake timerami, nie na żywej instalacji).

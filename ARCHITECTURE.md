@@ -1169,8 +1169,8 @@ zamyka obie dziury bez dodawania drugiego, równoległego mechanizmu dopasowywan
 
 **PRACA** [PE] — ZBUDOWANA (2026-11-09), patrz `## PRACA [PE]` niżej, po pełny
 opis. **POJAZDY** [PE] — ZBUDOWANA (2026-11-09), patrz `## POJAZDY [PE]`
-niżej. **SUBSKRYPCJE** [PE] — bez zmian względem wcześniejszego ustalenia
-(niżej), wciąż osobny, mniejszy podekran.
+niżej. **SUBSKRYPCJE / "Stałe opłaty"** [PE] — ZBUDOWANA (2026-11-09), patrz
+`## SUBSKRYPCJE / "Stałe opłaty" [PE]` niżej.
 
 - **UI/UX kompletnie inny niż w `sapp`** (user, 2026-10-26, ta sama zasada co w Zadaniach)
   — dotyczy WYGLĄDU, nie logiki danych (ta jest portowana 1:1 jak opisano wyżej).
@@ -1299,6 +1299,80 @@ sezonowej wymianie opon — mniejsza, osobna funkcja, do dobudowania później).
 tym pełny przepływ "Zatankuj" end-to-end (formularz→zapis→Statystyki się
 realnie zaktualizowały→wpis w historii z usuwaniem). **DO POTWIERDZENIA NA
 URZĄDZENIU**: realny wygląd/dotyk na telefonie.
+
+## SUBSKRYPCJE / "Stałe opłaty" [PE]
+
+Port z sapp (2026-11-09, user: "czy w sapp mozemy eksportować szablony te do
+łapania powiadomien i stałych? Zeby przeniesc je do sapp2? I wtedy w kafelku w
+stałych opłatach zaznaczyć kiedy co musimy opłacić"). Satelicki ekran
+`app/subscriptions.tsx`, wejście z Finanse's "Najbliższa opłata" `StatTile`
+(teraz REALNA, wcześniej na zawsze `value={null}` — appka nie miała store'a
+"bills" w ogóle) i z Dashboard's "Najbliższe eventy" listy (nowe `kind:'bill'`
+wpisy — ten wariant JUŻ istniał w `DashData.upcoming`/`DashboardScreen.tsx`,
+zaprojektowany z wyprzedzeniem, nic go dotąd nie zasilało).
+
+**Pliki**: `src/types/subscriptions.ts` (`Subscription`/`BillingCycle`),
+`src/store/subscriptionsStore.ts` (`subscriptions[]`, AsyncStorage-persist, ten
+sam wzorzec co workStore/vehiclesStore), `src/utils/recurringBills.ts`
+(rozszerzony — poprzednio TYLKO słownik `BILL_TYPES`/`looksLikeBill`/
+`billTagFor`, teraz + `advanceNextBillingDate`/`rollOverdueSubscription`/
+`isDurationExpired`/`upcomingSubscriptions`/`nextDueSubscription`),
+`src/utils/dateMath.ts` (NOWY — `addMonthsClipped`/`addYearsClipped` wydzielone
+tu z `vehicleMatch.ts`, bo port Subskrypcji potrzebował tej samej
+day-overflow-safe logiki drugi raz; `vehicleMatch.ts` teraz importuje stąd
+zamiast mieć własną kopię).
+
+**Co ZMIENIONE vs sapp** (pełne uzasadnienie w `src/types/subscriptions.ts`):
+`category: ExpenseCategory` i `currency` USUNIĘTE z `Subscription` — sapp2 nie
+ma systemu kategorii (tylko wolne tagi) i jest jednowalutowe na poziomie
+subskrypcji. Ikona na liście wynika z `billTagFor` dopasowanego do nazwy/tagów/
+notatki, nie z osobnego pola kategorii.
+
+**Świadomie NIE portowane** (osobny, dużo większy temat na przyszłość — pełne
+uzasadnienie w `src/types/subscriptions.ts`): cała inteligencja auto-
+dopasowania płatności do powiadomień bankowych z sapp's `subscriptionAuto.ts`
+(`matchSubscriptionForPayment`/`isConfidentSubMatch`/
+`subscriptionPriceChanged`/kolejka `PendingSubConfirm` "czy to Twoja
+subskrypcja?"/zmiana ceny/martwa subskrypcja z `DEAD_SUB_THRESHOLD`) — głęboko
+sprzęgnięte z sapp's bank-notification pipeline, którego sapp2 jeszcze nie ma w
+tej formie. `detectRecurringBills` (auto-wykrywanie kandydatów na rachunek z
+historii wydatków + dashboard-suggest banner + dismiss-list) też nie
+portowane — v1 ma wyłącznie RĘCZNE dodawanie. Realne lokalne powiadomienia-
+przypomnienia (`reminderDaysBefore` faktycznie planujące push) NIE wpięte —
+pole jest zapisywane/eksportowalne, ale nic jeszcze go nie planuje jako
+notyfikację. `missedCycles` zostaje jako czyste dane (liczone przy
+`rollOverdueSubscription`), bez żadnego UI "martwa subskrypcja" w v1.
+
+**Auto-roll** (jak sapp): przy wejściu na ekran appka CICHO (bez pytania usera
+— ten sam wybór co sapp, dopytywanie "czy opłaciłeś?" było uciążliwe)
+wyłącza subskrypcje z wygasłym `durationMonths` i przesuwa zaległe
+`nextBillingDate` w przyszłość o tyle cykli, ile potrzeba.
+
+**Dashboard "Stałe opłaty" w "Najbliższych eventach"**: tylko subskrypcje z
+płatnością w ciągu 14 dni (`BILL_WINDOW_DAYS`, `app/(tabs)/index.tsx`) — w
+przeciwieństwie do eventów/terminów (bez limitu czasowego, user: "zamieniamy na
+najbliższe eventy po prostu i tyle bez ograniczenia"), subskrypcja płatna raz w
+roku zaśmiecałaby listę miesiącami z wyprzedzeniem.
+
+**Eksport szablonów z sapp** — user pytał też o eksport "szablonów do łapania
+powiadomień i stałych" z sapp. Odpowiedź: sapp's `backupService.ts`'s
+`exportSnapshotToFile()` JUŻ eksportuje `cloud.subscriptions` (i
+`cloud.expenseTemplates`) w pełnym snapshocie — `app/import-sapp.tsx`/
+`dataImportFromSapp.ts` (Runda wcześniejsza) parsuje TYLKO
+`cloud.expenses`/`cloud.mood` z tego pliku. Rozszerzenie `dataImportFromSapp.ts`
+o `cloud.subscriptions` (mapowanie na sapp2's uproszczony `Subscription`,
+dedup po `sapp_`-prefiksowanym id, ten sam wzorzec) jest NATURALNYM
+następnym krokiem, ale ŚWIADOMIE odłożone na kolejną rundę — nie było części
+"głównie finanse/paragony/humor" z pierwotnego ASKu o import, i każda sapp's
+subskrypcja miałaby `nextBillingDate` z przeszłości wymagające natychmiastowego
+auto-rollu przy imporcie (więcej do przemyślenia niż zwykłe 1:1 mapowanie pól).
+Szablony "do łapania powiadomień" sensu stricto (sapp's `expenseTemplates`,
+bank-notification-matching reguły) pozostają NIE portowane z tego samego
+powodu co `subscriptionAuto.ts` wyżej.
+
+**Zweryfikowane**: — (patrz NEXT_STEPS.md po status tsc/jest/wizualny tej
+rundy). **DO POTWIERDZENIA NA URZĄDZENIU**: realny dodaj/edytuj/usuń na
+telefonie, auto-roll po realnym upływie czasu.
 
 ## PUPIL — USUNIĘTY (Faza 3.1, 2026-11-01)
 
