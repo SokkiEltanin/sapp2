@@ -141,6 +141,18 @@ export interface ImportResult {
 // Wstawia offline-first, DEDUP po id (prefiks `sapp_` + oryginalny id z sapp —
 // ponowny import tego samego pliku jest bezpieczny, nic się nie zdubluje).
 // Rzuca wyjątek przy niepoprawnym JSON-ie — ekran importu łapie i pokazuje błąd.
+//
+// 2026-11-09, bug fix (user: "dane sie nie zaczynały złapało cała apke... nawet
+// nie pokazuje wczytywanie danych") — pierwotna wersja wołała `addExpense`/
+// `addEntry` W PĘTLI, po jednym wpisie: każde wywołanie kopiowało CAŁĄ rosnącą
+// tablicę store'a I wyzwalało osobny `persist` zapis do AsyncStorage (pełna
+// serializacja JSON za każdym razem). Dla realnego eksportu sapp (miesiące/lata
+// paragonów = setki-tysiące wpisów) to setki-tysiące synchronicznych zapisów na
+// dysk W JEDNEJ PĘTLI, bez oddania sterowania JS threadowi — appka wygląda jak
+// zawieszona, bo dosłownie jest (żaden spinner nie zdąży się namalować, UI
+// thread stoi). Teraz: mapuje WSZYSTKO do tablic najpierw, jeden
+// `addExpenses`/`addEntries` na końcu — JEDEN `set()`, JEDEN zapis persist,
+// niezależnie od liczby wpisów.
 export function importSappPayload(raw: string): ImportResult {
   const parsed = JSON.parse(raw) as SappExportPayload;
   const sappExpenses = parsed.cloud?.expenses ?? [];
@@ -148,25 +160,29 @@ export function importSappPayload(raw: string): ImportResult {
 
   const expensesStore = useExpensesStore.getState();
   const existingExpenseIds = new Set(expensesStore.expenses.map((e) => e.id));
+  const newExpenses: Expense[] = [];
   let expensesAdded = 0, expensesSkipped = 0;
   for (const e of sappExpenses) {
     const mapped = mapExpense(e);
     if (existingExpenseIds.has(mapped.id)) { expensesSkipped++; continue; }
-    expensesStore.addExpense(mapped);
+    newExpenses.push(mapped);
     existingExpenseIds.add(mapped.id);
     expensesAdded++;
   }
+  if (newExpenses.length > 0) expensesStore.addExpenses(newExpenses);
 
   const moodStore = useMoodStore.getState();
   const existingMoodIds = new Set(moodStore.entries.map((m) => m.id));
+  const newMoodEntries: MoodEntry[] = [];
   let moodAdded = 0, moodSkipped = 0;
   for (const m of sappMood) {
     const mapped = mapMood(m);
     if (existingMoodIds.has(mapped.id)) { moodSkipped++; continue; }
-    moodStore.addEntry(mapped);
+    newMoodEntries.push(mapped);
     existingMoodIds.add(mapped.id);
     moodAdded++;
   }
+  if (newMoodEntries.length > 0) moodStore.addEntries(newMoodEntries);
 
   return { expensesAdded, expensesSkipped, moodAdded, moodSkipped };
 }

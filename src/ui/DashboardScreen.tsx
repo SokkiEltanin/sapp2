@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Globe, Moon, ListTodo, CalendarClock } from 'lucide-react-native';
 import { C, T, F } from './theme';
-import { Screen, Row, Tile, Cap, FitList, Item, Tag, Price, Bars, StackBar, splitTag, PulseDot } from './layout';
+import { Screen, Row, Tile, Cap, FitList, Item, Tag, Price, Bars, StackBar, splitTag } from './layout';
 
 /**
  * Wzorcowy Dashboard 1:1 z app-design.html.
@@ -66,19 +66,22 @@ export function DashboardScreen(d: DashData) {
         <Tile span={2} hot={!!d.next} center style={st.nextTile} onPress={() => d.onOpen('next')}>
           {d.next ? (
             <>
-              <PulseDot />
-              <Text style={st.nextWhen} numberOfLines={1}>{relTime(d.next.start, now)}</Text>
+              {/* 2026-11-09, user: "zamiast tej kropki czarnej jest ten badge po
+                  prefiksie... po lewej w lewym górnym jest godzina... po środku
+                  wiecej tekstu sie niech zmieści" — `PulseDot` (kropka, prawy
+                  górny róg) USUNIĘTA stąd, jej miejsce przejmuje tag prefiksu
+                  (`nextTagCorner`, ten sam róg). Godzina przeniesiona do
+                  LEWEGO górnego rogu (`nextWhenCorner`) — oba teraz `position:
+                  absolute`, więc nie zajmują miejsca w wyśrodkowanym stosie i
+                  tytuł (jedyne dziecko "w przepływie") dostaje całą wysokość
+                  kafla dla siebie, stąd `numberOfLines` 1→3. */}
+              <Text style={[st.nextWhen, st.nextWhenCorner]} numberOfLines={1}>{relTime(d.next.start, now)}</Text>
               {nextTag ? (
-                <View style={st.nextTagWrap}>
+                <View style={st.nextTagCorner}>
                   <Tag label={nextTag} kind={nextTag === 'PUR' || nextTag === 'UR' ? 'ur' : 'default'} />
                 </View>
               ) : null}
-              {/* `numberOfLines` niższe gdy jest tag — żeby łączna wysokość (tag +
-                  tytuł) dalej mieściła się w stałej wysokości kafla; to ONO
-                  (razem z `ellipsizeMode`) realnie "skraca" za długie nazwy
-                  eventów do "…", user: "skrócone formy niektórych eventow jezeli
-                  sa za długie". */}
-              <Text style={st.nextTitle} numberOfLines={nextTag ? 1 : 2} ellipsizeMode="tail">{nextTitle}</Text>
+              <Text style={st.nextTitle} numberOfLines={3} ellipsizeMode="tail">{nextTitle}</Text>
             </>
           ) : (
             <>
@@ -188,9 +191,14 @@ const st = StyleSheet.create({
   when: { width: 64, fontFamily: F.xb, fontSize: 10, color: C.mut, fontVariant: ['tabular-nums'] },
   bar: { width: 3, height: 16, borderRadius: 2 },
   kindIcon: { marginRight: 1 },
-  nextTile: { paddingHorizontal: 6, paddingTop: 14, paddingBottom: 12 },
+  // `paddingTop: 30` (nie 14) — rezerwuje miejsce na róg z godziną/tagiem
+  // (`top:9/10`, wysokość ~16px), żeby wyśrodkowany tytuł (3 linie) nigdy na nie
+  // nie nachodził niezależnie od długości tekstu/wysokości kafla. `minHeight: 96`
+  // — zabezpiecza przed skurczeniem się kafla poniżej tego, gdy tytuł jest krótki.
+  nextTile: { paddingHorizontal: 8, paddingTop: 30, paddingBottom: 12, minHeight: 96 },
   emptyHalf: { backgroundColor: 'transparent' },
-  nextTagWrap: { marginTop: 4 },
+  nextWhenCorner: { position: 'absolute', top: 10, left: 10 },
+  nextTagCorner: { position: 'absolute', top: 9, right: 9 },
   nextWhen: { fontFamily: F.sb, fontSize: 9, letterSpacing: 1.2, color: 'rgba(0,0,0,.55)', textTransform: 'uppercase' },
-  nextTitle: { fontFamily: F.xb, fontSize: 12, lineHeight: 15, letterSpacing: 0.2, color: '#000', textAlign: 'center', marginTop: 6 },
+  nextTitle: { fontFamily: F.xb, fontSize: 12, lineHeight: 15, letterSpacing: 0.2, color: '#000', textAlign: 'center' },
 });

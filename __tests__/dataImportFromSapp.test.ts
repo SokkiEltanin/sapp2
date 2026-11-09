@@ -125,3 +125,61 @@ describe('importSappPayload — brak bloków / pusty payload', () => {
     expect(() => importSappPayload('{nie json')).toThrow();
   });
 });
+
+// Ręczny monkeypatch zamiast `jest.spyOn` (2026-11-09) — zustand's `set()` kopiuje
+// WSZYSTKIE akcje (w tym `jest.spyOn`-owane) do NOWEGO obiektu stanu przy każdym
+// wywołaniu; `mockRestore()` naprawia tylko STARY (już osierocony) obiekt, więc
+// `jest.spyOn` użyte w dwóch kolejnych testach na tym samym store'owym polu
+// "wycieka" między testami (Jest po cichu ODDAJE ten sam mock drugi raz zamiast
+// nowego, z doklejoną historią wywołań z poprzedniego testu). Lokalna tablica
+// `calls` w domknięciu nie ma tego problemu — liczy tylko wywołania W TRAKCIE
+// życia TEGO konkretnego patcha, niezależnie od głębszych, "wyciekłych" warstw.
+function countCalls(obj: any, key: string) {
+  const original = obj[key];
+  const calls: any[][] = [];
+  obj[key] = (...args: any[]) => { calls.push(args); return original(...args); };
+  return { calls, restore: () => { obj[key] = original; } };
+}
+
+// 2026-11-09, bug fix regression guard — user: "dane sie nie zaczynały złapało
+// cała apke". Pierwotna wersja wołała `addExpense`/`addEntry` W PĘTLI, po
+// jednym wpisie, każde wywołanie kopiując CAŁĄ rosnącą tablicę + osobny zapis
+// `persist` do AsyncStorage — O(n) zapisów na dysk w jednej synchronicznej
+// pętli dla importu liczącego setki/tysiące wpisów. Test pilnuje, żeby import
+// zawsze szedł przez `addExpenses`/`addEntries` (JEDEN `set()`), nie wracał do
+// pętli pojedynczych wywołań.
+describe('importSappPayload — wstawia WSADOWO (jeden set(), nie pętla pojedynczych addExpense/addEntry)', () => {
+  test('N wydatków → addExpenses wołane RAZ z N elementami, addExpense ani razu', () => {
+    const state = useExpensesStore.getState();
+    const addExpenses = countCalls(state, 'addExpenses');
+    const addExpense = countCalls(state, 'addExpense');
+    const expenses = Array.from({ length: 50 }, (_, i) => ({ id: `e${i}`, amount: 10, date: '2026-05-01' }));
+    importSappPayload(sappPayload({ expenses }));
+    expect(addExpenses.calls).toHaveLength(1);
+    expect(addExpenses.calls[0][0]).toHaveLength(50);
+    expect(addExpense.calls).toHaveLength(0);
+    addExpenses.restore();
+    addExpense.restore();
+  });
+
+  test('N wpisów humoru → addEntries wołane RAZ z N elementami, addEntry ani razu', () => {
+    const state = useMoodStore.getState();
+    const addEntries = countCalls(state, 'addEntries');
+    const addEntry = countCalls(state, 'addEntry');
+    const mood = Array.from({ length: 30 }, (_, i) => ({ id: `m${i}`, date: '2026-05-01', mood: 5, energy: 5 }));
+    importSappPayload(sappPayload({ mood }));
+    expect(addEntries.calls).toHaveLength(1);
+    expect(addEntries.calls[0][0]).toHaveLength(30);
+    expect(addEntry.calls).toHaveLength(0);
+    addEntries.restore();
+    addEntry.restore();
+  });
+
+  test('zero nowych wpisów (wszystko już zaimportowane) → addExpenses NIE wołane wcale', () => {
+    importSappPayload(sappPayload({ expenses: [{ id: 'dup', amount: 10, date: '2026-05-01' }] }));
+    const addExpenses = countCalls(useExpensesStore.getState(), 'addExpenses');
+    importSappPayload(sappPayload({ expenses: [{ id: 'dup', amount: 10, date: '2026-05-01' }] }));
+    expect(addExpenses.calls).toHaveLength(0);
+    addExpenses.restore();
+  });
+});

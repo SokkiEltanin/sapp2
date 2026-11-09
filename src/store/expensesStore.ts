@@ -13,6 +13,7 @@ interface ExpensesState {
 
   setExpenses: (expenses: Expense[]) => void;
   addExpense: (expense: Expense) => void;
+  addExpenses: (expenses: Expense[]) => void;
   updateExpense: (id: string, updates: Partial<Expense>) => void;
   deleteExpense: (id: string) => void;
   setLoading: (loading: boolean) => void;
@@ -26,6 +27,15 @@ export const useExpensesStore = create<ExpensesState>()(
 
       setExpenses: (expenses) => set({ expenses }),
       addExpense: (expense) => set((state) => ({ expenses: [...state.expenses, expense] })),
+      // 2026-11-09, bug fix — import z sapp (dataImportFromSapp.ts) wołał `addExpense`
+      // W PĘTLI, po jednym na wydatek: każde wywołanie kopiowało CAŁĄ rosnącą tablicę
+      // (`[...state.expenses, expense]`) I wyzwalało osobny zapis `persist` do
+      // AsyncStorage (pełna serializacja JSON za każdym razem) — dla importu
+      // liczącego setki/tysiące wydatków to O(n²) kopiowania + n pełnych zapisów na
+      // dysk W JEDNEJ SYNCHRONICZNEJ PĘTLI, bez oddania sterowania JS threadowi —
+      // user: "dane sie nie zaczynały złapało cała apke". `addExpenses` dodaje
+      // WSZYSTKIE naraz, JEDNYM `set()` → JEDNYM zapisem persist.
+      addExpenses: (expenses) => set((state) => ({ expenses: [...state.expenses, ...expenses] })),
       updateExpense: (id, updates) =>
         set((state) => ({
           expenses: state.expenses.map((e) => (e.id === id ? { ...e, ...updates } : e)),

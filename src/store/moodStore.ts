@@ -13,6 +13,7 @@ interface MoodState {
 
   setEntries: (entries: MoodEntry[]) => void;
   addEntry: (entry: MoodEntry) => void;
+  addEntries: (entries: MoodEntry[]) => void;
   updateEntry: (id: string, updates: Partial<MoodEntry>) => void;
   deleteEntry: (id: string) => void;
   setLoading: (loading: boolean) => void;
@@ -26,6 +27,9 @@ export const useMoodStore = create<MoodState>()(
 
       setEntries: (entries) => set({ entries }),
       addEntry: (entry) => set((state) => ({ entries: [...state.entries, entry] })),
+      // Ten sam fix co `expensesStore.ts`'s `addExpenses` (2026-11-09, import z sapp
+      // "złapał całą apkę") — JEDEN `set()` zamiast N, dla importu wielu wpisów naraz.
+      addEntries: (entries) => set((state) => ({ entries: [...state.entries, ...entries] })),
       updateEntry: (id, updates) =>
         set((state) => ({
           entries: state.entries.map((e) => (e.id === id ? { ...e, ...updates } : e)),

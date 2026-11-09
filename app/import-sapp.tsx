@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChevronLeft, ClipboardPaste, FileJson, CheckCircle2, AlertTriangle } from 'lucide-react-native';
+import { ChevronLeft, ClipboardPaste, FileJson, X, CheckCircle2, AlertTriangle } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -25,15 +25,31 @@ import { haptic } from '@/utils/haptics';
 // kalendarz/zadania/praca/pojazdy, świadomie pomijana, sapp2 ma te podsystemy
 // własne). Bezpieczne odpalić wielokrotnie — dedup po id, ponowny import tego
 // samego pliku nic nie zdubluje.
+//
+// 2026-11-09, bug fix — user: "dane sie nie zaczynały złapało cała apke...
+// nawet nie pokazuje wczytywanie danych". Dwie osobne przyczyny, obie
+// naprawione: (1) `importSappPayload` sam dostał fix (patrz jego komentarz w
+// dataImportFromSapp.ts — wstawianie było O(n) zapisów do AsyncStorage w
+// pętli zamiast jednego); (2) TU, duży plik NIE trafia już do `text`/
+// kontrolowanej `TextInput` — RN-owy multiline TextInput z megabajtami
+// tekstu sam w sobie potrafi zawiesić UI thread (layout/miara tekstu przy
+// KAŻDYM renderze). Plik wczytany przyciskiem trzyma się w `filePayload`
+// (poza drzewem renderowanego tekstu) — ekran pokazuje tylko kompaktową
+// kartę "nazwa + rozmiar", nie całą treść. Wklejanie (mniejsze, user widzi
+// co wkleja) zostaje w `TextInput` bez zmian.
 export default function ImportSappScreen() {
   const s = makeS();
   const [text, setText] = useState('');
+  const [filePayload, setFilePayload] = useState<{ name: string; content: string } | null>(null);
+  const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const clearFile = () => { haptic.tap(); setFilePayload(null); };
+
   const pasteFromClipboard = async () => {
     const t = await Clipboard.getStringAsync();
-    if (t) { haptic.tap(); setText(t); }
+    if (t) { haptic.tap(); setFilePayload(null); setText(t); }
   };
 
   // `expo-document-picker` — natywny system-file-picker (Storage Access
@@ -54,7 +70,8 @@ export default function ImportSappScreen() {
       const asset = res.assets[0];
       const content = asset.file ? await asset.file.text() : await FileSystem.readAsStringAsync(asset.uri);
       haptic.tap();
-      setText(content);
+      setText('');
+      setFilePayload({ name: asset.name || 'plik.json', content });
       setError(null);
       setResult(null);
     } catch {
@@ -64,18 +81,30 @@ export default function ImportSappScreen() {
   };
 
   const runImport = () => {
+    const payload = filePayload?.content ?? text;
+    if (!payload.trim() || importing) return;
     setError(null);
     setResult(null);
-    if (!text.trim()) return;
-    try {
-      const r = importSappPayload(text);
-      haptic.success();
-      setResult(r);
-    } catch {
-      haptic.error();
-      setError('Nie udało się odczytać tego jako eksport sapp — sprawdź, czy wklejona treść to CAŁY plik JSON (nie jego fragment).');
-    }
+    setImporting(true);
+    // Oddaj klatkę renderu (spinner + disabled przyciski) PRZED ciężką, synchroniczną
+    // pracą — `importSappPayload` dla dużego eksportu i tak zajmie chwilę JS threada
+    // (parsowanie + mapowanie tysięcy wpisów), bez tego `setImporting(true)` nigdy by
+    // się nie zdążyło namalować (ta sama klatka co wywołanie importu).
+    setTimeout(() => {
+      try {
+        const r = importSappPayload(payload);
+        haptic.success();
+        setResult(r);
+      } catch {
+        haptic.error();
+        setError('Nie udało się odczytać tego jako eksport sapp — sprawdź, czy to CAŁY plik JSON (nie jego fragment).');
+      } finally {
+        setImporting(false);
+      }
+    }, 30);
   };
+
+  const hasPayload = !!(filePayload || text.trim());
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -99,27 +128,49 @@ export default function ImportSappScreen() {
         </View>
 
         <View style={s.card}>
-          <Text style={s.label}>Wklejony eksport</Text>
+          <Text style={s.label}>Eksport sapp</Text>
           <View style={s.pasteActions}>
-            <TouchableOpacity onPress={pickFile} style={s.pasteBtn} activeOpacity={0.8}>
+            <TouchableOpacity onPress={pickFile} style={s.pasteBtn} activeOpacity={0.8} disabled={importing}>
               <FileJson size={13} color={colors.text.secondary} />
               <Text style={s.pasteBtnLabel}>Wybierz plik</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={pasteFromClipboard} style={s.pasteBtn} activeOpacity={0.8}>
+            <TouchableOpacity onPress={pasteFromClipboard} style={s.pasteBtn} activeOpacity={0.8} disabled={importing}>
               <ClipboardPaste size={13} color={colors.text.secondary} />
               <Text style={s.pasteBtnLabel}>Wklej ze schowka</Text>
             </TouchableOpacity>
           </View>
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            style={s.textarea}
-            multiline
-            placeholder="Wklej tu całą treść pliku sapp-export-....json"
-            placeholderTextColor={colors.text.muted}
-          />
-          <TouchableOpacity style={[s.importBtn, !text.trim() && s.importBtnDisabled]} onPress={runImport} disabled={!text.trim()} activeOpacity={0.8}>
-            <Text style={s.importBtnLabel}>Importuj</Text>
+
+          {filePayload ? (
+            <View style={s.fileCard}>
+              <FileJson size={16} color={colors.text.secondary} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.fileName} numberOfLines={1}>{filePayload.name}</Text>
+                <Text style={s.fileSize}>{(filePayload.content.length / 1024).toFixed(0)} KB wczytane</Text>
+              </View>
+              <TouchableOpacity onPress={clearFile} style={s.fileClearBtn} hitSlop={8} disabled={importing}>
+                <X size={14} color={colors.text.muted} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TextInput
+              value={text}
+              onChangeText={setText}
+              style={s.textarea}
+              multiline
+              placeholder="Wklej tu całą treść pliku sapp-export-....json"
+              placeholderTextColor={colors.text.muted}
+              editable={!importing}
+            />
+          )}
+
+          <TouchableOpacity
+            style={[s.importBtn, (!hasPayload || importing) && s.importBtnDisabled]}
+            onPress={runImport}
+            disabled={!hasPayload || importing}
+            activeOpacity={0.8}
+          >
+            {importing ? <ActivityIndicator size="small" color={colors.bg.primary} /> : null}
+            <Text style={s.importBtnLabel}>{importing ? 'Importuję…' : 'Importuj'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -168,7 +219,20 @@ const makeS = themedStyles((c) => StyleSheet.create({
     marginTop: spacing[2], minHeight: 140, borderWidth: 1, borderColor: c.border.default, borderRadius: radius.md,
     padding: spacing[3], fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.primary, textAlignVertical: 'top',
   },
-  importBtn: { marginTop: spacing[3], backgroundColor: c.text.bright, borderRadius: radius.md, paddingVertical: spacing[3], alignItems: 'center' },
+
+  fileCard: {
+    marginTop: spacing[2], flexDirection: 'row', alignItems: 'center', gap: spacing[2],
+    borderWidth: 1, borderColor: c.border.default, borderRadius: radius.md,
+    paddingHorizontal: spacing[3], paddingVertical: spacing[3],
+  },
+  fileName: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  fileSize: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 2 },
+  fileClearBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+
+  importBtn: {
+    marginTop: spacing[3], backgroundColor: c.text.bright, borderRadius: radius.md, paddingVertical: spacing[3],
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2],
+  },
   importBtnDisabled: { opacity: 0.4 },
   importBtnLabel: { fontSize: 13, fontFamily: 'Inter_900Black', color: c.bg.primary },
 

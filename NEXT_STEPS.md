@@ -3513,3 +3513,69 @@ jak przy wklejaniu. **DO POTWIERDZENIA NA URZĄDZENIU:** nowy build APK
 readAsStringAsync(uri)` to już istniejący, sprawdzony wzorzec z
 `shareTextDrain.ts`, ale nie z TĄ konkretną kombinacją URI z document-
 pickera).
+
+## Bug: import z sapp "złapał całą apkę", + redesign kafla "Teraz" (2026-11-09)
+
+User: "Dane sie nie zaczynały złapało cała apke i tyle xd. Nawet nie pokazuje
+wczytywanie danych itp." — realny (duży) eksport z sapp zawieszał appkę przy
+imporcie, bez żadnego spinnera. DWIE osobne przyczyny, obie naprawione:
+
+1. **`addExpense`/`addEntry` wołane W PĘTLI, po jednym wpisie** (`dataImportFromSapp.ts`) —
+   każde wywołanie kopiowało CAŁĄ rosnącą tablicę store'a (`[...state.expenses, e]`)
+   I wyzwalało OSOBNY `persist` zapis do AsyncStorage (pełna serializacja JSON
+   za każdym razem). Dla eksportu liczącego setki/tysiące wpisów to O(n) pełnych
+   zapisów na dysk w jednej synchronicznej pętli, bez oddania sterowania JS
+   threadowi — appka wygląda jak zawieszona, bo dosłownie jest. Naprawione:
+   `expensesStore.ts`/`moodStore.ts` dostały `addExpenses`/`addEntries`
+   (wsadowe, JEDEN `set()` dla N elementów), `dataImportFromSapp.ts` mapuje
+   wszystko do tablic najpierw, wywołuje batch RAZ na końcu. Regression-guard
+   testy w `dataImportFromSapp.test.ts` pilnują, żeby import nie wrócił do
+   pętli pojedynczych wywołań (manualny monkeypatch zamiast `jest.spyOn` — ten
+   drugi "wycieka" między testami przez to jak zustand's `set()` kopiuje
+   zaszpiegowane funkcje do nowych obiektów stanu, patrz komentarz w teście).
+2. **Duży plik trafiał wprost do kontrolowanej `TextInput`** (`app/import-sapp.tsx`)
+   — RN-owy multiline `TextInput` z megabajtami tekstu sam w sobie potrafi
+   zawiesić UI thread (miara/layout tekstu przy każdym renderze). Plik
+   wybrany przyciskiem trzyma się teraz w osobnym stanie `filePayload` (poza
+   drzewem renderowanego tekstu) — ekran pokazuje kompaktową kartę "nazwa +
+   rozmiar" zamiast całej treści. Wklejanie (mniejsze, user widzi co wkleja)
+   zostaje w `TextInput` bez zmian.
+   Dodatkowo: przycisk "Importuj" dostał stan `importing` (disabled + spinner
+   + "Importuję…"), a sama ciężka praca jest odroczona o jedną klatkę
+   (`setTimeout(…, 30)`), żeby React zdążył namalować spinner PRZED
+   synchronicznym parsowaniem — poprzednio `setImporting(true)` i ciężka praca
+   leciały w tej samej klatce, spinner nigdy by się nie zdążył pokazać.
+
+**Zweryfikowane:** tsc czysty, jest 305/305 (3 nowe regression-guard testy).
+Wizualnie `expo web`+Playwright: wybór pliku pokazuje kompaktową kartę (nie
+textarea), import kończy się poprawnie ("2 nowych/1 nowych"). **DO
+POTWIERDZENIA NA URZĄDZENIU:** realny, DUŻY eksport z prawdziwego sapp (tu
+tylko mały przykładowy plik — prawdziwy test wymaga faktycznie dużego pliku,
+którego nie da się łatwo zasymulować w tym środowisku).
+
+---
+
+User (ten sam zrzut ekranu co dashboard-bar, drugi punkt): "ten kafelek w
+prawym górnym bialy edytoj tak ze zamiast tej kropki czarnej jest ten badge
+po proefiksie jakby a po lewej w lewym górnym jest godzina i czas ogólnie a
+po środku wiecej tekstu sie niech zmieści." Dashboard's "Teraz" kafel
+(`DashboardScreen.tsx`, Rząd 1) przeprojektowany:
+
+- `PulseDot` (pulsująca kropka, prawy górny róg) USUNIĘTA — jej miejsce
+  przejmuje tag prefiksu eventu (np. "PUR"/"JD"), ten sam róg
+  (`nextTagCorner`).
+- Godzina ("za 2h"/"jutro 08:00"...) przeniesiona z wyśrodkowanego stosu do
+  LEWEGO górnego rogu (`nextWhenCorner`).
+- Oba teraz `position: absolute` — nie zajmują miejsca w przepływie, więc
+  tytuł (jedyne dziecko "w przepływie") dostaje całą wysokość kafla dla
+  siebie: `numberOfLines` 1→2 (było ograniczone do 1 linii gdy był tag).
+  `paddingTop: 30` (było 14) + `minHeight: 96` — rezerwuje miejsce na róg z
+  godziną/tagiem, żeby wyśrodkowany tytuł nigdy na nie nie nachodził
+  niezależnie od długości tekstu/wysokości kafla (pierwsza wersja BEZ tego
+  paddingu miała realne nachodzenie tytułu na badge, złapane dopiero na
+  screenshocie).
+
+**Zweryfikowane:** tsc czysty, jest 305/305 (czysto wizualna zmiana, bez
+zmian w logice danych). Wizualnie `expo web`+Playwright — odwzorowany
+dokładny tytuł/tag z zrzutu usera (3-liniowy, "PUR") BEZ nachodzenia, oraz
+osobno krótki tytuł bez tagu ("Siłownia").
