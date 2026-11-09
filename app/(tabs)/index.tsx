@@ -122,7 +122,14 @@ export default function Dashboard() {
   useEffect(() => { setFactIndex(dayOfYear(now) % FACTS.length); }, [now]);
 
   const wydatkiData = useWydatkiData(expenses, now);
-  const foodMonths = useMemo(() => foodByMonth(expenses, 4, now), [expenses, now]);
+  // 6 zamiast 4 miesięcy (2026-11-09, user: "jak jest średnia jedzenia z innych
+  // miesięcy to możesz tam zrobic zeby bylo ich trochę więcej bo wydluzylismy
+  // kafelek a tyle zostało samo miesięcy") — kafel dostał pełną szerokość (span 4)
+  // przy usuwaniu "Jedzenie PLN/dzień" (patrz DashboardScreen.tsx), ale liczba
+  // słupków została ta sama co przy wąskim kaflu (span 3), więc zostawiała pustą
+  // przestrzeń. `MONTH_SHORT` (foodStats.ts) ma 12 unikalnych etykiet w obrębie
+  // roku — 6 nie koliduje (brak przejścia przez Styczeń wstecz), 12 by kolidowało.
+  const foodMonths = useMemo(() => foodByMonth(expenses, 6, now), [expenses, now]);
 
   const allEvents = useMemo(() => [...calendarEvents, ...gcalEvents], [calendarEvents, gcalEvents]);
 
