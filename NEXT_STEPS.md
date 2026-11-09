@@ -3306,8 +3306,9 @@ POŁÓWKA importu w sapp2:
 - Nowy ekran `app/import-sapp.tsx` (Ustawienia → Finanse → "Importuj dane z
   sapp") — textarea do wklejenia treści wyeksportowanego pliku (user otwiera
   go gdziekolwiek wylądował — mail/Drive/Pliki — zaznacza całość, kopiuje;
-  ten sam paste-w-textarea wzorzec co parser paragonów, zero nowej
-  zależności jak `expo-document-picker`).
+  ten sam paste-w-textarea wzorzec co parser paragonów). Pierwotnie świadomie
+  bez `expo-document-picker` — **okazało się za wąskie, DOŁĄCZONE niżej**
+  ("Import z sapp — wybór pliku JSON bezpośrednio").
 - `src/services/dataImportFromSapp.ts` — parsuje `cloud.expenses`/
   `cloud.mood` z eksportu (JEDYNE dwa bloki, reszta — kalendarz/zadania/
   subskrypcje/praca/pojazdy — ŚWIADOMIE pomijana, sapp2 ma te podsystemy
@@ -3452,3 +3453,63 @@ prefiksem "[JD]" (rate 0.00, "Historia wypłat" pusta) → w Płatnościach z
 banku zaznaczenie przychodu 3000 zł jako "Wypłata z pracy" → Zatwierdź →
 Praca pokazuje "Historia wypłat" z wpisem 2026-10/3000.00 zł i realną
 stawkę 17.86 zł/h zamiast 0.00.
+
+## Dashboard: #JedzeniePerMiesiąc — kształt słupków + więcej miesięcy (2026-11-09)
+
+Dwie drobne poprawki do tej samej kafli, oba z zrzutów ekranu usera:
+
+- **"ten kafelek lepiej biały ogarnąć bo dziwnie wygląda da się lepiej?"** —
+  gdy bieżący miesiąc jest zarazem maksimum (częsty przypadek), `Bars`
+  (`src/ui/layout.tsx`) skalował go do RÓWNO 100% wysokości, zaokrąglone na
+  wszystkich rogach — wyglądał jak płaski biały placeholder, nie słupek
+  wykresu. Naprawione: 13% headroom w skali (najwyższy słupek już nie
+  dotyka sufitu kafla) + zaokrąglenie TYLKO górnych rogów (słupek "wyrasta"
+  z dołu jak w klasycznym bar-chart).
+- **"jak jest średnia jedzenia z innych miesięcy to możesz tam zrobic zeby
+  bylo ich trochę więcej bo wydluzylismy kafelek a tyle zostało samo
+  miesięcy"** — kafel dostał pełną szerokość (span 4) przy wcześniejszym
+  usunięciu "Jedzenie PLN/dzień" (patrz wyżej), ale liczba słupków (4)
+  została ta sama co przy wąskim kaflu (span 3), zostawiając pustą
+  przestrzeń. `foodByMonth(expenses, 6, now)` w `app/(tabs)/index.tsx`
+  (było 4) — 6 bezpiecznie mieści się w `MONTH_SHORT`'s 12 unikalnych
+  etykietach bez kolizji roku.
+
+**Zweryfikowane:** tsc czysty, jest 302/302 (obie poprawki czysto
+wizualne/parametr liczbowy, bez zmian w logice danych). Wizualnie `expo
+web`+Playwright — odwzorowane dane usera (0/0/63/169) i dodatkowo 6
+miesięcy z 4-cyfrową kwotą (sprawdzenie że nic nie nachodzi na węższym
+ekranie).
+
+## Import z sapp — wybór pliku JSON bezpośrednio (2026-11-09)
+
+User: "daj w imporcie danych możliwość przesłania pliku json bo na tamtym
+koncie wkleić a ja mam to jako plik" — poprzednia wersja (wyżej, "Import
+danych z sapp") miała WYŁĄCZNIE wklejanie treści ręcznie, świadomie bez
+`expo-document-picker` jako "zero nowej zależności". Ta decyzja okazała się
+za wąska — user ma plik, nie zawsze wygodnie/możliwie skopiować całą jego
+treść (np. na innym koncie/urządzeniu). Dodane:
+
+- `expo-document-picker` (NOWA zależność natywna, `npx expo install`) —
+  **wymaga nowego buildu APK**, nie zadziała samą OTA/JS-bundle aktualizacją
+  (ten sam reżim co każdy nowy natywny moduł, CLAUDE.md §2 dotyczy
+  permisji, ale konsekwencja "trzeba przebudować" jest analogiczna).
+  Storage Access Framework na Androidzie — ŻADNE nowe uprawnienie w
+  `app.json` nie jest potrzebne (user wybiera plik w systemowym UI, appka
+  dostaje tylko TEN jeden URI).
+- `app/import-sapp.tsx` — nowy przycisk "Wybierz plik" obok "Wklej ze
+  schowka", wypełnia TĘ SAMĄ textarea (user dalej widzi/może poprawić treść
+  przed "Importuj" — zero nowej ścieżki importu, tylko drugi sposób
+  wypełnienia pola). Odczyt: `FileSystem.readAsStringAsync` (native) albo
+  `asset.file.text()` (web — `expo-document-picker`'s web-only `File`,
+  `readAsStringAsync` nie ogarnia tam `blob:` URI).
+
+**Zweryfikowane:** tsc czysty, jest 302/302 (bez nowych testów — czysto UI/
+I-O, `importSappPayload` sama logika niezmieniona, już pokryta). Wizualnie
+`expo web`+Playwright: wybór przykładowego pliku JSON przez systemowy file
+chooser → textarea wypełniona → Importuj → "2 nowych/1 nowych", identycznie
+jak przy wklejaniu. **DO POTWIERDZENIA NA URZĄDZENIU:** nowy build APK
+(dependency natywna), realny plik wybrany z Plików/Drive na Androidzie
+(tu tylko web codepath zweryfikowany realnie — natywny `FileSystem.
+readAsStringAsync(uri)` to już istniejący, sprawdzony wzorzec z
+`shareTextDrain.ts`, ale nie z TĄ konkretną kombinacją URI z document-
+pickera).
