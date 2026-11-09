@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { commitBankTx, undoBankHistoryEntry } from '@/services/bankCommit';
 import { useExpensesStore } from '@/store/expensesStore';
+import { useWorkStore } from '@/store/workStore';
+import { knownPaycheckSenderEmployer } from '@/utils/paycheckSenders';
 import { useBankQueue, type PendingBankTx, type BankIngestHistoryEntry } from '@/store/bankQueueStore';
 
 const hist = (o: Partial<BankIngestHistoryEntry>): BankIngestHistoryEntry => ({
@@ -21,6 +23,7 @@ const ptx = (o: Partial<PendingBankTx>): PendingBankTx => ({
 beforeEach(async () => {
   await AsyncStorage.clear();
   useExpensesStore.setState({ expenses: [] });
+  useWorkStore.setState({ employers: [], activeEmployerId: null });
   useBankQueue.setState({ pending: [], enabled: true, autoAll: false, seenNotifications: [], history: [] });
 });
 
@@ -121,6 +124,37 @@ describe('commitBankTx — przychód przychodzący', () => {
     const res = await commitBankTx(ptx({ direction: 'in', amount: 3000 }));
     expect(res.matched).toBe(true);
     expect(useExpensesStore.getState().expenses).toHaveLength(1);
+  });
+
+  // 2026-11-09, bug fix — user: "zaznaczyłem w potwierdzeniach że to wypłata ale nie
+  // miałem jak prefiksu itp że to JD i mi nie łapie". Sam tag 'wypłata' NIE
+  // wystarczał `utils/paycheck.ts`'s `isPaycheck()`, która wymaga taga pasującego
+  // do KONKRETNEGO `Employer.workPrefix` — bez niego Praca liczyła stawkę 0.
+  describe('wypłata → prefiks pracodawcy (paycheckEmployerId)', () => {
+    test('paycheckEmployerId wskazuje pracodawcę z workPrefix → tag prefiksu DOŁĄCZA się obok "wypłata"', async () => {
+      useWorkStore.setState({ employers: [{ id: 'emp1', name: 'Jdsport', workMode: 'calendar', workPrefix: '[JD]', monthlySalary: 0, hoursPerMonth: 0, createdAt: 0 }], activeEmployerId: 'emp1' });
+      const res = await commitBankTx(ptx({ direction: 'in', amount: 3000, isPaycheck: true, paycheckEmployerId: 'emp1' }));
+      expect(res.ok).toBe(true);
+      expect(useExpensesStore.getState().expenses[0].tags).toEqual(['wypłata', '[JD]']);
+    });
+
+    test('brak paycheckEmployerId (żaden pracodawca jeszcze nie istnieje) → tylko generyczny tag "wypłata", bez crasha', async () => {
+      const res = await commitBankTx(ptx({ direction: 'in', amount: 3000, isPaycheck: true }));
+      expect(res.ok).toBe(true);
+      expect(useExpensesStore.getState().expenses[0].tags).toEqual(['wypłata']);
+    });
+
+    test('pracodawca bez ustawionego workPrefix → tylko "wypłata", bez pustego/undefined taga', async () => {
+      useWorkStore.setState({ employers: [{ id: 'emp1', name: 'Ręczny', workMode: 'manual', monthlySalary: 5000, hoursPerMonth: 160, createdAt: 0 }], activeEmployerId: 'emp1' });
+      const res = await commitBankTx(ptx({ direction: 'in', amount: 3000, isPaycheck: true, paycheckEmployerId: 'emp1' }));
+      expect(useExpensesStore.getState().expenses[0].tags).toEqual(['wypłata']);
+    });
+
+    test('zapamiętuje nadawcę→pracodawcę, żeby kolejny przelew z autopilota podpowiedział właściwy prefiks', async () => {
+      useWorkStore.setState({ employers: [{ id: 'emp1', name: 'Jdsport', workMode: 'calendar', workPrefix: '[JD]', monthlySalary: 0, hoursPerMonth: 0, createdAt: 0 }], activeEmployerId: 'emp1' });
+      await commitBankTx(ptx({ direction: 'in', amount: 3000, store: 'Jdsport sp. z o.o.', storeKey: 'jdsport', isPaycheck: true, paycheckEmployerId: 'emp1' }));
+      await expect(knownPaycheckSenderEmployer('jdsport')).resolves.toBe('emp1');
+    });
   });
 });
 

@@ -6,6 +6,7 @@ import { ChevronLeft, Check, X, Landmark, Zap, Sparkles, AlertTriangle, Plus, Bo
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { useBankQueue, type PendingBankTx } from '@/store/bankQueueStore';
+import { useWorkStore } from '@/store/workStore';
 import { commitBankTx } from '@/services/bankCommit';
 import { loadMerchantMemory, saveMerchant, setMerchantAuto, AUTO_THRESHOLD, type MerchantMemory } from '@/utils/merchantMemory';
 import { haptic } from '@/utils/haptics';
@@ -28,6 +29,8 @@ const curLabel = (cur?: string) => (!cur || cur === 'PLN') ? 'zł' : cur;
 export default function BankReview() {
   const s = makeS();
   const { pending, update, remove, updateHistoryEntry } = useBankQueue();
+  const employers = useWorkStore((st) => st.employers);
+  const activeEmployerId = useWorkStore((st) => st.activeEmployerId);
   const [mem, setMem] = useState<MerchantMemory>({});
   const [tagDrafts, setTagDrafts] = useState<Record<string, string>>({});
   const [submittingIds, setSubmittingIds] = useState<Set<string>>(new Set());
@@ -57,6 +60,24 @@ export default function BankReview() {
     } finally {
       setSubmittingIds((prev) => { if (!prev.has(p.id)) return prev; const next = new Set(prev); next.delete(p.id); return next; });
     }
+  };
+
+  // 2026-11-09, bug fix — user: "zaznaczyłem w potwierdzeniach że to wypłata ale nie
+  // miałem jak prefiksu itp że to JD i mi nie łapie". Przełącznik dawał tylko
+  // generyczny tag 'wypłata', bez żadnego powiązania z KONKRETNYM pracodawcą/
+  // prefiksem — `utils/paycheck.ts`'s `isPaycheck()` (którą czyta Praca do liczenia
+  // stawki) wymaga taga/notatki pasującej do `Employer.workPrefix`, więc rate zawsze
+  // zostawał 0. Teraz włączenie przełącznika OD RAZU wiąże wypłatę z aktywnym
+  // pracodawcą (albo jedynym, gdy jest tylko jeden) — `payEmployer?.workPrefix`
+  // dołącza się jako tag przy zatwierdzeniu (bankCommit.ts). Przy >1 pracodawcy
+  // user wybiera z chipów niżej, który to.
+  const togglePaycheck = (p: PendingBankTx) => {
+    haptic.tap();
+    const turningOn = !p.isPaycheck;
+    update(p.id, {
+      isPaycheck: turningOn,
+      ...(turningOn ? { paycheckEmployerId: p.paycheckEmployerId ?? activeEmployerId ?? employers[0]?.id } : {}),
+    });
   };
 
   const reject = (p: PendingBankTx) => { haptic.tap(); remove(p.id); };
@@ -146,16 +167,43 @@ export default function BankReview() {
               />
 
               {isIn ? (
-                <TouchableOpacity
-                  onPress={() => update(p.id, { isPaycheck: !p.isPaycheck })}
-                  style={[s.jdToggle, p.isPaycheck && s.jdToggleOn]}
-                  activeOpacity={0.85}
-                >
-                  <Zap size={14} color={p.isPaycheck ? colors.bg.primary : colors.accent.green} />
-                  <Text style={[s.jdText, p.isPaycheck && s.jdTextOn]}>
-                    {p.isPaycheck ? 'Wypłata z pracy ✓' : 'To zwykły przychód (stuknij = wypłata)'}
-                  </Text>
-                </TouchableOpacity>
+                <>
+                  <TouchableOpacity
+                    onPress={() => togglePaycheck(p)}
+                    style={[s.jdToggle, p.isPaycheck && s.jdToggleOn]}
+                    activeOpacity={0.85}
+                  >
+                    <Zap size={14} color={p.isPaycheck ? colors.bg.primary : colors.accent.green} />
+                    <Text style={[s.jdText, p.isPaycheck && s.jdTextOn]}>
+                      {p.isPaycheck ? 'Wypłata z pracy ✓' : 'To zwykły przychód (stuknij = wypłata)'}
+                    </Text>
+                  </TouchableOpacity>
+                  {p.isPaycheck && employers.length === 0 && (
+                    <Text style={s.employerHint}>
+                      Brak pracodawcy w Pracy — ta wypłata zaksięguje się, ale nie wliczy
+                      się do stawki (dodaj pracodawcę w zakładce Praca).
+                    </Text>
+                  )}
+                  {p.isPaycheck && employers.length > 1 && (
+                    <>
+                      <Text style={s.fieldLabel}>Który pracodawca</Text>
+                      <View style={s.employerRow}>
+                        {employers.map((emp) => (
+                          <TouchableOpacity
+                            key={emp.id}
+                            onPress={() => { haptic.tap(); update(p.id, { paycheckEmployerId: emp.id }); }}
+                            style={[s.employerChip, p.paycheckEmployerId === emp.id && s.employerChipOn]}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={[s.employerChipLabel, p.paycheckEmployerId === emp.id && s.employerChipLabelOn]} numberOfLines={1}>
+                              {emp.name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </>
+                  )}
+                </>
               ) : (
                 <>
                   <Text style={s.fieldLabel}>Tagi</Text>
@@ -287,6 +335,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
   jdToggleOn: { backgroundColor: c.accent.green, borderColor: c.accent.green },
   jdText: { fontSize: 12.5, fontFamily: 'Inter_900Black', color: c.accent.green },
   jdTextOn: { color: c.bg.primary },
+  employerHint: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[2], lineHeight: 15 },
+  employerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  employerChip: { paddingHorizontal: spacing[3], paddingVertical: 8, borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default, backgroundColor: c.bg.elevated },
+  employerChipOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
+  employerChipLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
+  employerChipLabelOn: { color: c.bg.primary },
 
   trustRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing[3] },
   trustText: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.muted },

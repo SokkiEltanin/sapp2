@@ -14,6 +14,12 @@ export interface PendingBankTx extends ParsedBankTx {
   suggestedTags: string[];        // co podpowiedziała pamięć sprzedawcy — do wykrycia korekty
   auto?: boolean;                 // zaufany sprzedawca → auto-zatwierdzenie przy następnym otwarciu appki
   isPaycheck?: boolean;           // przychód: oznacz jako wypłatę (tag 'wypłata')
+  // KTÓREGO pracodawcy (workStore.ts's Employer.id) dotyczy ta wypłata — bez tego
+  // tag 'wypłata' sam nie wystarczał, żeby Praca (utils/paycheck.ts's `isPaycheck`)
+  // rozpoznała przychód jako należący do KONKRETNEGO prefiksu (2026-11-09, user:
+  // "zaznaczyłem w potwierdzeniach że to wypłata ale nie miałem jak prefiksu... i
+  // mi nie łapie"). Domyślnie aktywny pracodawca, zmienialne gdy >1 (bank-review.tsx).
+  paycheckEmployerId?: string;
   flagReason?: string;            // ustawione → wstrzymane do potwierdzenia (coś wyglądało nietypowo)
   matchedSource?: 'learned' | 'guess'; // skąd wzięły się tagi — patrz bankIngest.ts
   addedAt: number;
@@ -39,6 +45,7 @@ export interface BankIngestHistoryEntry {
   tags: string[];
   matchedSource?: 'learned' | 'guess';
   isPaycheck?: boolean;
+  paycheckEmployerId?: string;
   auto: boolean;
   flagReason?: string;
   // Dopisywane PO commicie (bank-review.tsx/bankAutoProcess.ts), nie przy enqueue —

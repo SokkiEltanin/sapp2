@@ -1,18 +1,20 @@
 import { useExpensesStore } from '@/store/expensesStore';
+import { useWorkStore } from '@/store/workStore';
 import { findMatchingExpense, findMatchingIncome, sameLocalDay, localDayKey, amountMatches } from '@/utils/bankNotification';
 import { withLock } from '@/utils/asyncLock';
 import { recordMerchantAccept, MerchantInfo } from '@/utils/merchantMemory';
-import { rememberPaycheckSender } from '@/utils/paycheckSenders';
+import { rememberPaycheckSender, rememberPaycheckSenderEmployer } from '@/utils/paycheckSenders';
 import { PendingBankTx, useBankQueue, type BankIngestHistoryEntry } from '@/store/bankQueueStore';
 import type { Expense } from '@/types/finances';
 
 // Port z sapp (src/services/bankCommit.ts), ZMNIEJSZONY do tego co sapp2 faktycznie ma:
-// sapp tu też auto-opłacał subskrypcje (`subscriptionsStore`), oznaczał "payday handled"
-// (`payday.ts`) i dopisywał prefiks z pracy (`workStore`) — sapp2 NIE MA jeszcze
-// Subskrypcji/Pracy/przypomnień o wypłacie (wciąż `ComingSoonRow` w Finanse → Obszary),
-// więc cała ta integracja odpada, nie udajemy funkcji której nie ma. Druga, ważniejsza
-// różnica: sapp pisał do Firestore NAJPIERW (`await expensesService.add()`), dopiero
-// potem do lokalnego store'a — sapp2 jest celowo offline-first (patrz CLAUDE.md/
+// sapp tu też auto-opłacał subskrypcje (`subscriptionsStore`) i oznaczał "payday handled"
+// (`payday.ts`) — sapp2 jeszcze nie auto-opłaca Subskrypcji z banku (osobna, odłożona
+// runda, patrz ARCHITECTURE.md §SUBSKRYPCJE), więc TA konkretna integracja odpada.
+// Dopisywanie prefiksu pracodawcy ("workStore") NATOMIAST JEST wpięte (2026-11-09, bug:
+// tag 'wypłata' sam nie wystarczał Pracy, patrz `paycheckEmployerId` niżej). Druga,
+// ważniejsza różnica: sapp pisał do Firestore NAJPIERW (`await expensesService.add()`),
+// dopiero potem do lokalnego store'a — sapp2 jest celowo offline-first (patrz CLAUDE.md/
 // AddExpenseModal.tsx), więc commit jest SYNCHRONICZNY: `useExpensesStore.getState()`
 // bezpośrednio, Firestore sync to osobna, ręczna warstwa (nigdy nie blokuje zapisu).
 function genId(): string {
@@ -75,14 +77,30 @@ export async function commitBankTx(
         st.updateExpense(dup.id, { bankMatched: true, updatedAt: now });
         return { ok: true, matched: true, expenseId: dup.id };
       }
+      // Prefiks pracodawcy (2026-11-09, bug — user: "zaznaczyłem w potwierdzeniach
+      // że to wypłata ale nie miałem jak prefiksu... i mi nie łapie"): sam tag
+      // 'wypłata' NIE wystarczał `utils/paycheck.ts`'s `isPaycheck()`, która wymaga
+      // taga/notatki pasującej do KONKRETNEGO `Employer.workPrefix` — appka po
+      // prostu nie dawała gdzie ten prefiks wpisać. `p.paycheckEmployerId` (ustawiane
+      // w bank-review.tsx przy przełączeniu "Wypłata z pracy", domyślnie aktywny
+      // pracodawca) wskazuje KTÓREGO — jego `workPrefix` dołącza się jako DRUGI tag
+      // obok generycznego 'wypłata' (ten zostaje dla ogólnego filtrowania/importu z
+      // sapp, patrz dataImportFromSapp.ts's CATEGORY_TO_TAG).
+      const payEmployer = p.isPaycheck
+        ? useWorkStore.getState().employers.find((e) => e.id === p.paycheckEmployerId)
+        : undefined;
+      const payTags = p.isPaycheck ? ['wypłata', ...(payEmployer?.workPrefix ? [payEmployer.workPrefix] : [])] : [];
       const newIncomeId = genId();
       st.addExpense({
         id: newIncomeId, type: 'income', amount: isForeign ? 0 : p.amount, date: p.dateISO,
-        note: p.store || 'Przychód', tags: p.isPaycheck ? ['wypłata'] : [],
+        note: p.store || 'Przychód', tags: payTags,
         paymentMethod: 'card', bankMatched: true, source, createdAt: now, updatedAt: now,
         ...fxFields,
       });
-      if (p.isPaycheck) rememberPaycheckSender(p.storeKey).catch(() => {});
+      if (p.isPaycheck) {
+        rememberPaycheckSender(p.storeKey).catch(() => {});
+        if (payEmployer) rememberPaycheckSenderEmployer(p.storeKey, payEmployer.id).catch(() => {});
+      }
       return { ok: true, matched: false, expenseId: newIncomeId };
     }
 

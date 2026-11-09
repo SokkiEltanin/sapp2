@@ -3407,3 +3407,48 @@ pomarańczowy) → Finanse's kafelek pokazuje realne "5 dni" → Dashboard's
 **DO POTWIERDZENIA NA URZĄDZENIU:** realny dodaj/edytuj/usuń na telefonie,
 auto-roll po realnym upływie czasu (symulowane tylko przez testy jednostkowe
 z fake timerami, nie na żywej instalacji).
+
+## Bug: "Wypłata z pracy" w przeglądzie banku nie łapała się do stawki (2026-11-09)
+
+User (ze zrzutem ekranu Pracy, stawka 0.00 zł/h mimo "Aktywny pracodawca" i
+80h w kalendarzu): "Tam problem zaznaczyłem w potwierdzeniach ze to wypłata
+ale nie mialem jak prefiksu itp ze to JD i mi nie lapie".
+
+**Przyczyna**: przełącznik "Wypłata z pracy" w `app/bank-review.tsx` istniał
+od ZANIM Praca w ogóle miała zakładkę — dawał tylko generyczny tag
+`'wypłata'` (`src/services/bankCommit.ts`). `utils/paycheck.ts`'s
+`isPaycheck()` (którą czyta `computeWorkRate` do liczenia stawki) wymaga
+TAGA PASUJĄCEGO DO PREFIKSU KONKRETNEGO PRACODAWCY (`Employer.workPrefix`,
+np. "[JD]") — appka nigdzie nie dawała gdzie ten prefiks wpisać przy
+zatwierdzaniu przelewu, więc generyczne "wypłata" nigdy nie trafiało.
+
+**Naprawione**:
+- `PendingBankTx`/`BankIngestHistoryEntry` (`bankQueueStore.ts`) — nowe pole
+  `paycheckEmployerId`.
+- `app/bank-review.tsx` — włączenie przełącznika wiąże wypłatę z aktywnym
+  pracodawcą (albo jedynym, gdy jest tylko jeden); przy >1 pracodawcy chipy
+  do wyboru którego; hint gdy user jeszcze nie ma żadnego pracodawcy w
+  Pracy.
+- `src/services/bankCommit.ts` — tag `workPrefix` dopasowanego pracodawcy
+  dołącza się OBOK generycznego `'wypłata'` (ten zostaje, używany też przez
+  `dataImportFromSapp.ts`).
+- `src/utils/paycheckSenders.ts` — DOŁĄCZONA pamięć nadawca→pracodawca
+  (`rememberPaycheckSenderEmployer`/`knownPaycheckSenderEmployer`), żeby
+  kolejny przelew od tego samego nadawcy (ręczny przegląd ALBO autopilot,
+  `bankIngest.ts`) od razu podpowiedział właściwego pracodawcę, nie tylko
+  "to jest wypłata".
+
+**Dla usera**: ten konkretny, JUŻ zaksięgowany przelew (z zanim poprawka
+weszła) trzeba poprawić ręcznie — otworzyć go w Finansach i dopisać tag
+"[JD]" (dokładnie jak w polu "Prefiks" w Pracy, wielkość liter nie ma
+znaczenia) do istniejących tagów. Każdy KOLEJNY przelew oznaczony jako
+wypłata w przeglądzie banku złapie się automatycznie.
+
+**Zweryfikowane:** tsc czysty, jest 302/302 (4 nowe testy w
+`bankCommit.test.ts` — tag prefiksu dołącza się/nie dołącza gdy brak
+pracodawcy lub prefiksu, pamięć nadawca→pracodawca). Wizualnie `expo
+web`+Playwright, pełny przepływ end-to-end: dodanie pracodawcy "Jdsport" z
+prefiksem "[JD]" (rate 0.00, "Historia wypłat" pusta) → w Płatnościach z
+banku zaznaczenie przychodu 3000 zł jako "Wypłata z pracy" → Zatwierdź →
+Praca pokazuje "Historia wypłat" z wpisem 2026-10/3000.00 zł i realną
+stawkę 17.86 zł/h zamiast 0.00.

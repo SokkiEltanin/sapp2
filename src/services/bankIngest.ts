@@ -1,7 +1,7 @@
 import { parseBankNotification } from '@/utils/bankNotification';
 import { getOwnName } from '@/utils/ownName';
 import { loadMerchantMemory, merchantFor } from '@/utils/merchantMemory';
-import { isKnownPaycheckSender } from '@/utils/paycheckSenders';
+import { isKnownPaycheckSender, knownPaycheckSenderEmployer } from '@/utils/paycheckSenders';
 import { useBankQueue } from '@/store/bankQueueStore';
 
 // Port z sapp (src/services/bankIngest.ts), adaptacja do modelu sapp2 bez sztywnej
@@ -49,6 +49,12 @@ export async function ingestBankNotification(title: string, text: string, notifK
   // przelew ("Wpłynęło 37,00 PLN … od OLESIA NEZHUHA") po prostu siedział w kolejce.
   if (tx.direction === 'in') {
     const isPaycheck = !!tx.isSalary || await isKnownPaycheckSender(tx.storeKey);
+    // Który pracodawca (2026-11-09, bug fix — patrz bankCommit.ts's dłuższy komentarz
+    // przy `payEmployer`) — zapamiętany z POPRZEDNIEGO razu gdy user ręcznie wybrał
+    // pracodawcę dla tego samego nadawcy w bank-review.tsx. Bez tego kolejny przelew
+    // od znanego nadawcy dalej trafiałby do kolejki jako "wypłata" bez przypisanego
+    // prefiksu — ten sam bug, tylko przy autopilocie zamiast ręcznego przeglądu.
+    const paycheckEmployerId = isPaycheck ? await knownPaycheckSenderEmployer(tx.storeKey) : undefined;
     // Duży przelew, który nie wygląda jak Twoja wypłata, jest wart jednego spojrzenia —
     // to jedyny przypadek gdzie ciche zaksięgowanie mogłoby zafałszować statystyki.
     const uncertain = !isPaycheck && tx.amount > 1500;
@@ -57,6 +63,7 @@ export async function ingestBankNotification(title: string, text: string, notifK
       tags: [],
       suggestedTags: [],
       isPaycheck,
+      ...(paycheckEmployerId ? { paycheckEmployerId } : {}),
       auto: store.autoAll && !uncertain,
       ...(uncertain ? { flagReason: foreign ? `przelew w obcej walucie (${tx.currency}) — sprawdź kwotę w PLN` : 'duży przelew przychodzący — potwierdź, czy to przychód' } : {}),
     });
