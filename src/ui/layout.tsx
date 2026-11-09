@@ -208,7 +208,20 @@ export function Price({ amount }: { amount: number }) {
   );
 }
 
-/** Słupki. Zero → słupek 3 px (nigdy niewidoczny brak). Bieżący = jasny. */
+/**
+ * Słupki. Zero → słupek 3 px (nigdy niewidoczny brak). Bieżący = jasny.
+ * 2026-11-09, user (zrzut #JedzeniePerMiesiąc): "ten kafelek lepiej biały
+ * ogarnąć bo dziwnie wygląda" — gdy bieżący miesiąc jest zarazem maksimum
+ * (częsty przypadek), stary wzór skalował go do RÓWNO 100% wysokości z
+ * zaokrągleniem na WSZYSTKICH rogach — pełna, jasna "pigułka" dotykająca
+ * sufitu kafla wyglądała jak płaski biały blok/placeholder, nie słupek
+ * wykresu. Dwie poprawki: (1) `HEADROOM` — skala liczy się względem maksimum
+ * ×1.15, więc nawet najwyższy słupek zostawia ok. 13% oddechu u góry; (2)
+ * zaokrąglenie TYLKO górnych rogów (słupek "wyrasta" z dołu kafla jak w
+ * klasycznym bar-chart, zamiast pływać jako pigułka zaokrąglona z obu stron).
+ */
+const BARS_HEADROOM = 1.15;
+
 export function Bars({ values, labels, active = values.length - 1, height = 44, showValues }: {
   values: number[];
   labels?: string[];
@@ -216,7 +229,7 @@ export function Bars({ values, labels, active = values.length - 1, height = 44, 
   height?: number;
   showValues?: boolean;
 }) {
-  const max = Math.max(1, ...values);
+  const max = Math.max(1, ...values) * BARS_HEADROOM;
   return (
     <View>
       {showValues ? (
@@ -228,7 +241,14 @@ export function Bars({ values, labels, active = values.length - 1, height = 44, 
       ) : null}
       <View style={[st.barsRow, { height, alignItems: 'flex-end' }]}>
         {values.map((v, i) => (
-          <View key={i} style={{ flex: 1, height: Math.max(3, (v / max) * height), borderRadius: 3, backgroundColor: i === active ? C.txt : C.in2 }} />
+          <View
+            key={i}
+            style={{
+              flex: 1, height: Math.max(3, (v / max) * height),
+              borderTopLeftRadius: 3, borderTopRightRadius: 3,
+              backgroundColor: i === active ? C.txt : C.in2,
+            }}
+          />
         ))}
       </View>
       {labels ? (
