@@ -238,7 +238,11 @@ export default function FinancesScreen() {
         <StatTile
           value={nextDue ? Math.max(0, nextDue.daysUntil) : null}
           unit="dni"
-          label="Najbliższa opłata"
+          // 2026-11-09, user: "żeby tam najbliższa opłata pokazywała co to" —
+          // `label` (zwykle stały podpis kafla) dostaje tu NAZWĘ płatności
+          // zamiast generycznego "Najbliższa opłata", gdy jakaś jest; pusty
+          // stan (brak żadnej) wraca do generycznego podpisu.
+          label={nextDue ? nextDue.name : 'Najbliższa opłata'}
           span={2}
           onPress={() => { haptic.tap(); router.push('/subscriptions'); }}
         />

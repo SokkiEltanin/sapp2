@@ -3674,3 +3674,37 @@ bedzie najbliższą wymiana (oleju, filtra dafi itp z zapisanych)".
 `nextMaintenanceDue` w `vehicleMatch.test.ts`). Wizualnie `expo
 web`+Playwright: pojazd z wpisem serwisowym sprzed 25 dni + interwał 1
 mies. → kafel pokazuje "za 5 dni / CIVIC / WYMIANA OLEJU".
+
+## "Najbliższa opłata" pokazuje CO to + pamięć sprzedawcy uczy się też przy edycji (2026-11-09)
+
+Dwa pytania usera w jednej wiadomości:
+
+1. **"żeby tam najbliższą opłata pokazywała co to i wgle"** — kafelek
+   Finansów pokazywał tylko liczbę dni, bez nazwy płatności. `StatTile`'s
+   `label` (dotąd stały napis "Najbliższa opłata") jest teraz DYNAMICZNY —
+   pokazuje nazwę najbliższej płatności (np. "Prąd"/"Netflix"), fallback na
+   generyczny podpis tylko w pustym stanie (brak żadnej nadchodzącej
+   płatności).
+
+2. **"Paragony jak zmieniam uczą się? Jakby później żeby jak lapie to
+   dobrze juz jak poprawilem wczesiej?"** — TAK, częściowo już działało
+   (pamięć produktów — `foodSubcat`/cena jednostkowa, `productMemory.ts` —
+   uczy się przy KAŻDYM zapisie w `AddExpenseModal`), ale pamięć
+   SPRZEDAWCY (`merchantMemory.ts`, decyduje jakie tagi appka podpowiada
+   przy kolejnym złapaniu tego samego sklepu z banku) uczyła się
+   WYŁĄCZNIE z akceptacji w "Płatnościach z banku" (`bankCommit.ts`'s
+   `recordMerchantAccept`) — ręczna korekta tagów PÓŹNIEJ, przy edycji już
+   zapisanego wydatku (np. z "Ostatnich transakcji" albo nowej listy w
+   popupie Wydatki), NIGDY do niej nie docierała. Poprawka: `AddExpense-
+   Modal.tsx`'s zapis teraz ZAWSZE (dodanie i edycja) woła `saveMerchant`
+   (tylko odświeża tagi, NIE dotyka licznika zaufania/autopilota —
+   `storeKey` liczony tą samą derywacją co `bankNotification.ts`
+   ("pierwsze słowo, małe litery"), żeby trafić w ten sam klucz pamięci co
+   przyszłe powiadomienia z banku od tego sprzedawcy.
+
+**Zweryfikowane:** tsc czysty, jest 321/321 (bez nowych testów — brak
+istniejącej konwencji testowania komponentów RN w tym repo, zweryfikowane
+zamiast tego `expo web`+Playwright: edycja wydatku "PGE Polska" + dodanie
+tagu "prąd" + zapis → `merchant_memory_v1` w localStorage realnie
+zawiera `{"pge":{"tags":["prąd"],"name":"PGE Polska"}}`; kafelek "Najbliższa
+opłata" pokazuje "PRĄD" zamiast generycznego podpisu).

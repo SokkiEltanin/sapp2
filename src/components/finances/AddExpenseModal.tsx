@@ -12,6 +12,7 @@ import {
   loadNameAliases, canonicalProductName, loadFoodSubcatMemory, applyFoodSubcatMemory,
   loadPriceMemory, savePriceMemory, saveFoodSubcatMemory, type PriceMemory,
 } from '@/utils/productMemory';
+import { saveMerchant } from '@/utils/merchantMemory';
 import { buildProductCatalog } from '@/utils/productCatalog';
 import { haptic } from '@/utils/haptics';
 import type { Expense, ReceiptItem, PaymentMethod, FvOverride } from '@/types/finances';
@@ -315,6 +316,23 @@ export default function AddExpenseModal({
     if (realItems.length > 0) {
       saveFoodSubcatMemory(realItems.map((it) => ({ name: it.name, foodSubcat: it.foodSubcat })));
       savePriceMemory(realItems.filter((it) => it.unitPrice > 0).map((it) => ({ name: it.name, unitPrice: it.unitPrice })));
+    }
+    // Pamięć sprzedawcy (2026-11-09, user: "paragony jak zmieniam uczą się?
+    // żeby później jak łapię to dobrze już jak poprawiłem wcześniej" — ten sam
+    // "zapis = moment nauki" brakował dla `merchantMemory.ts`. Dotąd uczyła się
+    // WYŁĄCZNIE z akceptacji w Płatnościach z banku (`bankCommit.ts`'s
+    // `recordMerchantAccept`) — ręczna korekta tagów PÓŹNIEJ (tu, przy edycji
+    // zapisanego już wydatku) nigdy do niej nie docierała, więc kolejne
+    // powiadomienie z banku od TEGO SAMEGO sprzedawcy dalej proponowało stare/
+    // puste tagi. `saveMerchant` (nie `recordMerchantAccept`) — tylko odświeża
+    // tagi/nazwę, NIE dotyka licznika zaufania/autopilota (ten dotyczy innego
+    // sygnału: "zaakceptowałem podpowiedź bez zmian", nie "poprawiłem ręcznie
+    // po fakcie"). `storeKey` = pierwsze słowo nazwy, małe litery — DOKŁADNIE
+    // ta sama derywacja co `bankNotification.ts`'s `parseBankNotification`,
+    // żeby trafić w ten sam klucz pamięci.
+    const storeKeyForMemory = shared.storeName?.trim().split(/\s+/)[0]?.toLowerCase();
+    if (storeKeyForMemory) {
+      saveMerchant(storeKeyForMemory, { tags, name: shared.storeName });
     }
     handleClose();
   };
