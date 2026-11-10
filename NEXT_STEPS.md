@@ -8,6 +8,12 @@ aktualizuj po skończeniu/odkryciu czegoś nowego (patrz `CLAUDE.md`).
 - **Domyślna ręka: prawa**, z możliwością przełączenia na lewą w ustawieniach
   (wtedy belka pewnie lustrzanie do lewej krawędzi — do dopracowania przy budowie).
   Navbar sam (prawa belka + Ustawienia w lewym dolnym rogu) już zbudowany, patrz niżej.
+- **Zadania — klawiatura przy "+"** (2026-11-10, user: "tam na pewno do zrobienia
+  będzie, że jak klikam plusik to podczas otwierania od razu z klawiaturą się
+  otwierać"). Dodawanie nowego zadania (FAB "+") powinno od razu otwierać
+  klawiaturę (autofocus na polu nazwy), zamiast wymagać dodatkowego stuknięcia w
+  pole. User świadomie odłożył na później ("dodatkowo później ogarniemy zadania") —
+  NIE ruszać teraz, zanotowane do następnej rundy nad Zadaniami.
 
 ## NIEAKTUALNE: pomysł redesignu Pupila (roślinka zamiast bossów) — zakładka USUNIĘTA
 
