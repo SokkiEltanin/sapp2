@@ -28,7 +28,7 @@ function fmtTxDate(ymd: string): string {
 // ikonkę ołówka — widoczny ślad że ktoś już tu grzebał.
 export default function VariableBreakdownCard({
   month, total, changePercent, previousTotal, top, transactions, onSelectTransaction,
-  nonFoodCategories, onSelectCategory,
+  nonFoodCategories, expenseCategories, onSelectCategory,
 }: {
   month: string;
   total: string;
@@ -43,11 +43,17 @@ export default function VariableBreakdownCard({
   // `nonFoodByCategory`, zwraca DOKŁADNIE kształt `FoodCategoryBar`), tap →
   // reużyty `FoodCategoryItemsModal` (WydatkiModal.tsx).
   nonFoodCategories: { label: string; amount: number; color: string; items: FoodCategoryItem[] }[];
+  // Rozrywka/Transport/itp. (2026-11-10, user: "zróbmy to drugie... żeby były
+  // na przykład rozrywka i tak dalej") — kategoria CAŁEGO wydatku (bez
+  // rozbicia na pozycje paragonu), `utils/expenseCategory.ts`'s
+  // `expenseCategoryByCategory`, ten sam kształt/wzorzec/reużycie co wyżej.
+  expenseCategories: { label: string; amount: number; color: string; items: FoodCategoryItem[] }[];
   onSelectCategory: (category: { label: string; amount: number; color: string; items: FoodCategoryItem[] }) => void;
 }) {
   const s = makeS();
   const maxAmount = Math.max(1, ...top.map((i) => i.amount));
   const maxCategory = Math.max(1, ...nonFoodCategories.map((c) => c.amount));
+  const maxExpenseCategory = Math.max(1, ...expenseCategories.map((c) => c.amount));
 
   return (
     <View style={s.card}>
@@ -90,6 +96,25 @@ export default function VariableBreakdownCard({
                 <Text style={s.itemLabel} numberOfLines={1}>{c.label}</Text>
                 <View style={s.itemBarTrack}>
                   <View style={[s.itemBar, { width: `${Math.max(3, (c.amount / maxCategory) * 100)}%`, backgroundColor: c.color }]} />
+                </View>
+                <Text style={s.itemAmount}>{c.amount} zł</Text>
+                <ChevronRight size={14} color={colors.text.muted} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
+
+      {expenseCategories.length > 0 && (
+        <>
+          <Text style={s.hint}>Inne kategorie</Text>
+          <View style={s.items}>
+            {expenseCategories.map((c) => (
+              <TouchableOpacity key={c.label} style={s.categoryRow} onPress={() => { haptic.tap(); onSelectCategory(c); }} activeOpacity={0.7}>
+                <View style={[s.dot, { backgroundColor: c.color }]} />
+                <Text style={s.itemLabel} numberOfLines={1}>{c.label}</Text>
+                <View style={s.itemBarTrack}>
+                  <View style={[s.itemBar, { width: `${Math.max(3, (c.amount / maxExpenseCategory) * 100)}%`, backgroundColor: c.color }]} />
                 </View>
                 <Text style={s.itemAmount}>{c.amount} zł</Text>
                 <ChevronRight size={14} color={colors.text.muted} />

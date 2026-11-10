@@ -84,6 +84,13 @@ export interface Expense {
   // czeka na przeliczenie".
   originalAmount?: number;
   originalCurrency?: string;
+  // Kategoria CAŁEGO wydatku (2026-11-10, user: "żeby były na przykład rozrywka
+  // i tak dalej") — RÓWNOLEGŁA do `ReceiptItem.foodSubcat`/`nonFoodCategory`
+  // (te żyją na pozycji paragonu), ale dla wydatków BEZ rozbicia na pozycje
+  // (bilet do kina, Uber, fryzjer — nic do wypisania jako lista produktów).
+  // Patrz `utils/expenseCategory.ts`. Nie wpływa na `fvSplitOf`/kubły Stałe/
+  // Zmienne/Jedzenie — czysto etykieta do rozbicia w zakładce Zmienne.
+  expenseCategory?: string;
   createdAt: string;
   updatedAt: string;
 }

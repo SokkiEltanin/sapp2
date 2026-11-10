@@ -13,6 +13,7 @@ import {
   loadPriceMemory, savePriceMemory, saveFoodSubcatMemory, type PriceMemory,
 } from '@/utils/productMemory';
 import { saveMerchant } from '@/utils/merchantMemory';
+import { EXPENSE_CATEGORIES } from '@/utils/expenseCategory';
 import { buildProductCatalog } from '@/utils/productCatalog';
 import { haptic } from '@/utils/haptics';
 import type { Expense, ReceiptItem, PaymentMethod, FvOverride } from '@/types/finances';
@@ -137,6 +138,12 @@ export default function AddExpenseModal({
   const [pasteBoxOpen, setPasteBoxOpen] = useState(false);
   const [fvOpen, setFvOpen] = useState(false);
   const [fvChoice, setFvChoice] = useState<FvOverride | 'auto'>('auto');
+  // Kategoria CAŁEGO wydatku (2026-11-10, user: "żeby były na przykład
+  // rozrywka i tak dalej") — niezależna od `fvChoice` (Rozlicz jako), ten
+  // sam zwinięty-domyślnie wzorzec co "Rozlicz jako"/"Zapłacono", rzadko
+  // zmieniane pole nie zasługuje na stałe miejsce.
+  const [catOpen, setCatOpen] = useState(false);
+  const [expenseCategory, setExpenseCategory] = useState<string | undefined>(undefined);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   // 2026-11-09, user wybrał "auto-wykrywanie przy otwarciu" zamiast polegania
@@ -156,7 +163,8 @@ export default function AddExpenseModal({
     setType('expense'); setPasteText(''); setUsedPaste(false); setItems([]); setParsedTotal(0);
     setStoreName(''); setNote(''); setAmountInput(''); setDate(todayISO()); setPaymentMethod('card');
     setPayer('me'); setPaidOpen(false); setPasteBoxOpen(false); setFvOpen(false);
-    setFvChoice('auto'); setTags([]); setTagInput(''); setClipboardSuggestion(null);
+    setFvChoice('auto'); setCatOpen(false); setExpenseCategory(undefined);
+    setTags([]); setTagInput(''); setClipboardSuggestion(null);
   };
 
   // Wypełnienie formularza przy otwarciu w trybie edycji — `editingExpense` jest
@@ -176,6 +184,7 @@ export default function AddExpenseModal({
     setPaymentMethod(editingExpense.paymentMethod ?? 'card');
     setPayer(editingExpense.payer ?? 'me');
     setFvChoice(editingExpense.fvOverride ?? 'auto');
+    setExpenseCategory(editingExpense.expenseCategory);
     setTags(editingExpense.tags ?? []);
     setUsedPaste(editingExpense.source === 'receipt');
   }, [visible, editingExpense]);
@@ -295,6 +304,7 @@ export default function AddExpenseModal({
       tags,
       receiptItems: type === 'expense' && items.length > 0 ? items : undefined,
       fvOverride: type === 'expense' && fvChoice !== 'auto' ? fvChoice : null,
+      expenseCategory: type === 'expense' ? expenseCategory : undefined,
       paymentMethod: type === 'expense' ? paymentMethod : undefined,
       payer: type === 'expense' && payer !== 'me' ? payer : undefined,
       // Zapis = rozwiązanie oczekującego przeliczenia waluty (2026-11-09) —
@@ -564,6 +574,44 @@ export default function AddExpenseModal({
                   activeOpacity={0.7}
                 >
                   <Text style={[s.chipLabel, fvChoice === opt.key && s.chipLabelActive]}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      {type === 'expense' && (
+        <View style={s.section}>
+          {/* Kategoria CAŁEGO wydatku (2026-11-10, user: "zróbmy to drugie...
+              żeby były na przykład rozrywka i tak dalej") — RÓWNOLEGŁA do
+              "Rozlicz jako" wyżej (ten kubeł decyduje Stałe/Zmienne/Jedzenie,
+              to pole TYLKO etykietuje w ramach Zmiennych), ten sam zwinięty
+              wzorzec. Opcjonalna — brak wyboru = po prostu nie wejdzie do
+              "Inne kategorie" w popupie Wydatki. */}
+          <TouchableOpacity style={s.paidSummaryRow} onPress={() => setCatOpen((v) => !v)} activeOpacity={0.7}>
+            <Text style={s.label}>
+              Kategoria: {EXPENSE_CATEGORIES.find((o) => o.tag === expenseCategory)?.label ?? 'Brak'}
+            </Text>
+            {catOpen ? <ChevronUp size={14} color={colors.text.muted} /> : <ChevronDown size={14} color={colors.text.muted} />}
+          </TouchableOpacity>
+          {catOpen && (
+            <View style={[s.paidDetail, s.chips]}>
+              <TouchableOpacity
+                style={[s.chip, !expenseCategory && s.chipActive]}
+                onPress={() => setExpenseCategory(undefined)}
+                activeOpacity={0.7}
+              >
+                <Text style={[s.chipLabel, !expenseCategory && s.chipLabelActive]}>Brak</Text>
+              </TouchableOpacity>
+              {EXPENSE_CATEGORIES.map((opt) => (
+                <TouchableOpacity
+                  key={opt.tag}
+                  style={[s.chip, expenseCategory === opt.tag && { backgroundColor: opt.color }]}
+                  onPress={() => setExpenseCategory(opt.tag)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[s.chipLabel, expenseCategory === opt.tag && s.chipLabelActive]}>{opt.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>

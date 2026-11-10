@@ -3756,3 +3756,45 @@ strukturalnie po DOM — kolejność chipów: "Brak" → 20× jedzeniowe (z now�
 rozmazany w Playwright, bo to STACKOWANY sheet nad "Transakcje" —
 potwierdzony wcześniej, pre-existing wzorzec AppBottomSheet, nie bug —
 stąd weryfikacja tekstu DOM zamiast pikseli.)
+
+## Kategorie CAŁEGO wydatku (Rozrywka/Transport/Zdrowie/Ubrania/Dom) (2026-11-10)
+
+User, zaraz po poprzedniej rundzie (Higiena/Chemia): "zróbmy tak, że te
+kategorie jedzenie to jest jedno... i zróbmy to drugie, właśnie to nie
+jedzenie, i tam też zróbmy podział na kategorie... żeby były na przykład
+rozrywka i tak dalej". Dopytane przez `AskUserQuestion`, bo "Rozrywka" nie
+pasuje jako pozycja paragonu (bilet do kina, Uber, fryzjer — nic do
+rozbicia na produkty) — user potwierdził: kategoria ma opisywać CAŁY
+wydatek, nie pozycję; kategorie na start: Rozrywka, Transport, Zdrowie,
+Ubrania, Dom.
+
+- **Nowe pole `Expense.expenseCategory?: string`** (`types/finances.ts`) —
+  RÓWNOLEGŁE do `ReceiptItem.foodSubcat`/`nonFoodCategory` (te żyją na
+  pozycji), ale na poziomie CAŁEGO wydatku. Nie wpływa na `fvSplitOf` —
+  czysta etykieta do rozbicia w zakładce Zmienne.
+- **Nowy `utils/expenseCategory.ts`** — `EXPENSE_CATEGORIES` (5 kategorii,
+  kolory) + `expenseCategoryByCategory(expenses, monthKey?)`, znowu
+  DOKŁADNIE kształt `FoodCategoryBar` — **trzeci** reużytkownik
+  `FoodCategoryItemsModal`/`selectedCategory` w `WydatkiModal.tsx` (po
+  Jedzeniu i Higienie/Chemii), zero nowego modala. Suma = WKŁAD do
+  Zmiennych (`fvSplitOf(e).variable`), nie goła `e.amount` — wydatek
+  oznaczony jako Stałe/Przelew własny z ustawioną kategorią NIE nabrzmia
+  sumy (przetestowane: `fvOverride:'fixed'`/`'transfer'` → 0 wkładu).
+  `labelFor` (dotąd prywatna w `fixedVariable.ts`) wyeksportowana do
+  reużycia, zamiast duplikować.
+- **`AddExpenseModal.tsx`** — nowa zwinięta-domyślnie sekcja "Kategoria"
+  (ten sam wzorzec co "Rozlicz jako"/"Zapłacono" — rzadko zmieniane pole
+  nie zasługuje na stałe miejsce), chipy "Brak" + 5 kategorii. NIEZALEŻNA
+  od "Rozlicz jako" (ten decyduje kubeł Stałe/Zmienne/Jedzenie/Przelew,
+  to pole tylko etykietuje W RAMACH Zmiennych).
+- **`VariableBreakdownCard.tsx`** — nowa sekcja "Inne kategorie", pod
+  "Higiena i chemia", nad "Wszystkie transakcje".
+
+**Zweryfikowane:** tsc czysty, jest 334/334 (7 nowych testów
+`expenseCategory.test.ts`). Wizualnie `expo web`+Playwright: 3 wydatki
+(Kino/Netflix → Rozrywka 70 zł, Uber → Transport 25 zł) renderują się
+poprawnie w sekcji "Inne kategorie" (kolorowe paski, różowy/niebieski),
+stuknięcie w "Rozrywka" otwiera drill-down z "Netflix 30 zł"/"Kino 40 zł".
+Edycja wydatku "Kino" pokazuje "Kategoria: Rozrywka" w podsumowaniu,
+rozwinięty picker pokazuje "Brak, Rozrywka, Transport, Zdrowie, Ubrania,
+Dom" w tej kolejności.

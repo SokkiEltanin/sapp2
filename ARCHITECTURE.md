@@ -1200,6 +1200,35 @@ etykietą/rozbiciem jak Jedzenie ma)".
   sekcja "Higiena i chemia" (kolorowe paski, tap → drill-down), między "Co
   najbardziej przeważyło" a "Wszystkie transakcje".
 
+### Kategorie CAŁEGO wydatku — Rozrywka/Transport/Zdrowie/Ubrania/Dom (2026-11-10)
+
+User, zaraz po powyższej rundzie: "zróbmy tak, że te kategorie jedzenie to
+jest jedno... i zróbmy to drugie, właśnie to nie jedzenie, i tam też
+zróbmy podział na kategorie... żeby były na przykład rozrywka i tak
+dalej". `AskUserQuestion` ustaliło: w przeciwieństwie do Higieny/Chemii
+(pozycja paragonu), Rozrywka/Transport/itp. nie mają co rozbijać na
+produkty (bilet do kina, Uber, fryzjer) — kategoria żyje więc na poziomie
+CAŁEGO wydatku.
+
+- **`Expense.expenseCategory?: string`** (`types/finances.ts`) —
+  RÓWNOLEGŁE do `ReceiptItem.foodSubcat`/`nonFoodCategory`, ale na innym
+  poziomie (cały wydatek, nie pozycja). Nie wpływa na `fvSplitOf` — czysta
+  etykieta.
+- **`utils/expenseCategory.ts`** — `EXPENSE_CATEGORIES` (Rozrywka,
+  Transport, Zdrowie, Ubrania, Dom) + `expenseCategoryByCategory`, TRZECI
+  (po Jedzeniu, Higienie/Chemii) konsument kształtu `FoodCategoryBar` →
+  reużywa ten sam `FoodCategoryItemsModal`/`selectedCategory` w
+  `WydatkiModal.tsx`. Liczy WKŁAD do Zmiennych (`fvSplitOf(e).variable`),
+  nie goła `e.amount` — wydatek oznaczony jako Stałe/Przelew z ustawioną
+  kategorią nie nabrzmia sumy. `fixedVariable.ts`'s `labelFor`
+  wyeksportowana (była prywatna) do reużycia zamiast duplikacji.
+- **`AddExpenseModal.tsx`** — nowa zwinięta-domyślnie sekcja "Kategoria"
+  (wzorzec identyczny jak "Rozlicz jako"/"Zapłacono"), NIEZALEŻNA od
+  "Rozlicz jako" (ten decyduje kubeł Stałe/Zmienne/Jedzenie/Przelew, to
+  pole tylko etykietuje W RAMACH Zmiennych).
+- **`VariableBreakdownCard.tsx`** — sekcja "Inne kategorie", pod "Higiena
+  i chemia".
+
 **PRACA** [PE] — ZBUDOWANA (2026-11-09), patrz `## PRACA [PE]` niżej, po pełny
 opis. **POJAZDY** [PE] — ZBUDOWANA (2026-11-09), patrz `## POJAZDY [PE]`
 niżej. **SUBSKRYPCJE / "Stałe opłaty"** [PE] — ZBUDOWANA (2026-11-09), patrz

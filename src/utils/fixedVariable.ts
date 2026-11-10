@@ -74,7 +74,9 @@ export function fixedVariableMonths(expenses: Expense[], n = 4, now = new Date()
   return out;
 }
 
-function labelFor(e: Expense): string {
+// Eksportowane (2026-11-10) — `utils/expenseCategory.ts` reużywa tę samą
+// etykietę dla grupowania CAŁYCH wydatków po `expenseCategory`.
+export function labelFor(e: Expense): string {
   return (e.note ?? '').trim() || (e.storeName ?? '').trim() || 'Wydatek';
 }
 

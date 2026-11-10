@@ -10,6 +10,7 @@ import FixedBreakdownCard from './FixedBreakdownCard';
 import VariableBreakdownCard from './VariableBreakdownCard';
 import { bucketTransactions } from '@/utils/fixedVariable';
 import { nonFoodByCategory } from '@/utils/nonFood';
+import { expenseCategoryByCategory } from '@/utils/expenseCategory';
 import { computeWydatkiData, monthKeyOf } from '@/utils/wydatkiData';
 import { haptic } from '@/utils/haptics';
 import type { Expense } from '@/types/finances';
@@ -92,6 +93,9 @@ export default function WydatkiModal({
   // więc `selectedCategory`/`FoodCategoryItemsModal` POD SPODEM są reużyte 1:1,
   // bez osobnego stanu/drugiego drill-down modala.
   const nonFoodCats = useMemo(() => nonFoodByCategory(expenses, monthKey), [expenses, monthKey]);
+  // Rozrywka/Transport/itp. (2026-11-10) — kategoria CAŁEGO wydatku, ten sam
+  // reużyty drill-down co Higiena/Chemia wyżej.
+  const expenseCats = useMemo(() => expenseCategoryByCategory(expenses, monthKey), [expenses, monthKey]);
 
   // Bubbluje do ekranu-wołającego (Dashboard/Finanse) — oba już mają
   // `editingExpense`/`AddExpenseModal` dla "Ostatnie transakcje", to ten sam
@@ -165,6 +169,7 @@ export default function WydatkiModal({
             transactions={variableTx}
             onSelectTransaction={selectExpense}
             nonFoodCategories={nonFoodCats}
+            expenseCategories={expenseCats}
             onSelectCategory={setSelectedCategory}
           />
         )}
