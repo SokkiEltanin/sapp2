@@ -24,6 +24,10 @@ export const FOOD_SUBCATS: { tag: string; label: string; color: string }[] = [
   { tag: 'oleje i tłuszcze', label: 'Oleje i tłuszcze', color: '#FDBA74' },
   { tag: 'słodycze', label: 'Słodycze', color: '#C084FC' },
   { tag: 'napoje', label: 'Napoje', color: '#22D3EE' },
+  // 2026-11-10, user: "dodaj kategorię herbaty i napary" — dotąd herbata/napary
+  // lądowały pod ogólne "Napoje" (soki/woda/napoje gazowane), user chciał je
+  // rozróżnić.
+  { tag: 'herbaty i napary', label: 'Herbaty i napary', color: '#A7F3D0' },
   { tag: 'przekąski', label: 'Przekąski', color: '#F59E0B' },
   { tag: 'dania gotowe', label: 'Dania gotowe', color: '#A3E635' },
   { tag: 'mrożonki', label: 'Mrożonki', color: '#7DD3FC' },

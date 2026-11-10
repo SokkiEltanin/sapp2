@@ -3708,3 +3708,51 @@ zamiast tego `expo web`+Playwright: edycja wydatku "PGE Polska" + dodanie
 tagu "prąd" + zapis → `merchant_memory_v1` w localStorage realnie
 zawiera `{"pge":{"tags":["prąd"],"name":"PGE Polska"}}`; kafelek "Najbliższa
 opłata" pokazuje "PRĄD" zamiast generycznego podpisu).
+
+## Kategoria "Herbaty i napary" + równoległy system kategorii NIE-jedzeniowych (Higiena/Chemia) (2026-11-10)
+
+User (transkrypcja głosowa, samo-korygująca się): "dodaj kategorię herbaty i
+napary... a tutaj w sumie herbata jest niezmienna, no to po prostu dodaj
+ten, zostaw tak, zostaw pojedyncze tagi, ale daj możliwość dodania właśnie
+tych herbat i naparów i może higiena, bo chemia to chyba bardziej taka,
+wiesz, kapsułki i tak dalej". Dopytane przez `AskUserQuestion` czy "Higiena"
+ma być podkategorią Jedzenia — user: "Nie, Higiena to NIE jedzenie —
+chciałem osobny system kategorii dla pozycji NIE-jedzeniowych (zostają w
+Zmiennych, ale z własną etykietą/rozbiciem jak Jedzenie ma)".
+
+- **"Herbaty i napary"** — nowy wpis w `FOOD_SUBCATS` (`utils/food.ts`), po
+  "Napoje".
+- **Nowy równoległy system `utils/nonFood.ts`** — `NON_FOOD_SUBCATS`
+  (Higiena, Chemia), `nonFoodByCategory(expenses, monthKey?)` licząca po
+  nowym polu `ReceiptItem.nonFoodCategory` — 1:1 ten sam kształt/wzorzec co
+  `foodStats.ts`'s `foodByCategory`/`FoodCategoryBar` (strukturalnie
+  kompatybilny typ), więc **reużyty bez zmian** istniejący
+  `FoodCategoryItemsModal` (drill-down po kategorii) — ZERO nowego stanu/
+  drugiego modala w `WydatkiModal.tsx`. Świadomie NIE wskrzesza starego,
+  usuniętego w sapp2 systemu `ExpenseCategory` (ARCHITECTURE.md §4 —
+  "sapp2 deliberately removed sapp's non-food dictionary") — osobne,
+  jaśniej nazwane pole.
+- `nonFoodCategory` jest **wzajemnie wykluczające się** z `foodSubcat` na
+  poziomie pozycji paragonu (ustawienie jednego czyści drugie) — pozycja
+  ma jedno albo drugie, nigdy oba; NIE wpływa na `isFoodItem`/
+  `fvSplitOf` — pozycje nie-jedzeniowe nadal liczą się w 100% do Zmiennych
+  (user: "zostają w Zmiennych").
+- `ReceiptItemRow.tsx`'s tag picker (horizontal ScrollView) rozszerzony:
+  po 20 chipach jedzeniowych pionowy separator (`pickerDivider`), potem
+  chipy Higiena/Chemia.
+- `VariableBreakdownCard.tsx` (zakładka Zmienne w popupie Wydatki) — nowa
+  sekcja "Higiena i chemia" (kolorowe paski, tap → drill-down), między
+  "Co najbardziej przeważyło" a "Wszystkie transakcje".
+
+**Zweryfikowane:** tsc czysty, jest 327/327 (6 nowych testów
+`nonFood.test.ts`). Wizualnie `expo web`+Playwright: sekcja "Higiena i
+chemia" renderuje się poprawnie w zakładce Zmienne (Chemia 15 zł, Higiena
+12 zł, oba klikalne paski), stuknięcie otwiera reużyty
+`FoodCategoryItemsModal` z poprawnymi pozycjami. Picker w
+`ReceiptItemRow.tsx` (edycja wydatku z pozycjami paragonu) sprawdzony
+strukturalnie po DOM — kolejność chipów: "Brak" → 20× jedzeniowe (z nową
+"Herbaty i napary" na właściwym miejscu po "Napoje") → "Higiena" →
+"Chemia", zgodnie z kodem. (Zrzut ekranu tego konkretnego widoku wychodzi
+rozmazany w Playwright, bo to STACKOWANY sheet nad "Transakcje" —
+potwierdzony wcześniej, pre-existing wzorzec AppBottomSheet, nie bug —
+stąd weryfikacja tekstu DOM zamiast pikseli.)

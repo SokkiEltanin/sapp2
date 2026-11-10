@@ -9,6 +9,7 @@ import FoodCategoryItemsModal from './FoodCategoryItemsModal';
 import FixedBreakdownCard from './FixedBreakdownCard';
 import VariableBreakdownCard from './VariableBreakdownCard';
 import { bucketTransactions } from '@/utils/fixedVariable';
+import { nonFoodByCategory } from '@/utils/nonFood';
 import { computeWydatkiData, monthKeyOf } from '@/utils/wydatkiData';
 import { haptic } from '@/utils/haptics';
 import type { Expense } from '@/types/finances';
@@ -87,6 +88,10 @@ export default function WydatkiModal({
   const monthKey = useMemo(() => monthKeyOf(viewDate), [viewDate]);
   const fixedTx = useMemo(() => bucketTransactions(expenses, monthKey, 'fixed'), [expenses, monthKey]);
   const variableTx = useMemo(() => bucketTransactions(expenses, monthKey, 'variable'), [expenses, monthKey]);
+  // Higiena/Chemia itp. (2026-11-10) — ten sam kształt co Jedzenie's `categories`,
+  // więc `selectedCategory`/`FoodCategoryItemsModal` POD SPODEM są reużyte 1:1,
+  // bez osobnego stanu/drugiego drill-down modala.
+  const nonFoodCats = useMemo(() => nonFoodByCategory(expenses, monthKey), [expenses, monthKey]);
 
   // Bubbluje do ekranu-wołającego (Dashboard/Finanse) — oba już mają
   // `editingExpense`/`AddExpenseModal` dla "Ostatnie transakcje", to ten sam
@@ -159,6 +164,8 @@ export default function WydatkiModal({
             top={data.variable.top}
             transactions={variableTx}
             onSelectTransaction={selectExpense}
+            nonFoodCategories={nonFoodCats}
+            onSelectCategory={setSelectedCategory}
           />
         )}
         {tab === 'food' && (

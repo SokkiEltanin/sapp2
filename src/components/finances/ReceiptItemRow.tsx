@@ -5,6 +5,7 @@ import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import type { ReceiptItem } from '@/types/finances';
 import { FOOD_SUBCATS, FOOD_SUBCAT_META } from '@/utils/food';
+import { NON_FOOD_SUBCATS, NON_FOOD_SUBCAT_META } from '@/utils/nonFood';
 import { suggestSimilarName, priceFor, priceAnomaly, type PriceMemory } from '@/utils/productMemory';
 import { haptic } from '@/utils/haptics';
 
@@ -51,7 +52,11 @@ export default function ReceiptItemRow({
   const [nameSuggestion, setNameSuggestion] = useState<string | null>(null);
 
   const included = !item.excluded;
-  const meta = item.foodSubcat ? FOOD_SUBCAT_META[item.foodSubcat] : undefined;
+  const meta = item.foodSubcat
+    ? FOOD_SUBCAT_META[item.foodSubcat]
+    : item.nonFoodCategory
+      ? NON_FOOD_SUBCAT_META[item.nonFoodCategory]
+      : undefined;
   const priceFlag = item.kind !== 'deposit' ? priceAnomaly(item.unitPrice, priceFor(item.name, priceMemory)) : null;
 
   const checkNameSuggestion = () => {
@@ -174,8 +179,8 @@ export default function ReceiptItemRow({
       {tagPickerOpen && item.kind !== 'deposit' && (
         <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={s.pickerScroll}>
           <TouchableOpacity
-            style={[s.pickerChip, !item.foodSubcat && s.pickerChipActive]}
-            onPress={() => { haptic.tap(); onChange({ foodSubcat: undefined }); setTagPickerOpen(false); }}
+            style={[s.pickerChip, !item.foodSubcat && !item.nonFoodCategory && s.pickerChipActive]}
+            onPress={() => { haptic.tap(); onChange({ foodSubcat: undefined, nonFoodCategory: undefined }); setTagPickerOpen(false); }}
           >
             <Text style={s.pickerChipLabel}>Brak</Text>
           </TouchableOpacity>
@@ -183,9 +188,23 @@ export default function ReceiptItemRow({
             <TouchableOpacity
               key={sc.tag}
               style={[s.pickerChip, item.foodSubcat === sc.tag && { backgroundColor: sc.color }]}
-              onPress={() => { haptic.tap(); onChange({ foodSubcat: sc.tag }); setTagPickerOpen(false); }}
+              onPress={() => { haptic.tap(); onChange({ foodSubcat: sc.tag, nonFoodCategory: undefined }); setTagPickerOpen(false); }}
             >
               <Text style={[s.pickerChipLabel, item.foodSubcat === sc.tag && s.pickerChipLabelActive]}>{sc.label}</Text>
+            </TouchableOpacity>
+          ))}
+          {/* Nie-jedzeniowe (2026-11-10) — WZAJEMNIE WYKLUCZAJĄCE z jedzeniowymi
+              wyżej (jeden picker, ale pozycja ma jedno albo drugie, nigdy oba —
+              patrz utils/nonFood.ts). Pionowy separator, żeby nie wyglądało jak
+              jedna płaska lista bez znaczenia grupowania. */}
+          <View style={s.pickerDivider} />
+          {NON_FOOD_SUBCATS.map((sc) => (
+            <TouchableOpacity
+              key={sc.tag}
+              style={[s.pickerChip, item.nonFoodCategory === sc.tag && { backgroundColor: sc.color }]}
+              onPress={() => { haptic.tap(); onChange({ nonFoodCategory: sc.tag, foodSubcat: undefined }); setTagPickerOpen(false); }}
+            >
+              <Text style={[s.pickerChipLabel, item.nonFoodCategory === sc.tag && s.pickerChipLabelActive]}>{sc.label}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -246,4 +265,5 @@ const makeS = themedStyles((c) => StyleSheet.create({
   pickerChipActive: { backgroundColor: c.text.bright },
   pickerChipLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   pickerChipLabelActive: { color: c.bg.primary },
+  pickerDivider: { width: 1, backgroundColor: c.border.default, marginRight: spacing[1] },
 }));

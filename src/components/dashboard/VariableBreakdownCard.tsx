@@ -1,9 +1,10 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { ShoppingCart, Pencil } from 'lucide-react-native';
+import { ShoppingCart, Pencil, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { haptic } from '@/utils/haptics';
 import type { VariableContributor, FvTransaction } from '@/utils/fixedVariable';
+import type { FoodCategoryItem } from '@/utils/foodStats';
 
 function fmtTxDate(ymd: string): string {
   const [y, m, d] = (ymd || '').slice(0, 10).split('-').map(Number);
@@ -27,6 +28,7 @@ function fmtTxDate(ymd: string): string {
 // ikonkę ołówka — widoczny ślad że ktoś już tu grzebał.
 export default function VariableBreakdownCard({
   month, total, changePercent, previousTotal, top, transactions, onSelectTransaction,
+  nonFoodCategories, onSelectCategory,
 }: {
   month: string;
   total: string;
@@ -35,9 +37,17 @@ export default function VariableBreakdownCard({
   top: VariableContributor[];
   transactions: FvTransaction[];
   onSelectTransaction: (id: string) => void;
+  // Higiena/Chemia itp. (2026-11-10, user: "daj możliwość dodania... higiena...
+  // zostają w Zmiennych, ale z własną etykietą/rozbiciem jak Jedzenie ma") —
+  // ten sam kształt/wzorzec co Jedzenie's `categories` (`utils/nonFood.ts`'s
+  // `nonFoodByCategory`, zwraca DOKŁADNIE kształt `FoodCategoryBar`), tap →
+  // reużyty `FoodCategoryItemsModal` (WydatkiModal.tsx).
+  nonFoodCategories: { label: string; amount: number; color: string; items: FoodCategoryItem[] }[];
+  onSelectCategory: (category: { label: string; amount: number; color: string; items: FoodCategoryItem[] }) => void;
 }) {
   const s = makeS();
   const maxAmount = Math.max(1, ...top.map((i) => i.amount));
+  const maxCategory = Math.max(1, ...nonFoodCategories.map((c) => c.amount));
 
   return (
     <View style={s.card}>
@@ -68,6 +78,25 @@ export default function VariableBreakdownCard({
             </View>
           ))}
         </View>
+      )}
+
+      {nonFoodCategories.length > 0 && (
+        <>
+          <Text style={s.hint}>Higiena i chemia</Text>
+          <View style={s.items}>
+            {nonFoodCategories.map((c) => (
+              <TouchableOpacity key={c.label} style={s.categoryRow} onPress={() => { haptic.tap(); onSelectCategory(c); }} activeOpacity={0.7}>
+                <View style={[s.dot, { backgroundColor: c.color }]} />
+                <Text style={s.itemLabel} numberOfLines={1}>{c.label}</Text>
+                <View style={s.itemBarTrack}>
+                  <View style={[s.itemBar, { width: `${Math.max(3, (c.amount / maxCategory) * 100)}%`, backgroundColor: c.color }]} />
+                </View>
+                <Text style={s.itemAmount}>{c.amount} zł</Text>
+                <ChevronRight size={14} color={colors.text.muted} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
       )}
 
       {transactions.length > 0 && (
@@ -110,6 +139,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
 
   items: { gap: spacing[3] },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  categoryRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  dot: { width: 8, height: 8, borderRadius: 4 },
   itemLabel: { width: 100, fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
   itemBarTrack: { flex: 1, height: 6, borderRadius: 999, backgroundColor: c.bg.elevated, overflow: 'hidden' },
   itemBar: { height: '100%', borderRadius: 999, backgroundColor: c.text.bright },

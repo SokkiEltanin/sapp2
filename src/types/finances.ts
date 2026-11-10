@@ -30,6 +30,14 @@ export interface ReceiptItem {
   unitPrice: number;
   discount?: number;
   foodSubcat?: string;
+  // Kategoria pozycji NIE-jedzeniowej (2026-11-10, user: "daj możliwość dodania
+  // tych... może higiena, bo chemia to bardziej kapsułki i tak dalej") —
+  // RÓWNOLEGŁY do `foodSubcat`, WZAJEMNIE WYKLUCZAJĄCY (pozycja ma jedno albo
+  // drugie, nigdy oba naraz — patrz utils/nonFood.ts). NIE wpływa na
+  // `isFoodItem`/`fvSplitOf` (dalej patrzą WYŁĄCZNIE na `foodSubcat`) — pozycja
+  // z `nonFoodCategory` dalej liczy się do Zmiennych jak każda inna
+  // nie-jedzeniowa, to pole istnieje TYLKO do rozbicia/etykietowania w UI.
+  nonFoodCategory?: string;
   weightKg?: number;
   excluded?: boolean; // np. kaucja (kind:'deposit') albo ręcznie wykluczona z sumy
   kind?: 'deposit';

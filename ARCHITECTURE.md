@@ -1167,6 +1167,39 @@ zamyka obie dziury bez dodawania drugiego, równoległego mechanizmu dopasowywan
   niezależna poprawka w tej samej rundzie (user: "jak klikam w jedzenie nie mam tam
   zrobione na popupie jak w sap na dashboardzie"), patrz §DASHBOARD.
 
+### Kategoria "Herbaty i napary" + równoległy system kategorii NIE-jedzeniowych (2026-11-10)
+
+User: "daj możliwość dodania właśnie tych herbat i naparów i może higiena,
+bo chemia to chyba bardziej taka... kapsułki i tak dalej", doprecyzowane
+przez `AskUserQuestion`: "Higiena to NIE jedzenie — chciałem osobny system
+kategorii dla pozycji NIE-jedzeniowych (zostają w Zmiennych, ale z własną
+etykietą/rozbiciem jak Jedzenie ma)".
+
+- **"Herbaty i napary"** — zwykły nowy wpis w `food.ts`'s `FOOD_SUBCATS`
+  (po "Napoje"), zero nowej architektury.
+- **`utils/nonFood.ts`** (nowy plik) — `NON_FOOD_SUBCATS` (Higiena, Chemia)
+  + `nonFoodByCategory(expenses, monthKey?)`, oparte o nowe pole
+  `ReceiptItem.nonFoodCategory?: string` (`types/finances.ts`). Świadomie
+  OSOBNY plik/pole, nie wskrzeszenie starego, usuniętego w sapp2 systemu
+  `ExpenseCategory` (patrz wyżej w tym pliku, §Parser paragonów — sapp2
+  celowo porzucił sapp's słownikowy system nie-jedzeniowych kategorii na
+  poziomie pozycji paragonu). `nonFoodByCategory` zwraca DOKŁADNIE ten sam
+  kształt co `foodStats.ts`'s `foodByCategory` (`FoodCategoryBar`/
+  `FoodCategoryItem`) — strukturalna kompatybilność pozwoliła **reużyć bez
+  zmian** `FoodCategoryItemsModal` (drill-down) i `selectedCategory`'s stan
+  w `WydatkiModal.tsx`, zamiast budować drugi, równoległy modal.
+- **Wzajemne wykluczanie na poziomie pozycji**: `foodSubcat` i
+  `nonFoodCategory` nigdy nie współistnieją na jednej `ReceiptItem` —
+  `ReceiptItemRow.tsx`'s picker czyści jedno przy wyborze drugiego. Pozycje
+  nie-jedzeniowe NADAL liczą się w 100% do Zmiennych (`fvSplitOf`/
+  `isFoodItem` nieświadome `nonFoodCategory` w ogóle — user: "zostają w
+  Zmiennych").
+- **UI**: `ReceiptItemRow.tsx`'s tag picker (ScrollView poziomy) — po 20
+  chipach jedzeniowych pionowy separator, potem Higiena/Chemia.
+  `VariableBreakdownCard.tsx` (zakładka Zmienne, popup Wydatki) — nowa
+  sekcja "Higiena i chemia" (kolorowe paski, tap → drill-down), między "Co
+  najbardziej przeważyło" a "Wszystkie transakcje".
+
 **PRACA** [PE] — ZBUDOWANA (2026-11-09), patrz `## PRACA [PE]` niżej, po pełny
 opis. **POJAZDY** [PE] — ZBUDOWANA (2026-11-09), patrz `## POJAZDY [PE]`
 niżej. **SUBSKRYPCJE / "Stałe opłaty"** [PE] — ZBUDOWANA (2026-11-09), patrz
