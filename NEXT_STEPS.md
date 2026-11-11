@@ -4008,7 +4008,9 @@ planowało — martwy przełącznik (CLAUDE.md #7), wcześniej świadomie odło�
   9:00 rano. Jeśli nie przychodzi, wyłącz optymalizację baterii".
 
 Zero nowych uprawnień (POST_NOTIFICATIONS/SCHEDULE_EXACT_ALARM już są w
-`app.json`), notifee już w buildzie → wystarczy OTA, nie nowy APK.
+`app.json`), notifee już w buildzie. (KOREKTA 2026-11-11: sapp2 NIE MA OTA —
+brak `expo-updates`; każdy push na `main` buduje nowy APK w GitHub Actions,
+user instaluje go z Releases. Wcześniejsze "wystarczy OTA" było błędne.)
 
 **Zweryfikowane:** tsc czysty, jest 362/362. `expo web`+Playwright: start
 appki bez błędów (serwis na webie nic nie robi), podpowiedź w formularzu.
@@ -4092,3 +4094,47 @@ Malutkie linki spod nagłówka "Jedzenie · kategorie" usunięte.
 
 **Zweryfikowane:** tsc czysty, jest 372/372, `expo web`+Playwright — układ
 jak na zrzucie, "Pojazdy" otwiera `/vehicles`.
+
+## Kopia zapasowa w chmurze (2026-11-11)
+
+User: "ok dawaj dalej". Znalezione przy przeglądzie: **WSZYSTKIE dane sapp2
+żyły wyłącznie w AsyncStorage telefonu** — finanse (z całą zaimportowaną
+historią z sapp), humor, zadania, pojazdy, Stałe opłaty, Praca, pamięć
+produktów/sprzedawców. Firestore był podpięty tylko do ręcznych testów w
+Diagnostyce. Zgubiony telefon / reinstalacja / "wyczyść dane" = utrata
+wszystkiego. Pełny dwukierunkowy sync był świadomie odłożony (konflikty,
+kolejka offline) — to NIE jest ten sync, tylko jednokierunkowe zdjęcie.
+
+- `utils/backupSnapshot.ts` (czyste + testy): które klucze AsyncStorage wchodzą
+  (wszystkie poza sesją `firebase:…` i własnymi `cloud_backup_…`), kawałki po
+  300k znaków (Firestore: max 1 MiB/dokument, historia paragonów może być
+  większa), podsumowanie kopii (ile wydatków/humoru/zadań/stałych/pojazdów),
+  próg "pora na kopię".
+- `services/cloudBackup.ts`: `users/{uid}/backup/meta` + `backup/<id>_<i>`
+  (ta sama ścieżka per-user co `calendarService`). Nowe kawałki pod NOWYM id →
+  przełączenie meta → kasowanie starych (przerwany upload nie psuje
+  poprzedniej kopii). Jedna kopia naraz (ręczna + automat się nie dublują).
+  Przywrócenie: najpierw zapis BIEŻĄCYCH danych do pliku
+  `sapp2-przed-przywroceniem.json` (documentDirectory), potem `multiSet`,
+  potem `persist.rehydrate()` wszystkich 10 store'ów — bez restartu appki.
+  Klucze, których nie ma w kopii, zostają nietknięte; sesja logowania nigdy
+  nie nadpisywana.
+- `hooks/useAutoBackup.ts` (w `app/_layout.tsx`): automat przy starcie (po
+  20 s) i przy zejściu appki w tło, jeśli ≥6h od ostatniej kopii. Cichy — brak
+  sieci = spróbuje następnym razem.
+- Ustawienia → nowa sekcja **Dane**: "Kopia w chmurze" (włącznik automatu,
+  domyślnie WŁĄCZONY, opis z datą ostatniej kopii), "Zrób kopię teraz" (stan/
+  błąd widoczny w wierszu), "Przywróć z kopii" (okno z datą i zawartością
+  kopii przed nadpisaniem).
+
+**Zweryfikowane:** tsc czysty, jest 381/381 (9 nowych testów, w tym pełna
+podróż kopia → zmiana → przywrócenie na udawanym Firestore: kawałkowanie
+700k znaków, sprzątanie starych kawałków, sesja Firebase nietknięta, plik
+"przed przywróceniem", przeładowany store). `expo web`: sekcja Dane renderuje
+się, błąd zapisu (web nie ma logowania Firebase) czytelnie w wierszu.
+
+**DO POTWIERDZENIA NA URZĄDZENIU:** Ustawienia → Dane → "Zrób kopię teraz" →
+opis powinien zmienić się na "ostatnia: <dziś, godzina>". Jeśli pokaże "brak
+uprawnień do zapisu w Firestore" — reguły bazy w konsoli Firebase nie
+pozwalają pisać do `users/{uid}/backup` (wtedy trzeba dodać regułę: zalogowany
+user może czytać/pisać `users/{jego uid}/**`).

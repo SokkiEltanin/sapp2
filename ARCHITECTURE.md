@@ -99,6 +99,12 @@ zdrowia POTWIERDZONE jako osobna, odłożona faza (opcja 1 z dwóch zaproponowan
   pokazuje — `Modal` jeszcze nie ma fokusu). Zamiast tego `ref` na polu +
   `<AppBottomSheet initialFocusRef={ref}>` (fokus z `Modal`'s `onShow`). Wzorzec:
   `app/(tabs)/tasks.tsx` → `AddTaskCard`'s `titleRef`.
+- **Kopia zapasowa (2026-11-11)** — `services/cloudBackup.ts` zrzuca CAŁY
+  AsyncStorage (poza `firebase:…`/`cloud_backup_…`) do `users/{uid}/backup`
+  w Firestore, automat co ≥6h (`hooks/useAutoBackup.ts`). **Nowy store z
+  `persist` = dopisz go do listy `rehydrate()` w `restoreBackup`**, inaczej po
+  przywróceniu pokaże stare dane aż do restartu appki. Dane same w sobie
+  trafiają do kopii automatycznie (generyczne `getAllKeys`).
 - **Pola liczbowe (2026-11-11)** — `components/design/NumberInput.tsx`
   (`value: number | undefined`, `onChangeValue`), NIGDY `value={String(liczba)}`
   z parsowaniem co znak (gubi przecinek, nie da się skasować "0"). Nie dodawaj

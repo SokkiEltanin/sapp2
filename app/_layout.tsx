@@ -19,6 +19,7 @@ import { colors } from '@/theme/colors';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { useNotifeeAlertLaunch } from '@/hooks/useNotifeeAlertLaunch';
 import { useBillReminderSync } from '@/hooks/useBillReminderSync';
+import { useAutoBackup } from '@/hooks/useAutoBackup';
 import { useShareReceiptLaunch } from '@/hooks/useShareReceiptLaunch';
 import { loadOwnName } from '@/utils/ownName';
 import { loadHapticsEnabled } from '@/utils/haptics';
@@ -115,6 +116,9 @@ export default function RootLayout() {
   // Realne przypomnienia o Stałych opłatach (2026-11-11) — patrz
   // src/services/billReminders.ts.
   useBillReminderSync();
+  // Automatyczna kopia zapasowa w chmurze (2026-11-11) — patrz
+  // src/services/cloudBackup.ts.
+  useAutoBackup(!!user);
 
   // Udostępnij paragon przez Android Share Sheet (2026-11-09, user: "a zrobisz jak w
   // sapp udostępnianie paragonu po share?") — patrz komentarz w

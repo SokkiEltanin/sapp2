@@ -9,6 +9,7 @@ import {
   Info, Stethoscope, Clock, Bell, Copy,
   LogIn, LogOut, User as UserIcon, Database, CalendarDays, AlertTriangle, Rocket,
   BatteryWarning, AlarmClock, Landmark, Zap, Vibrate, ShieldCheck, History, Watch, Download,
+  CloudUpload, CloudDownload,
 } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -25,6 +26,11 @@ import { useHealthStore } from '@/store/healthStore';
 import { isHealthConnectAvailable, ensureHealthConnect, openHealthConnectSettings, readHealthDay } from '@/services/healthConnectService';
 import { isHapticsEnabled, setHapticsEnabled } from '@/utils/haptics';
 import Toggle from '@/components/design/Toggle';
+import AppBottomSheet from '@/components/design/AppBottomSheet';
+import {
+  uploadBackup, fetchBackupMeta, restoreBackup, getLastBackupAt, isAutoBackupEnabled, setAutoBackupEnabled,
+  type BackupMeta,
+} from '@/services/cloudBackup';
 
 // Build metadata wstrzyknięty przez CI (`.github/workflows/build.yml`, krok "Build
 // release APK") jako EXPO_PUBLIC_* — Expo inline'uje te zmienne w bundlu JS na etapie
@@ -74,6 +80,7 @@ function buildSections(
   bank: { enabled: boolean; autoAll: boolean; pending: number },
   hapticsEnabled: boolean,
   health: { connected: boolean; lastSyncedAt: string | null },
+  backup: { auto: boolean; lastAt: string | null; busy: boolean; error: string | null },
 ): SettingsSection[] {
   return [
   {
@@ -132,7 +139,21 @@ function buildSections(
       // eksportuje cały JSON snapshot), ta pozycja to WYŁĄCZNIE strona
       // IMPORTU w sapp2 (app/import-sapp.tsx), patrz src/services/
       // dataImportFromSapp.ts po pełny opis mapowania pól.
-      { kind: 'action' as const, key: 'import-sapp', label: 'Importuj dane z sapp', description: 'wydatki/paragony i humor z eksportu sapp — wklej skopiowany JSON', icon: Download },
+      { kind: 'action' as const, key: 'import-sapp', label: 'Importuj dane z sapp', description: 'wydatki/paragony, humor i stałe opłaty z eksportu sapp', icon: Download },
+    ],
+  },
+  // Kopia zapasowa w chmurze (2026-11-11) — WSZYSTKIE dane sapp2 żyły dotąd
+  // tylko w pamięci telefonu (patrz src/services/cloudBackup.ts).
+  {
+    id: 'dane', title: 'Dane',
+    items: [
+      {
+        kind: 'switch', key: 'backup-auto', label: 'Kopia w chmurze',
+        description: `${backup.lastAt ? `ostatnia: ${fmtBackupDate(backup.lastAt)}` : 'jeszcze nie było kopii'}${backup.auto ? ' · automatycznie co 6h' : ' · automat wyłączony'}`,
+        icon: CloudUpload, value: backup.auto,
+      },
+      { kind: 'action', tier: 'sub', key: 'backup-now', label: 'Zrób kopię teraz', description: backup.busy ? 'trwa…' : backup.error ? `nie udało się: ${backup.error}` : 'wszystkie dane appki na Twoje konto (Firestore)', icon: CloudUpload },
+      { kind: 'action', tier: 'sub', key: 'backup-restore', label: 'Przywróć z kopii', description: 'np. po zmianie telefonu — najpierw pokaże, co jest w kopii', icon: CloudDownload },
     ],
   },
   // Faza 3.13 (2026-11-02, user: "podziel ustawienia na kategorie porozmieszczaj to
@@ -191,6 +212,24 @@ function buildSections(
 // Go — statyczny import na starcie appki wywaliłby cały ekran, może i appkę, zanim
 // user zdążyłby cokolwiek kliknąć). Błąd stąd ("Native module... cannot be null" /
 // podobny) = normalne, oczekiwane w Expo Go, wyjaśnione userowi wprost w UI.
+function fmtBackupDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })} ${d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}`;
+}
+
+// Komunikaty z Firebase/requireUid są po angielsku — user widzi je wprost w wierszu.
+function backupErrorText(e: any): string {
+  const msg = String(e?.message ?? e);
+  if (msg.includes('Not authenticated')) return 'brak zalogowania — wyloguj i zaloguj się ponownie';
+  if (msg.toLowerCase().includes('permission')) return 'brak uprawnień do zapisu w Firestore (reguły bazy)';
+  return msg;
+}
+
+function describeSummary(meta: BackupMeta): string {
+  const x = meta.summary;
+  return `${x.expenses} wydatków, ${x.mood} wpisów humoru, ${x.tasks} zadań, ${x.subscriptions} stałych opłat, ${x.vehicles} pojazdów`;
+}
+
 export default function SettingsScreen() {
   const s = makeS();
   const { user } = useAuthUser();
@@ -224,15 +263,73 @@ export default function SettingsScreen() {
   const healthLastSyncedAt = useHealthStore((st) => st.lastSyncedAt);
   const setHealthConnected = useHealthStore((st) => st.setConnected);
   const setHealthToday = useHealthStore((st) => st.setToday);
+  const [backupAuto, setBackupAuto] = useState(true);
+  const [backupLastAt, setBackupLastAt] = useState<string | null>(null);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupError, setBackupError] = useState<string | null>(null);
+  const [restoreMeta, setRestoreMeta] = useState<BackupMeta | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  useEffect(() => {
+    isAutoBackupEnabled().then(setBackupAuto).catch(() => {});
+    getLastBackupAt().then(setBackupLastAt).catch(() => {});
+  }, []);
   const sections = useMemo(
     () => buildSections(
       user?.email ?? null,
       { enabled: bankEnabled, autoAll: bankAutoAll, pending: bankPending },
       hapticsEnabled,
       { connected: healthConnected, lastSyncedAt: healthLastSyncedAt },
+      { auto: backupAuto, lastAt: backupLastAt, busy: backupBusy, error: backupError },
     ),
-    [user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt],
+    [user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError],
   );
+
+  const backupNow = async () => {
+    if (backupBusy) return;
+    setBackupBusy(true);
+    setBackupError(null);
+    append('Kopia w chmurze: wysyłam…');
+    try {
+      const meta = await uploadBackup();
+      setBackupLastAt(meta.createdAt);
+      append(`Kopia gotowa: ${describeSummary(meta)} (${Math.round(meta.chars / 1024)} KB).`);
+    } catch (e: any) {
+      setBackupError(backupErrorText(e));
+      append(`Błąd kopii: ${String(e?.message ?? e)}`);
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+  const openRestore = async () => {
+    append('Sprawdzam kopię w chmurze…');
+    try {
+      const meta = await fetchBackupMeta();
+      if (!meta) { append('Brak kopii w chmurze — najpierw "Zrób kopię teraz" na telefonie z danymi.'); return; }
+      setRestoreError(null);
+      setRestoreMeta(meta);
+    } catch (e: any) {
+      append(`Błąd: ${String(e?.message ?? e)}`);
+    }
+  };
+  const confirmRestore = async () => {
+    setRestoring(true);
+    try {
+      const meta = await restoreBackup();
+      append(`Przywrócono kopię z ${fmtBackupDate(meta.createdAt)}: ${describeSummary(meta)}. Poprzednie dane zapisane w pliku sapp2-przed-przywroceniem.json.`);
+      setRestoreMeta(null);
+    } catch (e: any) {
+      setRestoreError(backupErrorText(e));
+      append(`Błąd przywracania: ${String(e?.message ?? e)}`);
+    } finally {
+      setRestoring(false);
+    }
+  };
+  const toggleBackupAuto = () => {
+    const next = !backupAuto;
+    setBackupAuto(next);
+    setAutoBackupEnabled(next).catch(() => {});
+  };
 
   const handleLogout = async () => {
     append('Wylogowywanie…');
@@ -712,6 +809,9 @@ export default function SettingsScreen() {
     'bank-history': () => router.push('/bank-history' as any),
     'import-sapp': () => router.push('/import-sapp' as any),
     'haptics-enabled': toggleHaptics,
+    'backup-auto': toggleBackupAuto,
+    'backup-now': backupNow,
+    'backup-restore': openRestore,
   };
 
   const q = query.trim().toLowerCase();
@@ -877,11 +977,41 @@ export default function SettingsScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Potwierdzenie przywrócenia (2026-11-11) — nadpisuje dane na telefonie,
+          więc user MUSI zobaczyć z kiedy jest kopia i co w niej jest. */}
+      <AppBottomSheet visible={!!restoreMeta} onClose={() => { if (!restoring) setRestoreMeta(null); }} scrollable={false}>
+        {restoreMeta && (
+          <View style={s.restoreBody}>
+            <Text style={s.restoreTitle}>Przywrócić kopię?</Text>
+            <Text style={s.restoreText}>Kopia z {fmtBackupDate(restoreMeta.createdAt)}: {describeSummary(restoreMeta)}.</Text>
+            <Text style={s.restoreText}>Zastąpi dane na tym telefonie. Obecne dane zostaną zapisane w pliku sapp2-przed-przywroceniem.json, na wszelki wypadek.</Text>
+            {restoreError && <Text style={s.restoreError}>Nie udało się: {restoreError}</Text>}
+            <View style={s.restoreActions}>
+              <TouchableOpacity style={s.restoreCancel} onPress={() => setRestoreMeta(null)} disabled={restoring} activeOpacity={0.7}>
+                <Text style={s.restoreCancelLabel}>Anuluj</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.restoreConfirm, restoring && { opacity: 0.5 }]} onPress={confirmRestore} disabled={restoring} activeOpacity={0.7}>
+                <Text style={s.restoreConfirmLabel}>{restoring ? 'Przywracam…' : 'Przywróć'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </AppBottomSheet>
     </SafeAreaView>
   );
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
+  restoreBody: { gap: spacing[2], paddingVertical: spacing[1] },
+  restoreTitle: { fontSize: 18, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },
+  restoreText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: c.text.secondary, lineHeight: 18 },
+  restoreError: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.accent.red },
+  restoreActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing[2], marginTop: spacing[2] },
+  restoreCancel: { paddingHorizontal: spacing[3], paddingVertical: spacing[2] },
+  restoreCancelLabel: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  restoreConfirm: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md, backgroundColor: c.text.bright },
+  restoreConfirmLabel: { fontSize: 12.5, fontFamily: 'Inter_900Black', color: c.bg.primary },
   safe: { flex: 1, backgroundColor: c.bg.primary },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[3], paddingVertical: spacing[2] },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
