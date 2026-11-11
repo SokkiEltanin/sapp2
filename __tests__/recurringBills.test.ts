@@ -137,12 +137,12 @@ function exp(patch: Partial<Expense>): Expense {
 // stale kiedy sa" — rachunki logowane jako zwykłe wydatki (bez osobnej
 // Subskrypcji) dostają przewidywany termin z historii.
 describe('detectRecurringBills — rozpoznaje cykliczne rachunki logowane jako zwykłe wydatki', () => {
-  test('ten sam typ w ≥2 odrębnych miesiącach → kandydat, dayOfMonth z OSTATNIEGO wystąpienia', () => {
+  test('ten sam typ w ≥2 odrębnych miesiącach → kandydat, dayOfMonth I kwota z OSTATNIEGO wystąpienia (nie średnia)', () => {
     const out = detectRecurringBills([
       exp({ id: 'a', storeName: 'PGE', amount: 180, date: '2026-08-05' }),
       exp({ id: 'b', storeName: 'PGE', amount: 200, date: '2026-09-07' }),
     ], []);
-    expect(out).toEqual([{ tag: 'prąd', name: 'Prąd', icon: 'Zap', avgAmount: 190, months: 2, lastDate: '2026-09-07', dayOfMonth: 7 }]);
+    expect(out).toEqual([{ tag: 'prąd', name: 'Prąd', icon: 'Zap', lastAmount: 200, months: 2, lastDate: '2026-09-07', dayOfMonth: 7 }]);
   });
 
   test('tylko 1 miesiąc → za mało historii, pomijane', () => {

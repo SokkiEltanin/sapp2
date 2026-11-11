@@ -27,6 +27,15 @@ import { addMonthsClipped, addYearsClipped, ymdLocal } from '@/utils/dateMath';
 // `nextBillingDate`) bez potrzeby ręcznego zakładania Subskrypcji — `upcoming-
 // Payments` łączy to z realnymi Subskrypcjami w jedną, posortowaną listę.
 //
+// Kwota przewidywanej płatności — POPRAWIONA 2026-11-11 (user, patrząc na
+// "Najbliższe eventy": "czemu mi na dole pokazuje czynsz mieszkanie, i tam
+// zła Kwota?... a tak to widać ile płace z historii finansów") —
+// pierwsza wersja liczyła ŚREDNIĄ ze WSZYSTKICH historycznych kwot tego
+// typu rachunku (`avgAmount`), co przy normalnej zmienności (podwyżka,
+// jednorazowa korekta) dawało liczbę, która nie odpowiadała ŻADNEJ realnej
+// płatności. Teraz `lastAmount` — kwota z OSTATNIEGO realnego wystąpienia,
+// dokładnie ta sama logika co `dayOfMonth` już ma (patrz niżej).
+//
 // `icon` = nazwa komponentu z `lucide-react-native`, rozwiązywana dynamicznie tam
 // gdzie potrzebna (ten sam wzorzec co w sapp) — Internet/Prąd/Gaz/Woda dostają WŁASNĄ
 // ikonę zamiast dziedziczyć jedną wspólną "dom".
@@ -117,7 +126,14 @@ export interface BillCandidate {
   tag: string;
   name: string;
   icon: string;
-  avgAmount: number;
+  // Kwota do przewidzenia następnej płatności — kwota z OSTATNIEGO
+  // wystąpienia, NIE średnia z całej historii (2026-11-11, user: "czemu mi
+  // na dole pokazuje czynsz mieszkanie i tam zła kwota... a tak to widać
+  // ile płacę z historii finansów" — avgAmount [stara wersja] mieszał
+  // zwykłą zmienność kwot w jedną uśrednioną liczbę, która nie odpowiadała
+  // żadnej realnej płatności; user oczekuje konkretnej, realnej ostatniej
+  // kwoty, nie statystyki).
+  lastAmount: number;
   months: number;     // distinct months it appeared in
   lastDate: string;   // YYYY-MM-DD
   dayOfMonth: number; // day to predict the next occurrence on (from the last one)
@@ -130,17 +146,16 @@ export interface BillCandidate {
 // pokryty przez AKTYWNĄ Subskrypcję z pasującym tagiem/nazwą — ten sam rachunek
 // nie ma liczyć się podwójnie w `upcomingPayments` niżej.
 export function detectRecurringBills(expenses: Expense[], subs: Subscription[]): BillCandidate[] {
-  const byTag: Record<string, { amounts: number[]; months: Set<string>; lastDate: string }> = {};
+  const byTag: Record<string, { months: Set<string>; lastDate: string; lastAmount: number }> = {};
   for (const e of expenses) {
     if (e.type === 'income') continue;
     const t = billTagFor(e);
     if (!t) continue;
     const date = (e.date ?? '').slice(0, 10);
     if (!date) continue;
-    const g = (byTag[t.tag] ??= { amounts: [], months: new Set(), lastDate: '' });
-    g.amounts.push(e.amount);
+    const g = (byTag[t.tag] ??= { months: new Set(), lastDate: '', lastAmount: 0 });
     g.months.add(date.slice(0, 7));
-    if (date > g.lastDate) g.lastDate = date;
+    if (date > g.lastDate) { g.lastDate = date; g.lastAmount = e.amount; }
   }
 
   const out: BillCandidate[] = [];
@@ -148,9 +163,8 @@ export function detectRecurringBills(expenses: Expense[], subs: Subscription[]):
     const g = byTag[t.tag];
     if (!g || g.months.size < 2) continue;
     if (subs.some((s) => s.active && ((s.tags ?? []).includes(t.tag) || s.name.toLowerCase().includes(t.tag)))) continue;
-    const avg = Math.round(g.amounts.reduce((a, b) => a + b, 0) / g.amounts.length);
     out.push({
-      tag: t.tag, name: t.name, icon: t.icon, avgAmount: avg, months: g.months.size,
+      tag: t.tag, name: t.name, icon: t.icon, lastAmount: g.lastAmount, months: g.months.size,
       lastDate: g.lastDate, dayOfMonth: Math.min(28, Math.max(1, parseInt(g.lastDate.slice(8, 10), 10) || 10)),
     });
   }
@@ -190,7 +204,7 @@ export function upcomingPayments(expenses: Expense[], subs: Subscription[], now:
   for (const b of detectRecurringBills(expenses, subs)) {
     const dueDate = nextBillingDate(b.dayOfMonth, today);
     const daysUntil = Math.round((new Date(`${dueDate}T00:00:00`).getTime() - today.getTime()) / 86400000);
-    out.push({ id: `bill_${b.tag}`, kind: 'bill', name: b.name, amount: b.avgAmount, daysUntil, dueDate, icon: b.icon });
+    out.push({ id: `bill_${b.tag}`, kind: 'bill', name: b.name, amount: b.lastAmount, daysUntil, dueDate, icon: b.icon });
   }
   return out.sort((a, b) => a.daysUntil - b.daysUntil);
 }

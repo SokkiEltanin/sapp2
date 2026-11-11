@@ -3804,3 +3804,26 @@ stuknięcie w "Rozrywka" otwiera drill-down z "Netflix 30 zł"/"Kino 40 zł".
 Edycja wydatku "Kino" pokazuje "Kategoria: Rozrywka" w podsumowaniu,
 rozwinięty picker pokazuje "Brak, Rozrywka, Transport, Zdrowie, Ubrania,
 Dom" w tej kolejności.
+
+## Fix: "Najbliższe eventy" pokazywał ŚREDNIĄ kwotę rachunku, nie realną (2026-11-11)
+
+User, patrząc na Dashboard's "Najbliższe eventy" (wiersz "Czynsz /
+mieszkanie" z kwotą): "czemu mi na dole pokazuje czynsz mieszkanie, i tam
+zła Kwota? Przecież w kalendarzu nie mam kwoty, czasami tylko sobie
+zapisuje jak mam przelać mniej, a tak to widac ile place z historii
+finansow". Ten wiersz to NIE wydarzenie z kalendarza (te nigdy nie
+dostają `amount`, patrz `app/(tabs)/index.tsx`'s `upcomingTimeline`) —
+to PRZEWIDYWANY rachunek stały (`kind:'bill'`, `detectRecurringBills`),
+więc kwota faktycznie powinna pochodzić z historii finansów, zgodnie z
+oczekiwaniem usera — ale `detectRecurringBills` liczyła ŚREDNIĄ ze
+WSZYSTKICH historycznych kwot tego typu (`avgAmount`), nie realną,
+ostatnio zapłaconą kwotę — przy normalnej zmienności (podwyżka,
+jednorazowa korekta) średnia nie odpowiadała żadnej prawdziwej płatności.
+
+- `BillCandidate.avgAmount` → `lastAmount` (`utils/recurringBills.ts`) —
+  kwota z OSTATNIEGO wystąpienia danego typu rachunku, ta sama logika co
+  `dayOfMonth` już miał. `upcomingPayments` czyta teraz `b.lastAmount`.
+
+**Zweryfikowane:** tsc czysty, jest 334/334 (test
+`detectRecurringBills` zaktualizowany: 180 zł + 200 zł → `lastAmount: 200`,
+nie `avgAmount: 190`).
