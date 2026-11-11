@@ -18,7 +18,6 @@ import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import { workMonthProgress } from '@/utils/workMonth';
 import { nextUpcomingPayment } from '@/utils/recurringBills';
 import { getBalanceOffset, setBalanceOffset, accountBalance, affectsBalance } from '@/utils/balance';
-import { buildProductCatalog } from '@/utils/productCatalog';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
 import { haptic } from '@/utils/haptics';
 import { todayISO } from '@/utils/date';
@@ -164,7 +163,6 @@ export default function FinancesScreen() {
     () => [...expenses].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [expenses],
   );
-  const productCount = useMemo(() => buildProductCatalog(expenses).length, [expenses]);
   // Płatności w obcej walucie bez kwoty PLN (2026-11-11) — widoczny licznik w
   // nagłówku "Ostatnich transakcji", stuknięcie otwiera najstarszą do
   // uzupełnienia (po zapisie licznik spada, kolejne stuknięcie → następna).
@@ -223,7 +221,6 @@ export default function FinancesScreen() {
           <Tile span={1} center style={s.sideBtn} onPress={() => setProductsOpen(true)}>
             <Package size={16} color={C.txt} />
             <Text style={s.sideBtnLabel} numberOfLines={1}>Produkty</Text>
-            {productCount > 0 && <Text style={s.sideBtnCount}>{productCount}</Text>}
           </Tile>
           <Tile span={1} center style={s.sideBtn} onPress={() => router.push('/vehicles')}>
             <Car size={16} color={C.txt} />
@@ -417,7 +414,6 @@ const makeS = themedStyles((c) => StyleSheet.create({
   sideCol: { gap: S.gap },
   sideBtn: { flex: 1, padding: 6, gap: 3 },
   sideBtnLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: C.txt },
-  sideBtnCount: { fontSize: 9, fontFamily: 'Inter_600SemiBold', color: C.mut },
   emptyInline: { textAlign: 'center', marginTop: spacing[3] },
 
   workEmpty: { marginTop: spacing[3] },
