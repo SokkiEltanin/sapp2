@@ -1,4 +1,5 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useContext } from 'react';
+import { NavigationContext } from '@react-navigation/native';
 import {
   Modal, View, StyleSheet, ScrollView, TouchableWithoutFeedback,
   Platform, Animated, Easing, Dimensions, Keyboard, type TextInput,
@@ -68,6 +69,7 @@ export default function AppBottomSheet({
   scrollable = true,
   maxHeightRatio = DEFAULT_MAX_HEIGHT_RATIO,
   initialFocusRef,
+  onClosed,
   children,
 }: {
   visible: boolean;
@@ -88,6 +90,13 @@ export default function AppBottomSheet({
   // `Dialog`u dostanie fokus, więc klawiatura cicho się nie pokazuje. Fokus
   // wołany z `Modal`'s `onShow` (okno już istnieje i ma fokus) działa.
   initialFocusRef?: React.RefObject<TextInput | null>;
+  // Wołane PO zakończeniu animacji zamykania, gdy okno `Modal` już zniknęło
+  // (2026-11-11, bug: Ustawienia → "Płatności do zatwierdzenia" dawały pusty,
+  // ciemny ekran). Przejście na INNY ekran z otwartego sheeta MUSI iść tędy, nie
+  // razem z `onClose` — inaczej nowy ekran pojawia się, zanim animacja zamykania
+  // się skończy, ekran-rodzic przestaje być aktywny, a puste okno `Modal`a
+  // zostaje na wierzchu (znika dopiero po powrocie).
+  onClosed?: () => void;
   children: React.ReactNode;
 }) {
   const s = makeS(maxHeightRatio);
@@ -110,6 +119,12 @@ export default function AppBottomSheet({
   const [modalVisible, setModalVisible] = useState(visible);
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const sheetY = useRef(new Animated.Value(SHEET_OFFSET)).current;
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const onClosedRef = useRef(onClosed);
+  onClosedRef.current = onClosed;
   useEffect(() => {
     if (visible) {
       // Ponowne otwarcie W TRAKCIE animacji zamykania — `Modal` nigdy nie
@@ -126,9 +141,32 @@ export default function AppBottomSheet({
       Animated.parallel([
         Animated.timing(backdropOpacity, { toValue: 0, duration: 160, useNativeDriver: true }),
         Animated.timing(sheetY, { toValue: SHEET_OFFSET, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
-      ]).start(() => setModalVisible(false));
+      ]).start(({ finished }) => {
+        // Przerwane ponownym otwarciem (`visible` znów true) → NIE chowaj —
+        // wcześniej szybkie zamknij+otwórz potrafiło schować świeżo otwarty sheet.
+        if (!finished && visibleRef.current) return;
+        setModalVisible(false);
+        onClosedRef.current?.();
+      });
     }
   }, [visible, backdropOpacity, sheetY]);
+
+  // Siatka bezpieczeństwa (2026-11-11): ekran z otwartym sheetem przestaje być
+  // aktywny (przejście z powiadomienia, z innego miejsca niż `onClosed`) → okno
+  // znika OD RAZU, bez animacji, i rodzic dostaje `onClose`, żeby po powrocie
+  // jego stan zgadzał się z tym co widać. `NavigationContext` zamiast
+  // `useNavigation()` — nie rzuca, gdyby sheet kiedyś był poza nawigatorem.
+  const navigation = useContext(NavigationContext);
+  useEffect(() => {
+    if (!navigation) return;
+    return navigation.addListener('blur', () => {
+      if (!visibleRef.current) return;
+      backdropOpacity.stopAnimation();
+      sheetY.stopAnimation();
+      setModalVisible(false);
+      onCloseRef.current?.();
+    });
+  }, [navigation, backdropOpacity, sheetY]);
 
   // Klawiatura: WŁASNE śledzenie przez `Keyboard` eventy zamiast
   // `KeyboardAvoidingView` (2026-11-09, user: "jak wyłączam klawiaturę to

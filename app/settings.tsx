@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, BackHandler, Platform, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -804,8 +804,20 @@ export default function SettingsScreen() {
   };
 
   // Panel kategorii to osobne okno (`Modal`) — akcja przechodząca na INNY ekran
-  // musi go najpierw zamknąć, inaczej zostałby na wierzchu nowego ekranu.
-  const leave = (go: () => void) => () => { setOpenSectionId(null); go(); };
+  // zamyka go i przechodzi DOPIERO po zakończeniu animacji zamykania
+  // (`AppBottomSheet`'s `onClosed`). Przejście od razu (pierwsza wersja,
+  // 2026-11-11) zostawiało puste, ciemne okno na wierzchu nowego ekranu.
+  const pendingNav = useRef<(() => void) | null>(null);
+  const leave = (go: () => void) => () => {
+    if (!openSectionId) { go(); return; }
+    pendingNav.current = go;
+    setOpenSectionId(null);
+  };
+  const runPendingNav = () => {
+    const go = pendingNav.current;
+    pendingNav.current = null;
+    go?.();
+  };
   const handlers: Record<string, () => void> = {
     'account-logout': leave(handleLogout),
     'health-connect': connectHealthConnect,
@@ -1013,7 +1025,7 @@ export default function SettingsScreen() {
         {searchResults && renderLog()}
       </ScrollView>
 
-      <AppBottomSheet visible={!!openSection} onClose={() => setOpenSectionId(null)} header={openSection ? <Text style={s.sheetTitle}>{openSection.title}</Text> : undefined}>
+      <AppBottomSheet visible={!!openSection} onClose={() => setOpenSectionId(null)} onClosed={runPendingNav} header={openSection ? <Text style={s.sheetTitle}>{openSection.title}</Text> : undefined}>
         {openSection && (
           <>
             <View style={s.sectionCard}>

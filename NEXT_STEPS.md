@@ -4164,3 +4164,34 @@ makiety, ale lista urosła do ~30 wierszy z Bankiem/Danymi/Alertami).
 ekran z kategoriami i stanami, panel Finanse, szukanie "kopia" znajduje
 pozycję z Danych, "Importuj dane z sapp" przenosi na /import-sapp bez panelu
 na wierzchu, log testu Firestore widoczny w panelu Diagnostyki.
+
+## Fix: pusty ciemny ekran po przejściu z panelu (2026-11-11)
+
+User (zrzut całkiem ciemnego ekranu): "jak klikam ustawienia > płatności do
+zatwierdzenia to wywala taki screen, a jak cofam to przez chwilkę widać ekran i
+znika od razu na ustawienia... sprawdź czy nie występuje nigdzie indziej".
+
+Przyczyna (moja, z poprzedniej rundy): `leave()` w Ustawieniach zamykał panel
+kategorii i NATYCHMIAST przechodził na nowy ekran. `AppBottomSheet` to osobne
+okno `Modal` z ~0,2 s animacją zamykania — nowy ekran wjeżdżał w trakcie, ekran
+Ustawień przestawał być aktywny, animacja się nie domykała, puste okno
+`Modal`a zostawało na wierzchu. Po "wstecz" Ustawienia wracały, okno znikało.
+
+- `AppBottomSheet`: nowy `onClosed` — wołany PO animacji zamykania, gdy okno
+  już zniknęło. **Zasada: przejście na inny ekran z otwartego sheeta → przez
+  `onClosed`, nigdy razem z `onClose`.**
+- Siatka bezpieczeństwa w `AppBottomSheet`: ekran z otwartym sheetem traci
+  aktywność (`blur` nawigacji, np. stuknięcie w przypomnienie o Stałej opłacie
+  przy otwartym panelu) → okno znika od razu + `onClose` do rodzica.
+- Przy okazji: przerwane zamykanie (szybkie zamknij→otwórz) już nie chowa
+  świeżo otwartego sheeta (callback animacji sprawdza `finished`).
+- Znalezione i poprawione drugie miejsce z tym samym wzorcem: Dashboard →
+  panel najbliższego eventu → "Otwórz w Zadaniach". Pozostałe nawigacje w
+  appce (`router.push` w finances/index/bank-review/tabs) nie idą z otwartego
+  sheeta — sprawdzone grepem.
+
+**Zweryfikowane:** tsc czysty, jest 381/381. `expo web`+Playwright: Ustawienia
+→ Finanse → "Płatności do zatwierdzenia" → najpierw zamyka panel, potem
+`/bank-review`, 0 otwartych okien; wstecz → Ustawienia. Dashboard →
+"Otwórz w Zadaniach" → `/tasks`, 0 okien. (Sam stan "puste okno na
+wierzchu" był specyficzny dla Androida — na telefonie do potwierdzenia.)

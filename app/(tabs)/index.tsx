@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { DashboardScreen, type DashData } from '@/ui/DashboardScreen';
@@ -293,12 +293,16 @@ export default function Dashboard() {
   };
 
   const nextTag = upcomingEvent ? splitTag(upcomingEvent.e.title) : null;
+  // Przejście do Zadań DOPIERO po zamknięciu sheeta (`onClosed`) — przełączenie
+  // zakładki w trakcie animacji zamykania zostawiało puste okno sheeta na
+  // wierzchu (ten sam bug co Ustawienia → Płatności do zatwierdzenia, 2026-11-11).
+  const goToTasksAfterClose = useRef(false);
   const openNextInTasks = () => {
     if (!upcomingEvent) return;
     haptic.tap();
-    setNextOpen(false);
     setSelectedDate(upcomingEvent.e.date.slice(0, 10));
-    router.push('/tasks');
+    goToTasksAfterClose.current = true;
+    setNextOpen(false);
   };
 
   return (
@@ -317,7 +321,12 @@ export default function Dashboard() {
         today={now}
         onEditExpense={setEditingExpense}
       />
-      <AppBottomSheet visible={nextOpen} onClose={() => setNextOpen(false)} scrollable={false}>
+      <AppBottomSheet
+        visible={nextOpen}
+        onClose={() => setNextOpen(false)}
+        onClosed={() => { if (goToTasksAfterClose.current) { goToTasksAfterClose.current = false; router.push('/tasks'); } }}
+        scrollable={false}
+      >
         {upcomingEvent && nextTag ? (
           <View style={ns.card}>
             <Cap l="Najbliższe wydarzenie" />

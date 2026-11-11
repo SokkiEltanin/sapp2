@@ -105,6 +105,12 @@ zdrowia POTWIERDZONE jako osobna, odłożona faza (opcja 1 z dwóch zaproponowan
   `persist` = dopisz go do listy `rehydrate()` w `restoreBackup`**, inaczej po
   przywróceniu pokaże stare dane aż do restartu appki. Dane same w sobie
   trafiają do kopii automatycznie (generyczne `getAllKeys`).
+- **Nawigacja z otwartego sheeta (2026-11-11)** — przejście na inny ekran z
+  wnętrza `AppBottomSheet` ZAWSZE przez jego `onClosed` (po animacji
+  zamykania), nigdy w tym samym handlerze co zamknięcie — inaczej puste okno
+  `Modal`a zostaje na wierzchu nowego ekranu (Android). Wzorce:
+  `app/settings.tsx`'s `leave()`/`runPendingNav`, Dashboard's
+  `goToTasksAfterClose`.
 - **Pola liczbowe (2026-11-11)** — `components/design/NumberInput.tsx`
   (`value: number | undefined`, `onChangeValue`), NIGDY `value={String(liczba)}`
   z parsowaniem co znak (gubi przecinek, nie da się skasować "0"). Nie dodawaj
