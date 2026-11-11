@@ -94,8 +94,18 @@ zdrowia POTWIERDZONE jako osobna, odłożona faza (opcja 1 z dwóch zaproponowan
   odtwarza CSS `mask-image` którego RN nie ma), `StackBar` (proporcjonalny pasek +
   legenda), `Bars` (słupkowy wykres kolumnowy, `Math.max(1,...)` na mianowniku to
   obowiązek wołającego, jak już w `foodStats.ts`).
+- **Fokus/klawiatura w popupie (2026-11-11)** — NIE używaj gołego `autoFocus` na
+  `TextInput` w środku `AppBottomSheet` (na Androidzie klawiatura się nie
+  pokazuje — `Modal` jeszcze nie ma fokusu). Zamiast tego `ref` na polu +
+  `<AppBottomSheet initialFocusRef={ref}>` (fokus z `Modal`'s `onShow`). Wzorzec:
+  `app/(tabs)/tasks.tsx` → `AddTaskCard`'s `titleRef`.
+- **Pola liczbowe (2026-11-11)** — `components/design/NumberInput.tsx`
+  (`value: number | undefined`, `onChangeValue`), NIGDY `value={String(liczba)}`
+  z parsowaniem co znak (gubi przecinek, nie da się skasować "0"). Nie dodawaj
+  `selectTextOnFocus` na tych polach — na webie zjadał pierwszy wpisany znak.
 - **`AppBottomSheet`** (`src/components/design/AppBottomSheet.tsx`) — `visible`/
-  `onClose`/`children` + opcjonalne `header`/`footer`/`scrollable`. Kontrakt bez
+  `onClose`/`children` + opcjonalne `header`/`footer`/`scrollable`/
+  `initialFocusRef`. Kontrakt bez
   zmian od Fazy 3.1, ale WEWNĘTRZNA implementacja PRZEBUDOWANA OD ZERA w Fazie
   3.15 (2026-11-04, KRYTYCZNE — patrz NEXT_STEPS.md punkt 6 po pełną historię
   dochodzenia). **Już NIE `@gorhom/bottom-sheet`** (biblioteka CAŁKOWICIE

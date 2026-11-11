@@ -8,12 +8,8 @@ aktualizuj po skończeniu/odkryciu czegoś nowego (patrz `CLAUDE.md`).
 - **Domyślna ręka: prawa**, z możliwością przełączenia na lewą w ustawieniach
   (wtedy belka pewnie lustrzanie do lewej krawędzi — do dopracowania przy budowie).
   Navbar sam (prawa belka + Ustawienia w lewym dolnym rogu) już zbudowany, patrz niżej.
-- **Zadania — klawiatura przy "+"** (2026-11-10, user: "tam na pewno do zrobienia
-  będzie, że jak klikam plusik to podczas otwierania od razu z klawiaturą się
-  otwierać"). Dodawanie nowego zadania (FAB "+") powinno od razu otwierać
-  klawiaturę (autofocus na polu nazwy), zamiast wymagać dodatkowego stuknięcia w
-  pole. User świadomie odłożył na później ("dodatkowo później ogarniemy zadania") —
-  NIE ruszać teraz, zanotowane do następnej rundy nad Zadaniami.
+- ~~Zadania — klawiatura przy "+"~~ — ZROBIONE 2026-11-11, patrz sekcja
+  "Szlif formularzy + Zadania" na końcu pliku.
 
 ## NIEAKTUALNE: pomysł redesignu Pupila (roślinka zamiast bossów) — zakładka USUNIĘTA
 
@@ -3890,3 +3886,55 @@ przy zapisie nowego wydatku.
 "Lidl, 48.84 zł, Wczoraj (2026-11-10)" → pierwszy tap "Zapisz" NIE zapisuje
 (liczba wydatków zostaje 1), pokazuje baner z dokładną treścią; tap
 "Zapisz mimo to" → realnie zapisuje (liczba wydatków → 2).
+
+## Szlif formularzy + Zadania (2026-11-11)
+
+User: "doszlifuj apkę w wielu miejscach, mamy tak że da się te formularze
+zrobić lepiej, popatrz po kolei i też ogarnij dobrze ZADANIA tak jak uważasz".
+
+**Wspólne (dotyczy wielu formularzy):**
+- **Klawiatura nie otwierała się sama w popupach** — goły `autoFocus` w RN
+  `Modal`u (na którym stoi `AppBottomSheet`) na Androidzie odpala się zanim
+  okno `Dialog`u dostanie fokus → klawiatura cicho się nie pokazuje. Nowy prop
+  `AppBottomSheet`'s `initialFocusRef` — fokus z `Modal`'s `onShow` (+ ręcznie
+  przy ponownym otwarciu w trakcie animacji zamykania). Podpięte: "+" w
+  Zadaniach, "Ustaw aktualne saldo" w Finansach. Stałe opłaty mają formularz
+  inline na ekranie (nie w popupie) — tam `autoFocus` działa, bez zmian.
+- **Pola liczbowe gubiły to co user pisał** — wzorzec `value={String(liczba)}` +
+  parsowanie co znak: "12," → "12" (nie dało się wpisać przecinka, np. wagi
+  "0,5 kg" w pozycji paragonu), wyczyszczone pole wskakiwało na "0" którego nie
+  dało się skasować. Nowy `components/design/NumberInput.tsx` (surowy tekst
+  lokalnie, wyżej tylko liczba; logika w `utils/numberInput.ts` + testy).
+  Podpięte: pozycje paragonu (ilość/cena jedn./cena), Praca (pensja, godziny,
+  wszystkie nadpisania).
+- **Stałe opłaty — data ręcznie "DD.MM.RRRR"** zamieniona na natywny kalendarz
+  (ten sam picker co w wydatkach/zadaniach). "Dodaj" wyszarzone dopóki
+  formularz niepoprawny (wcześniej po prostu cicho nic nie robił).
+
+**Zadania:**
+- **Termin widoczny na liście** — lista "Wszystkie" była sortowana po
+  terminie, ale sam termin nigdzie się nie pokazywał. Teraz "Dziś" / "Jutro" /
+  "sob. · 18:30" / "25 lis", zaległe na czerwono ("Zaległe · 9 lis").
+  `utils/taskDeadline.ts` + testy.
+- **"Cofnij" po ukończeniu** — stuknięcie w kółko chowało zadanie bez drogi
+  powrotu (ukończone nigdzie nie są pokazywane). Pasek "Ukończono: X · Cofnij"
+  na 5 s.
+- **Enter zapisuje** (tytuł i tag), **szybki wybór tagów** już użytych w innych
+  zadaniach (posortowane po częstości), etykieta "Termin" nad chipami.
+- **Edycja zadania z terminem bez godziny** pokazywała i zapisywała sztuczne
+  "00:00" — teraz dziś/jutro wraca na swój chip, inne daty bez godziny.
+
+**Zweryfikowane:** tsc czysty, jest 356/356 (16 nowych testów). `expo
+web`+Playwright: terminy na liście (zaległe czerwone), "Cofnij" przywraca
+zadanie do `pending`, po "+" pole tytułu ma fokus, Enter dodaje zadanie,
+"0,5" × "12,40" = 6,2 w pozycji paragonu (wcześniej niemożliwe).
+
+**DO POTWIERDZENIA NA URZĄDZENIU:** czy klawiatura faktycznie wyskakuje sama po
+"+" w Zadaniach i przy edycji salda — na webie fokus działa, ale sam bug był
+specyficzny dla Androida, więc to trzeba sprawdzić na telefonie. (`onShow` +
+`focus()` to standardowy fix na ten problem w RN, ale nie da się go tu
+przetestować bez urządzenia.)
+
+**Dalej w kolejce szlifu (nie zrobione w tej rundzie):** przyciski
+Produkty/Pojazdy w Finansach (czeka na zrzut od usera), przegląd pozostałych
+formularzy (Humor, bank-review, Ustawienia).

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, type TextInput } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { spacing, radius, themedStyles } from '@/theme';
 import { colors } from '@/theme/colors';
@@ -67,6 +67,24 @@ export default function TasksScreen() {
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [detailDate, setDetailDate] = useState<string | null>(null);
   const [segment, setSegment] = useState<'wszystkie' | 'teraz' | 'bezterminowe'>('wszystkie');
+  const titleRef = useRef<TextInput>(null);
+  // Cofnięcie "ukończ" (2026-11-11) — stuknięcie w kółko od razu chowało
+  // zadanie z listy BEZ żadnej drogi powrotu (ukończone nie są nigdzie
+  // pokazywane), więc przypadkowe stuknięcie gubiło zadanie. Pasek "Cofnij"
+  // przez kilka sekund.
+  const [justDone, setJustDone] = useState<Task | null>(null);
+  useEffect(() => {
+    if (!justDone) return;
+    const t = setTimeout(() => setJustDone(null), 5000);
+    return () => clearTimeout(t);
+  }, [justDone]);
+
+  // Tagi posortowane po częstości użycia — szybki wybór w formularzu.
+  const knownTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const t of tasks) for (const tag of t.tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([tag]) => tag);
+  }, [tasks]);
 
   // 2026-11-08: wydzielone do `useGoogleCalendarSync` (patrz tam) — Dashboard
   // teraz wola ten sam hook, więc "kalendarz nie ładuje się na dashbordzie"
@@ -135,7 +153,15 @@ export default function TasksScreen() {
   const closeComposer = () => { setComposerOpen(false); setEditingTask(null); };
 
   const handleToggleDone = (id: string) => {
+    const task = tasks.find((t) => t.id === id);
     updateTask(id, { status: 'done', updatedAt: new Date().toISOString() });
+    if (task) setJustDone(task);
+  };
+  const undoDone = () => {
+    if (!justDone) return;
+    haptic.tap();
+    updateTask(justDone.id, { status: 'pending', updatedAt: new Date().toISOString() });
+    setJustDone(null);
   };
 
   return (
@@ -169,6 +195,14 @@ export default function TasksScreen() {
             )}
             emptyText="Pusto"
           />
+          {justDone && (
+            <View style={s.undoBar}>
+              <Text style={s.undoText} numberOfLines={1}>Ukończono: {justDone.title}</Text>
+              <TouchableOpacity onPress={undoDone} hitSlop={8} activeOpacity={0.7}>
+                <Text style={s.undoBtn}>Cofnij</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           <View style={s.bottomRow}>
             <Segmented
               options={[
@@ -186,8 +220,14 @@ export default function TasksScreen() {
         </Tile>
       </Row>
 
-      <AppBottomSheet visible={composerOpen || !!editingTask} onClose={closeComposer}>
-        <AddTaskCard editingTask={editingTask} onSave={handleSaveTask} onClose={closeComposer} />
+      <AppBottomSheet visible={composerOpen || !!editingTask} onClose={closeComposer} initialFocusRef={titleRef}>
+        <AddTaskCard
+          editingTask={editingTask}
+          onSave={handleSaveTask}
+          onClose={closeComposer}
+          titleRef={titleRef}
+          knownTags={knownTags}
+        />
       </AppBottomSheet>
 
       {/* Potwierdzenie usunięcia (2026-11-08, user: "dodac... potwierdzenie
@@ -235,6 +275,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
   weekTile: { padding: 6 },
   listTile: { gap: spacing[2] },
   bottomRow: { flexDirection: 'row', gap: spacing[2], alignItems: 'center' },
+  undoBar: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[3],
+    backgroundColor: c.bg.elevated, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[2],
+  },
+  undoText: { flex: 1, fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.secondary },
+  undoBtn: { fontSize: 12.5, fontFamily: 'Inter_900Black', color: c.text.bright },
   addBtn: {
     width: 48, height: 48, borderRadius: R.btn, backgroundColor: C.hi,
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,

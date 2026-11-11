@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChevronLeft, Plus, Trash2, Bell, BellOff, Check, Edit2 } from 'lucide-react-native';
+import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { ChevronLeft, Plus, Trash2, Bell, BellOff, Check, Edit2, CalendarDays } from 'lucide-react-native';
 import * as LucideIcons from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -120,10 +121,25 @@ export default function SubscriptionsScreen() {
   const openAdd = () => { haptic.tap(); setEditing(null); setForm(emptyForm()); setFormOpen(true); };
   const openEdit = (sub: Subscription) => { haptic.tap(); setEditing(sub); setForm(subToForm(sub)); setFormOpen(true); };
 
+  const openDatePicker = () => {
+    haptic.tap();
+    const iso = parseDisplayDate(form.nextBillingDate) ?? todayISO();
+    DateTimePickerAndroid.open({
+      value: new Date(`${iso}T12:00:00`),
+      mode: 'date',
+      onChange: (event, selected) => {
+        if (event.type === 'set' && selected) setF('nextBillingDate', toDisplayDate(ymd(selected)));
+      },
+    });
+  };
+
+  const formAmount = parseFloat(form.amount.replace(',', '.'));
+  const canSave = !!form.name.trim() && !isNaN(formAmount) && formAmount > 0 && !!parseDisplayDate(form.nextBillingDate);
+
   const save = () => {
-    const amt = parseFloat(form.amount.replace(',', '.'));
+    const amt = formAmount;
     const dateIso = parseDisplayDate(form.nextBillingDate);
-    if (!form.name.trim() || isNaN(amt) || amt <= 0 || !dateIso) return;
+    if (!canSave || !dateIso) return;
     const tags = parseTags(form.tags);
     if (editing) {
       updateSubscription(editing.id, {
@@ -196,7 +212,12 @@ export default function SubscriptionsScreen() {
             </View>
 
             <Text style={[s.label, s.labelSpaced]}>Następna płatność</Text>
-            <TextInput value={form.nextBillingDate} onChangeText={(v) => setF('nextBillingDate', v)} style={s.input} placeholder="DD.MM.RRRR" placeholderTextColor={colors.text.muted} keyboardType="numeric" maxLength={10} />
+            {/* Natywny kalendarz (2026-11-11) zamiast ręcznego wpisywania
+                "DD.MM.RRRR" — ten sam picker co w wydatkach/zadaniach. */}
+            <TouchableOpacity style={[s.input, s.dateBtn]} onPress={openDatePicker} activeOpacity={0.7}>
+              <CalendarDays size={14} color={colors.text.secondary} />
+              <Text style={s.dateBtnLabel}>{form.nextBillingDate}</Text>
+            </TouchableOpacity>
 
             <Text style={[s.label, s.labelSpaced]}>Czas trwania</Text>
             <View style={s.pillRow}>
@@ -226,7 +247,7 @@ export default function SubscriptionsScreen() {
               <TouchableOpacity style={s.cancelBtn} onPress={() => setFormOpen(false)} activeOpacity={0.8}>
                 <Text style={s.cancelBtnLabel}>Odrzuć</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.addBtn, { flex: 1 }]} onPress={save} activeOpacity={0.8}>
+              <TouchableOpacity style={[s.addBtn, { flex: 1 }, !canSave && s.btnDisabled]} onPress={save} disabled={!canSave} activeOpacity={0.8}>
                 <Check size={16} color={colors.bg.primary} />
                 <Text style={s.addBtnLabel}>{editing ? 'Zapisz zmiany' : 'Dodaj'}</Text>
               </TouchableOpacity>
@@ -330,6 +351,9 @@ const makeS = themedStyles((c) => StyleSheet.create({
     paddingHorizontal: spacing[3], paddingVertical: spacing[2], fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.primary,
   },
   rowBetween: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  dateBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  dateBtnLabel: { fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  btnDisabled: { opacity: 0.4 },
 
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[2] },
   pill: { paddingHorizontal: spacing[3], paddingVertical: 8, borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default, backgroundColor: c.bg.elevated },

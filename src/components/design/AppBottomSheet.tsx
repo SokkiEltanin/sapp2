@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import {
   Modal, View, StyleSheet, ScrollView, TouchableWithoutFeedback,
-  Platform, Animated, Easing, Dimensions, Keyboard,
+  Platform, Animated, Easing, Dimensions, Keyboard, type TextInput,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
@@ -67,6 +67,7 @@ export default function AppBottomSheet({
   footer,
   scrollable = true,
   maxHeightRatio = DEFAULT_MAX_HEIGHT_RATIO,
+  initialFocusRef,
   children,
 }: {
   visible: boolean;
@@ -80,9 +81,20 @@ export default function AppBottomSheet({
   // poprosić o więcej miejsca zamiast appka globalnie zjadała więcej ekranu
   // wszędzie (np. krótkim popupom nie potrzeba 90% wysokości).
   maxHeightRatio?: number;
+  // Pole, które ma dostać fokus (i otworzyć klawiaturę) zaraz po pokazaniu
+  // sheeta (2026-11-11, user: "jak klikam plusik to podczas otwierania od razu
+  // z klawiaturą się otwierać"). Goły `autoFocus` na `TextInput` w środku
+  // RN-owego `Modal`a na Androidzie odpala się ZA WCZEŚNIE — zanim okno
+  // `Dialog`u dostanie fokus, więc klawiatura cicho się nie pokazuje. Fokus
+  // wołany z `Modal`'s `onShow` (okno już istnieje i ma fokus) działa.
+  initialFocusRef?: React.RefObject<TextInput | null>;
   children: React.ReactNode;
 }) {
   const s = makeS(maxHeightRatio);
+  const focusInitial = () => {
+    if (!initialFocusRef) return;
+    setTimeout(() => initialFocusRef.current?.focus(), 60);
+  };
   // Backdrop i sheet animowane OSOBNO, własnym JS-driven `Animated` (NIE
   // reanimated/worklets — świadomie, patrz komentarz wyżej: cel przebudowy był
   // wyeliminować tę warstwę jako podejrzaną, nie wciągnąć ją z powrotem
@@ -100,6 +112,9 @@ export default function AppBottomSheet({
   const sheetY = useRef(new Animated.Value(SHEET_OFFSET)).current;
   useEffect(() => {
     if (visible) {
+      // Ponowne otwarcie W TRAKCIE animacji zamykania — `Modal` nigdy nie
+      // zniknął, więc `onShow` się nie odpali drugi raz; fokus ręcznie.
+      if (modalVisible) focusInitial();
       setModalVisible(true);
       backdropOpacity.setValue(0);
       sheetY.setValue(SHEET_OFFSET);
@@ -160,7 +175,7 @@ export default function AppBottomSheet({
     : { style: [s.body, !!footer && s.bodyWithFooter] };
 
   return (
-    <Modal visible={modalVisible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible={modalVisible} transparent animationType="none" onRequestClose={onClose} onShow={focusInitial} statusBarTranslucent>
       {/* `GestureHandlerRootView` WŁASNY, drugi w appce (2026-11-04, user: w
           Humorze "nie mogę kliknąć" MoodPada) — `Modal` z 'react-native'
           renderuje swoją treść w OSOBNYM natywnym oknie (Android:

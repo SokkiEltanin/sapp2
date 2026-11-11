@@ -7,6 +7,7 @@ import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import Segmented from '@/components/design/Segmented';
 import Toggle from '@/components/design/Toggle';
+import NumberInput from '@/components/design/NumberInput';
 import { useWorkStore } from '@/store/workStore';
 import { useCalendarStore } from '@/store/calendarStore';
 import { useExpensesStore } from '@/store/expensesStore';
@@ -174,18 +175,20 @@ export default function WorkScreen() {
             ) : (
               <>
                 <Text style={[s.label, s.labelSpaced]}>Pensja miesięczna</Text>
-                <TextInput
-                  value={String(viewing.monthlySalary)}
-                  onChangeText={(t) => updateEmployer(viewing.id, { monthlySalary: parseFloat(t.replace(',', '.')) || 0 })}
+                <NumberInput
+                  value={viewing.monthlySalary}
+                  onChangeValue={(n) => updateEmployer(viewing.id, { monthlySalary: n ?? 0 })}
                   style={s.input}
-                  keyboardType="decimal-pad"
+                  placeholder="np. 4500"
+                  placeholderTextColor={colors.text.muted}
                 />
                 <Text style={[s.label, s.labelSpaced]}>Godziny miesięcznie</Text>
-                <TextInput
-                  value={String(viewing.hoursPerMonth)}
-                  onChangeText={(t) => updateEmployer(viewing.id, { hoursPerMonth: parseFloat(t.replace(',', '.')) || 0 })}
+                <NumberInput
+                  value={viewing.hoursPerMonth}
+                  onChangeValue={(n) => updateEmployer(viewing.id, { hoursPerMonth: n ?? 0 })}
                   style={s.input}
-                  keyboardType="decimal-pad"
+                  placeholder="np. 160"
+                  placeholderTextColor={colors.text.muted}
                 />
               </>
             )}
@@ -203,18 +206,20 @@ export default function WorkScreen() {
                   <>
                     <Text style={s.hiddenNote}>Poniższe liczą się TYLKO dopóki appka nie ma jeszcze żadnej realnej wypłaty/zmiany do policzenia z prefiksu — potem są ignorowane.</Text>
                     <Text style={[s.label, s.labelSpaced]}>Pensja miesięczna (zapasowa)</Text>
-                    <TextInput
-                      value={String(viewing.monthlySalary)}
-                      onChangeText={(t) => updateEmployer(viewing.id, { monthlySalary: parseFloat(t.replace(',', '.')) || 0 })}
+                    <NumberInput
+                      value={viewing.monthlySalary}
+                      onChangeValue={(n) => updateEmployer(viewing.id, { monthlySalary: n ?? 0 })}
                       style={s.input}
-                      keyboardType="decimal-pad"
+                      placeholder="np. 4500"
+                      placeholderTextColor={colors.text.muted}
                     />
                     <Text style={[s.label, s.labelSpaced]}>Godziny miesięcznie (zapasowe)</Text>
-                    <TextInput
-                      value={String(viewing.hoursPerMonth)}
-                      onChangeText={(t) => updateEmployer(viewing.id, { hoursPerMonth: parseFloat(t.replace(',', '.')) || 0 })}
+                    <NumberInput
+                      value={viewing.hoursPerMonth}
+                      onChangeValue={(n) => updateEmployer(viewing.id, { hoursPerMonth: n ?? 0 })}
                       style={s.input}
-                      keyboardType="decimal-pad"
+                      placeholder="np. 160"
+                      placeholderTextColor={colors.text.muted}
                     />
                     <Text style={[s.label, s.labelSpaced]}>Albo kolor wydarzenia (hex, zamiast/obok prefiksu)</Text>
                     <TextInput
@@ -228,29 +233,26 @@ export default function WorkScreen() {
                   </>
                 )}
                 <Text style={[s.label, s.labelSpaced]}>Stała stawka zł/h (nadpisuje wszystko)</Text>
-                <TextInput
-                  value={viewing.rateOverride != null ? String(viewing.rateOverride) : ''}
-                  onChangeText={(t) => updateEmployer(viewing.id, { rateOverride: t ? (parseFloat(t.replace(',', '.')) || undefined) : undefined })}
+                <NumberInput
+                  value={viewing.rateOverride}
+                  onChangeValue={(n) => updateEmployer(viewing.id, { rateOverride: n || undefined })}
                   style={s.input}
-                  keyboardType="decimal-pad"
                   placeholder="np. 35"
                   placeholderTextColor={colors.text.muted}
                 />
                 <Text style={[s.label, s.labelSpaced]}>Nadpisanie godzin (ostatni miesiąc)</Text>
-                <TextInput
-                  value={viewing.hoursOverride != null ? String(viewing.hoursOverride) : ''}
-                  onChangeText={(t) => updateEmployer(viewing.id, { hoursOverride: t ? (parseFloat(t.replace(',', '.')) || undefined) : undefined })}
+                <NumberInput
+                  value={viewing.hoursOverride}
+                  onChangeValue={(n) => updateEmployer(viewing.id, { hoursOverride: n || undefined })}
                   style={s.input}
-                  keyboardType="decimal-pad"
                   placeholder="np. 160"
                   placeholderTextColor={colors.text.muted}
                 />
                 <Text style={[s.label, s.labelSpaced]}>Nadpisanie kwoty wypłaty</Text>
-                <TextInput
-                  value={viewing.salaryOverride != null ? String(viewing.salaryOverride) : ''}
-                  onChangeText={(t) => updateEmployer(viewing.id, { salaryOverride: t ? (parseFloat(t.replace(',', '.')) || undefined) : undefined })}
+                <NumberInput
+                  value={viewing.salaryOverride}
+                  onChangeValue={(n) => updateEmployer(viewing.id, { salaryOverride: n || undefined })}
                   style={s.input}
-                  keyboardType="decimal-pad"
                   placeholder="np. 4200"
                   placeholderTextColor={colors.text.muted}
                 />

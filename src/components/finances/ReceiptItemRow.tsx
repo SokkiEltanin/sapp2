@@ -8,6 +8,7 @@ import { FOOD_SUBCATS, FOOD_SUBCAT_META } from '@/utils/food';
 import { NON_FOOD_SUBCATS, NON_FOOD_SUBCAT_META } from '@/utils/nonFood';
 import { suggestSimilarName, priceFor, priceAnomaly, type PriceMemory } from '@/utils/productMemory';
 import { haptic } from '@/utils/haptics';
+import NumberInput from '@/components/design/NumberInput';
 
 // Zaokrąglenie DO WYŚWIETLENIA (user, 2026-11-01: "z owoców przeliczyło i
 // wywaliło dużo liczb po przecinku... max 3 po przecinku") — wagi (owoce/warzywa
@@ -70,9 +71,8 @@ export default function ReceiptItemRow({
     setNameSuggestion(null);
   };
 
-  const setNum = (field: 'quantity' | 'unitPrice' | 'price', raw: string) => {
-    const n = parseFloat(raw.replace(',', '.'));
-    const v = isNaN(n) ? 0 : n;
+  const setNum = (field: 'quantity' | 'unitPrice' | 'price', n: number | undefined) => {
+    const v = n ?? 0;
     if (field === 'price') { onChange({ price: round(v, 2) }); return; }
     const quantity = round(field === 'quantity' ? v : item.quantity, 3);
     const unitPrice = round(field === 'unitPrice' ? v : item.unitPrice, 2);
@@ -122,24 +122,24 @@ export default function ReceiptItemRow({
       )}
 
       <View style={s.numLine}>
-        <TextInput
-          value={String(round(item.quantity, 3))}
-          onChangeText={(v) => setNum('quantity', v)}
-          keyboardType="decimal-pad"
+        {/* `NumberInput` (2026-11-11) — wcześniej `value={String(liczba)}` +
+            parsowanie co znak: "0," → 0 → "0", więc wagi typu "0,5 kg" nie
+            dało się w ogóle wpisać. */}
+        <NumberInput
+          value={round(item.quantity, 3)}
+          onChangeValue={(n) => setNum('quantity', n)}
           style={s.numInput}
         />
         <Text style={s.numSep}>×</Text>
-        <TextInput
-          value={String(round(item.unitPrice, 2))}
-          onChangeText={(v) => setNum('unitPrice', v)}
-          keyboardType="decimal-pad"
+        <NumberInput
+          value={round(item.unitPrice, 2)}
+          onChangeValue={(n) => setNum('unitPrice', n)}
           style={s.numInput}
         />
         <Text style={s.numSep}>=</Text>
-        <TextInput
-          value={String(round(item.price, 2))}
-          onChangeText={(v) => setNum('price', v)}
-          keyboardType="decimal-pad"
+        <NumberInput
+          value={round(item.price, 2)}
+          onChangeValue={(n) => setNum('price', n)}
           style={[s.numInput, s.priceInput]}
         />
         <Text style={s.currency}>zł</Text>

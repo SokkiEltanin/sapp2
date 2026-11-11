@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import { Plus, Package, Car, ChevronRight } from 'lucide-react-native';
@@ -77,6 +77,7 @@ export default function FinancesScreen() {
   const [offset, setOffset] = useState(0);
   const [editingBalance, setEditingBalance] = useState(false);
   const [balanceInput, setBalanceInput] = useState('');
+  const balanceInputRef = useRef<TextInput>(null);
 
   // Udostępnienie paragonu przez Android Share Sheet (2026-11-09) — `_layout.tsx`'s
   // `useShareReceiptLaunch` drenuje natywnie zapisany tekst i odkłada go tu, bo to ten
@@ -312,17 +313,17 @@ export default function FinancesScreen() {
         onEditExpense={(e) => setEditingExpense(e)}
       />
 
-      <AppBottomSheet visible={editingBalance} onClose={() => setEditingBalance(false)} scrollable={false}>
+      <AppBottomSheet visible={editingBalance} onClose={() => setEditingBalance(false)} scrollable={false} initialFocusRef={balanceInputRef}>
         <View style={s.editCard}>
           <Text style={s.editTitle}>Ustaw aktualne saldo</Text>
           <Text style={s.editHint}>Tyle realnie masz teraz na koncie — appka doliczy od tego wszystkie kolejne wydatki/przychody kartą.</Text>
           <View style={s.editInputRow}>
             <TextInput
+              ref={balanceInputRef}
               value={balanceInput}
               onChangeText={setBalanceInput}
               keyboardType="decimal-pad"
               style={s.editInput}
-              autoFocus
               onSubmitEditing={saveBalance}
             />
             <Text style={s.editCurrency}>zł</Text>

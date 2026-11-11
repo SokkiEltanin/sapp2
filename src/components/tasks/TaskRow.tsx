@@ -3,6 +3,7 @@ import { Circle, CheckCircle2, Trash2 } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { haptic } from '@/utils/haptics';
+import { deadlineLabel } from '@/utils/taskDeadline';
 import type { Task } from '@/types/calendar';
 
 // Wiersz zadania — kosz z LEWEJ (tap = ZAPYTAJ o potwierdzenie, patrz
@@ -32,6 +33,9 @@ export default function TaskRow({
   onEdit: (task: Task) => void;
 }) {
   const s = makeS();
+  // Termin widoczny na wierszu (2026-11-11) — lista była sortowana po terminie,
+  // ale sam termin nigdzie się nie pokazywał; zaległy na czerwono.
+  const due = task.deadline ? deadlineLabel(task.deadline) : null;
   return (
     <View style={[s.row, !isLast && s.rowDivider]}>
       <TouchableOpacity onPress={() => { haptic.tap(); onRequestDelete(task); }} hitSlop={8}>
@@ -39,8 +43,9 @@ export default function TaskRow({
       </TouchableOpacity>
       <TouchableOpacity style={s.content} onPress={() => { haptic.tap(); onEdit(task); }} activeOpacity={0.7}>
         <Text style={s.title} numberOfLines={2}>{task.title}</Text>
-        {task.tags.length > 0 && (
+        {(due || task.tags.length > 0) && (
           <View style={s.tags}>
+            {due && <Text style={[s.dueLabel, due.overdue && s.dueOverdue]}>{due.text}</Text>}
             {task.tags.map((tag) => (
               <View key={tag} style={s.tagChip}>
                 <Text style={s.tagLabel}>{tag}</Text>
@@ -66,7 +71,9 @@ const makeS = themedStyles((c) => StyleSheet.create({
   rowDivider: { borderBottomWidth: 1, borderBottomColor: c.border.subtle },
   content: { flex: 1, gap: 4 },
   title: { fontSize: 13.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
-  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
+  dueLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  dueOverdue: { color: c.accent.red },
   tagChip: { backgroundColor: c.chart.muted, borderRadius: radius.sm, paddingHorizontal: 6, paddingVertical: 2 },
   tagLabel: { fontSize: 9.5, fontFamily: 'Inter_900Black', color: '#FFFFFF' },
 }));

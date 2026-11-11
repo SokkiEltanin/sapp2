@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { ymd, todayISO } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
+import { deadlineHasTime, parseDeadline } from '@/utils/taskDeadline';
 import type { Task } from '@/types/calendar';
 
 // Dodawanie zadania (2026-10-30, user: "może od razu z... działające zadania"). Jedno
@@ -51,16 +52,9 @@ const DEADLINE_OPTIONS = [
 ] as const;
 type DeadlineChoice = (typeof DEADLINE_OPTIONS)[number]['key'] | 'custom';
 
-// Parsuje zarówno stare, "data-only" deadliny (`YYYY-MM-DD`, bez godziny — jak
-// zapisywały dotychczasowe szybkie opcje) jak i nowe precyzyjne
-// (`YYYY-MM-DDTHH:MM:00`, lokalny czas bez strefy — ten sam zapis co
-// `eventStart()` w `app/(tabs)/index.tsx` już używa gdzie indziej w appce).
-function parseDeadline(deadline: string): Date {
-  return deadline.includes('T') ? new Date(deadline) : new Date(`${deadline}T00:00:00`);
-}
-
-function formatCustomLabel(d: Date): string {
+function formatCustomLabel(d: Date, hasTime: boolean): string {
   const day = d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+  if (!hasTime) return day;
   const time = d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
   return `${day} · ${time}`;
 }
@@ -69,34 +63,46 @@ export default function AddTaskCard({
   editingTask,
   onSave,
   onClose,
+  titleRef,
+  knownTags = [],
 }: {
   editingTask?: Task | null;
   onSave: (input: { title: string; tags: string[]; deadline?: string }) => void;
   onClose: () => void;
+  // Fokus (i klawiatura) z rodzica przez `AppBottomSheet`'s `initialFocusRef`
+  // (2026-11-11) — goły `autoFocus` w RN `Modal`u na Androidzie nie otwierał
+  // klawiatury, patrz komentarz w AppBottomSheet.tsx.
+  titleRef?: RefObject<TextInput | null>;
+  // Tagi już użyte w innych zadaniach (2026-11-11) — szybki wybór jednym
+  // stuknięciem zamiast przepisywać "UR" za każdym razem.
+  knownTags?: string[];
 }) {
   const s = makeS();
   const [title, setTitle] = useState('');
   const [tag, setTag] = useState('');
   const [deadlineChoice, setDeadlineChoice] = useState<DeadlineChoice>('none');
   const [customDeadline, setCustomDeadline] = useState<Date | null>(null);
+  // Edytowany deadline date-only (z szybkich chipów) NIE ma godziny — bez tej
+  // flagi edycja pokazywała i zapisywała sztuczne "00:00" (2026-11-11).
+  const [customHasTime, setCustomHasTime] = useState(false);
 
   useEffect(() => {
-    if (editingTask) {
-      setTitle(editingTask.title);
-      setTag(editingTask.tags[0] ?? '');
-      if (editingTask.deadline) {
-        setDeadlineChoice('custom');
-        setCustomDeadline(parseDeadline(editingTask.deadline));
-      } else {
-        setDeadlineChoice('none');
-        setCustomDeadline(null);
-      }
-    } else {
-      setTitle('');
-      setTag('');
+    setTitle(editingTask?.title ?? '');
+    setTag(editingTask?.tags[0] ?? '');
+    const dl = editingTask?.deadline;
+    if (!dl) {
       setDeadlineChoice('none');
       setCustomDeadline(null);
+      setCustomHasTime(false);
+      return;
     }
+    // Date-only dziś/jutro wraca na swój szybki chip, reszta = "Dokładny termin".
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+    if (!deadlineHasTime(dl) && dl.slice(0, 10) === todayISO()) { setDeadlineChoice('today'); setCustomDeadline(null); return; }
+    if (!deadlineHasTime(dl) && dl.slice(0, 10) === ymd(tomorrow)) { setDeadlineChoice('tomorrow'); setCustomDeadline(null); return; }
+    setDeadlineChoice('custom');
+    setCustomDeadline(parseDeadline(dl));
+    setCustomHasTime(deadlineHasTime(dl));
   }, [editingTask]);
 
   const reset = () => {
@@ -104,8 +110,11 @@ export default function AddTaskCard({
     setTag('');
     setDeadlineChoice('none');
     setCustomDeadline(null);
+    setCustomHasTime(false);
     onClose();
   };
+
+  const tagSuggestions = knownTags.slice(0, 6);
 
   const pickCustomDeadline = () => {
     haptic.tap();
@@ -124,6 +133,7 @@ export default function AddTaskCard({
             const combined = new Date(selectedDate);
             combined.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
             setCustomDeadline(combined);
+            setCustomHasTime(true);
             setDeadlineChoice('custom');
           },
         });
@@ -139,7 +149,7 @@ export default function AddTaskCard({
     if (deadlineChoice === 'custom' && customDeadline) {
       const hh = String(customDeadline.getHours()).padStart(2, '0');
       const mm = String(customDeadline.getMinutes()).padStart(2, '0');
-      deadline = `${ymd(customDeadline)}T${hh}:${mm}:00`;
+      deadline = customHasTime ? `${ymd(customDeadline)}T${hh}:${mm}:00` : ymd(customDeadline);
     } else if (deadlineChoice !== 'none') {
       const d = new Date();
       if (deadlineChoice === 'tomorrow') d.setDate(d.getDate() + 1);
@@ -155,12 +165,15 @@ export default function AddTaskCard({
     <View style={s.card}>
       <Text style={s.title}>{editingTask ? 'Edytuj zadanie' : 'Nowe zadanie'}</Text>
       <TextInput
+        ref={titleRef}
         value={title}
         onChangeText={setTitle}
         placeholder="Co trzeba zrobić?"
         placeholderTextColor={colors.text.muted}
         style={s.titleInput}
-        autoFocus
+        returnKeyType="done"
+        onSubmitEditing={handleSave}
+        submitBehavior="blurAndSubmit"
       />
       <TextInput
         value={tag}
@@ -169,7 +182,24 @@ export default function AddTaskCard({
         placeholderTextColor={colors.text.muted}
         style={s.tagInput}
         autoCapitalize="characters"
+        returnKeyType="done"
+        onSubmitEditing={handleSave}
       />
+      {tagSuggestions.length > 0 && (
+        <View style={s.chips}>
+          {tagSuggestions.map((t) => (
+            <TouchableOpacity
+              key={t}
+              style={[s.tagChip, tag.trim() === t && s.chipActive]}
+              onPress={() => { haptic.tap(); setTag(tag.trim() === t ? '' : t); }}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.chipLabel, tag.trim() === t && s.chipLabelActive]}>#{t}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+      <Text style={s.sectionLabel}>Termin</Text>
       <View style={s.chips}>
         {DEADLINE_OPTIONS.map((opt) => (
           <TouchableOpacity
@@ -187,7 +217,7 @@ export default function AddTaskCard({
           activeOpacity={0.7}
         >
           <Text style={[s.chipLabel, deadlineChoice === 'custom' && s.chipLabelActive]}>
-            {deadlineChoice === 'custom' && customDeadline ? formatCustomLabel(customDeadline) : 'Dokładny termin'}
+            {deadlineChoice === 'custom' && customDeadline ? formatCustomLabel(customDeadline, customHasTime) : 'Dokładny termin'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -220,6 +250,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
     backgroundColor: c.bg.elevated, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[2],
   },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  tagChip: { paddingHorizontal: spacing[2], paddingVertical: 4, borderRadius: radius.sm, backgroundColor: c.bg.elevated },
+  sectionLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted, letterSpacing: 0.5, textTransform: 'uppercase', marginTop: spacing[1] },
   chip: { paddingHorizontal: spacing[2], paddingVertical: 5, borderRadius: radius.sm, backgroundColor: c.bg.elevated },
   chipActive: { backgroundColor: c.text.bright },
   chipLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.secondary },
