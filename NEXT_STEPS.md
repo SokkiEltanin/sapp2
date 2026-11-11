@@ -3958,3 +3958,22 @@ domyślnym paliwem, "oct" podpowiada "octavia".
 
 **Dalej w kolejce:** przyciski Produkty/Pojazdy w Finansach (czeka na zrzut od
 usera).
+
+## Dashboard: kafel "najbliższy event" w układzie kafla snu (2026-11-11)
+
+User (zrzut z białym kaflem i kaflem snu): "zróbmy go w taki sposób, jak jest
+sen zrobiony, że na górze będzie ilość godzin, dni, w jakim czasie się
+pojawia ten event i pod nim będzie właśnie ten napis jutro 07... tam gdzie
+jest pasek we śnie, damy ten event. A tag będzie nadal po prawej, tam gdzie
+jest ikonka księżyca".
+
+- `src/ui/DashboardScreen.tsx`: duże odliczanie (`utils/countdown.ts`'s
+  `formatCountdown` — ten sam co kafel "Odliczanie": "45 min" / "16h 11m" /
+  "2 dni 3h", "teraz" gdy już trwa), pod nim KONKRETNA pora (`whenAt`:
+  "dziś 18:00" / "jutro 07:00" / "śr. 08:00" / "25 lis 08:00" — zastąpiło
+  `relTime`'s "za 3h", które dublowałoby liczbę wyżej), tytuł na dole
+  (`space-between`, jak pasek faz snu), tag w prawym górnym rogu.
+
+**Zweryfikowane:** tsc czysty, jest 356/356, `expo web`+Playwright: event
+"[JD] 07:00 - 15:00 (8h)" jutro → "16h 11m" / "JUTRO 07:00" / tytuł / "JD"
+w rogu.
