@@ -6,6 +6,7 @@ import { spacing, radius, themedStyles } from '@/theme';
 import type { Expense } from '@/types/finances';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { haptic } from '@/utils/haptics';
+import { pendingFxOf, formatFx } from '@/utils/fx';
 
 // Pełna lista transakcji (Faza 2.4, 2026-11-01) — "Ostatnie transakcje" na ekranie
 // Finanse pokazuje TYLKO 4 pozycje (ARCHITECTURE.md §FINANSE), to tutaj żyje
@@ -83,9 +84,16 @@ export default function TransactionsModal({
               </Text>
               <Text style={s.rowDate}>{e.date}</Text>
             </View>
-            <Text style={[s.rowAmount, e.type === 'income' && s.rowAmountIncome]}>
-              {e.type === 'income' ? '+' : '−'}{e.amount.toFixed(2)} zł
-            </Text>
+            {pendingFxOf(e) ? (
+              <View style={s.fxCol}>
+                <Text style={s.fxAmount}>{formatFx(pendingFxOf(e)!)}</Text>
+                <Text style={s.fxHint}>wpisz PLN</Text>
+              </View>
+            ) : (
+              <Text style={[s.rowAmount, e.type === 'income' && s.rowAmountIncome]}>
+                {e.type === 'income' ? '+' : '−'}{e.amount.toFixed(2)} zł
+              </Text>
+            )}
           </TouchableOpacity>
         )}
       />
@@ -128,4 +136,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   rowDate: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 2 },
   rowAmount: { fontSize: 14, fontFamily: 'Inter_900Black', color: c.text.bright },
   rowAmountIncome: { color: c.accent.green },
+  fxCol: { alignItems: 'flex-end' },
+  fxAmount: { fontSize: 13, fontFamily: 'Inter_900Black', color: c.accent.red },
+  fxHint: { fontSize: 10, fontFamily: 'Inter_700Bold', color: c.accent.red, opacity: 0.8 },
 }));

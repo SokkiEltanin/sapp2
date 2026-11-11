@@ -198,7 +198,18 @@ export function Tag({ label, kind }: { label: string; kind?: 'ur' | 'fr' | 'jd' 
   );
 }
 
-export function Price({ amount }: { amount: number }) {
+// `fx` (2026-11-11, user: "wszystko co w obcej walucie musi mieć formularz do
+// wypełnienia ile to jest w PLN") — płatność w obcej walucie, jeszcze bez kwoty
+// PLN (`amount` = 0). Zamiast mylącego "−0,00" pokazuje oryginalną kwotę i
+// walutę w czerwonej obwódce — widać od razu, co trzeba uzupełnić.
+export function Price({ amount, fx }: { amount: number; fx?: { amount: number; currency: string } }) {
+  if (fx) {
+    return (
+      <View style={[st.price, { backgroundColor: 'transparent', borderWidth: 1, borderColor: C.warn }]}>
+        <Text style={[st.priceT, { color: C.warn }]}>{fx.amount.toFixed(2).replace('.', ',')} {fx.currency}</Text>
+      </View>
+    );
+  }
   const inflow = amount > 0;
   const txt = (inflow ? '+' : '−') + Math.abs(amount).toFixed(2).replace('.', ',');
   return (

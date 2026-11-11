@@ -4047,7 +4047,36 @@ stałych... żeby przenieść je do sapp2".
 `expo web`+Playwright: wklejony eksport → "Stałe opłaty: 2 nowych", Netflix
 20.09 → 20.11, tag "rozrywka", iCloud z dopiskiem EUR.
 
-**Znane, nie zrobione:** lista Stałych opłat nie pokazuje notatki, więc
-subskrypcja w EUR wygląda jak "0.99 zł/mies." i wlicza się do sumy
-miesięcznej jako PLN. Do decyzji: przeliczać (kurs?) czy tylko oznaczyć w
-wierszu.
+~~Znane: subskrypcja w EUR wyglądała jak "0.99 zł"~~ — rozwiązane, patrz
+"Obca waluta: wszędzie formularz kwoty w PLN" niżej.
+
+## Obca waluta: wszędzie formularz kwoty w PLN (2026-11-11)
+
+User: "Wszystko co w OBCEJ WALUCIE musi mieć formularz do wypełnienia ile to
+jest w PLN (ale często jednorazowo bo rynek jest płynny i to nie stałe, ale
+mało płacę w obcej walucie więc chill)". Kurs NIE jest liczony automatycznie
+— user wpisuje realną kwotę PLN z wyciągu.
+
+- **Wspólna konwencja `utils/fx.ts`** (`pendingFxOf`/`formatFx`) — obecność
+  `originalCurrency` = czeka na PLN, `amount` 0 (nic nie wnosi do sum),
+  `originalAmount` = kwota w walucie. Wydatki już tak działały (bank-ingest,
+  import), teraz też **Stałe opłaty** (nowe pola na `Subscription`).
+- **Wydatki** — formularz był (baner w `AddExpenseModal`), ale na listach taki
+  wydatek wyglądał jak zwykłe "−0,00", nic nie mówiło że trzeba go uzupełnić.
+  Teraz: `Price` (src/ui/layout.tsx) z `fx` → "22,14 EUR" w czerwonej obwódce
+  (Finanse/Ostatnie transakcje, Dashboard), `TransactionsModal` → "22,14 EUR ·
+  wpisz PLN". Finanse: plakietka w nagłówku Ostatnich transakcji ("22,14 EUR →
+  wpisz PLN" / "N w obcej walucie → wpisz PLN"), stuknięcie otwiera najstarszą
+  do uzupełnienia.
+- **Stałe opłaty** — import z sapp: obca waluta → czeka na PLN (wcześniej
+  dopisek w notatce i "0.99 zł" w sumie). Wiersz: czerwona ramka + "0,99
+  EUR/mies. · wpisz PLN", stuknięcie w wiersz otwiera edycję (wcześniej tylko
+  ikona ołówka). Formularz: baner z oryginałem, puste pole kwoty z fokusem,
+  zapis czyści oczekiwanie. Suma miesięczna: "+ N w obcej walucie".
+- Poza ekranem: "Najbliższe eventy" (Dashboard) i treść przypomnienia pokazują
+  "0,99 EUR" zamiast "0,00 zł" (`UpcomingPayment.fx`).
+
+**Zweryfikowane:** tsc czysty, jest 372/372 (5 nowych testów). `expo
+web`+Playwright: plakietka → formularz z banerem → wpisane 95,40 → wydatek
+95.4 PLN, waluta wyczyszczona, plakietka znika; iCloud 0,99 EUR → stuknięcie
+w wiersz → baner → 4,29 → zapisane, oczekiwanie wyczyszczone.

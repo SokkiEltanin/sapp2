@@ -46,6 +46,11 @@ export interface Subscription {
   durationMonths?: number; // 0/undefined = na zawsze, N = auto-wyłącz po N mies.
   startDate?: string; // potrzebne tylko gdy durationMonths > 0
   missedCycles?: number; // licznik zaległych cykli bez złapanej płatności (dane, bez UI w v1)
+  // Obca waluta czekająca na kwotę PLN (2026-11-11) — ta sama konwencja co
+  // `Expense` (patrz utils/fx.ts): obecność `originalCurrency` = czeka,
+  // `amount` = 0 dopóki user nie wpisze PLN w formularzu (zapis czyści oba).
+  originalAmount?: number;
+  originalCurrency?: string;
   createdAt: number;
   updatedAt: number;
 }

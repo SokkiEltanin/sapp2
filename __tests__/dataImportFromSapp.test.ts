@@ -210,9 +210,14 @@ describe('importSappPayload — subskrypcje', () => {
     expect(s.missedCycles).toBe(0);
   });
 
-  test('obca waluta → zostaje widoczna w notatce', () => {
+  test('obca waluta → czeka na kwotę PLN (amount 0, oryginał zachowany), notatka bez zmian', () => {
     const s = mapSubscription({ id: 'a', name: 'iCloud', amount: 0.99, currency: 'EUR', billingCycle: 'monthly', nextBillingDate: '2099-01-01', note: 'plan 50GB' }, '2026-11-11');
-    expect(s.note).toBe('plan 50GB · kwota w EUR');
+    expect([s.amount, s.originalAmount, s.originalCurrency, s.note]).toEqual([0, 0.99, 'EUR', 'plan 50GB']);
+  });
+
+  test('PLN → bez pól waluty', () => {
+    const s = mapSubscription({ id: 'a', name: 'Netflix', amount: 49.99, currency: 'PLN', billingCycle: 'monthly', nextBillingDate: '2099-01-01' }, '2026-11-11');
+    expect([s.amount, s.originalCurrency]).toEqual([49.99, undefined]);
   });
 
   test('ponowny import i ręcznie założona ta sama (nazwa+kwota) → pomijane', () => {

@@ -19,6 +19,7 @@ import { useCountdownStore } from '@/store/countdownStore';
 import { countdownParts, formatCountdown } from '@/utils/countdown';
 import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import { upcomingPayments } from '@/utils/recurringBills';
+import { pendingFxOf, type PendingFx } from '@/utils/fx';
 import { useVehiclesStore } from '@/store/vehiclesStore';
 import { nextMaintenanceDue } from '@/utils/vehicleMatch';
 import type { CalendarEvent } from '@/types/calendar';
@@ -210,7 +211,7 @@ export default function Dashboard() {
   // wypadku subskrypcja płatna raz w roku zaśmiecałaby listę miesiącami z
   // wyprzedzeniem, czego lista eventów (z natury bliskich w czasie) nie robi.
   const BILL_WINDOW_DAYS = 14;
-  type TimelineEntry = { key: string; at: Date; title: string; color: string; kind: 'event' | 'deadline' | 'bill'; minutes?: number; amount?: number };
+  type TimelineEntry = { key: string; at: Date; title: string; color: string; kind: 'event' | 'deadline' | 'bill'; minutes?: number; amount?: number; fx?: PendingFx };
   const upcomingTimeline = useMemo<TimelineEntry[]>(() => {
     const out: TimelineEntry[] = [];
     for (const e of allEvents) {
@@ -231,7 +232,7 @@ export default function Dashboard() {
     // ręcznie dodane Subskrypcje.
     for (const p of upcomingPayments(expenses, subscriptions, now)) {
       if (p.daysUntil > BILL_WINDOW_DAYS) continue;
-      out.push({ key: `b_${p.id}`, at: new Date(`${p.dueDate}T00:00:00`), title: p.name, color: colors.accent.red, kind: 'bill', amount: p.amount });
+      out.push({ key: `b_${p.id}`, at: new Date(`${p.dueDate}T00:00:00`), title: p.name, color: colors.accent.red, kind: 'bill', amount: p.amount, fx: p.fx });
     }
     return out.sort((a, b) => a.at.getTime() - b.at.getTime());
   }, [allEvents, calendarTasks, subscriptions, expenses, now]);
@@ -261,6 +262,7 @@ export default function Dashboard() {
       id: e.id,
       name: e.note || e.storeName || (e.type === 'income' ? 'Przychód' : 'Płatność'),
       amount: e.type === 'income' ? e.amount : -e.amount,
+      fx: pendingFxOf(e),
     })),
     countdown,
     upcoming: upcomingTimeline.map((x) => ({
@@ -271,6 +273,7 @@ export default function Dashboard() {
       color: x.color,
       minutes: x.minutes,
       amount: x.amount,
+      fx: x.fx,
     })),
     onOpen: (what, id) => {
       if (what === 'fact') setFactIndex((i) => ((i ?? 0) + 1) % FACTS.length);

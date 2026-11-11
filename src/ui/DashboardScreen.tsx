@@ -15,7 +15,7 @@ export type DashData = {
   fact: string;
   sleep?: { minutes: number; from: string; to: string; phases: { kind: 'deep' | 'light' | 'rem' | 'awake'; min: number }[] } | null;
   foodMonths: { label: string; value: number }[];
-  transactions: { id: string; name: string; amount: number }[];
+  transactions: { id: string; name: string; amount: number; fx?: { amount: number; currency: string } }[];
   // "Bezpieczne wydatki" ZASTĄPIONE "Odliczaniem" (2026-11-09, user: "ten
   // kafelek po prawej finansów ostatnich na dashboardzie, ten PLN per dzień"
   // — DOKŁADNIE ten kafel, nie Finanse's "Najbliższa opłata" jak pierwotnie
@@ -33,7 +33,7 @@ export type DashData = {
   // informacyjne, nie klikane, bo jest wysoko na ekranie (trudno dosięgnąć
   // kciukiem).
   nextMaintenance: { vehicleName: string; label: string; dueLabel: string; overdue: boolean } | null;
-  upcoming: { id: string; when: string; title: string; kind: 'event' | 'deadline' | 'bill'; color: string; minutes?: number; amount?: number }[];
+  upcoming: { id: string; when: string; title: string; kind: 'event' | 'deadline' | 'bill'; color: string; minutes?: number; amount?: number; fx?: { amount: number; currency: string } }[];
   onOpen: (what: string, id?: string) => void; // otwiera bottom sheet
 };
 
@@ -165,7 +165,7 @@ export function DashboardScreen(d: DashData) {
             emptyText="Brak transakcji – zaimportuj wyciąg"
             renderItem={(t) => (
               <Item onPress={() => d.onOpen('tx', t.id)}>
-                <Price amount={t.amount} />
+                <Price amount={t.amount} fx={t.fx} />
                 <Text style={[T.row, { flex: 1 }]} numberOfLines={1}>{t.name}</Text>
               </Item>
             )}
@@ -208,7 +208,7 @@ export function DashboardScreen(d: DashData) {
                   <Text style={[T.row, { flex: 1 }, important && { color: C.hi, fontFamily: F.xb }]} numberOfLines={1}>{title}</Text>
                   {x.minutes != null && x.minutes < 60 ? <Tag label={`${x.minutes} MIN`} kind="fr" /> : null}
                   {x.kind === 'deadline' ? <Tag label="TERMIN" kind="warn" /> : null}
-                  {x.kind === 'bill' && x.amount != null ? <Price amount={-x.amount} /> : null}
+                  {x.kind === 'bill' && x.amount != null ? <Price amount={-x.amount} fx={x.fx} /> : null}
                 </Item>
               );
             }}

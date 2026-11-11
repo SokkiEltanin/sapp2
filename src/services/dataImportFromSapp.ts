@@ -166,10 +166,12 @@ export function mapSubscription(s: SappSubscription, today: string): Subscriptio
   const tags = [...(s.tags ?? [])];
   const catTag = s.category ? CATEGORY_TO_TAG[s.category] : undefined;
   if (catTag && !tags.includes(catTag)) tags.push(catTag);
-  // sapp2 liczy wszystko w PLN — obca waluta zostaje widoczna w notatce,
-  // zamiast cicho udawać że "9.99" to złotówki.
+  // Obca waluta → czeka na kwotę PLN (utils/fx.ts, ta sama konwencja co
+  // wydatki): `amount` 0 (nie wlicza się do sum), oryginał w `originalAmount`/
+  // `originalCurrency`, user wpisuje PLN w formularzu Stałych opłat (2026-11-11,
+  // user: "wszystko co w obcej walucie musi mieć formularz ile to jest w PLN").
   const foreign = s.currency && s.currency.toUpperCase() !== 'PLN' ? s.currency.toUpperCase() : null;
-  const note = [s.note?.trim(), foreign ? `kwota w ${foreign}` : undefined].filter(Boolean).join(' · ') || undefined;
+  const note = s.note?.trim() || undefined;
   const billingCycle = VALID_CYCLES.includes(s.billingCycle) ? s.billingCycle : 'monthly';
   // Zaległa data z eksportu (plik mógł leżeć tygodniami) → najbliższy PRZYSZŁY
   // termin od razu przy imporcie. `missedCycles` NIE dolicza tych przesunięć —
@@ -178,7 +180,8 @@ export function mapSubscription(s: SappSubscription, today: string): Subscriptio
   const base: Subscription = {
     id: `sapp_${s.id}`,
     name: s.name,
-    amount: s.amount,
+    amount: foreign ? 0 : s.amount,
+    ...(foreign ? { originalAmount: s.amount, originalCurrency: foreign } : {}),
     billingCycle,
     nextBillingDate: rolled?.nextBillingDate ?? s.nextBillingDate,
     reminderDaysBefore: s.reminderDaysBefore ?? 0,
@@ -255,14 +258,14 @@ export function importSappPayload(raw: string): ImportResult {
   const subsStore = useSubscriptionsStore.getState();
   const existingSubIds = new Set(subsStore.subscriptions.map((s) => s.id));
   const subKey = (name: string, amount: number) => `${name.trim().toLowerCase()}|${amount.toFixed(2)}`;
-  const existingSubKeys = new Set(subsStore.subscriptions.map((s) => subKey(s.name, s.amount)));
+  const existingSubKeys = new Set(subsStore.subscriptions.map((s) => subKey(s.name, s.originalAmount ?? s.amount)));
   const today = ymdLocal(new Date());
   const newSubs: Subscription[] = [];
   let subscriptionsAdded = 0, subscriptionsSkipped = 0;
   for (const s of parsed.cloud?.subscriptions ?? []) {
     if (!s?.name || !(s.amount > 0) || !s.nextBillingDate) { subscriptionsSkipped++; continue; }
     const mapped = mapSubscription(s, today);
-    const key = subKey(mapped.name, mapped.amount);
+    const key = subKey(mapped.name, mapped.originalAmount ?? mapped.amount);
     if (existingSubIds.has(mapped.id) || existingSubKeys.has(key)) { subscriptionsSkipped++; continue; }
     newSubs.push(mapped);
     existingSubIds.add(mapped.id);

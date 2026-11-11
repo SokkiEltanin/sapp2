@@ -12,6 +12,7 @@ import { CYCLE_LABEL, CYCLE_SHORT, type BillingCycle, type Subscription } from '
 import { billTagFor, advanceNextBillingDate, rollOverdueSubscription, isDurationExpired } from '@/utils/recurringBills';
 import { todayISO, ymd } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
+import { pendingFxOf, formatFx } from '@/utils/fx';
 
 // Ekran "Stałe opłaty" / Subskrypcje (2026-11-09, user: "czy w sapp mozemy
 // eksportować szablony te do łapania powiadomien i stałych? Zeby przeniesc je do
@@ -82,7 +83,9 @@ function emptyForm(): FormState {
 }
 function subToForm(sub: Subscription): FormState {
   return {
-    name: sub.name, amount: String(sub.amount), billingCycle: sub.billingCycle,
+    // Obca waluta bez kwoty PLN → puste pole (placeholder zaprasza do wpisania),
+    // nie "0" wyglądające na już wypełnione.
+    name: sub.name, amount: pendingFxOf(sub) ? '' : String(sub.amount), billingCycle: sub.billingCycle,
     nextBillingDate: toDisplayDate(sub.nextBillingDate),
     durationMonths: sub.durationMonths ?? 0, reminderDaysBefore: sub.reminderDaysBefore,
     tags: (sub.tags ?? []).join(', '), note: sub.note ?? '',
@@ -133,6 +136,8 @@ export default function SubscriptionsScreen() {
     });
   };
 
+  const editingFx = editing ? pendingFxOf(editing) : undefined;
+  const pendingFxCount = useMemo(() => subscriptions.filter((x) => x.active && pendingFxOf(x)).length, [subscriptions]);
   const formAmount = parseFloat(form.amount.replace(',', '.'));
   const canSave = !!form.name.trim() && !isNaN(formAmount) && formAmount > 0 && !!parseDisplayDate(form.nextBillingDate);
 
@@ -146,6 +151,9 @@ export default function SubscriptionsScreen() {
         name: form.name.trim(), amount: amt, billingCycle: form.billingCycle, nextBillingDate: dateIso,
         durationMonths: form.durationMonths, reminderDaysBefore: form.reminderDaysBefore,
         tags, note: form.note.trim() || undefined,
+        // Zapis = wpisana realna kwota PLN, więc oczekiwanie na przeliczenie
+        // waluty znika (ta sama konwencja co AddExpenseModal).
+        originalAmount: undefined, originalCurrency: undefined,
       });
     } else {
       addSubscription({
@@ -185,6 +193,7 @@ export default function SubscriptionsScreen() {
             <View style={s.summaryItem}>
               <Text style={s.summaryVal}>{monthlyTotal.toFixed(2)} zł</Text>
               <Text style={s.summaryLabel}>miesięcznie</Text>
+              {pendingFxCount > 0 && <Text style={s.fxSummary}>+ {pendingFxCount} w obcej walucie</Text>}
             </View>
             <View style={s.summaryDivider} />
             <View style={s.summaryItem}>
@@ -197,10 +206,15 @@ export default function SubscriptionsScreen() {
         {formOpen && (
           <View style={s.card}>
             <Text style={s.label}>Nazwa</Text>
-            <TextInput value={form.name} onChangeText={(v) => setF('name', v)} style={s.input} placeholder="Netflix, Spotify, siłownia..." placeholderTextColor={colors.text.muted} autoFocus />
+            <TextInput value={form.name} onChangeText={(v) => setF('name', v)} style={s.input} placeholder="Netflix, Spotify, siłownia..." placeholderTextColor={colors.text.muted} autoFocus={!editingFx} />
 
             <Text style={[s.label, s.labelSpaced]}>Kwota (zł)</Text>
-            <TextInput value={form.amount} onChangeText={(v) => setF('amount', v)} style={s.input} placeholder="49.99" placeholderTextColor={colors.text.muted} keyboardType="decimal-pad" />
+            {editingFx && (
+              <Text style={s.fxBanner}>
+                Płatność w obcej walucie: {formatFx(editingFx)}. Wpisz ile to w PLN (z wyciągu) — kurs się zmienia, więc w razie czego popraw przy kolejnej płatności.
+              </Text>
+            )}
+            <TextInput value={form.amount} onChangeText={(v) => setF('amount', v)} style={s.input} placeholder="49.99" placeholderTextColor={colors.text.muted} keyboardType="decimal-pad" autoFocus={!!editingFx} />
 
             <Text style={[s.label, s.labelSpaced]}>Cykl</Text>
             <View style={s.pillRow}>
@@ -300,18 +314,21 @@ function SubRow({ sub, s, onEdit, onDelete, onToggle }: {
   const Icon = bill ? (LucideIcons as any)[bill.icon] : null;
   const days = daysUntil(sub.nextBillingDate);
   const color = urgencyColor(days);
+  const fx = pendingFxOf(sub);
 
   return (
-    <View style={[s.item, !sub.active && s.itemInactive]}>
+    <View style={[s.item, !sub.active && s.itemInactive, fx && s.itemFx]}>
       <View style={[s.itemIcon, { backgroundColor: color + '18' }]}>
         {Icon ? <Icon size={16} color={sub.active ? color : colors.text.muted} /> : <Bell size={14} color={sub.active ? color : colors.text.muted} />}
       </View>
-      <View style={s.itemBody}>
+      <TouchableOpacity style={s.itemBody} onPress={() => onEdit(sub)} activeOpacity={0.7}>
         <Text style={[s.itemName, !sub.active && { color: colors.text.muted }]} numberOfLines={1}>{sub.name}</Text>
         <Text style={s.itemSub} numberOfLines={1}>
-          {sub.amount.toFixed(2)} zł{CYCLE_SHORT[sub.billingCycle]} · {toDisplayDate(sub.nextBillingDate)}
+          {fx ? (
+            <Text style={s.fxText}>{formatFx(fx)}{CYCLE_SHORT[sub.billingCycle]} · wpisz PLN</Text>
+          ) : `${sub.amount.toFixed(2)} zł${CYCLE_SHORT[sub.billingCycle]}`} · {toDisplayDate(sub.nextBillingDate)}
         </Text>
-      </View>
+      </TouchableOpacity>
       <View style={s.itemActions}>
         <View style={[s.daysBadge, { backgroundColor: sub.active ? color + '20' : 'transparent' }]}>
           <Text style={[s.daysBadgeLabel, { color: sub.active ? color : colors.text.muted }]}>{sub.active ? nextLabel(days) : 'off'}</Text>
@@ -378,6 +395,10 @@ const makeS = themedStyles((c) => StyleSheet.create({
 
   item: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default, padding: spacing[3] },
   itemInactive: { opacity: 0.5 },
+  itemFx: { borderColor: c.accent.red },
+  fxText: { color: c.accent.red, fontFamily: 'Inter_700Bold' },
+  fxBanner: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.accent.red, marginTop: spacing[2], lineHeight: 16 },
+  fxSummary: { fontSize: 10, fontFamily: 'Inter_700Bold', color: c.accent.red, marginTop: 2 },
   itemIcon: { width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   itemBody: { flex: 1, gap: 2 },
   itemName: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary },

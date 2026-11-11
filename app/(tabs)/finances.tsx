@@ -22,6 +22,7 @@ import { buildProductCatalog } from '@/utils/productCatalog';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
 import { haptic } from '@/utils/haptics';
 import { todayISO } from '@/utils/date';
+import { pendingFxOf, formatFx } from '@/utils/fx';
 import type { Expense } from '@/types/finances';
 
 // Faza 3.10 (design/rn kit) — Finanse przebudowane na kitu's `src/ui/layout.tsx`
@@ -154,6 +155,13 @@ export default function FinancesScreen() {
     [expenses],
   );
   const productCount = useMemo(() => buildProductCatalog(expenses).length, [expenses]);
+  // Płatności w obcej walucie bez kwoty PLN (2026-11-11) — widoczny licznik w
+  // nagłówku "Ostatnich transakcji", stuknięcie otwiera najstarszą do
+  // uzupełnienia (po zapisie licznik spada, kolejne stuknięcie → następna).
+  const pendingFx = useMemo(
+    () => expenses.filter((e) => pendingFxOf(e)).sort((a, b) => a.date.localeCompare(b.date)),
+    [expenses],
+  );
 
   const splitTotal = useMemo(
     () => parseZl(wydatkiData.fixed.total) + parseZl(wydatkiData.food.total) + parseZl(wydatkiData.variable.total),
@@ -258,6 +266,19 @@ export default function FinancesScreen() {
             disabled={expenses.length === 0}
           >
             <Text style={T.cap}>Ostatnie transakcje</Text>
+            {pendingFx.length > 0 && (
+              <TouchableOpacity
+                style={s.fxBadge}
+                onPress={() => { haptic.tap(); setEditingExpense(pendingFx[0]); }}
+                hitSlop={6}
+                activeOpacity={0.7}
+                accessibilityLabel="Uzupełnij kwotę w PLN"
+              >
+                <Text style={s.fxBadgeText}>
+                  {pendingFx.length === 1 ? `${formatFx(pendingFxOf(pendingFx[0])!)} → wpisz PLN` : `${pendingFx.length} w obcej walucie → wpisz PLN`}
+                </Text>
+              </TouchableOpacity>
+            )}
             {expenses.length > 0 && (
               <View style={s.seeAllRow}>
                 <Text style={T.capR}>wszystkie</Text>
@@ -270,7 +291,7 @@ export default function FinancesScreen() {
             emptyText="Brak transakcji — dodaj pierwszą przyciskiem +"
             renderItem={(e) => (
               <Item onPress={() => setEditingExpense(e)}>
-                <Price amount={e.type === 'income' ? e.amount : -e.amount} />
+                <Price amount={e.type === 'income' ? e.amount : -e.amount} fx={pendingFxOf(e)} />
                 <View style={s.txTextCol}>
                   <Text style={T.row} numberOfLines={1}>{e.storeName || e.note || (e.type === 'income' ? 'Przychód' : 'Wydatek')}</Text>
                   <Text style={T.rowSub} numberOfLines={1}>{e.date}</Text>
@@ -345,6 +366,8 @@ export default function FinancesScreen() {
 const makeS = themedStyles((c) => StyleSheet.create({
   capRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   seeAllRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  fxBadge: { flexShrink: 1, marginHorizontal: 8, borderWidth: 1, borderColor: C.warn, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  fxBadgeText: { fontSize: 10, fontFamily: 'Inter_700Bold', color: C.warn },
 
   balanceCur: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.mut },
   balanceSumRow: { flexDirection: 'row', gap: spacing[4], marginTop: spacing[2] },

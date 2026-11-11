@@ -48,3 +48,10 @@ describe('planBillReminders', () => {
     expect(r.dueDate).toBe('2026-11-20');
   });
 });
+
+describe('planBillReminders — obca waluta', () => {
+  test('subskrypcja bez kwoty PLN → treść z oryginałem, nie "0,00 zł"', () => {
+    const [r] = planBillReminders([sub({ amount: 0, originalAmount: 0.99, originalCurrency: 'EUR' })], now);
+    expect(r.body).toBe('0,99 EUR · płatność 20 lis');
+  });
+});

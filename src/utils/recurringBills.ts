@@ -1,6 +1,7 @@
 import type { Expense } from '@/types/finances';
 import type { Subscription, BillingCycle } from '@/types/subscriptions';
 import { addMonthsClipped, addYearsClipped, ymdLocal } from '@/utils/dateMath';
+import { pendingFxOf, type PendingFx } from '@/utils/fx';
 
 // Port z sapp (src/utils/recurringBills.ts). Słownik rachunków + dopasowanie tekstu
 // (`looksLikeBill`/`billTagFor`) — logika 1:1, bez zmian. 2026-11-09 (user: "czy w
@@ -189,6 +190,9 @@ export interface UpcomingPayment {
   daysUntil: number;
   dueDate: string; // YYYY-MM-DD
   icon?: string; // tylko 'bill' (BILL_TYPES'owa ikona) — subskrypcja nie ma własnej
+  // Subskrypcja w obcej walucie jeszcze bez kwoty PLN (utils/fx.ts) — `amount` 0,
+  // wołający pokazuje oryginał zamiast "0,00".
+  fx?: PendingFx;
 }
 
 // Łączy realne Subskrypcje z PRZEWIDYWANYMI terminami rozpoznanych rachunków
@@ -199,7 +203,7 @@ export function upcomingPayments(expenses: Expense[], subs: Subscription[], now:
   const today = new Date(now); today.setHours(0, 0, 0, 0);
   const out: UpcomingPayment[] = [];
   for (const { sub, daysUntil } of upcomingSubscriptions(subs, now)) {
-    out.push({ id: sub.id, kind: 'subscription', name: sub.name, amount: sub.amount, daysUntil, dueDate: sub.nextBillingDate });
+    out.push({ id: sub.id, kind: 'subscription', name: sub.name, amount: sub.amount, daysUntil, dueDate: sub.nextBillingDate, fx: pendingFxOf(sub) });
   }
   for (const b of detectRecurringBills(expenses, subs)) {
     const dueDate = nextBillingDate(b.dayOfMonth, today);
