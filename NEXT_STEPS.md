@@ -2356,7 +2356,8 @@ ikon/"Zgoda"/opisy-podtytuły pod etykietami (realna, celowo dodana wcześniej
 w tej sesji wartość, nie niedopasowanie stylu).
 
 **DO PRZETESTOWANIA NA URZĄDZENIU**:
-- Ustawienia po otwarciu powinny pokazywać WSZYSTKIE sekcje naraz (Konto/
+- (NIEAKTUALNE od 2026-11-11 — Ustawienia są znów zwiniętymi kategoriami,
+  patrz "Ustawienia: zwinięte kategorie" na końcu pliku.) Ustawienia po otwarciu powinny pokazywać WSZYSTKIE sekcje naraz (Konto/
   Ogólne/Info/Diagnostyka/Alerty/Finanse), bez tapowania w kafel-kategorię —
   jeśli widać listę "kategorii ze strzałką", to regresja.
 - Przełączniki (Wibracje w Ogólne, Powiadomienia z banku + Dodawaj
@@ -4138,3 +4139,28 @@ opis powinien zmienić się na "ostatnia: <dziś, godzina>". Jeśli pokaże "bra
 uprawnień do zapisu w Firestore" — reguły bazy w konsoli Firebase nie
 pozwalają pisać do `users/{uid}/backup` (wtedy trzeba dodać regułę: zalogowany
 user może czytać/pisać `users/{jego uid}/**`).
+
+## Ustawienia: zwinięte kategorie + panele od dołu (2026-11-11)
+
+User: "ustawienia ogarnij lepiej żeby były posegregowane i domyślnie zwinięte
+albo odpalały karty nowe albo jak inne od dołu wysuwane, bo teraz rozwija lista
+długa". Zastępuje "wszystkie sekcje naraz" z 2026-11-02 (wtedy dopasowanie do
+makiety, ale lista urosła do ~30 wierszy z Bankiem/Danymi/Alertami).
+
+- Główny ekran: tylko kategorie — Konto, Połączenia, Finanse, Dane, Ogólne, a
+  pod "ZAAWANSOWANE" rzadko używane Alerty i Diagnostyka. Każda z jedną
+  linijką STANU (np. "kopia w chmurze: dziś 14:32", "3 płatności z banku do
+  zatwierdzenia", "zegarek niepołączony") — widać czy coś wymaga uwagi bez
+  wchodzenia. `SettingsSection` dostał `icon`/`summary`/`group`.
+- Stuknięcie → `AppBottomSheet` z wierszami kategorii (ten sam `renderItem`,
+  przełączniki/akcje bez zmian). Log testów renderuje się W panelu, pod
+  przyciskami (wcześniej na samym dole długiej listy).
+- Akcje przechodzące na inny ekran (Import z sapp, Płatności do zatwierdzenia,
+  Historia, Wyloguj) najpierw zamykają panel (`leave()`) — panel to osobne okno
+  `Modal`, zostałby na wierzchu nowego ekranu.
+- Szukajka bez zmian: płaska lista trafień ze wszystkich kategorii.
+
+**Zweryfikowane:** tsc czysty, jest 381/381. `expo web`+Playwright: główny
+ekran z kategoriami i stanami, panel Finanse, szukanie "kopia" znajduje
+pozycję z Danych, "Importuj dane z sapp" przenosi na /import-sapp bez panelu
+na wierzchu, log testu Firestore widoczny w panelu Diagnostyki.

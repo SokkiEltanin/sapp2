@@ -56,7 +56,13 @@ type SettingsItem =
   | { kind: 'value'; key: string; label: string; description: string; icon: Icon; value: string; tier?: 'sub' }
   | { kind: 'switch'; key: string; label: string; description: string; icon: Icon; value: boolean; tier?: 'sub' };
 
-type SettingsSection = { id: string; title: string; items: SettingsItem[] };
+// `icon`/`summary`/`group` (2026-11-11, user: "ustawienia ogarnij lepiej żeby były
+// posegregowane i domyślnie zwinięte... albo jak inne od dołu wysuwane, bo teraz
+// rozwija lista długa") — główny ekran pokazuje TYLKO kategorie (ikona + jedna
+// linijka stanu), zawartość wysuwa się od dołu w `AppBottomSheet`, jak reszta appki.
+type SettingsSection = {
+  id: string; title: string; icon: Icon; summary: string; group: 'main' | 'advanced'; items: SettingsItem[];
+};
 
 // Sekcje Ustawień (2026-10-28, user: "ustawienia jak w sap musimy podzielić żeby mieć
 // INFO, DIAGNOSTYKĘ, FINANSE itp") — podział na `SettingsSection`y, każda renderowana
@@ -84,7 +90,8 @@ function buildSections(
 ): SettingsSection[] {
   return [
   {
-    id: 'konto', title: 'Konto',
+    id: 'konto', title: 'Konto', icon: UserIcon, group: 'main',
+    summary: email ?? 'niezalogowany',
     items: [
       { kind: 'value', key: 'account-email', label: 'Zalogowano jako', description: 'konto google', icon: UserIcon, value: email ?? '—' },
       { kind: 'action', key: 'account-logout', label: 'Wyloguj', description: 'wyloguj z konta google', icon: LogOut },
@@ -96,7 +103,8 @@ function buildSections(
   // (jak bank-notif-access) bo to prowadzi do systemowego dialogu zgody, nie
   // zwykłego ustawienia appki które appka sama kontroluje.
   {
-    id: 'polaczenia', title: 'Połączenia',
+    id: 'polaczenia', title: 'Połączenia', icon: Watch, group: 'main',
+    summary: health.connected ? 'Galaxy Watch / Health Connect połączony' : 'zegarek niepołączony',
     items: [
       {
         kind: 'action', key: 'health-connect', label: 'Galaxy Watch / Health Connect', permission: true,
@@ -116,7 +124,9 @@ function buildSections(
   // "historia żebym mógł cofnąć albo stworzyć szablon") dodaje "Historia i szablony"
   // (app/bank-history.tsx) — cofnij/"Stwórz szablon" opisane tam i w bank-review.tsx.
   {
-    id: 'finanse', title: 'Finanse',
+    id: 'finanse', title: 'Finanse', icon: Landmark, group: 'main',
+    summary: !bank.enabled ? 'powiadomienia z banku wyłączone · import z sapp'
+      : bank.pending > 0 ? `${bank.pending} płatności z banku do zatwierdzenia` : 'powiadomienia z banku włączone',
     items: [
       {
         kind: 'switch', key: 'bank-enabled', label: 'Powiadomienia z banku',
@@ -145,7 +155,8 @@ function buildSections(
   // Kopia zapasowa w chmurze (2026-11-11) — WSZYSTKIE dane sapp2 żyły dotąd
   // tylko w pamięci telefonu (patrz src/services/cloudBackup.ts).
   {
-    id: 'dane', title: 'Dane',
+    id: 'dane', title: 'Dane', icon: CloudUpload, group: 'main',
+    summary: backup.error ? `kopia: błąd — ${backup.error}` : backup.lastAt ? `kopia w chmurze: ${fmtBackupDate(backup.lastAt)}` : 'brak kopii w chmurze',
     items: [
       {
         kind: 'switch', key: 'backup-auto', label: 'Kopia w chmurze',
@@ -169,7 +180,8 @@ function buildSections(
   // dostępna z kodu, po prostu nie zaśmieca listy czterema niemal identycznymi
   // przyciskami).
   {
-    id: 'alerty', title: 'Alerty',
+    id: 'alerty', title: 'Alerty', icon: Bell, group: 'advanced',
+    summary: 'testy powiadomień, bateria, dokładne alarmy',
     items: [
       { kind: 'action', key: 'alert-expo', label: 'Podstawowy', description: 'zwykłe powiadomienie (max priorytet), bez pełnego ekranu', icon: Bell },
       { kind: 'action', key: 'alert-notifee-buttons', label: 'Pełny ekran + Tak/Nie', description: 'nad blokadą ekranu, z przyciskami odpowiedzi', icon: AlertTriangle },
@@ -180,7 +192,8 @@ function buildSections(
     ],
   },
   {
-    id: 'ogolne', title: 'Ogólne',
+    id: 'ogolne', title: 'Ogólne', icon: Vibrate, group: 'main',
+    summary: `wibracje ${hapticsEnabled ? 'włączone' : 'wyłączone'}`,
     items: [
       { kind: 'switch', key: 'haptics-enabled', label: 'Wibracje', description: 'delikatne kliknięcie przy tapach w appce', icon: Vibrate, value: hapticsEnabled },
     ],
@@ -189,7 +202,8 @@ function buildSections(
   // (wersja/build/data/commit, `value` itemy) to też diagnostyka ("czy to najnowszy
   // build"), osobna sekcja dla czterech statycznych wierszy była przerostem.
   {
-    id: 'diagnostyka', title: 'Diagnostyka',
+    id: 'diagnostyka', title: 'Diagnostyka', icon: Stethoscope, group: 'advanced',
+    summary: `wersja ${BUILD_INFO.version} · build ${BUILD_INFO.buildNumber} · testy połączeń`,
     items: [
       { kind: 'value', key: 'info-version', label: 'Wersja', description: 'numer wersji appki', icon: Info, value: BUILD_INFO.version },
       { kind: 'value', key: 'info-build', label: 'Build', description: 'numer builda CI', icon: Info, value: BUILD_INFO.buildNumber },
@@ -235,6 +249,7 @@ export default function SettingsScreen() {
   const { user } = useAuthUser();
   const [log, setLog] = useState<string[]>([]);
   const [query, setQuery] = useState('');
+  const [openSectionId, setOpenSectionId] = useState<string | null>(null);
 
   const append = (line: string) => setLog((prev) => [line, ...prev].slice(0, 12));
 
@@ -788,8 +803,11 @@ export default function SettingsScreen() {
     }
   };
 
+  // Panel kategorii to osobne okno (`Modal`) — akcja przechodząca na INNY ekran
+  // musi go najpierw zamknąć, inaczej zostałby na wierzchu nowego ekranu.
+  const leave = (go: () => void) => () => { setOpenSectionId(null); go(); };
   const handlers: Record<string, () => void> = {
-    'account-logout': handleLogout,
+    'account-logout': leave(handleLogout),
     'health-connect': connectHealthConnect,
     google: testGoogleSignIn,
     firestore: testFirestore,
@@ -805,9 +823,9 @@ export default function SettingsScreen() {
     'bank-notif-access': openNotificationAccess,
     'bank-auto-all': toggleBankAutoAll,
     'bank-test': testBankCapture,
-    'bank-review': () => router.push('/bank-review' as any),
-    'bank-history': () => router.push('/bank-history' as any),
-    'import-sapp': () => router.push('/import-sapp' as any),
+    'bank-review': leave(() => router.push('/bank-review' as any)),
+    'bank-history': leave(() => router.push('/bank-history' as any)),
+    'import-sapp': leave(() => router.push('/import-sapp' as any)),
     'haptics-enabled': toggleHaptics,
     'backup-auto': toggleBackupAuto,
     'backup-now': backupNow,
@@ -851,6 +869,16 @@ export default function SettingsScreen() {
   }, [query]);
 
   const headerTitle = query ? 'Szukaj' : 'Ustawienia';
+  const openSection = sections.find((sec) => sec.id === openSectionId) ?? null;
+  const renderLog = () => (log.length > 0 ? (
+    <View style={s.logBox}>
+      <TouchableOpacity style={s.logCopyBtn} onPress={copyLog} activeOpacity={0.7}>
+        <Copy size={13} color={colors.text.muted} />
+        <Text style={s.logCopyLabel}>Kopiuj log</Text>
+      </TouchableOpacity>
+      {log.map((line, i) => <Text key={i} style={s.logLine}>{line}</Text>)}
+    </View>
+  ) : null);
 
   // Przeprojektowane (2026-11-01, user zrzutem ekranu Finansów: "nie rozróżniam
   // nazwy kategorii od podkategorii, oraz jak coś jest pozwoleniem żeby miało
@@ -946,37 +974,55 @@ export default function SettingsScreen() {
             </View>
           )
         ) : (
-          // Sekcje WSZYSTKIE naraz, jedna pod drugą (2026-11-02, user: "miało być
-          // 1do1... żeby wszystko miało ten sam styl" — zastępuje poprzedni
-          // dwupoziomowy "kategoria-kafel → tap → pełna lista" wzorzec, którego spec
-          // nie ma: `design/app-design.html`'s `#set` renderuje sekcje jako
-          // ZAWSZE-widoczne kafle z wierszami wprost w środku, zero drugiego poziomu.
-          // Nagłówek sekcji = `.cap` ze spec (10px/700/uppercase-tracking), ten sam
-          // styl co podpisy kafli na Daily/Zadaniach, nie osobna "karta kategorii".
-          sections.map((section) => (
-            <View key={section.id} style={s.sectionBlock}>
-              <Text style={s.sectionCap}>{section.title.toUpperCase()}</Text>
+          // Kategorie ZWINIĘTE (2026-11-11, user: "posegregowane i domyślnie
+          // zwinięte... albo jak inne od dołu wysuwane, bo teraz rozwija lista
+          // długa") — zastępuje "wszystkie sekcje naraz" z 2026-11-02 (wtedy pod
+          // makietę; urosło do ~30 wierszy). Jedna linijka stanu na kategorię
+          // (np. "kopia w chmurze: dziś 14:32"), żeby nie trzeba było wchodzić,
+          // żeby wiedzieć czy coś wymaga uwagi. Rzadko używane (Alerty/
+          // Diagnostyka) osobno, pod "Zaawansowane".
+          (['main', 'advanced'] as const).map((group) => (
+            <View key={group} style={s.sectionBlock}>
+              {group === 'advanced' && <Text style={s.sectionCap}>ZAAWANSOWANE</Text>}
               <View style={s.sectionCard}>
-                {section.items.map((item, i) => renderItem(item, i === section.items.length - 1))}
+                {sections.filter((sec) => sec.group === group).map((sec, i, arr) => {
+                  const SecIcon = sec.icon;
+                  return (
+                    <TouchableOpacity
+                      key={sec.id}
+                      style={[s.item, i < arr.length - 1 && s.itemDivider]}
+                      onPress={() => setOpenSectionId(sec.id)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={s.itemIcon}><SecIcon size={16} color={colors.text.secondary} /></View>
+                      <View style={s.itemTextCol}>
+                        <Text style={s.itemLabel} numberOfLines={1}>{sec.title}</Text>
+                        <Text style={s.itemDescription} numberOfLines={1}>{sec.summary}</Text>
+                      </View>
+                      <ChevronRight size={15} color={colors.text.muted} />
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
           ))
         )}
 
-        {/* Log testów — konsola na dole, pojawia się dopiero gdy coś faktycznie
-            przetestowano (Konto/Diagnostyka/Alerty); nie ma już gałęzi "wewnątrz
-            której kategorii jesteśmy" do gatowania, bo wszystkie sekcje są teraz
-            naraz na ekranie. */}
-        {log.length > 0 && (
-          <View style={s.logBox}>
-            <TouchableOpacity style={s.logCopyBtn} onPress={copyLog} activeOpacity={0.7}>
-              <Copy size={13} color={colors.text.muted} />
-              <Text style={s.logCopyLabel}>Kopiuj log</Text>
-            </TouchableOpacity>
-            {log.map((line, i) => <Text key={i} style={s.logLine}>{line}</Text>)}
-          </View>
-        )}
+        {/* Log poza panelem — tylko przy szukaniu (akcje z płaskiej listy
+            wyników); w kategorii log jest w jej panelu, pod przyciskami. */}
+        {searchResults && renderLog()}
       </ScrollView>
+
+      <AppBottomSheet visible={!!openSection} onClose={() => setOpenSectionId(null)} header={openSection ? <Text style={s.sheetTitle}>{openSection.title}</Text> : undefined}>
+        {openSection && (
+          <>
+            <View style={s.sectionCard}>
+              {openSection.items.map((item, i) => renderItem(item, i === openSection.items.length - 1))}
+            </View>
+            {renderLog()}
+          </>
+        )}
+      </AppBottomSheet>
 
       {/* Potwierdzenie przywrócenia (2026-11-11) — nadpisuje dane na telefonie,
           więc user MUSI zobaczyć z kiedy jest kopia i co w niej jest. */}
@@ -1003,6 +1049,7 @@ export default function SettingsScreen() {
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
+  sheetTitle: { fontSize: 20, fontFamily: 'Inter_900Black', color: c.text.primary, paddingBottom: spacing[2] },
   restoreBody: { gap: spacing[2], paddingVertical: spacing[1] },
   restoreTitle: { fontSize: 18, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },
   restoreText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: c.text.secondary, lineHeight: 18 },
