@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { ChevronLeft, Plus, Fuel, Gauge, Wrench, Trash2, Star } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -14,7 +15,7 @@ import {
 } from '@/utils/vehicleMatch';
 import { FUEL_TYPE_LABEL, VEHICLE_KIND_LABEL, vehicleHasFuel, type VehicleKind, type FuelType } from '@/types/vehicles';
 import { haptic } from '@/utils/haptics';
-import { todayISO } from '@/utils/date';
+import { todayISO, ymd } from '@/utils/date';
 
 // Ekran "Pojazdy" (2026-11-09, user: "zależy mi na monitoringu jak w sapp tylko
 // lepszym... aktualny przebieg, cena i ilość litrów czy LPG czy benzyna [kreator
@@ -81,28 +82,44 @@ export default function VehiclesScreen() {
   // pokazuje, patrz karta Statystyki niżej.
   const showMileageStats = viewing ? viewing.kind !== 'bike' && viewing.kind !== 'other' : true;
 
-  const resetFuelForm = () => { setFuelFormOpen(false); setOdoKm(''); setFuelType(null); setLiters(''); setAmount(''); };
+  // Data tankowania (2026-11-11) — wcześniej ZAWSZE dziś, więc tankowania
+  // wpisanego dzień później (z paragonu) nie dało się zapisać poprawnie.
+  const [fuelDate, setFuelDate] = useState(todayISO());
+  const resetFuelForm = () => { setFuelFormOpen(false); setOdoKm(''); setFuelType(null); setLiters(''); setAmount(''); setFuelDate(todayISO()); };
+  // Domyślny typ paliwa WIDOCZNIE zaznaczony (wcześniej przy kilku typach
+  // cicho brało pierwszy, bez zaznaczonego chipa).
+  const effectiveFuelType = fuelType ?? viewing?.fuelTypes?.[0] ?? null;
+  const fuelKm = parseFloat(odoKm.replace(',', '.'));
+  const fuelLiters = parseFloat(liters.replace(',', '.'));
+  const fuelAmount = parseFloat(amount.replace(',', '.'));
+  // Przycisk wyszarzony dopóki czegoś brakuje — wcześniej tap po cichu nic nie robił.
+  const canSaveFuel = fuelKm > 0 && fuelLiters > 0 && fuelAmount > 0 && !!effectiveFuelType;
   const submitFuelLog = () => {
-    if (!viewing) return;
-    const km = parseFloat(odoKm.replace(',', '.'));
-    const l = parseFloat(liters.replace(',', '.'));
-    const amt = parseFloat(amount.replace(',', '.'));
-    const type = fuelType ?? viewing.fuelTypes?.[0];
-    if (!km || !l || !amt || !type) return;
+    if (!viewing || !canSaveFuel || !effectiveFuelType) return;
     haptic.success();
-    logFuelFillUp(viewing.id, { date: todayISO(), odometerKm: km, fuelType: type, liters: l, amount: amt });
+    logFuelFillUp(viewing.id, { date: fuelDate, odometerKm: fuelKm, fuelType: effectiveFuelType, liters: fuelLiters, amount: fuelAmount });
     resetFuelForm();
+  };
+  const openFuelDatePicker = () => {
+    haptic.tap();
+    DateTimePickerAndroid.open({
+      value: new Date(`${fuelDate}T12:00:00`),
+      mode: 'date',
+      onChange: (event, selected) => { if (event.type === 'set' && selected) setFuelDate(ymd(selected)); },
+    });
   };
 
   const [odoReadingKm, setOdoReadingKm] = useState('');
+  const odoReadingValue = parseFloat(odoReadingKm.replace(',', '.'));
   const submitOdoReading = () => {
-    if (!viewing) return;
-    const km = parseFloat(odoReadingKm.replace(',', '.'));
-    if (!km) return;
+    if (!viewing || !(odoReadingValue > 0)) return;
     haptic.success();
-    addOdometerReading(viewing.id, { date: todayISO(), km });
+    addOdometerReading(viewing.id, { date: todayISO(), km: odoReadingValue });
     setOdoReadingKm('');
   };
+  // Literówka w przebiegu (np. 4200 zamiast 42000) psuje zł/km i spalanie —
+  // ostrzeżenie zamiast cichego zapisu wartości mniejszej niż ostatnia.
+  const lowerThanLast = (km: number) => odometer != null && km > 0 && km < odometer;
 
   const submitMaintenance = (label: string, intervalMonths?: number) => {
     if (!viewing || !label.trim()) return;
@@ -271,13 +288,16 @@ export default function VehiclesScreen() {
                 <View style={s.formBody}>
                   <Text style={[s.label, s.labelSpaced]}>Przebieg (km)</Text>
                   <TextInput value={odoKm} onChangeText={setOdoKm} style={s.input} keyboardType="decimal-pad" placeholder={odometer != null ? String(odometer) : 'np. 42000'} placeholderTextColor={colors.text.muted} />
+                  {lowerThanLast(fuelKm) && (
+                    <Text style={s.warnHint}>Mniej niż ostatni odczyt ({odometer?.toLocaleString('pl-PL')} km) — sprawdź, czy to nie literówka.</Text>
+                  )}
                   {(viewing.fuelTypes?.length ?? 0) > 1 && (
                     <>
                       <Text style={[s.label, s.labelSpaced]}>Typ paliwa</Text>
                       <View style={s.kindRow}>
                         {(viewing.fuelTypes ?? []).map((f) => (
-                          <TouchableOpacity key={f} style={[s.kindChip, fuelType === f && s.kindChipOn]} onPress={() => setFuelType(f)} activeOpacity={0.8}>
-                            <Text style={[s.kindChipLabel, fuelType === f && s.kindChipLabelOn]}>{FUEL_TYPE_LABEL[f]}</Text>
+                          <TouchableOpacity key={f} style={[s.kindChip, effectiveFuelType === f && s.kindChipOn]} onPress={() => setFuelType(f)} activeOpacity={0.8}>
+                            <Text style={[s.kindChipLabel, effectiveFuelType === f && s.kindChipLabelOn]}>{FUEL_TYPE_LABEL[f]}</Text>
                           </TouchableOpacity>
                         ))}
                       </View>
@@ -287,7 +307,18 @@ export default function VehiclesScreen() {
                   <TextInput value={liters} onChangeText={setLiters} style={s.input} keyboardType="decimal-pad" placeholder="np. 38.5" placeholderTextColor={colors.text.muted} />
                   <Text style={[s.label, s.labelSpaced]}>Kwota (zł)</Text>
                   <TextInput value={amount} onChangeText={setAmount} style={s.input} keyboardType="decimal-pad" placeholder="np. 210" placeholderTextColor={colors.text.muted} />
-                  <TouchableOpacity style={[s.addBtn, s.labelSpaced]} onPress={submitFuelLog} activeOpacity={0.8}>
+                  <Text style={[s.label, s.labelSpaced]}>Data</Text>
+                  <View style={s.kindRow}>
+                    {[{ label: 'Dziś', v: todayISO() }, { label: 'Wczoraj', v: ymd(new Date(Date.now() - 86400000)) }].map((opt) => (
+                      <TouchableOpacity key={opt.label} style={[s.kindChip, fuelDate === opt.v && s.kindChipOn]} onPress={() => { haptic.tap(); setFuelDate(opt.v); }} activeOpacity={0.8}>
+                        <Text style={[s.kindChipLabel, fuelDate === opt.v && s.kindChipLabelOn]}>{opt.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                    <TouchableOpacity style={s.kindChip} onPress={openFuelDatePicker} activeOpacity={0.8}>
+                      <Text style={s.kindChipLabel}>{fuelDate}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <TouchableOpacity style={[s.addBtn, s.labelSpaced, !canSaveFuel && s.btnDisabled]} onPress={submitFuelLog} disabled={!canSaveFuel} activeOpacity={0.8}>
                     <Plus size={16} color={colors.bg.primary} />
                     <Text style={s.addBtnLabel}>Zapisz tankowanie</Text>
                   </TouchableOpacity>
@@ -312,11 +343,14 @@ export default function VehiclesScreen() {
           <View style={s.card}>
             <View style={s.iconLabel}><Gauge size={14} color={colors.text.secondary} /><Text style={s.label}>Odczyt licznika</Text></View>
             <View style={[s.rowBetween, s.labelSpaced]}>
-              <TextInput value={odoReadingKm} onChangeText={setOdoReadingKm} style={[s.input, { flex: 1, marginTop: 0 }]} keyboardType="decimal-pad" placeholder="aktualny km" placeholderTextColor={colors.text.muted} />
-              <TouchableOpacity style={s.iconBtn} onPress={submitOdoReading} activeOpacity={0.8}>
+              <TextInput value={odoReadingKm} onChangeText={setOdoReadingKm} style={[s.input, { flex: 1, marginTop: 0 }]} keyboardType="decimal-pad" placeholder={odometer != null ? `ostatnio ${odometer.toLocaleString('pl-PL')} km` : 'aktualny km'} placeholderTextColor={colors.text.muted} onSubmitEditing={submitOdoReading} returnKeyType="done" />
+              <TouchableOpacity style={[s.iconBtn, !(odoReadingValue > 0) && s.btnDisabled]} onPress={submitOdoReading} disabled={!(odoReadingValue > 0)} activeOpacity={0.8}>
                 <Plus size={16} color={colors.text.primary} />
               </TouchableOpacity>
             </View>
+            {lowerThanLast(odoReadingValue) && (
+              <Text style={s.warnHint}>Mniej niż ostatni odczyt ({odometer?.toLocaleString('pl-PL')} km) — sprawdź, czy to nie literówka.</Text>
+            )}
           </View>
 
           {/* Serwis / części */}
@@ -388,6 +422,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
   label: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
   labelSpaced: { marginTop: spacing[3] },
   hint: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[2], lineHeight: 15 },
+  warnHint: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.accent.red, marginTop: spacing[1], lineHeight: 15 },
+  btnDisabled: { opacity: 0.4 },
   input: {
     marginTop: spacing[2], borderWidth: 1, borderColor: c.border.default, borderRadius: radius.md,
     paddingHorizontal: spacing[3], paddingVertical: spacing[2], fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.primary,

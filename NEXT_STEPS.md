@@ -3935,6 +3935,26 @@ specyficzny dla Androida, więc to trzeba sprawdzić na telefonie. (`onShow` +
 `focus()` to standardowy fix na ten problem w RN, ale nie da się go tu
 przetestować bez urządzenia.)
 
-**Dalej w kolejce szlifu (nie zrobione w tej rundzie):** przyciski
-Produkty/Pojazdy w Finansach (czeka na zrzut od usera), przegląd pozostałych
-formularzy (Humor, bank-review, Ustawienia).
+**Runda 2 tego samego dnia** (user: "ogarniasz dalej?"):
+- **Pojazdy → Zatankuj**: wybór daty (Dziś/Wczoraj/kalendarz — wcześniej
+  ZAWSZE dziś, tankowania wpisanego dzień później nie dało się zapisać
+  poprawnie; data idzie też do powiązanego wydatku w Finansach), domyślny typ
+  paliwa widocznie zaznaczony, "Zapisz tankowanie" wyszarzone dopóki czegoś
+  brakuje (wcześniej cicho nic), ostrzeżenie gdy przebieg mniejszy niż
+  ostatni odczyt (literówka 5000 zamiast 50000 psuje zł/km i spalanie).
+- **Pojazdy → Odczyt licznika**: placeholder z ostatnim przebiegiem, Enter
+  zapisuje, "+" wyszarzony bez wartości, to samo ostrzeżenie.
+- **Wydatek → Tagi**: podpowiedzi najczęściej używanych tagów, filtrowane
+  wpisywanym tekstem — tagi napędzają dopasowanie do pojazdu/rachunku/pracy,
+  literówka po cichu to psuła.
+- **Auto-zerkanie w schowek** przy otwieraniu wydatku: brak `.catch` → przy
+  odmowie dostępu nieobsłużony błąd. Teraz cicho brak podpowiedzi.
+- Przejrzane bez potrzeby zmian: Humor (Enter dodaje własny tag, notatka
+  multiline OK), bank-review (pola tekstowe OK), Ustawienia (tylko szukajka).
+
+Zweryfikowane (runda 2): tsc czysty, jest 356/356, `expo web`+Playwright —
+ostrzeżenie przy 5000 < 50 000 km, tankowanie zapisane z datą wczorajszą i
+domyślnym paliwem, "oct" podpowiada "octavia".
+
+**Dalej w kolejce:** przyciski Produkty/Pojazdy w Finansach (czeka na zrzut od
+usera).

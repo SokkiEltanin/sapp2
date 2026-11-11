@@ -161,9 +161,10 @@ export default function AddExpenseModal({
   const [clipboardSuggestion, setClipboardSuggestion] = useState<string | null>(null);
   useEffect(() => {
     if (!visible || editingExpense) { setClipboardSuggestion(null); return; }
+    // Brak dostępu do schowka (odmowa/OS) = po prostu brak podpowiedzi, nie błąd.
     Clipboard.getStringAsync().then((text) => {
       if (text && looksLikeReceiptText(text)) setClipboardSuggestion(text);
-    });
+    }).catch(() => {});
   }, [visible, editingExpense]);
 
   const reset = () => {
@@ -263,6 +264,22 @@ export default function AddExpenseModal({
     runParse(initialPasteText);
     onInitialPasteTextConsumed?.();
   }, [visible, editingExpense, initialPasteText]);
+
+  // Podpowiedzi tagów (2026-11-11) — tagi napędzają dopasowanie do pojazdu
+  // ("rower"), rachunku ("prąd"), pracy (prefiks) — literówka po cichu
+  // psuje to dopasowanie. Najczęściej używane, filtrowane wpisywanym tekstem.
+  const tagCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of expenses) for (const t of e.tags ?? []) m.set(t, (m.get(t) ?? 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
+  }, [expenses]);
+  const tagSuggestions = useMemo(() => {
+    const q = tagInput.trim().toLowerCase();
+    return tagCounts
+      .filter((t) => !tags.includes(t) && (!q || t.toLowerCase().includes(q)))
+      .slice(0, 8);
+  }, [tagCounts, tags, tagInput]);
+  const addSuggestedTag = (t: string) => { haptic.tap(); setTags((prev) => [...prev, t]); setTagInput(''); };
 
   const addBlankItem = () => setItems((prev) => [...prev, { name: '', price: 0, quantity: 1, unitPrice: 0 }]);
   const updateItem = (idx: number, patch: Partial<ReceiptItem>) =>
@@ -721,6 +738,15 @@ export default function AddExpenseModal({
             <Plus size={14} color={colors.bg.primary} />
           </TouchableOpacity>
         </View>
+        {tagSuggestions.length > 0 && (
+          <View style={s.chips}>
+            {tagSuggestions.map((t) => (
+              <TouchableOpacity key={t} style={s.chip} onPress={() => addSuggestedTag(t)} activeOpacity={0.7}>
+                <Text style={s.chipLabel}>+ {t}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         {tags.length > 0 && (
           <View style={s.chips}>
             {tags.map((t) => (
