@@ -1405,6 +1405,15 @@ tym pełny przepływ "Zatankuj" end-to-end (formularz→zapis→Statystyki się
 realnie zaktualizowały→wpis w historii z usuwaniem). **DO POTWIERDZENIA NA
 URZĄDZENIU**: realny wygląd/dotyk na telefonie.
 
+**Kafel "Praca" w Finansach** (2026-11-11): `src/utils/workMonth.ts`'s
+`workMonthProgress(emp, events, expenses, now)` → `{ rate, hoursDone,
+hoursPlanned, nextPay: {month, amount} }`. Godziny = zmiany TEGO miesiąca z
+kalendarza (minione w całości, trwająca częściowo) z ilu zaplanowanych.
+`nextPay` = najbliższa NIEZAKSIĘGOWANA wypłata: za poprzedni miesiąc, gdy jego
+wypłaty jeszcze nie ma w historii (i jakiekolwiek wypłaty są księgowane), inaczej
+prognoza za bieżący (zaplanowane godziny × stawka). Stawka zawsze z
+`computeWorkRate` — jedna definicja. Tryb ręczny: godziny null, wypłata = pensja.
+
 ## SUBSKRYPCJE / "Stałe opłaty" [PE]
 
 Port z sapp (2026-11-09, user: "czy w sapp mozemy eksportować szablony te do
@@ -1415,6 +1424,17 @@ stałych opłatach zaznaczyć kiedy co musimy opłacić"). Satelicki ekran
 "bills" w ogóle) i z Dashboard's "Najbliższe eventy" listy (nowe `kind:'bill'`
 wpisy — ten wariant JUŻ istniał w `DashData.upcoming`/`DashboardScreen.tsx`,
 zaprojektowany z wyprzedzeniem, nic go dotąd nie zasilało).
+
+**Wykryte z historii** (2026-11-11, user: "pisze 28 dni do internet nie wiem
+skąd" — kafel Finansów pokazywał przewidywany rachunek, a ekran był pusty):
+`app/subscriptions.tsx` ma sekcję "WYKRYTE Z HISTORII" (`detectRecurringBills`)
+z "Dodaj" (prefill formularza: nazwa/ostatnia kwota/przewidziany termin/tag
+BILL_TYPES — po zapisie tag pokrywa rachunek, więc znika z wykrytych) i "×"
+(odrzuć). Odrzucone tagi: `subscriptionsStore.dismissedBills` (persist, więc też
+w backupie), przekazywane jako `dismissed` do `detectRecurringBills`/
+`upcomingPayments`/`nextUpcomingPayment` — KAŻDY wołający (Finanse, Dashboard)
+musi je podać, inaczej odrzucony rachunek wraca. Kafel Finansów ma podpis
+"dni · z historii" dla `kind:'bill'`.
 
 **Pliki**: `src/types/subscriptions.ts` (`Subscription`/`BillingCycle`),
 `src/store/subscriptionsStore.ts` (`subscriptions[]`, AsyncStorage-persist, ten

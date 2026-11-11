@@ -109,6 +109,7 @@ export default function Dashboard() {
   const expenses = useExpensesStore((st) => st.expenses);
   const healthToday = useHealthStore((st) => st.today);
   const subscriptions = useSubscriptionsStore((st) => st.subscriptions);
+  const dismissedBills = useSubscriptionsStore((st) => st.dismissedBills);
   const vehicles = useVehiclesStore((st) => st.vehicles);
   useHealthSync();
   // 2026-11-08, user: "jak wchodzę do apki to kalendarz sie nie ładuje na
@@ -230,12 +231,12 @@ export default function Dashboard() {
     // subskrypcjach łapać" — dolicza też PRZEWIDYWANE terminy rachunków stałych
     // (czynsz/prąd/internet...) rozpoznanych z historii wydatków, nie tylko
     // ręcznie dodane Subskrypcje.
-    for (const p of upcomingPayments(expenses, subscriptions, now)) {
+    for (const p of upcomingPayments(expenses, subscriptions, now, dismissedBills)) {
       if (p.daysUntil > BILL_WINDOW_DAYS) continue;
       out.push({ key: `b_${p.id}`, at: new Date(`${p.dueDate}T00:00:00`), title: p.name, color: colors.accent.red, kind: 'bill', amount: p.amount, fx: p.fx });
     }
     return out.sort((a, b) => a.at.getTime() - b.at.getTime());
-  }, [allEvents, calendarTasks, subscriptions, expenses, now]);
+  }, [allEvents, calendarTasks, subscriptions, expenses, now, dismissedBills]);
 
   const sleep = useMemo(() => {
     if (!healthToday || healthToday.sleepMinutes == null || !healthToday.sleepFrom || !healthToday.sleepTo) return null;

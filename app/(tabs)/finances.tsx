@@ -15,7 +15,7 @@ import { useShareReceiptStore } from '@/store/shareReceiptStore';
 import { useWorkStore } from '@/store/workStore';
 import { useCalendarStore } from '@/store/calendarStore';
 import { useSubscriptionsStore } from '@/store/subscriptionsStore';
-import { computeWorkRate } from '@/utils/workRate';
+import { workMonthProgress } from '@/utils/workMonth';
 import { nextUpcomingPayment } from '@/utils/recurringBills';
 import { getBalanceOffset, setBalanceOffset, accountBalance, affectsBalance } from '@/utils/balance';
 import { buildProductCatalog } from '@/utils/productCatalog';
@@ -62,6 +62,12 @@ function parseZl(s: string): number {
 function fmtAmount(n: number): string {
   return Math.abs(n).toFixed(2).replace('.', ',');
 }
+// "wypłata za listopad" — biernik = mianownik dla nazw miesięcy.
+const PAY_MONTHS = ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień'];
+function fmtHours(h: number): string {
+  const r = Math.round(h * 2) / 2; // pół godziny dokładności wystarczy na kaflu
+  return Number.isInteger(r) ? String(r) : r.toFixed(1).replace('.', ',');
+}
 function fmtBalance(n: number): string {
   return n.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -98,8 +104,12 @@ export default function FinancesScreen() {
   const calendarEvents = useCalendarStore((st) => st.events);
   const gcalEvents = useCalendarStore((st) => st.gcalEvents);
   const activeEmployer = workEmployers.find((e) => e.id === activeEmployerId) ?? null;
-  const workRate = useMemo(
-    () => (activeEmployer ? computeWorkRate(activeEmployer, [...calendarEvents, ...gcalEvents], expenses) : null),
+  // 2026-11-11 (user: "więcej info w kafelku pracy... ile wypłaty przyszłej
+  // oraz ile godzin przepracowanych z ilu oraz ile średnio na h") — kafel
+  // pokazuje teraz najbliższą wypłatę + godziny X/Y + stawkę, wszystko z
+  // `utils/workMonth.ts` (stawka nadal z `computeWorkRate`, jedna definicja).
+  const work = useMemo(
+    () => (activeEmployer ? workMonthProgress(activeEmployer, [...calendarEvents, ...gcalEvents], expenses) : null),
     [activeEmployer, calendarEvents, gcalEvents, expenses],
   );
 
@@ -121,7 +131,8 @@ export default function FinancesScreen() {
   // (czynsz/prąd/internet...) rozpoznanych z historii wydatków, bez potrzeby
   // zakładania im osobnej Subskrypcji.
   const subscriptions = useSubscriptionsStore((st) => st.subscriptions);
-  const nextDue = useMemo(() => nextUpcomingPayment(expenses, subscriptions, now), [expenses, subscriptions, now]);
+  const dismissedBills = useSubscriptionsStore((st) => st.dismissedBills);
+  const nextDue = useMemo(() => nextUpcomingPayment(expenses, subscriptions, now, dismissedBills), [expenses, subscriptions, now, dismissedBills]);
 
   useEffect(() => { getBalanceOffset().then(setOffset); }, []);
 
@@ -244,16 +255,37 @@ export default function FinancesScreen() {
       </Row>
 
       <Row>
-        <StatTile
-          value={workRate?.rate != null ? workRate.rate.toFixed(0) : null}
-          unit="zł / h"
-          label="Praca"
-          span={2}
-          onPress={() => { haptic.tap(); router.push('/work'); }}
-        />
+        <Tile span={2} onPress={() => { haptic.tap(); router.push('/work'); }}>
+          <Cap l="Praca" r={work?.rate != null ? `${work.rate.toFixed(0)} zł/h` : undefined} />
+          {!work ? (
+            <Text style={[T.small, s.workEmpty]}>Dodaj pracodawcę</Text>
+          ) : (
+            <>
+              <Text style={[T.num, s.workPay, !work.nextPay && { color: C.dim }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                {work.nextPay ? `≈${Math.round(work.nextPay.amount).toLocaleString('pl-PL')}` : '—'}
+                <Text style={s.workPayCur}> zł</Text>
+              </Text>
+              <Text style={s.workSub} numberOfLines={1}>
+                {work.nextPay ? `wypłata za ${PAY_MONTHS[Number(work.nextPay.month.slice(5, 7)) - 1]}` : 'brak stawki'}
+              </Text>
+              {work.hoursPlanned != null && work.hoursDone != null && (
+                <View style={s.workHours}>
+                  <View style={s.workTrack}>
+                    <View style={[s.workFill, { width: `${work.hoursPlanned > 0 ? Math.min(100, (work.hoursDone / work.hoursPlanned) * 100) : 0}%` }]} />
+                  </View>
+                  <Text style={s.workHoursText} numberOfLines={1}>
+                    {fmtHours(work.hoursDone)} / {fmtHours(work.hoursPlanned)} h
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
+        </Tile>
         <StatTile
           value={nextDue ? Math.max(0, nextDue.daysUntil) : null}
-          unit="dni"
+          // 'bill' = PRZEWIDYWANY z historii wydatków, nie dodany ręcznie (2026-11-11,
+          // user: "pisze 28 dni do internet nie wiem skąd") — podpis mówi skąd.
+          unit={nextDue?.kind === 'bill' ? 'dni · z historii' : 'dni'}
           // 2026-11-09, user: "żeby tam najbliższa opłata pokazywała co to" —
           // `label` (zwykle stały podpis kafla) dostaje tu NAZWĘ płatności
           // zamiast generycznego "Najbliższa opłata", gdy jakaś jest; pusty
@@ -387,6 +419,15 @@ const makeS = themedStyles((c) => StyleSheet.create({
   sideBtnLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: C.txt },
   sideBtnCount: { fontSize: 9, fontFamily: 'Inter_600SemiBold', color: C.mut },
   emptyInline: { textAlign: 'center', marginTop: spacing[3] },
+
+  workEmpty: { marginTop: spacing[3] },
+  workPay: { marginTop: spacing[2] },
+  workPayCur: { fontSize: 12, fontFamily: 'Inter_700Bold', color: C.mut, letterSpacing: 0 },
+  workSub: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: C.mut, marginTop: 2 },
+  workHours: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing[2] },
+  workTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: C.in2, overflow: 'hidden' },
+  workFill: { height: 4, borderRadius: 2, backgroundColor: C.hi },
+  workHoursText: { fontSize: 10, fontFamily: 'Inter_700Bold', color: C.txt, fontVariant: ['tabular-nums'] },
 
   txTextCol: { flex: 1, minWidth: 0 },
 

@@ -158,6 +158,16 @@ describe('detectRecurringBills — rozpoznaje cykliczne rachunki logowane jako z
     expect(detectRecurringBills(expenses, [sub({ active: false, tags: ['prąd'] })])).toHaveLength(1); // nieaktywna NIE blokuje
   });
 
+  test('odrzucony przez usera tag ("to nie stała opłata") → pomijany, też w upcomingPayments', () => {
+    const expenses = [
+      exp({ id: 'a', note: 'Internet PLAY', date: '2026-08-05' }),
+      exp({ id: 'b', note: 'Internet PLAY', date: '2026-09-07' }),
+    ];
+    expect(detectRecurringBills(expenses, [])).toHaveLength(1);
+    expect(detectRecurringBills(expenses, [], ['internet'])).toEqual([]);
+    expect(upcomingPayments(expenses, [], new Date(2026, 9, 1), ['internet'])).toEqual([]);
+  });
+
   test('dzień z OSTATNIEGO wystąpienia > 28 (np. 30) przycięty do 28 (bezpieczny dla day-overflow w nextBillingDate)', () => {
     const out = detectRecurringBills([
       exp({ id: 'a', storeName: 'PGE', date: '2026-08-05' }),

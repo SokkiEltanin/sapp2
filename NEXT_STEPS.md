@@ -41,6 +41,14 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+- **Do sprawdzenia na urządzeniu (2026-11-11)**: kafel Praca w Finansach —
+  "≈X zł / wypłata za <miesiąc>" + pasek "X / Y h" + zł/h w nagłówku. Czy
+  wybór miesiąca wypłaty pasuje do realnego (wypłata za poprzedni miesiąc
+  pokazywana dopóki nie wpłynie przychód z prefiksem). Stałe opłaty → sekcja
+  "Wykryte z historii" (Internet z P4) z Dodaj/odrzuć.
+- **Pogoda** — czeka na decyzję usera (GPS vs miasto ręcznie; który kafel
+  Dashboardu zastąpić — propozycja: ciekawostka). Nie budować przed odpowiedzią.
+
 - Realny branding (ikona/splash) — obecne `assets/icon.png`, `splash.png`,
   `adaptive-icon.png` to tymczasowy placeholder (ciemne tło + "S2"), wygenerowany
   tylko żeby build przeszedł. Podmienić jak user pokaże/zrobi docelową grafikę.

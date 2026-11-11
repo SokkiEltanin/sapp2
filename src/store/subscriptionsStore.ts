@@ -16,6 +16,13 @@ interface SubscriptionsState {
   addSubscriptions: (subs: Subscription[]) => void;
   updateSubscription: (id: string, patch: Partial<Subscription>) => void;
   deleteSubscription: (id: string) => void;
+  // Rachunki WYKRYTE z historii (utils/recurringBills.ts's `detectRecurringBills`),
+  // które user odrzucił "to nie jest stała opłata" (2026-11-11, user: "pisze 28 dni
+  // do internet nie wiem skąd") — tagi BILL_TYPES; bez tego błędnie wykryty
+  // rachunek wisiałby w "Najbliższej opłacie" na zawsze.
+  dismissedBills: string[];
+  dismissBill: (tag: string) => void;
+  restoreBill: (tag: string) => void;
 }
 
 // Offline-first AsyncStorage, ten sam wzorzec co workStore.ts/vehiclesStore.ts —
@@ -37,6 +44,9 @@ export const useSubscriptionsStore = create<SubscriptionsState>()(
         subscriptions: s.subscriptions.map((sub) => (sub.id === id ? { ...sub, ...patch, updatedAt: Date.now() } : sub)),
       })),
       deleteSubscription: (id) => set((s) => ({ subscriptions: s.subscriptions.filter((sub) => sub.id !== id) })),
+      dismissedBills: [],
+      dismissBill: (tag) => set((s) => ({ dismissedBills: s.dismissedBills.includes(tag) ? s.dismissedBills : [...s.dismissedBills, tag] })),
+      restoreBill: (tag) => set((s) => ({ dismissedBills: s.dismissedBills.filter((t) => t !== tag) })),
     }),
     { name: 'subscriptions-storage', storage: createJSONStorage(() => AsyncStorage) },
   ),

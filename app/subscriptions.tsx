@@ -3,13 +3,14 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { ChevronLeft, Plus, Trash2, Bell, BellOff, Check, Edit2, CalendarDays } from 'lucide-react-native';
+import { ChevronLeft, Plus, Trash2, Bell, BellOff, Check, Edit2, CalendarDays, X } from 'lucide-react-native';
 import * as LucideIcons from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { useSubscriptionsStore } from '@/store/subscriptionsStore';
+import { useExpensesStore } from '@/store/expensesStore';
 import { CYCLE_LABEL, CYCLE_SHORT, type BillingCycle, type Subscription } from '@/types/subscriptions';
-import { billTagFor, advanceNextBillingDate, rollOverdueSubscription, isDurationExpired } from '@/utils/recurringBills';
+import { billTagFor, advanceNextBillingDate, rollOverdueSubscription, isDurationExpired, detectRecurringBills, nextBillingDate, BILL_TYPES, type BillCandidate } from '@/utils/recurringBills';
 import { todayISO, ymd } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
 import { pendingFxOf, formatFx } from '@/utils/fx';
@@ -99,6 +100,24 @@ export default function SubscriptionsScreen() {
   const addSubscription = useSubscriptionsStore((st) => st.addSubscription);
   const updateSubscription = useSubscriptionsStore((st) => st.updateSubscription);
   const deleteSubscription = useSubscriptionsStore((st) => st.deleteSubscription);
+  const dismissedBills = useSubscriptionsStore((st) => st.dismissedBills);
+  const dismissBill = useSubscriptionsStore((st) => st.dismissBill);
+  const restoreBill = useSubscriptionsStore((st) => st.restoreBill);
+  const expenses = useExpensesStore((st) => st.expenses);
+
+  // "Wykryte z historii" (2026-11-11, user: "w stałych opłatach na kafelku...
+  // jak klikam nic mi się nie pokazuje a tam pisze 28 dni do internet nie wiem
+  // skąd") — Finanse/Dashboard od 2026-11-09 doliczają PRZEWIDYWANE rachunki
+  // (`detectRecurringBills`: ten sam rachunek w ≥2 miesiącach), ale ten ekran
+  // pokazywał tylko ręcznie dodane → klik w kafel prowadził w pustkę. Teraz
+  // widać skąd się wzięły, można je zamienić w prawdziwą opłatę (przypomnienia,
+  // własna data/kwota) albo odrzucić.
+  const detected = useMemo(() => detectRecurringBills(expenses, subscriptions, dismissedBills), [expenses, subscriptions, dismissedBills]);
+  const dismissedNames = useMemo(
+    () => dismissedBills.map((tag) => ({ tag, name: BILL_TYPES.find((t) => t.tag === tag)?.name ?? tag })),
+    [dismissedBills],
+  );
+  const scrollRef = useRef<ScrollView>(null);
 
   // Auto-wyłącz subskrypcje z wygasłym czasem trwania, cicho przesuń zaległe
   // `nextBillingDate` w przyszłość — port 1:1 sapp's efektu w
@@ -123,6 +142,15 @@ export default function SubscriptionsScreen() {
 
   const openAdd = () => { haptic.tap(); setEditing(null); setForm(emptyForm()); setFormOpen(true); };
   const openEdit = (sub: Subscription) => { haptic.tap(); setEditing(sub); setForm(subToForm(sub)); setFormOpen(true); };
+  // Prefill z wykrytego rachunku — tag BILL_TYPES w tagach sprawia, że po zapisie
+  // `detectRecurringBills` uznaje go za pokryty i znika z "Wykrytych".
+  const openFromBill = (b: BillCandidate) => {
+    haptic.tap();
+    setEditing(null);
+    setForm({ ...emptyForm(), name: b.name, amount: String(b.lastAmount), nextBillingDate: toDisplayDate(nextBillingDate(b.dayOfMonth)), tags: b.tag });
+    setFormOpen(true);
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  };
 
   const openDatePicker = () => {
     haptic.tap();
@@ -187,7 +215,7 @@ export default function SubscriptionsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {subscriptions.length > 0 && (
           <View style={s.summaryCard}>
             <View style={s.summaryItem}>
@@ -274,7 +302,11 @@ export default function SubscriptionsScreen() {
 
         {subscriptions.length === 0 && !formOpen && (
           <View style={s.empty}>
-            <Text style={s.emptyText}>Brak stałych opłat. Dodaj pierwszą, np. czynsz, Netflix, siłownię.</Text>
+            <Text style={s.emptyText}>
+              {detected.length > 0
+                ? 'Nie masz jeszcze dodanych stałych opłat. Niżej to, co appka sama wykryła w Twoich wydatkach — dodaj je, żeby dostawać przypomnienia.'
+                : 'Brak stałych opłat. Dodaj pierwszą, np. czynsz, Netflix, siłownię.'}
+            </Text>
             <TouchableOpacity style={s.addBtn} onPress={openAdd} activeOpacity={0.8}>
               <Plus size={16} color={colors.bg.primary} />
               <Text style={s.addBtnLabel}>Dodaj opłatę</Text>
@@ -291,6 +323,27 @@ export default function SubscriptionsScreen() {
           </View>
         )}
 
+        {detected.length > 0 && (
+          <View style={[s.section, s.sectionSpaced]}>
+            <Text style={s.sectionTitle}>WYKRYTE Z HISTORII</Text>
+            <Text style={s.sectionHint}>Ten sam rachunek co miesiąc w Twoich wydatkach — appka przewiduje następny termin (stąd kafel w Finansach). Dodaj, żeby ustawić przypomnienie, albo odrzuć, jeśli to nie stała opłata.</Text>
+            {detected.map((b) => (
+              <DetectedRow key={b.tag} bill={b} s={s} onAdd={openFromBill} onDismiss={(tag) => { haptic.tap(); dismissBill(tag); }} />
+            ))}
+          </View>
+        )}
+
+        {dismissedNames.length > 0 && (
+          <Text style={s.dismissedLine}>
+            Odrzucone: {dismissedNames.map((d, i) => (
+              <Text key={d.tag}>
+                {i > 0 ? ', ' : ''}
+                <Text style={s.dismissedLink} onPress={() => { haptic.tap(); restoreBill(d.tag); }}>{d.name} ↺</Text>
+              </Text>
+            ))}
+          </Text>
+        )}
+
         {inactive.length > 0 && (
           <View style={s.section}>
             <Text style={s.sectionTitle}>NIEAKTYWNE</Text>
@@ -303,6 +356,36 @@ export default function SubscriptionsScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function DetectedRow({ bill, s, onAdd, onDismiss }: {
+  bill: BillCandidate; s: ReturnType<typeof makeS>;
+  onAdd: (b: BillCandidate) => void; onDismiss: (tag: string) => void;
+}) {
+  const Icon = (LucideIcons as any)[bill.icon] ?? Bell;
+  const due = nextBillingDate(bill.dayOfMonth);
+  const days = daysUntil(due);
+  return (
+    <View style={[s.item, s.itemDetected]}>
+      <View style={[s.itemIcon, { backgroundColor: colors.bg.elevated }]}>
+        <Icon size={16} color={colors.text.secondary} />
+      </View>
+      <TouchableOpacity style={s.itemBody} onPress={() => onAdd(bill)} activeOpacity={0.7}>
+        <Text style={s.itemName} numberOfLines={1}>{bill.name}</Text>
+        <Text style={s.itemSub} numberOfLines={1}>ostatnio {bill.lastAmount.toFixed(2)} zł · {toDisplayDate(bill.lastDate).slice(0, 5)} · {bill.months} mies.</Text>
+        <Text style={s.itemSub} numberOfLines={1}>następna ≈ {toDisplayDate(due).slice(0, 5)} · {nextLabel(days)}</Text>
+      </TouchableOpacity>
+      <View style={s.detectedActions}>
+        <TouchableOpacity onPress={() => onAdd(bill)} style={s.detectedAdd} activeOpacity={0.8}>
+          <Plus size={13} color={colors.bg.primary} />
+          <Text style={s.detectedAddLabel}>Dodaj</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => onDismiss(bill.tag)} style={s.iconBtn} hitSlop={6}>
+          <X size={14} color={colors.text.muted} />
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
@@ -391,6 +474,14 @@ const makeS = themedStyles((c) => StyleSheet.create({
   emptyText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', lineHeight: 19 },
 
   section: { gap: spacing[2], marginTop: spacing[1] },
+  sectionSpaced: { marginTop: spacing[4] },
+  sectionHint: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, lineHeight: 15, marginBottom: spacing[1] },
+  itemDetected: { borderStyle: 'dashed' },
+  detectedActions: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
+  detectedAdd: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.text.bright, borderRadius: radius.sm, paddingHorizontal: spacing[2], height: 28 },
+  detectedAddLabel: { fontSize: 11, fontFamily: 'Inter_900Black', color: c.bg.primary },
+  dismissedLine: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[3] },
+  dismissedLink: { fontFamily: 'Inter_700Bold', color: c.text.secondary },
   sectionTitle: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: spacing[1] },
 
   item: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default, padding: spacing[3] },

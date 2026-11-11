@@ -146,7 +146,7 @@ export interface BillCandidate {
 // wystąpienie to zbyt mało, żeby zgadywać dzień miesiąca). Pomija typ już
 // pokryty przez AKTYWNĄ Subskrypcję z pasującym tagiem/nazwą — ten sam rachunek
 // nie ma liczyć się podwójnie w `upcomingPayments` niżej.
-export function detectRecurringBills(expenses: Expense[], subs: Subscription[]): BillCandidate[] {
+export function detectRecurringBills(expenses: Expense[], subs: Subscription[], dismissed: readonly string[] = []): BillCandidate[] {
   const byTag: Record<string, { months: Set<string>; lastDate: string; lastAmount: number }> = {};
   for (const e of expenses) {
     if (e.type === 'income') continue;
@@ -163,6 +163,7 @@ export function detectRecurringBills(expenses: Expense[], subs: Subscription[]):
   for (const t of BILL_TYPES) {
     const g = byTag[t.tag];
     if (!g || g.months.size < 2) continue;
+    if (dismissed.includes(t.tag)) continue; // user: "to nie stała opłata"
     if (subs.some((s) => s.active && ((s.tags ?? []).includes(t.tag) || s.name.toLowerCase().includes(t.tag)))) continue;
     out.push({
       tag: t.tag, name: t.name, icon: t.icon, lastAmount: g.lastAmount, months: g.months.size,
@@ -199,13 +200,13 @@ export interface UpcomingPayment {
 // stałych w JEDNĄ, posortowaną listę — zasila "Najbliższa opłata" (Finanse) i
 // Dashboard's "Stałe opłaty" wśród "Najbliższych eventów", zamiast każde z osobna
 // czytać tylko Subskrypcje.
-export function upcomingPayments(expenses: Expense[], subs: Subscription[], now: Date = new Date()): UpcomingPayment[] {
+export function upcomingPayments(expenses: Expense[], subs: Subscription[], now: Date = new Date(), dismissed: readonly string[] = []): UpcomingPayment[] {
   const today = new Date(now); today.setHours(0, 0, 0, 0);
   const out: UpcomingPayment[] = [];
   for (const { sub, daysUntil } of upcomingSubscriptions(subs, now)) {
     out.push({ id: sub.id, kind: 'subscription', name: sub.name, amount: sub.amount, daysUntil, dueDate: sub.nextBillingDate, fx: pendingFxOf(sub) });
   }
-  for (const b of detectRecurringBills(expenses, subs)) {
+  for (const b of detectRecurringBills(expenses, subs, dismissed)) {
     const dueDate = nextBillingDate(b.dayOfMonth, today);
     const daysUntil = Math.round((new Date(`${dueDate}T00:00:00`).getTime() - today.getTime()) / 86400000);
     out.push({ id: `bill_${b.tag}`, kind: 'bill', name: b.name, amount: b.lastAmount, daysUntil, dueDate, icon: b.icon });
@@ -213,6 +214,6 @@ export function upcomingPayments(expenses: Expense[], subs: Subscription[], now:
   return out.sort((a, b) => a.daysUntil - b.daysUntil);
 }
 
-export function nextUpcomingPayment(expenses: Expense[], subs: Subscription[], now: Date = new Date()): UpcomingPayment | null {
-  return upcomingPayments(expenses, subs, now)[0] ?? null;
+export function nextUpcomingPayment(expenses: Expense[], subs: Subscription[], now: Date = new Date(), dismissed: readonly string[] = []): UpcomingPayment | null {
+  return upcomingPayments(expenses, subs, now, dismissed)[0] ?? null;
 }
