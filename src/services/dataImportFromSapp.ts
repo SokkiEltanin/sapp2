@@ -1,7 +1,11 @@
 import { useExpensesStore } from '@/store/expensesStore';
 import { useMoodStore } from '@/store/moodStore';
+import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import type { Expense, ReceiptItem } from '@/types/finances';
 import type { MoodEntry } from '@/types/mood';
+import type { Subscription, BillingCycle } from '@/types/subscriptions';
+import { rollOverdueSubscription, isDurationExpired } from '@/utils/recurringBills';
+import { ymdLocal } from '@/utils/dateMath';
 
 // Import z sapp (2026-11-09, user: "musimy dodac zeby eksport zrobic z sapp danych
 // do sapp2 - glownie zalezy mi na finansach i paragonach wstecz oraz humor") — sapp
@@ -13,7 +17,7 @@ import type { MoodEntry } from '@/types/mood';
 // treść, `app/import-sapp.tsx`), mapuje `cloud.expenses`/`cloud.mood` (jedyne dwa
 // bloki które user chciał — "głównie finanse/paragony i humor") na sapp2's nieco
 // inny schemat, i wstawia offline-first przez istniejące store'y. Reszta bloku
-// (events/tasks/subskrypcje/workShifts/pojazdy...) ŚWIADOMIE ignorowana — sapp2 ma
+// (events/tasks/workShifts/pojazdy...) ŚWIADOMIE ignorowana — sapp2 ma
 // własny, osobny Kalendarz/Zadania/Praca/Pojazdy, mieszanie starych danych tamtych
 // podsystemów byłoby zgadywaniem, nie tym o co user prosił.
 
@@ -54,10 +58,34 @@ interface SappMoodEntry {
   updatedAt?: string;
 }
 
+// Subskrypcje / Stałe opłaty (DOŁĄCZONE 2026-11-11 — wcześniej świadomie
+// odłożone: zaległe `nextBillingDate` z sapp wymagały przemyślenia, patrz
+// `mapSubscription`). sapp's typ ≈ sapp2's, różnice: daty createdAt/updatedAt
+// jako ISO string (sapp2: ms), `currency`/`category` (sapp2 nie ma).
+interface SappSubscription {
+  id: string;
+  name: string;
+  amount: number;
+  currency?: string;
+  category?: string;
+  billingCycle: BillingCycle;
+  nextBillingDate: string;
+  reminderDaysBefore?: number;
+  active?: boolean;
+  tags?: string[];
+  note?: string;
+  durationMonths?: number;
+  startDate?: string;
+  missedCycles?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface SappExportPayload {
   cloud?: {
     expenses?: SappExpense[];
     mood?: SappMoodEntry[];
+    subscriptions?: SappSubscription[];
   };
 }
 
@@ -131,11 +159,49 @@ function mapMood(m: SappMoodEntry): MoodEntry {
   };
 }
 
+const VALID_CYCLES: BillingCycle[] = ['weekly', 'monthly', 'quarterly', 'yearly'];
+
+// `today` parametrem (nie `new Date()` w środku) — testowalne.
+export function mapSubscription(s: SappSubscription, today: string): Subscription {
+  const tags = [...(s.tags ?? [])];
+  const catTag = s.category ? CATEGORY_TO_TAG[s.category] : undefined;
+  if (catTag && !tags.includes(catTag)) tags.push(catTag);
+  // sapp2 liczy wszystko w PLN — obca waluta zostaje widoczna w notatce,
+  // zamiast cicho udawać że "9.99" to złotówki.
+  const foreign = s.currency && s.currency.toUpperCase() !== 'PLN' ? s.currency.toUpperCase() : null;
+  const note = [s.note?.trim(), foreign ? `kwota w ${foreign}` : undefined].filter(Boolean).join(' · ') || undefined;
+  const billingCycle = VALID_CYCLES.includes(s.billingCycle) ? s.billingCycle : 'monthly';
+  // Zaległa data z eksportu (plik mógł leżeć tygodniami) → najbliższy PRZYSZŁY
+  // termin od razu przy imporcie. `missedCycles` NIE dolicza tych przesunięć —
+  // przerwa wynika z przenosin między appkami, nie z niezapłaconych cykli.
+  const rolled = rollOverdueSubscription({ nextBillingDate: s.nextBillingDate, billingCycle, missedCycles: 0 }, today);
+  const base: Subscription = {
+    id: `sapp_${s.id}`,
+    name: s.name,
+    amount: s.amount,
+    billingCycle,
+    nextBillingDate: rolled?.nextBillingDate ?? s.nextBillingDate,
+    reminderDaysBefore: s.reminderDaysBefore ?? 0,
+    active: s.active !== false,
+    tags: tags.length ? tags : undefined,
+    note,
+    durationMonths: s.durationMonths,
+    startDate: s.startDate,
+    missedCycles: s.missedCycles,
+    createdAt: Date.parse(s.createdAt ?? '') || Date.now(),
+    updatedAt: Date.parse(s.updatedAt ?? '') || Date.now(),
+  };
+  if (base.active && isDurationExpired(base)) base.active = false;
+  return base;
+}
+
 export interface ImportResult {
   expensesAdded: number;
   expensesSkipped: number;
   moodAdded: number;
   moodSkipped: number;
+  subscriptionsAdded: number;
+  subscriptionsSkipped: number;
 }
 
 // Wstawia offline-first, DEDUP po id (prefiks `sapp_` + oryginalny id z sapp —
@@ -184,5 +250,26 @@ export function importSappPayload(raw: string): ImportResult {
   }
   if (newMoodEntries.length > 0) moodStore.addEntries(newMoodEntries);
 
-  return { expensesAdded, expensesSkipped, moodAdded, moodSkipped };
+  // Dedup: po id (ponowny import) ORAZ po nazwie+kwocie — user mógł już ręcznie
+  // założyć tę samą subskrypcję w sapp2, zanim zaimportował plik.
+  const subsStore = useSubscriptionsStore.getState();
+  const existingSubIds = new Set(subsStore.subscriptions.map((s) => s.id));
+  const subKey = (name: string, amount: number) => `${name.trim().toLowerCase()}|${amount.toFixed(2)}`;
+  const existingSubKeys = new Set(subsStore.subscriptions.map((s) => subKey(s.name, s.amount)));
+  const today = ymdLocal(new Date());
+  const newSubs: Subscription[] = [];
+  let subscriptionsAdded = 0, subscriptionsSkipped = 0;
+  for (const s of parsed.cloud?.subscriptions ?? []) {
+    if (!s?.name || !(s.amount > 0) || !s.nextBillingDate) { subscriptionsSkipped++; continue; }
+    const mapped = mapSubscription(s, today);
+    const key = subKey(mapped.name, mapped.amount);
+    if (existingSubIds.has(mapped.id) || existingSubKeys.has(key)) { subscriptionsSkipped++; continue; }
+    newSubs.push(mapped);
+    existingSubIds.add(mapped.id);
+    existingSubKeys.add(key);
+    subscriptionsAdded++;
+  }
+  if (newSubs.length > 0) subsStore.addSubscriptions(newSubs);
+
+  return { expensesAdded, expensesSkipped, moodAdded, moodSkipped, subscriptionsAdded, subscriptionsSkipped };
 }

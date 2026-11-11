@@ -11,6 +11,9 @@ interface SubscriptionsState {
   subscriptions: Subscription[];
 
   addSubscription: (input: Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>) => Subscription;
+  // Import z sapp (2026-11-11) — gotowe obiekty z WŁASNYM id (`sapp_<id>`, dedup
+  // przy ponownym imporcie), jeden `set()` = jeden zapis persist.
+  addSubscriptions: (subs: Subscription[]) => void;
   updateSubscription: (id: string, patch: Partial<Subscription>) => void;
   deleteSubscription: (id: string) => void;
 }
@@ -29,6 +32,7 @@ export const useSubscriptionsStore = create<SubscriptionsState>()(
         set({ subscriptions: [...get().subscriptions, sub] });
         return sub;
       },
+      addSubscriptions: (subs) => set((s) => ({ subscriptions: [...s.subscriptions, ...subs] })),
       updateSubscription: (id, patch) => set((s) => ({
         subscriptions: s.subscriptions.map((sub) => (sub.id === id ? { ...sub, ...patch, updatedAt: Date.now() } : sub)),
       })),

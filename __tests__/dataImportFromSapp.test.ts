@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { importSappPayload } from '@/services/dataImportFromSapp';
+import { importSappPayload, mapSubscription } from '@/services/dataImportFromSapp';
+import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import { useExpensesStore } from '@/store/expensesStore';
 import { useMoodStore } from '@/store/moodStore';
 
@@ -118,7 +119,7 @@ describe('importSappPayload — humor', () => {
 describe('importSappPayload — brak bloków / pusty payload', () => {
   test('brak cloud.expenses/cloud.mood → zera, bez rzucania', () => {
     const r = importSappPayload(JSON.stringify({ cloud: {} }));
-    expect(r).toEqual({ expensesAdded: 0, expensesSkipped: 0, moodAdded: 0, moodSkipped: 0 });
+    expect(r).toEqual({ expensesAdded: 0, expensesSkipped: 0, moodAdded: 0, moodSkipped: 0, subscriptionsAdded: 0, subscriptionsSkipped: 0 });
   });
 
   test('niepoprawny JSON → rzuca (ekran importu to łapie)', () => {
@@ -181,5 +182,56 @@ describe('importSappPayload — wstawia WSADOWO (jeden set(), nie pętla pojedyn
     importSappPayload(sappPayload({ expenses: [{ id: 'dup', amount: 10, date: '2026-05-01' }] }));
     expect(addExpenses.calls).toHaveLength(0);
     addExpenses.restore();
+  });
+});
+
+// 2026-11-11 — subskrypcje / Stałe opłaty z eksportu sapp.
+describe('importSappPayload — subskrypcje', () => {
+  const subPayload = (subscriptions: any[]) => JSON.stringify({ cloud: { subscriptions } });
+  beforeEach(() => { useSubscriptionsStore.setState({ subscriptions: [] }); });
+
+  test('mapuje pola, id "sapp_", kategoria → tag, daty ISO → ms', () => {
+    const r = importSappPayload(subPayload([{
+      id: 'a1', name: 'Netflix', amount: 49.99, currency: 'PLN', category: 'entertainment',
+      billingCycle: 'monthly', nextBillingDate: '2099-01-15', reminderDaysBefore: 3, active: true,
+      createdAt: '2026-01-01T10:00:00.000Z',
+    }]));
+    expect(r.subscriptionsAdded).toBe(1);
+    const [s] = useSubscriptionsStore.getState().subscriptions;
+    expect(s.id).toBe('sapp_a1');
+    expect(s.tags).toEqual(['rozrywka']);
+    expect(s.reminderDaysBefore).toBe(3);
+    expect(s.createdAt).toBe(Date.parse('2026-01-01T10:00:00.000Z'));
+  });
+
+  test('zaległa data z eksportu → przesunięta na najbliższy przyszły termin, bez doliczania missedCycles', () => {
+    const s = mapSubscription({ id: 'a', name: 'Spotify', amount: 23.99, billingCycle: 'monthly', nextBillingDate: '2026-08-05', missedCycles: 0 }, '2026-11-11');
+    expect(s.nextBillingDate).toBe('2026-12-05');
+    expect(s.missedCycles).toBe(0);
+  });
+
+  test('obca waluta → zostaje widoczna w notatce', () => {
+    const s = mapSubscription({ id: 'a', name: 'iCloud', amount: 0.99, currency: 'EUR', billingCycle: 'monthly', nextBillingDate: '2099-01-01', note: 'plan 50GB' }, '2026-11-11');
+    expect(s.note).toBe('plan 50GB · kwota w EUR');
+  });
+
+  test('ponowny import i ręcznie założona ta sama (nazwa+kwota) → pomijane', () => {
+    useSubscriptionsStore.setState({ subscriptions: [{
+      id: 'sub_x', name: 'netflix ', amount: 49.99, billingCycle: 'monthly', nextBillingDate: '2099-01-01',
+      reminderDaysBefore: 0, active: true, createdAt: 0, updatedAt: 0,
+    }] });
+    const payload = subPayload([
+      { id: 'a1', name: 'Netflix', amount: 49.99, billingCycle: 'monthly', nextBillingDate: '2099-01-15' },
+      { id: 'a2', name: 'Siłownia', amount: 120, billingCycle: 'monthly', nextBillingDate: '2099-01-10' },
+    ]);
+    const r1 = importSappPayload(payload);
+    expect([r1.subscriptionsAdded, r1.subscriptionsSkipped]).toEqual([1, 1]);
+    const r2 = importSappPayload(payload);
+    expect([r2.subscriptionsAdded, r2.subscriptionsSkipped]).toEqual([0, 2]);
+  });
+
+  test('niekompletny wpis (bez nazwy/kwoty/daty) → pominięty, nie wywala importu', () => {
+    const r = importSappPayload(subPayload([{ id: 'x', name: '', amount: 10, billingCycle: 'monthly', nextBillingDate: '2099-01-01' }]));
+    expect([r.subscriptionsAdded, r.subscriptionsSkipped]).toEqual([0, 1]);
   });
 });

@@ -4021,3 +4021,33 @@ planuje się od razu na NASTĘPNY cykl (okno minęło) — to zamierzone.
 **Świadomie NIE w tej rundzie:** przypomnienia dla PRZEWIDYWANYCH rachunków z
 historii (czynsz/prąd z `detectRecurringBills`) — nie mają ustawienia
 "przypomnienie", trzeba by najpierw zdecydować gdzie user je włącza.
+
+## Import Stałych opłat (subskrypcji) z sapp (2026-11-11)
+
+Wcześniej świadomie odłożone (zaległe `nextBillingDate` z pliku eksportu
+wymagały przemyślenia). User od początku pytał "czy w sapp możemy eksportować...
+stałych... żeby przenieść je do sapp2".
+
+- `services/dataImportFromSapp.ts` czyta teraz też `cloud.subscriptions`
+  (sapp's `backupService.ts` już je eksportuje — zero zmian po stronie sapp).
+  `mapSubscription`: id `sapp_<id>`, kategoria → tag (ten sam słownik co
+  wydatki), daty ISO → ms, **zaległa data → od razu najbliższy przyszły
+  termin** (`rollOverdueSubscription`) bez doliczania `missedCycles` (przerwa
+  wynika z przenosin, nie z niezapłaconych cykli), wygasły czas trwania →
+  `active:false`, obca waluta → dopisek "kwota w EUR" w notatce (sapp2 liczy
+  wszystko w PLN). Niekompletny wpis pomijany zamiast wywalać import.
+- Dedup: po id (ponowny import) ORAZ nazwa+kwota (user mógł już ręcznie
+  założyć tę samą subskrypcję w sapp2).
+- `subscriptionsStore.addSubscriptions` (batch, jeden zapis — ten sam wzorzec
+  co `addExpenses`). Ekran importu: wiersz "Stałe opłaty: N nowych" + opis.
+- Zaimportowane przypomnienia (`reminderDaysBefore`) od razu planują realne
+  powiadomienia (poprzednia runda) — `useBillReminderSync` łapie zmianę store'u.
+
+**Zweryfikowane:** tsc czysty, jest 367/367 (5 nowych testów).
+`expo web`+Playwright: wklejony eksport → "Stałe opłaty: 2 nowych", Netflix
+20.09 → 20.11, tag "rozrywka", iCloud z dopiskiem EUR.
+
+**Znane, nie zrobione:** lista Stałych opłat nie pokazuje notatki, więc
+subskrypcja w EUR wygląda jak "0.99 zł/mies." i wlicza się do sumy
+miesięcznej jako PLN. Do decyzji: przeliczać (kurs?) czy tylko oznaczyć w
+wierszu.

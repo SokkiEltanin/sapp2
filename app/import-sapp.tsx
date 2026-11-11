@@ -20,7 +20,7 @@ import { haptic } from '@/utils/haptics';
 // mail/Drive/Pliki, zaznacz całość, kopiuj) ALBO wybierz plik bezpośrednio
 // (2026-11-09, user: "daj w imporcie danych możliwość przesłania pliku json bo
 // na tamtym koncie [nie dało się/nie wygodnie] wkleić a ja mam to jako plik") —
-// appka sparsuje i wstawi WYŁĄCZNIE wydatki/paragony i humor (patrz
+// appka sparsuje i wstawi wydatki/paragony, humor i (od 2026-11-11) subskrypcje (patrz
 // src/services/dataImportFromSapp.ts po pełny opis mapowania — reszta bloku,
 // kalendarz/zadania/praca/pojazdy, świadomie pomijana, sapp2 ma te podsystemy
 // własne). Bezpieczne odpalić wielokrotnie — dedup po id, ponowny import tego
@@ -124,7 +124,7 @@ export default function ImportSappScreen() {
             schowku (mail/Drive) → skopiuj całość i "Wklej ze schowka".{'\n'}
             3. Zatwierdź przyciskiem "Importuj".
           </Text>
-          <Text style={s.hint}>Zaimportują się TYLKO wydatki/paragony i humor — reszta (kalendarz, zadania…) jest pomijana, sapp2 ma to własne.</Text>
+          <Text style={s.hint}>Zaimportują się wydatki/paragony, humor i stałe opłaty (subskrypcje) — reszta (kalendarz, zadania…) jest pomijana, sapp2 ma to własne. Ponowny import tego samego pliku niczego nie zdubluje.</Text>
         </View>
 
         <View style={s.card}>
@@ -188,6 +188,7 @@ export default function ImportSappScreen() {
               <Text style={s.resultTitle}>Zaimportowano</Text>
               <Text style={s.resultLine}>Wydatki/paragony: {result.expensesAdded} nowych{result.expensesSkipped > 0 ? ` (${result.expensesSkipped} już było)` : ''}</Text>
               <Text style={s.resultLine}>Humor: {result.moodAdded} nowych{result.moodSkipped > 0 ? ` (${result.moodSkipped} już było)` : ''}</Text>
+              <Text style={s.resultLine}>Stałe opłaty: {result.subscriptionsAdded} nowych{result.subscriptionsSkipped > 0 ? ` (${result.subscriptionsSkipped} już było)` : ''}</Text>
             </View>
           </View>
         )}
