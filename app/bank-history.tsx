@@ -1,13 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChevronLeft, Undo2, BookmarkPlus, Trash2, Landmark, AlertTriangle } from 'lucide-react-native';
+import { ChevronLeft, Undo2, BookmarkPlus, Trash2, Landmark, AlertTriangle, Zap, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { useBankQueue, type BankIngestHistoryEntry } from '@/store/bankQueueStore';
 import { undoBankHistoryEntry } from '@/services/bankCommit';
-import { saveMerchant, setMerchantAuto } from '@/utils/merchantMemory';
+import { loadMerchantMemory, merchantFor, type MerchantMemory } from '@/utils/merchantMemory';
+import MerchantTemplateSheet, { type TemplateTarget } from '@/components/finances/MerchantTemplateSheet';
 import { haptic } from '@/utils/haptics';
 
 // Ekran "Historia" (2026-11-01, user: "mam nadzieję że zrobiłeś w zatwierdzeniu
@@ -25,7 +26,17 @@ export default function BankHistory() {
   const s = makeS();
   const { history, updateHistoryEntry } = useBankQueue();
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
-  const [templated, setTemplated] = useState<Set<string>>(new Set());
+  // Szablony = sklepy na automacie w merchantMemory (patrz MerchantTemplateSheet).
+  // Stan z PAMIĘCI, nie z lokalnego Seta sesji — po powrocie na ekran widać
+  // które już są szablonami.
+  const [mem, setMem] = useState<MerchantMemory>({});
+  const reloadMem = useCallback(() => { loadMerchantMemory().then(setMem).catch(() => {}); }, []);
+  useEffect(() => { reloadMem(); }, [reloadMem]);
+  const [templateTarget, setTemplateTarget] = useState<TemplateTarget | null>(null);
+  const templates = useMemo(
+    () => Object.entries(mem).filter(([, v]) => v.auto).map(([k, v]) => ({ key: k, name: v.name || k, tags: v.tags ?? [] })),
+    [mem],
+  );
 
   const setBusy = (id: string, v: boolean) => setBusyIds((prev) => {
     const next = new Set(prev);
@@ -44,12 +55,10 @@ export default function BankHistory() {
     }
   };
 
-  const createTemplate = (h: BankIngestHistoryEntry) => {
-    haptic.success();
-    saveMerchant(h.storeKey, { tags: h.tags, name: h.store })
-      .then(() => setMerchantAuto(h.storeKey, true))
-      .then(() => setTemplated((prev) => new Set(prev).add(h.id)))
-      .catch(() => {});
+  const openTemplate = (h: BankIngestHistoryEntry) => {
+    haptic.tap();
+    const info = merchantFor(h.storeKey, mem);
+    setTemplateTarget({ storeKey: h.storeKey, store: h.store, tags: info?.auto ? info.tags : h.tags, existing: !!info?.auto });
   };
 
   const clearAll = () => { haptic.tap(); useBankQueue.getState().clearHistory(); };
@@ -69,6 +78,31 @@ export default function BankHistory() {
       </View>
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        <View style={s.tplCard}>
+          <View style={s.tplHead}>
+            <Zap size={15} color={colors.accent.green} />
+            <Text style={s.tplTitle}>Szablony sklepów</Text>
+          </View>
+          <Text style={s.tplSub}>
+            Płatności z tych sklepów appka dodaje sama, bez pytania, z podanymi tagami. Nowy szablon: „Stwórz szablon” przy pozycji niżej.
+          </Text>
+          {templates.length === 0 && <Text style={s.tplEmpty}>Brak szablonów.</Text>}
+          {templates.map((t) => (
+            <TouchableOpacity
+              key={t.key}
+              style={s.tplRow}
+              activeOpacity={0.7}
+              onPress={() => { haptic.tap(); setTemplateTarget({ storeKey: t.key, store: t.name, tags: t.tags, existing: true }); }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={s.tplName} numberOfLines={1}>{t.name}</Text>
+                <Text style={s.tplTags} numberOfLines={1}>{t.tags.length ? t.tags.join(', ') : 'bez tagów'}</Text>
+              </View>
+              <ChevronRight size={16} color={colors.text.muted} />
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {rows.length === 0 && (
           <View style={s.empty}>
             <Landmark size={30} color={colors.text.muted} />
@@ -80,7 +114,7 @@ export default function BankHistory() {
           const d = new Date(h.at);
           const isIn = h.direction === 'in';
           const canUndo = !!h.expenseId && !h.undone;
-          const isTemplated = templated.has(h.id);
+          const isTemplated = !!merchantFor(h.storeKey, mem)?.auto;
           return (
             <View key={h.id} style={[s.card, h.undone && s.cardUndone]}>
               {h.flagReason && (
@@ -117,10 +151,10 @@ export default function BankHistory() {
                     </TouchableOpacity>
                   )}
                   {!isIn && h.storeKey && (
-                    <TouchableOpacity style={s.actBtn} onPress={() => createTemplate(h)} activeOpacity={0.8} disabled={isTemplated}>
+                    <TouchableOpacity style={s.actBtn} onPress={() => openTemplate(h)} activeOpacity={0.8}>
                       <BookmarkPlus size={13} color={isTemplated ? colors.accent.green : colors.text.secondary} />
                       <Text style={[s.actText, isTemplated && { color: colors.accent.green }]}>
-                        {isTemplated ? 'Szablon zapisany' : 'Stwórz szablon'}
+                        {isTemplated ? 'Szablon · edytuj' : 'Stwórz szablon'}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -131,6 +165,7 @@ export default function BankHistory() {
         })}
         <View style={{ height: 40 }} />
       </ScrollView>
+      <MerchantTemplateSheet target={templateTarget} onClose={() => setTemplateTarget(null)} onSaved={reloadMem} />
     </SafeAreaView>
   );
 }
@@ -164,5 +199,13 @@ const makeS = themedStyles((c) => StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: spacing[3],
     borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, backgroundColor: c.bg.elevated,
   },
+  tplCard: { backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default, padding: spacing[4], marginBottom: spacing[4], gap: spacing[2] },
+  tplHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  tplTitle: { fontSize: 14, fontFamily: 'Inter_900Black', color: c.text.primary },
+  tplSub: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: c.text.muted, lineHeight: 16 },
+  tplEmpty: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  tplRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingVertical: spacing[2], borderTopWidth: 1, borderTopColor: c.border.default },
+  tplName: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  tplTags: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 1 },
   actText: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
 }));

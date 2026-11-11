@@ -8,8 +8,9 @@ import { spacing, radius, themedStyles } from '@/theme';
 import { useBankQueue, type PendingBankTx } from '@/store/bankQueueStore';
 import { useWorkStore } from '@/store/workStore';
 import { commitBankTx } from '@/services/bankCommit';
-import { loadMerchantMemory, saveMerchant, setMerchantAuto, AUTO_THRESHOLD, type MerchantMemory } from '@/utils/merchantMemory';
+import { loadMerchantMemory, setMerchantAuto, AUTO_THRESHOLD, type MerchantMemory } from '@/utils/merchantMemory';
 import { haptic } from '@/utils/haptics';
+import MerchantTemplateSheet, { type TemplateTarget } from '@/components/finances/MerchantTemplateSheet';
 
 // Port z sapp (app/bank-review.tsx), styl sapp2 (themedStyles, bez PressableScale/
 // haptyki/toastów — żadnego z nich appka jeszcze nie ma). Największa różnica: sapp ma
@@ -90,12 +91,12 @@ export default function BankReview() {
   // czystych akceptacjach — tu user jawnie, jednym tapem, nadaje go OD RAZU z
   // aktualnie ustawionymi tagami. Kolejna płatność z tego sklepu (ten sam storeKey)
   // już go złapie i zaksięguje automatycznie — to jest "szablon" w słowniku appki.
+  // 2026-11-11: przez MerchantTemplateSheet (formularz z wyjaśnieniem + tagi),
+  // nie cichy jeden tap.
+  const [templateTarget, setTemplateTarget] = useState<TemplateTarget | null>(null);
   const createTemplate = (p: PendingBankTx) => {
-    haptic.success();
-    saveMerchant(p.storeKey, { tags: p.tags, name: p.store })
-      .then(() => setMerchantAuto(p.storeKey, true))
-      .then(reloadMem)
-      .catch(() => {});
+    haptic.tap();
+    setTemplateTarget({ storeKey: p.storeKey, store: p.store, tags: p.tags });
   };
 
   // Sklepy, które awansowały na autopilota — pokazane żeby user mógł cofnąć zaufanie.
@@ -287,6 +288,7 @@ export default function BankReview() {
         )}
         <View style={{ height: 40 }} />
       </ScrollView>
+      <MerchantTemplateSheet target={templateTarget} onClose={() => setTemplateTarget(null)} onSaved={reloadMem} />
     </SafeAreaView>
   );
 }

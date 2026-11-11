@@ -1414,6 +1414,15 @@ wypłaty jeszcze nie ma w historii (i jakiekolwiek wypłaty są księgowane), in
 prognoza za bieżący (zaplanowane godziny × stawka). Stawka zawsze z
 `computeWorkRate` — jedna definicja. Tryb ręczny: godziny null, wypłata = pensja.
 
+**Szablony sklepów** (2026-11-11, user: "klikam utwórz szablon i pisze szablon
+utworzony. Nawet nic nie wypełniłem"): "szablon" = sklep na automacie w
+`merchantMemory` (kolejna płatność z tym storeKey księguje się sama z jego
+tagami). Tworzenie/edycja/usuwanie ZAWSZE przez
+`src/components/finances/MerchantTemplateSheet.tsx` (wyjaśnienie + tagi z
+podpowiedziami z własnych wydatków) — używany w `app/bank-history.tsx` (karta
+"Szablony sklepów" z listą + przycisk przy pozycji) i `app/bank-review.tsx`.
+Nie wracać do cichego jednego tapu.
+
 ## SUBSKRYPCJE / "Stałe opłaty" [PE]
 
 Port z sapp (2026-11-09, user: "czy w sapp mozemy eksportować szablony te do
