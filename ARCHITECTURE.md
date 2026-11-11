@@ -1229,6 +1229,27 @@ CAŁEGO wydatku.
 - **`VariableBreakdownCard.tsx`** — sekcja "Inne kategorie", pod "Higiena
   i chemia".
 
+### Ostrzeżenie o duplikacie przy ręcznym dodaniu wydatku (2026-11-11)
+
+User, ze zrzutem Transakcji z dwoma wierszami "Lidl −48.84 zł" tego samego
+dnia: "jak dodałem z opóźnieniem paragon to mi nie złapało że to ta sama
+suma pieniążków i dzień, i przez to mi się zdublowało". Jeden wpis już był
+w historii (np. złapany powiadomieniem z banku), drugi powstał gdy user
+ręcznie wkleił ten sam paragon PÓŹNIEJ — zero sprawdzenia przy zapisie.
+
+- **`utils/duplicateExpense.ts`'s `findPossibleDuplicate`** — ODWROTNY
+  kierunek niż `bankNotification.ts`'s `findMatchingExpense` (ta dopasowuje
+  PRZYCHODZĄCE powiadomienie do wydatku i świadomie POMIJA `bankMatched`,
+  bo szuka czegoś do podpięcia). Tu user ręcznie zapisuje NOWY wydatek,
+  więc sprawdzamy WSZYSTKIE istniejące (`bankMatched` czy nie) z tą samą
+  kwotą/dniem — reużywa `amountMatches`/`sameLocalDay` z
+  `bankNotification.ts`, zero duplikacji logiki dopasowania.
+- **`AddExpenseModal.tsx`** — pierwszy tap "Zapisz" na NOWYM wydatku (nie
+  edycji) tylko WYKRYWA i blokuje zapis, pokazując baner (ten sam wzorzec
+  co ProductsModal.tsx's "Możliwe duplikaty"): "Popraw" / "Zapisz mimo to"
+  (drugi tap tej samej `handleSave`, `dup.id === duplicateOf?.id` już
+  potwierdzony → realny zapis).
+
 **PRACA** [PE] — ZBUDOWANA (2026-11-09), patrz `## PRACA [PE]` niżej, po pełny
 opis. **POJAZDY** [PE] — ZBUDOWANA (2026-11-09), patrz `## POJAZDY [PE]`
 niżej. **SUBSKRYPCJE / "Stałe opłaty"** [PE] — ZBUDOWANA (2026-11-09), patrz

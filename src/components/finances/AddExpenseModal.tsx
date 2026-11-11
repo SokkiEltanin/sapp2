@@ -14,6 +14,7 @@ import {
 } from '@/utils/productMemory';
 import { saveMerchant } from '@/utils/merchantMemory';
 import { EXPENSE_CATEGORIES } from '@/utils/expenseCategory';
+import { findPossibleDuplicate } from '@/utils/duplicateExpense';
 import { buildProductCatalog } from '@/utils/productCatalog';
 import { haptic } from '@/utils/haptics';
 import type { Expense, ReceiptItem, PaymentMethod, FvOverride } from '@/types/finances';
@@ -144,6 +145,12 @@ export default function AddExpenseModal({
   // zmieniane pole nie zasługuje na stałe miejsce.
   const [catOpen, setCatOpen] = useState(false);
   const [expenseCategory, setExpenseCategory] = useState<string | undefined>(undefined);
+  // Ostrzeżenie o możliwym duplikacie (2026-11-11, user: "jak dodałem z
+  // opóźnieniem paragon to mi nie złapało że to ta sama suma i dzień") —
+  // pierwszy tap "Zapisz" na NOWYM wydatku tylko WYKRYWA i blokuje zapis,
+  // pokazując ostrzeżenie; drugi tap (przycisk w banerze) faktycznie
+  // zapisuje — `handleSave` sam sprawdza `duplicateOf`, patrz niżej.
+  const [duplicateOf, setDuplicateOf] = useState<Expense | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   // 2026-11-09, user wybrał "auto-wykrywanie przy otwarciu" zamiast polegania
@@ -164,7 +171,7 @@ export default function AddExpenseModal({
     setStoreName(''); setNote(''); setAmountInput(''); setDate(todayISO()); setPaymentMethod('card');
     setPayer('me'); setPaidOpen(false); setPasteBoxOpen(false); setFvOpen(false);
     setFvChoice('auto'); setCatOpen(false); setExpenseCategory(undefined);
-    setTags([]); setTagInput(''); setClipboardSuggestion(null);
+    setTags([]); setTagInput(''); setClipboardSuggestion(null); setDuplicateOf(null);
   };
 
   // Wypełnienie formularza przy otwarciu w trybie edycji — `editingExpense` jest
@@ -293,6 +300,20 @@ export default function AddExpenseModal({
 
   const handleSave = () => {
     if (!canSave) return;
+    // Wykrycie możliwego duplikatu TYLKO dla nowego wydatku (nie edycji —
+    // edytowany wydatek NIE jest swoim własnym duplikatem). `dup.id !==
+    // duplicateOf?.id` — drugi tap (po zmianie kwoty/daty albo z banera
+    // "Zapisz mimo to" poniżej, który nie zmienia pól) przechodzi dalej:
+    // jeśli to ta sama propozycja co już pokazana, user ją świadomie
+    // potwierdził, nie pytamy drugi raz.
+    if (type === 'expense' && !editingExpense) {
+      const dup = findPossibleDuplicate({ amount, date }, expenses);
+      if (dup && dup.id !== duplicateOf?.id) {
+        haptic.tap();
+        setDuplicateOf(dup);
+        return;
+      }
+    }
     haptic.success();
     const now = new Date().toISOString();
     const shared = {
@@ -374,6 +395,21 @@ export default function AddExpenseModal({
         <TouchableOpacity style={s.pasteFab} onPress={handlePasteFromClipboard} activeOpacity={0.8} accessibilityLabel="Wklej ze schowka i rozpoznaj paragon">
           <ClipboardPaste size={20} color={colors.bg.primary} />
         </TouchableOpacity>
+      )}
+      {duplicateOf && (
+        <View style={s.dupWarning}>
+          <Text style={s.dupWarningText}>
+            Podobna transakcja już istnieje: {duplicateOf.note || duplicateOf.storeName || 'Wydatek'} · {duplicateOf.amount.toFixed(2)} zł · {duplicateOf.date.slice(0, 10)}. Zapisać mimo to?
+          </Text>
+          <View style={s.dupWarningActions}>
+            <TouchableOpacity style={s.dupWarningBtnSecondary} onPress={() => { haptic.tap(); setDuplicateOf(null); }} activeOpacity={0.7}>
+              <Text style={s.dupWarningBtnSecondaryLabel}>Popraw</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.dupWarningBtnPrimary} onPress={handleSave} activeOpacity={0.7}>
+              <Text style={s.dupWarningBtnPrimaryLabel}>Zapisz mimo to</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       )}
       <View style={s.footer}>
         <View>
@@ -803,6 +839,18 @@ const makeS = themedStyles((c) => StyleSheet.create({
   // kwota+Zapisz, żeby `bottom:'100%'` na `pasteFab` kotwiczyło się do GÓRNEJ
   // krawędzi TEGO rzędu (nie całego, szerszego paddingu `AppBottomSheet`'s).
   footerRoot: {},
+  // Ostrzeżenie o możliwym duplikacie (2026-11-11) — ten sam wizualny wzorzec
+  // co ProductsModal.tsx's "Możliwe duplikaty" (dupeBtnSecondary/Primary).
+  dupWarning: {
+    backgroundColor: c.bg.elevated, borderRadius: radius.lg, borderWidth: 1, borderColor: c.accent.red,
+    padding: spacing[3], marginBottom: spacing[3], gap: spacing[2],
+  },
+  dupWarningText: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  dupWarningActions: { flexDirection: 'row', gap: spacing[2] },
+  dupWarningBtnSecondary: { flex: 1, paddingVertical: spacing[2], borderRadius: radius.sm, backgroundColor: c.bg.card, alignItems: 'center' },
+  dupWarningBtnSecondaryLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
+  dupWarningBtnPrimary: { flex: 1, paddingVertical: spacing[2], borderRadius: radius.sm, backgroundColor: c.text.bright, alignItems: 'center' },
+  dupWarningBtnPrimaryLabel: { fontSize: 11.5, fontFamily: 'Inter_900Black', color: c.bg.primary },
   footer: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },

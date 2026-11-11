@@ -3856,3 +3856,37 @@ randomowo PRODUKTY I POJAZDY bez sensu... niewygodne i bez sensu
 umiejscowione, już wolę gdzieś po prawej skrócić kafelek SUMY KONTA i po
 prawej zrobić dwa przyciski". Czeka na zapowiedziany zrzut ekranu zanim
 to ruszę — NIE zgadywać układu bez zobaczenia dokładnie o co chodzi.
+
+## Ostrzeżenie o duplikacie przy ręcznym dodaniu wydatku (2026-11-11)
+
+User, ze zrzutem listy Transakcji pokazującym dwa wiersze "Lidl −48.84 zł"
+tego samego dnia: "tutaj jak dodałem z opóźnieniem paragon to mi nie
+złapało że to ta sama suma pieniążków i dzień i przez to mi się
+zdublowało". Jeden wpis był już w historii (np. złapany powiadomieniem z
+banku, `bankMatched:true`, pełna data z czasem), drugi powstał gdy user
+ręcznie wkleił ten sam paragon PÓŹNIEJ (data bez czasu) — zero sprawdzenia
+przy zapisie nowego wydatku.
+
+- **Nowy `utils/duplicateExpense.ts`'s `findPossibleDuplicate`** — inny
+  kierunek niż istniejące `findMatchingExpense` (bankNotification.ts, która
+  dopasowuje PRZYCHODZĄCE powiadomienie do wydatku i świadomie POMIJA
+  `bankMatched`, bo szuka czegoś do podpięcia). Tu user ręcznie zapisuje
+  NOWY wydatek, więc sprawdzamy WSZYSTKIE istniejące (`bankMatched` czy
+  nie) z tą samą kwotą (`amountMatches`, uwzględnia też `originalAmount`)
+  tego samego dnia (`sameLocalDay`) — oba helpery reużyte z
+  `bankNotification.ts`, zero duplikacji logiki dopasowania.
+- **`AddExpenseModal.tsx`** — pierwszy tap "Zapisz" na NOWYM wydatku (nie
+  edycji — edytowany wydatek nie jest swoim własnym duplikatem) tylko
+  WYKRYWA i blokuje zapis, pokazując baner (ten sam wizualny wzorzec co
+  ProductsModal.tsx's "Możliwe duplikaty"): "Podobna transakcja już
+  istnieje: {nazwa} · {kwota} zł · {data}. Zapisać mimo to?" z przyciskami
+  "Popraw" (czyści ostrzeżenie, user poprawia pola) / "Zapisz mimo to"
+  (drugi tap tej samej `handleSave` — `dup.id === duplicateOf?.id` już
+  potwierdzony, przechodzi do realnego zapisu).
+
+**Zweryfikowane:** tsc czysty, jest 340/340 (6 nowych testów
+`duplicateExpense.test.ts`). Wizualnie `expo web`+Playwright: istniejący
+"Lidl 48.84 zł, 2026-11-10T06:23:00, bankMatched" + nowy ręczny wydatek
+"Lidl, 48.84 zł, Wczoraj (2026-11-10)" → pierwszy tap "Zapisz" NIE zapisuje
+(liczba wydatków zostaje 1), pokazuje baner z dokładną treścią; tap
+"Zapisz mimo to" → realnie zapisuje (liczba wydatków → 2).
