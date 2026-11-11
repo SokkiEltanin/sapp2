@@ -3827,3 +3827,32 @@ jednorazowa korekta) średnia nie odpowiadała żadnej prawdziwej płatności.
 **Zweryfikowane:** tsc czysty, jest 334/334 (test
 `detectRecurringBills` zaktualizowany: 180 zł + 200 zł → `lastAmount: 200`,
 nie `avgAmount: 190`).
+
+## Pojazdy: ukryty km/zł-na-km stat dla roweru/"inny" (2026-11-11)
+
+User: "rower nie ma przebiegu xd" — kafel Statystyki w `app/vehicles.tsx`
+pokazywał "—" dla km i zł/km dla roweru (nikt nie wpisuje odczytu licznika
+dla zwykłego roweru bez licznika), co wyglądało na błąd. Dopytane przez
+`AskUserQuestion` — user wybrał "ukryj km/zł-na-km dla roweru
+(rekomendowane)".
+
+- `showMileageStats = kind !== 'bike' && kind !== 'other'` — dla tych
+  dwóch rodzajów kafel Statystyki pokazuje TYLKO "zł ten miesiąc"
+  (wyśrodkowane, `statsRow`'s `space-around` samo się o to troszczy).
+  "Odczyt licznika" NIŻEJ zostaje dostępny bez zmian — kto faktycznie
+  śledzi km roweru, dalej może, po prostu nie jest to już wymuszony,
+  zawsze pusty stat u góry.
+
+**Zweryfikowane:** tsc czysty, jest 334/334 (bez nowych testów — czysto
+UI). Wizualnie `expo web`+Playwright: rower → kafel Statystyki pokazuje
+TYLKO "0 zł ten miesiąc" wyśrodkowane; samochód (Octavia, z wpisem
+tankowania) → nadal wszystkie 3 staty ("50 000 km" / "— zł/km" / "0 zł
+ten miesiąc").
+
+## OTWARTE: przyciski "Produkty"/"Pojazdy" w kafelku Jedzenie w Finansach (2026-11-11)
+
+User: "w finanse są te takie w JEDZENIE KATEGORIE w kafelku i tam są
+randomowo PRODUKTY I POJAZDY bez sensu... niewygodne i bez sensu
+umiejscowione, już wolę gdzieś po prawej skrócić kafelek SUMY KONTA i po
+prawej zrobić dwa przyciski". Czeka na zapowiedziany zrzut ekranu zanim
+to ruszę — NIE zgadywać układu bez zobaczenia dokładnie o co chodzi.

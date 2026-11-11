@@ -76,6 +76,10 @@ export default function VehiclesScreen() {
   const perKm = useMemo(() => (viewing ? costPerKm(viewing, expenses, mainId) : null), [viewing, expenses, mainId]);
   const odometer = useMemo(() => (viewing ? currentOdometer(viewing) : null), [viewing]);
   const consumption = useMemo(() => (viewing && fuelType ? avgFuelConsumption(viewing, fuelType) : null), [viewing, fuelType]);
+  // Rower/"Inny" nie mają sensownego przebiegu w typowym użyciu (2026-11-11,
+  // user: "rower nie ma przebiegu xd") — stat km/zł-na-km się dla nich nie
+  // pokazuje, patrz karta Statystyki niżej.
+  const showMileageStats = viewing ? viewing.kind !== 'bike' && viewing.kind !== 'other' : true;
 
   const resetFuelForm = () => { setFuelFormOpen(false); setOdoKm(''); setFuelType(null); setLiters(''); setAmount(''); };
   const submitFuelLog = () => {
@@ -228,14 +232,23 @@ export default function VehiclesScreen() {
           <View style={s.card}>
             <Text style={s.label}>Statystyki</Text>
             <View style={s.statsRow}>
-              <View style={s.statCol}>
-                <Text style={s.statNum}>{odometer != null ? odometer.toLocaleString('pl-PL') : '—'}</Text>
-                <Text style={s.statUnit}>km</Text>
-              </View>
-              <View style={s.statCol}>
-                <Text style={s.statNum}>{perKm ? perKm.value.toFixed(2) : '—'}</Text>
-                <Text style={s.statUnit}>zł / km</Text>
-              </View>
+              {/* km / zł-na-km ukryte dla roweru/"inny" (2026-11-11, user: "rower
+                  nie ma przebiegu xd" — te pojazdy nie mają sensownego przebiegu
+                  w typowym użyciu, więc zamiast wiecznie pustego "—" ten stat po
+                  prostu się nie pokazuje. "Odczyt licznika" niżej zostaje
+                  dostępny — kto faktycznie śledzi km roweru, dalej może. */}
+              {showMileageStats && (
+                <>
+                  <View style={s.statCol}>
+                    <Text style={s.statNum}>{odometer != null ? odometer.toLocaleString('pl-PL') : '—'}</Text>
+                    <Text style={s.statUnit}>km</Text>
+                  </View>
+                  <View style={s.statCol}>
+                    <Text style={s.statNum}>{perKm ? perKm.value.toFixed(2) : '—'}</Text>
+                    <Text style={s.statUnit}>zł / km</Text>
+                  </View>
+                </>
+              )}
               <View style={s.statCol}>
                 <Text style={s.statNum}>{summary ? summary.thisMonth.toFixed(0) : '—'}</Text>
                 <Text style={s.statUnit}>zł ten miesiąc</Text>
