@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { Plus, Package, Car, ChevronRight } from 'lucide-react-native';
 import { spacing, radius, themedStyles } from '@/theme';
 import { Screen, Row, Tile, StatTile, Cap, FitList, Item, Price, StackBar } from '@/ui/layout';
-import { C, T } from '@/ui/theme';
+import { C, T, S } from '@/ui/theme';
 import AddExpenseModal from '@/components/finances/AddExpenseModal';
 import ProductsModal from '@/components/finances/ProductsModal';
 import TransactionsModal from '@/components/finances/TransactionsModal';
@@ -43,10 +43,9 @@ import type { Expense } from '@/types/finances';
 // sapp od razu"), patrz app/work.tsx. Kafelek pokazuje stawkę zł/h aktywnego
 // pracodawcy (`workStore.ts`), tap → pełny ekran.
 //
-// "Produkty" (pamięć cen, realna funkcja) NIE WYSTĘPUJE w spec — zostaje jako
-// mały link pod `Cap`'em kafla "Jedzenie · kategorie" (ta sama decyzja co
-// Faza 3.4, tylko przeniesiona pod nowy `Cap`, bo ten nie ma miejsca na drugi
-// link obok `r`).
+// "Produkty"/"Pojazdy" (realne funkcje, NIE w spec) — od 2026-11-11 dwa małe
+// kafle-przyciski po prawej od Salda (wcześniej malutkie linki pod `Cap`'em
+// kafla "Jedzenie · kategorie", user: "bez sensu umiejscowione").
 //
 // FAB "+" (dodaj wydatek/przychód) — REALNA funkcja appki, nie część
 // design/app-design.html (tam nie ma floating-button na Finansach, tylko na
@@ -193,15 +192,33 @@ export default function FinancesScreen() {
         </Text>
       )}
     >
+      {/* Saldo na 3 kolumny + po prawej Produkty/Pojazdy (2026-11-11, user: "w
+          JEDZENIE KATEGORIE w kafelku są randomowo PRODUKTY I POJAZDY bez sensu...
+          już wolę po prawej skrócić kafelek SUMY KONTA i po prawej zrobić dwa
+          przyciski"). Wcześniej dwa malutkie linki pod nagłówkiem kafla Jedzenia —
+          ani nie pasowały tematycznie (Pojazdy ≠ jedzenie), ani nie dało się w
+          nie wygodnie trafić. Kolumna bez własnej szerokości: dwa `Tile span={1}`
+          ją wyznaczają, `alignItems:'stretch'` Row'a daje jej wysokość Salda. */}
       <Row>
-        <Tile span={4} onPress={openEditBalance}>
-          <Cap l="Saldo" r="stuknij, by skalibrować" />
-          <Text style={T.numXl}>{fmtBalance(balance)} <Text style={s.balanceCur}>PLN</Text></Text>
+        <Tile span={3} onPress={openEditBalance}>
+          <Cap l="Saldo" r="stuknij, by ustawić" />
+          <Text style={T.numXl} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{fmtBalance(balance)} <Text style={s.balanceCur}>PLN</Text></Text>
           <View style={s.balanceSumRow}>
             <Text style={s.balanceIn}>+{fmtAmount(monthIncome)}</Text>
             <Text style={s.balanceOut}>−{fmtAmount(monthExpense)}</Text>
           </View>
         </Tile>
+        <View style={s.sideCol}>
+          <Tile span={1} center style={s.sideBtn} onPress={() => setProductsOpen(true)}>
+            <Package size={16} color={C.txt} />
+            <Text style={s.sideBtnLabel} numberOfLines={1}>Produkty</Text>
+            {productCount > 0 && <Text style={s.sideBtnCount}>{productCount}</Text>}
+          </Tile>
+          <Tile span={1} center style={s.sideBtn} onPress={() => router.push('/vehicles')}>
+            <Car size={16} color={C.txt} />
+            <Text style={s.sideBtnLabel} numberOfLines={1}>Pojazdy</Text>
+          </Tile>
+        </View>
       </Row>
 
       <Row>
@@ -216,16 +233,6 @@ export default function FinancesScreen() {
       <Row>
         <Tile span={4}>
           <Cap l="Jedzenie · kategorie" r={`${foodTotal} PLN`} />
-          <View style={s.areasRow}>
-            <TouchableOpacity onPress={() => setProductsOpen(true)} style={s.productsLink} hitSlop={6}>
-              <Package size={11} color={C.mut} />
-              <Text style={s.productsLinkLabel}>Produkty {productCount > 0 ? `(${productCount})` : ''}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => { haptic.tap(); router.push('/vehicles'); }} style={s.productsLink} hitSlop={6}>
-              <Car size={11} color={C.mut} />
-              <Text style={s.productsLinkLabel}>Pojazdy</Text>
-            </TouchableOpacity>
-          </View>
           {foodCats.length === 0 ? (
             <Text style={[T.small, s.emptyInline]}>Brak jedzenia w tym miesiącu</Text>
           ) : (
@@ -375,9 +382,10 @@ const makeS = themedStyles((c) => StyleSheet.create({
   balanceOut: { fontSize: 12, fontFamily: 'Inter_700Bold', color: C.mut },
 
   barSpace: { marginTop: spacing[3] },
-  areasRow: { flexDirection: 'row', gap: spacing[3], marginTop: -4, marginBottom: spacing[1] },
-  productsLink: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  productsLinkLabel: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: C.mut },
+  sideCol: { gap: S.gap },
+  sideBtn: { flex: 1, padding: 6, gap: 3 },
+  sideBtnLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: C.txt },
+  sideBtnCount: { fontSize: 9, fontFamily: 'Inter_600SemiBold', color: C.mut },
   emptyInline: { textAlign: 'center', marginTop: spacing[3] },
 
   txTextCol: { flex: 1, minWidth: 0 },

@@ -3845,7 +3845,7 @@ TYLKO "0 zł ten miesiąc" wyśrodkowane; samochód (Octavia, z wpisem
 tankowania) → nadal wszystkie 3 staty ("50 000 km" / "— zł/km" / "0 zł
 ten miesiąc").
 
-## OTWARTE: przyciski "Produkty"/"Pojazdy" w kafelku Jedzenie w Finansach (2026-11-11)
+## ~~OTWARTE~~ ZROBIONE: przyciski "Produkty"/"Pojazdy" w kafelku Jedzenie w Finansach (2026-11-11)
 
 User: "w finanse są te takie w JEDZENIE KATEGORIE w kafelku i tam są
 randomowo PRODUKTY I POJAZDY bez sensu... niewygodne i bez sensu
@@ -4080,3 +4080,15 @@ mało płacę w obcej walucie więc chill)". Kurs NIE jest liczony automatycznie
 web`+Playwright: plakietka → formularz z banerem → wpisane 95,40 → wydatek
 95.4 PLN, waluta wyczyszczona, plakietka znika; iCloud 0,99 EUR → stuknięcie
 w wiersz → baner → 4,29 → zapisane, oczekiwanie wyczyszczone.
+
+## Finanse: Produkty/Pojazdy jako dwa przyciski obok Salda (2026-11-11)
+
+Zamyka "OTWARTE: przyciski Produkty/Pojazdy" wyżej — zrzut nie był potrzebny,
+układ widać było na zrzutach z weryfikacji. User: "już wolę gdzieś po prawej
+skrócić kafelek SUMY KONTA i po prawej zrobić dwa przyciski". Saldo `span 3`
+(liczba z `adjustsFontSizeToFit`, żeby duże saldo się mieściło), po prawej
+kolumna z dwoma `Tile span={1}`: Produkty (ikona + liczba produktów) i Pojazdy.
+Malutkie linki spod nagłówka "Jedzenie · kategorie" usunięte.
+
+**Zweryfikowane:** tsc czysty, jest 372/372, `expo web`+Playwright — układ
+jak na zrzucie, "Pojazdy" otwiera `/vehicles`.
