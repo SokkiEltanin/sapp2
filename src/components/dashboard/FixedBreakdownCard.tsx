@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Repeat, TrendingUp, TrendingDown, Pencil } from 'lucide-react-native';
+import { Repeat, TrendingUp, TrendingDown, Pencil, ChevronRight, ChevronDown } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { haptic } from '@/utils/haptics';
@@ -20,10 +21,14 @@ function fmtTxDate(ymd: string): string {
 // rozpoznanym, nietypowym skokiem względem jej własnej historii — reszta pozycji
 // bez odznaki, nie "0%" wszędzie.
 //
-// "Wszystkie transakcje" DOŁĄCZONE 2026-11-09 — ten sam fix/uzasadnienie co
-// `VariableBreakdownCard.tsx` (user: "nie moge edytowac tam i klikać co jest
-// zmienna a co nie") — `bucketTransactions` była gotowa i przetestowana, nigdy
-// nie podpięta do żadnego ekranu.
+// Paski KLIKALNE, osobna lista "Wszystkie transakcje" USUNIĘTA (2026-11-11, user
+// zrzutem: "te z paskami zrób klikalne i odnoszące do płatności, bo teraz się
+// powiela... wywalamy listę z dołu żeby się nie dublować"). Pasek = suma
+// transakcji o tej samej etykiecie (`fixedBreakdown` i `bucketTransactions`
+// liczą etykietę tym samym `labelFor`, zbiór transakcji identyczny — nic nie
+// ginie). Jedna płatność → tap otwiera jej edycję ("Rozlicz jako" itd.); kilka →
+// pasek rozwija się i pokazuje je pod sobą. Ołówek = któraś ręcznie
+// przeklasyfikowana.
 export default function FixedBreakdownCard({
   month, total, changePercent, previousTotal, items, deviations, transactions, onSelectTransaction,
 }: {
@@ -39,6 +44,15 @@ export default function FixedBreakdownCard({
   const s = makeS();
   const maxAmount = Math.max(1, ...items.map((i) => i.amount));
   const deviationByLabel = new Map(deviations.map((d) => [d.label, d]));
+  const txByLabel = new Map<string, FvTransaction[]>();
+  for (const tx of transactions) txByLabel.set(tx.label, [...(txByLabel.get(tx.label) ?? []), tx]);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const onItemPress = (label: string) => {
+    const txs = txByLabel.get(label) ?? [];
+    haptic.tap();
+    if (txs.length === 1) onSelectTransaction(txs[0].id);
+    else if (txs.length > 1) setExpanded((cur) => (cur === label ? null : label));
+  };
 
   return (
     <View style={s.card}>
@@ -61,9 +75,17 @@ export default function FixedBreakdownCard({
         <View style={s.items}>
           {items.map((it) => {
             const dev = deviationByLabel.get(it.label);
+            const txs = txByLabel.get(it.label) ?? [];
+            const isOpen = expanded === it.label;
             return (
-              <View key={it.label} style={s.itemRow}>
-                <Text style={s.itemLabel} numberOfLines={1}>{it.label}</Text>
+              <View key={it.label}>
+              <TouchableOpacity style={s.itemRow} onPress={() => onItemPress(it.label)} activeOpacity={0.7} disabled={txs.length === 0}>
+                <View style={s.itemLabelCol}>
+                  <Text style={s.itemLabel} numberOfLines={1}>{it.label}</Text>
+                  <Text style={s.itemSub} numberOfLines={1}>
+                    {txs.length === 1 ? fmtTxDate(txs[0].date) : `${txs.length} płatności`}
+                  </Text>
+                </View>
                 <View style={s.itemBarTrack}>
                   <View style={[s.itemBar, { width: `${Math.max(3, (it.amount / maxAmount) * 100)}%` }]} />
                 </View>
@@ -76,32 +98,34 @@ export default function FixedBreakdownCard({
                     </Text>
                   </View>
                 )}
+                {txs.some((t) => t.overridden) ? <Pencil size={11} color={colors.text.muted} /> : null}
+                {txs.length > 1
+                  ? (isOpen ? <ChevronDown size={14} color={colors.text.muted} /> : <ChevronRight size={14} color={colors.text.muted} />)
+                  : <ChevronRight size={14} color={colors.text.muted} />}
+              </TouchableOpacity>
+              {isOpen && (
+                <View style={s.txList}>
+                  {txs.map((tx) => (
+                    <TouchableOpacity
+                      key={tx.id}
+                      style={s.txRow}
+                      activeOpacity={0.7}
+                      onPress={() => { haptic.tap(); onSelectTransaction(tx.id); }}
+                    >
+                      <Text style={s.txDate}>{fmtTxDate(tx.date)}</Text>
+                      <Text style={s.txLabel} numberOfLines={1}>{tx.label}</Text>
+                      {tx.overridden ? <Pencil size={11} color={colors.text.muted} style={s.txPencil} /> : null}
+                      <Text style={s.txAmount}>{tx.amount} zł</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
               </View>
             );
           })}
         </View>
       )}
-
-      {transactions.length > 0 && (
-        <>
-          <Text style={s.hint}>Wszystkie transakcje · stuknij, żeby przeklasyfikować</Text>
-          <View style={s.txList}>
-            {transactions.map((tx) => (
-              <TouchableOpacity
-                key={tx.id}
-                style={s.txRow}
-                activeOpacity={0.7}
-                onPress={() => { haptic.tap(); onSelectTransaction(tx.id); }}
-              >
-                <Text style={s.txDate}>{fmtTxDate(tx.date)}</Text>
-                <Text style={s.txLabel} numberOfLines={1}>{tx.label}</Text>
-                {tx.overridden ? <Pencil size={11} color={colors.text.muted} style={s.txPencil} /> : null}
-                <Text style={s.txAmount}>{tx.amount} zł</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
-      )}
+      {items.length > 0 && <Text style={s.footHint}>Stuknij rachunek, żeby go edytować albo przeklasyfikować.</Text>}
     </View>
   );
 }
@@ -122,7 +146,10 @@ const makeS = themedStyles((c) => StyleSheet.create({
 
   items: { gap: spacing[3] },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  itemLabel: { width: 90, fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  itemLabelCol: { width: 96 },
+  itemLabel: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  itemSub: { fontSize: 10, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 1 },
+  footHint: { fontSize: 10.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[3] },
   itemBarTrack: { flex: 1, height: 6, borderRadius: 999, backgroundColor: c.bg.elevated, overflow: 'hidden' },
   itemBar: { height: '100%', borderRadius: 999, backgroundColor: c.text.bright },
   itemAmount: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.secondary, minWidth: 48, textAlign: 'right' },
@@ -137,7 +164,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   deviationLabelUp: { color: colors.accent.red },
   deviationLabelDown: { color: colors.accent.green },
 
-  txList: { gap: spacing[1] },
+  txList: { gap: spacing[1], marginTop: spacing[1], paddingLeft: spacing[3] },
   txRow: {
     flexDirection: 'row', alignItems: 'center', gap: spacing[2],
     paddingVertical: spacing[2], borderTopWidth: 1, borderTopColor: c.border.default,

@@ -1,6 +1,6 @@
 import type { Expense } from '@/types/finances';
 import { fixedVariableMonths, fixedBreakdown, fixedDeviations, topVariableContributors } from './fixedVariable';
-import { foodByCategory, foodByWeekOfMonth, MONTH_FULL, type FoodWeekBar, type FoodCategoryBar } from './foodStats';
+import { foodByCategory, foodByWeekOfMonth, foodByDayOfMonth, foodByMonth, MONTH_FULL, type FoodWeekBar, type FoodCategoryBar } from './foodStats';
 import type { FixedItem, FixedDeviation, VariableContributor } from './fixedVariable';
 
 // Dane dla popupu "Wydatki" (WydatkiModal), WSPÓLNE dla Dashboardu (rząd 4,
@@ -30,7 +30,7 @@ export interface WydatkiBucketTotals {
 
 export interface WydatkiData {
   month: string;
-  food: WydatkiBucketTotals & { weeks: FoodWeekBar[]; categories: FoodCategoryBar[] };
+  food: WydatkiBucketTotals & { weeks: FoodWeekBar[]; days: FoodWeekBar[]; months: FoodWeekBar[]; categories: FoodCategoryBar[] };
   fixed: WydatkiBucketTotals & { items: FixedItem[]; deviations: FixedDeviation[] };
   variable: WydatkiBucketTotals & { top: VariableContributor[] };
 }
@@ -52,6 +52,9 @@ export function computeWydatkiData(expenses: Expense[], today: Date): WydatkiDat
       changePercent: pctChange(foodTotal, prevFoodTotal),
       previousTotal: `${prevFoodTotal} zł`,
       weeks: foodByWeekOfMonth(expenses, today),
+      days: foodByDayOfMonth(expenses, today),
+      // Ostatnie 6 miesięcy KOŃCZĄC na oglądanym (strzałki w popupie przesuwają okno).
+      months: foodByMonth(expenses, 6, today).map((m) => ({ label: m.label, value: m.value })),
       categories,
     },
     fixed: {

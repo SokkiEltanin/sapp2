@@ -180,6 +180,8 @@ export default function WydatkiModal({
             changePercent={data.food.changePercent}
             previousTotal={data.food.previousTotal}
             weeks={data.food.weeks}
+            days={data.food.days}
+            months={data.food.months}
             categories={data.food.categories}
             onSelectCategory={setSelectedCategory}
           />

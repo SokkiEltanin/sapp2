@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Utensils, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
@@ -14,17 +15,25 @@ import { haptic } from '@/utils/haptics';
 // sap na dashboardzie") — wiersze kategorii NIE są już mockiem/dekoracją: dane są
 // realne (Faza 2.4, `foodByCategory`), więc strzałka ">" teraz faktycznie otwiera
 // `FoodCategoryItemsModal` z konkretnymi pozycjami paragonów przez `onSelectCategory`
-// (stan drill-down popupu żyje w WydatkiModal.tsx, wspólnym rodzicu). Przełącznik
-// Tygodnie/Dni/Miesiące WCIĄŻ nieinteraktywny (zakres zawsze "ten miesiąc") — osobna,
-// nieproszona jeszcze funkcja, nie udajemy klikalności której nie ma (ten sam powód
-// co ComingSoonRow).
+// (stan drill-down popupu żyje w WydatkiModal.tsx, wspólnym rodzicu).
+//
+// Przełącznik Tygodnie/Dni/Miesiące DZIAŁA (2026-11-11, user: "na jedzeniu nie
+// działa per dzień i per miesiąc" — wcześniej był atrapą): Tygodnie = T1–T5
+// oglądanego miesiąca, Dni = każdy dzień oglądanego miesiąca (wartość tylko nad
+// najwyższym słupkiem, reszta byłaby nieczytelna przy 31 słupkach), Miesiące =
+// ostatnie 6 kończąc na oglądanym (bieżący jaśniejszy).
 //
 // Kolory kropek/pasków per-kategoria ZOSTAJĄ (nie monochromatyczne) — to funkcjonalny
 // legend-akcent rozróżniający wiele pozycji na liście, dokładnie ta sama zasada co
 // kolor chipa taga zadania / kolor wydarzenia z Google Calendar (patrz audyt
 // monochromatyczny, NEXT_STEPS.md) — nie "kolor kategorii ekranu", tylko etykieta
 // pojedynczej pozycji.
-const PERIOD_TABS = ['Tygodnie', 'Dni', 'Miesiące'] as const;
+const PERIOD_TABS = [
+  { key: 'weeks', label: 'Tygodnie' },
+  { key: 'days', label: 'Dni' },
+  { key: 'months', label: 'Miesiące' },
+] as const;
+type Period = (typeof PERIOD_TABS)[number]['key'];
 
 export type FoodWeek = { label: string; value: number };
 export type FoodCategory = { label: string; amount: number; color: string; items: FoodCategoryItem[] };
@@ -35,6 +44,8 @@ export default function FoodBreakdownCard({
   changePercent,
   previousTotal,
   weeks,
+  days,
+  months,
   categories,
   onSelectCategory,
 }: {
@@ -43,14 +54,22 @@ export default function FoodBreakdownCard({
   changePercent: number;
   previousTotal: string;
   weeks: FoodWeek[];
+  days: FoodWeek[];
+  months: FoodWeek[];
   categories: FoodCategory[];
   onSelectCategory: (category: FoodCategory) => void;
 }) {
   const s = makeS();
   // `Math.max(1, ...)` — jak w FoodBarsTile, zapobiega `NaN%` wysokości/szerokości
   // słupka gdy realne dane (zamiast mocka) są w danym miesiącu zerowe.
-  const maxWeek = Math.max(1, ...weeks.map((w) => w.value));
+  const [period, setPeriod] = useState<Period>('weeks');
+  const bars = period === 'weeks' ? weeks : period === 'days' ? days : months;
+  const maxBar = Math.max(1, ...bars.map((w) => w.value));
   const maxCategory = Math.max(1, ...categories.map((c) => c.amount));
+  const isDays = period === 'days';
+  const peakIdx = bars.reduce((best, b, i) => (b.value > bars[best].value ? i : best), 0);
+  const daysWithFood = days.filter((d) => d.value > 0);
+  const dayAvg = daysWithFood.length ? Math.round(daysWithFood.reduce((a, d) => a + d.value, 0) / days.length) : 0;
 
   return (
     <View style={s.card}>
@@ -66,24 +85,51 @@ export default function FoodBreakdownCard({
       </Text>
 
       <View style={s.tabs}>
-        {PERIOD_TABS.map((tab, i) => (
-          <View key={tab} style={[s.tab, i === 0 && s.tabActive]}>
-            <Text style={[s.tabLabel, i === 0 && s.tabLabelActive]}>{tab}</Text>
-          </View>
+        {PERIOD_TABS.map((tab) => (
+          <TouchableOpacity
+            key={tab.key}
+            style={[s.tab, period === tab.key && s.tabActive]}
+            onPress={() => { haptic.tap(); setPeriod(tab.key); }}
+            activeOpacity={0.7}
+          >
+            <Text style={[s.tabLabel, period === tab.key && s.tabLabelActive]}>{tab.label}</Text>
+          </TouchableOpacity>
         ))}
       </View>
 
-      <View style={s.weekRow}>
-        {weeks.map((w) => (
-          <View key={w.label} style={s.weekCol}>
-            <Text style={s.weekValue}>{w.value}</Text>
-            <View style={s.weekBarTrack}>
-              <View style={[s.weekBar, { height: `${Math.max(12, (w.value / maxWeek) * 100)}%` }]} />
+      <View style={[s.weekRow, isDays && s.dayRow]}>
+        {bars.map((w, i) => {
+          const isLastMonth = period === 'months' && i === bars.length - 1;
+          return (
+            <View key={`${period}_${w.label}_${i}`} style={s.weekCol}>
+              {!isDays && <Text style={s.weekValue} numberOfLines={1}>{w.value}</Text>}
+              <View style={[s.weekBarTrack, isDays && s.dayBarTrack]}>
+                <View style={[
+                  s.weekBar,
+                  isDays && s.dayBar,
+                  isLastMonth && s.barCurrent,
+                  { height: `${Math.max(isDays ? 4 : 12, (w.value / maxBar) * 100)}%` },
+                ]} />
+              </View>
+              {!isDays && <Text style={s.weekLabel} numberOfLines={1}>{w.label}</Text>}
             </View>
-            <Text style={s.weekLabel}>{w.label}</Text>
-          </View>
-        ))}
+          );
+        })}
       </View>
+      {/* Dni: 28–31 wąskich słupków — etykieta pod każdym się nie mieści, więc
+          oś pod spodem (1 / połowa / ostatni), a wartość szczytu w podpisie. */}
+      {isDays && (
+        <View style={s.dayAxis}>
+          <Text style={s.weekLabel}>1</Text>
+          <Text style={s.weekLabel}>{Math.ceil(days.length / 2)}</Text>
+          <Text style={s.weekLabel}>{days.length}</Text>
+        </View>
+      )}
+      {isDays && (
+        <Text style={s.periodNote}>
+          średnio {dayAvg} zł/dzień · najwięcej {bars[peakIdx]?.value ?? 0} zł ({bars[peakIdx]?.label}. dzień)
+        </Text>
+      )}
 
       <Text style={s.hint}>Co składa się na jedzenie ({month.toLowerCase()})</Text>
 
@@ -127,6 +173,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
   weekBarTrack: { width: '70%', flex: 1, justifyContent: 'flex-end' },
   weekBar: { width: '100%', borderRadius: 6, backgroundColor: c.bg.elevated },
   weekLabel: { fontSize: 10.5, fontFamily: 'Inter_500Medium', color: c.text.muted },
+  dayRow: { gap: 2 },
+  dayBarTrack: { width: '100%' },
+  dayBar: { borderRadius: 2, backgroundColor: c.text.muted },
+  dayAxis: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
+  barCurrent: { backgroundColor: c.text.secondary },
+  periodNote: { fontSize: 10.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[2] },
 
   hint: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[4], marginBottom: spacing[2] },
 

@@ -20,6 +20,14 @@ function monthKeyOf(dateYmd: string): string {
   return dateYmd.slice(0, 7); // YYYY-MM
 }
 
+// Klucz miesiąca z LOKALNEJ daty (2026-11-11, bug) — wcześniej
+// `monthKeyOf(today.toISOString())`: ISO to UTC, więc "1 listopada 00:00" w
+// Polsce (popup Wydatki liczy z pierwszego dnia oglądanego miesiąca) dawało
+// "2026-10" — słupki tygodni w Jedzeniu pokazywały POPRZEDNI miesiąc.
+function localMonthKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export interface FoodMonthBar { key: string; label: string; value: number }
 
 // Ostatnie `count` miesięcy (łącznie z bieżącym), suma jedzenia w każdym — do
@@ -34,7 +42,7 @@ export function foodByMonth(expenses: Expense[], count = 4, today: Date = new Da
 }
 
 export function foodDailyAverageThisMonth(expenses: Expense[], today: Date = new Date()): number {
-  const key = monthKeyOf(today.toISOString());
+  const key = localMonthKey(today);
   let sum = 0;
   for (const e of expenses) {
     if (e.type !== 'expense' || monthKeyOf(e.date) !== key) continue;
@@ -49,7 +57,7 @@ export interface FoodWeekBar { label: string; value: number }
 // prosty, przewidywalny podział, nie liczy realnych tygodni kalendarzowych (nie ma
 // potrzeby — to tylko wykres orientacyjny w popupie "Wydatki").
 export function foodByWeekOfMonth(expenses: Expense[], today: Date = new Date()): FoodWeekBar[] {
-  const key = monthKeyOf(today.toISOString());
+  const key = localMonthKey(today);
   const weeks = [0, 0, 0, 0, 0];
   for (const e of expenses) {
     if (e.type !== 'expense' || monthKeyOf(e.date) !== key) continue;
@@ -58,6 +66,21 @@ export function foodByWeekOfMonth(expenses: Expense[], today: Date = new Date())
     weeks[idx] += fvSplitOf(e).food;
   }
   return weeks.map((v, i) => ({ label: `T${i + 1}`, value: Math.round(v) }));
+}
+
+// Jedzenie per DZIEŃ oglądanego miesiąca (2026-11-11, user: "na jedzeniu nie
+// działa per dzień i per miesiąc" — przełącznik Tygodnie/Dni/Miesiące był
+// atrapą). Jeden słupek na każdy dzień miesiąca (28–31).
+export function foodByDayOfMonth(expenses: Expense[], month: Date = new Date()): FoodWeekBar[] {
+  const key = localMonthKey(month);
+  const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+  const days = new Array<number>(daysInMonth).fill(0);
+  for (const e of expenses) {
+    if (e.type !== 'expense' || monthKeyOf(e.date) !== key) continue;
+    const day = parseInt(e.date.slice(8, 10), 10);
+    if (day >= 1 && day <= daysInMonth) days[day - 1] += fvSplitOf(e).food;
+  }
+  return days.map((v, i) => ({ label: String(i + 1), value: Math.round(v) }));
 }
 
 // Jedna pozycja paragonu wchodząca w skład kategorii — do popupu drill-down

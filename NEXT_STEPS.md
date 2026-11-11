@@ -4195,3 +4195,30 @@ Ustawień przestawał być aktywny, animacja się nie domykała, puste okno
 `/bank-review`, 0 otwartych okien; wstecz → Ustawienia. Dashboard →
 "Otwórz w Zadaniach" → `/tasks`, 0 okien. (Sam stan "puste okno na
 wierzchu" był specyficzny dla Androida — na telefonie do potwierdzenia.)
+
+## Wydatki: klikalne paski Stałych + działający przełącznik w Jedzeniu (2026-11-11)
+
+User (dwa zrzuty popupu Wydatki): "te z paskami zrób klikalne i odnoszące do
+płatności, bo teraz się powiela... wywalamy listę z dołu" + "na jedzeniu nie
+działa per dzień i per miesiąc".
+
+- **Stałe** (`FixedBreakdownCard.tsx`): pasek rachunku klikalny — jedna płatność
+  → otwiera jej edycję; kilka (np. dwa przelewy PGE) → pasek się rozwija i
+  pokazuje je pod sobą. Pod nazwą data albo "N płatności", ołówek gdy któraś
+  ręcznie przeklasyfikowana. Lista "Wszystkie transakcje" USUNIĘTA (ten sam
+  zbiór transakcji co paski — `labelFor` wspólne). Zmienne zostają z listą — tam
+  "Co najbardziej przeważyło" to tylko top 5, nie pełny zbiór.
+- **Jedzenie** (`FoodBreakdownCard.tsx`): Tygodnie/Dni/Miesiące realnie
+  przełączają widok (wcześniej atrapa). Dni = słupek na każdy dzień oglądanego
+  miesiąca (`foodByDayOfMonth`), oś 1/połowa/ostatni + "średnio X zł/dzień ·
+  najwięcej Y zł (D. dzień)". Miesiące = 6 ostatnich kończąc na oglądanym
+  (`foodByMonth`), bieżący jaśniejszy.
+- **Bug przy okazji**: słupki tygodni w Jedzeniu pokazywały POPRZEDNI miesiąc —
+  `foodByWeekOfMonth`/`foodDailyAverageThisMonth` liczyły miesiąc z
+  `toISOString()` (UTC), a popup przekazuje "1. dzień miesiąca 00:00" lokalnie,
+  co w UTC to jeszcze poprzedni miesiąc. Teraz lokalny klucz (na zrzucie usera:
+  słupki ~850 zł przy Jedzeniu ~260 zł = październik).
+
+**Zweryfikowane:** tsc czysty, jest 384/384 (3 nowe testy, w TZ Europe/Warsaw
+też). `expo web`+Playwright: brak dolnej listy, PGE "2 płatności" rozwija się,
+Dni/Miesiące renderują poprawne słupki.
