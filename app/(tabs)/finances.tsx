@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-nativ
 import { router } from 'expo-router';
 import { Plus, Package, Car, ChevronRight } from 'lucide-react-native';
 import { spacing, radius, themedStyles } from '@/theme';
-import { Screen, Row, Tile, StatTile, Cap, FitList, Item, Price, StackBar } from '@/ui/layout';
+import { Screen, Row, Tile, Cap, FitList, Item, Price, StackBar } from '@/ui/layout';
 import { C, T, S } from '@/ui/theme';
 import AddExpenseModal from '@/components/finances/AddExpenseModal';
 import ProductsModal from '@/components/finances/ProductsModal';
@@ -16,7 +16,7 @@ import { useWorkStore } from '@/store/workStore';
 import { useCalendarStore } from '@/store/calendarStore';
 import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import { workMonthProgress } from '@/utils/workMonth';
-import { nextUpcomingPayment } from '@/utils/recurringBills';
+import { upcomingPayments } from '@/utils/recurringBills';
 import { getBalanceOffset, setBalanceOffset, accountBalance, affectsBalance } from '@/utils/balance';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
 import { haptic } from '@/utils/haptics';
@@ -63,6 +63,13 @@ function fmtAmount(n: number): string {
 }
 // "wypłata za listopad" — biernik = mianownik dla nazw miesięcy.
 const PAY_MONTHS = ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień'];
+const WEEKDAYS = ['niedziela', 'poniedziałek', 'wtorek', 'środa', 'czwartek', 'piątek', 'sobota'];
+// "środa, 09.12" — data płatności na kaflu Stałych opłat.
+function fmtDueDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const wd = WEEKDAYS[new Date(y, m - 1, d).getDay()];
+  return `${wd}, ${String(d).padStart(2, '0')}.${String(m).padStart(2, '0')}`;
+}
 function fmtHours(h: number): string {
   const r = Math.round(h * 2) / 2; // pół godziny dokładności wystarczy na kaflu
   return Number.isInteger(r) ? String(r) : r.toFixed(1).replace('.', ',');
@@ -131,7 +138,10 @@ export default function FinancesScreen() {
   // zakładania im osobnej Subskrypcji.
   const subscriptions = useSubscriptionsStore((st) => st.subscriptions);
   const dismissedBills = useSubscriptionsStore((st) => st.dismissedBills);
-  const nextDue = useMemo(() => nextUpcomingPayment(expenses, subscriptions, now, dismissedBills), [expenses, subscriptions, now, dismissedBills]);
+  const upcoming = useMemo(() => upcomingPayments(expenses, subscriptions, now, dismissedBills), [expenses, subscriptions, now, dismissedBills]);
+  const nextDue = upcoming[0] ?? null;
+  // Ile KOLEJNYCH płatności w ciągu 30 dni po najbliższej — "+2 w 30 dni".
+  const moreSoon = useMemo(() => upcoming.slice(1).filter((p) => p.daysUntil <= 30).length, [upcoming]);
 
   useEffect(() => { getBalanceOffset().then(setOffset); }, []);
 
@@ -278,19 +288,30 @@ export default function FinancesScreen() {
             </>
           )}
         </Tile>
-        <StatTile
-          value={nextDue ? Math.max(0, nextDue.daysUntil) : null}
-          // 'bill' = PRZEWIDYWANY z historii wydatków, nie dodany ręcznie (2026-11-11,
-          // user: "pisze 28 dni do internet nie wiem skąd") — podpis mówi skąd.
-          unit={nextDue?.kind === 'bill' ? 'dni · z historii' : 'dni'}
-          // 2026-11-09, user: "żeby tam najbliższa opłata pokazywała co to" —
-          // `label` (zwykle stały podpis kafla) dostaje tu NAZWĘ płatności
-          // zamiast generycznego "Najbliższa opłata", gdy jakaś jest; pusty
-          // stan (brak żadnej) wraca do generycznego podpisu.
-          label={nextDue ? nextDue.name : 'Najbliższa opłata'}
-          span={2}
-          onPress={() => { haptic.tap(); router.push('/subscriptions'); }}
-        />
+        {/* 2026-11-11 (user: "żeby pisało ile dni, jaka data... taki jak z pracą
+            kafelek, żeby więcej informacji było") — ten sam układ co Praca obok:
+            nazwa w nagłówku (+ "z historii" dla przewidywanych z wydatków),
+            duże dni, data z dniem tygodnia, kwota + ile kolejnych w 30 dni. */}
+        <Tile span={2} onPress={() => { haptic.tap(); router.push('/subscriptions'); }}>
+          <Cap l={nextDue ? nextDue.name : 'Najbliższa opłata'} r={nextDue?.kind === 'bill' ? 'z historii' : undefined} />
+          {!nextDue ? (
+            <Text style={[T.small, s.workEmpty]}>Brak stałych opłat</Text>
+          ) : (
+            <>
+              <Text style={[T.num, s.workPay]} numberOfLines={1}>
+                {nextDue.daysUntil <= 0 ? 'dziś' : nextDue.daysUntil === 1 ? 'jutro' : nextDue.daysUntil}
+                {nextDue.daysUntil > 1 && <Text style={s.workPayCur}> dni</Text>}
+              </Text>
+              <Text style={s.workSub} numberOfLines={1}>{fmtDueDate(nextDue.dueDate)}</Text>
+              <View style={s.dueFoot}>
+                <Text style={[s.workHoursText, nextDue.fx && { color: C.warn }]} numberOfLines={1}>
+                  {nextDue.fx ? formatFx(nextDue.fx) : `${fmtAmount(nextDue.amount)} zł`}
+                </Text>
+                {moreSoon > 0 && <Text style={s.workSub} numberOfLines={1}>+{moreSoon} w 30 dni</Text>}
+              </View>
+            </>
+          )}
+        </Tile>
       </Row>
 
       <Row flex={1}>
@@ -423,6 +444,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   workHours: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing[2] },
   workTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: C.in2, overflow: 'hidden' },
   workFill: { height: 4, borderRadius: 2, backgroundColor: C.hi },
+  dueFoot: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 6, marginTop: spacing[2] },
   workHoursText: { fontSize: 10, fontFamily: 'Inter_700Bold', color: C.txt, fontVariant: ['tabular-nums'] },
 
   txTextCol: { flex: 1, minWidth: 0 },
