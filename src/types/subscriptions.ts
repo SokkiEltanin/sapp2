@@ -21,9 +21,9 @@
 // `missedCycles` ZOSTAJE jako pole (liczone przy auto-rollu, patrz
 // `recurringBills.ts`'s `rollOverdueSubscription`), ale NIE wyzwala żadnego
 // UI-banera "martwa subskrypcja" w v1 — czysto dane na przyszłość.
-// Lokalne powiadomienia-przypomnienia (`reminderDaysBefore` wyzwalające
-// faktyczny push) też NIE są tu wpięte — `reminderDaysBefore` jest zapisywane
-// (i eksportowane z sapp), ale nic jeszcze go nie planuje jako notyfikację.
+// Lokalne powiadomienia-przypomnienia — PODPIĘTE 2026-11-11:
+// `reminderDaysBefore` planuje realny trigger notifee o 9:00 rano (patrz
+// `utils/billReminders.ts` / `services/billReminders.ts`).
 export type BillingCycle = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
 export const CYCLE_LABEL: Record<BillingCycle, string> = {
@@ -39,7 +39,7 @@ export interface Subscription {
   amount: number;
   billingCycle: BillingCycle;
   nextBillingDate: string; // ISO YYYY-MM-DD
-  reminderDaysBefore: number; // 0 = brak; zapisane, jeszcze bez realnego powiadomienia (patrz wyżej)
+  reminderDaysBefore: number; // 0 = brak; N = powiadomienie N dni przed, o 9:00 (patrz wyżej)
   active: boolean;
   tags?: string[];
   note?: string;

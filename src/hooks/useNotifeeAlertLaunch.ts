@@ -34,24 +34,29 @@ export function useNotifeeAlertLaunch() {
         const notifee = notifeeModule.default;
         const { EventType } = notifeeModule;
 
-        const goToAlert = (data: Record<string, string | object | number> | undefined) => {
-          if (typeof data?.route === 'string' && data.route === 'alert-test') {
-            router.replace('/alert-test');
-          }
+        // `pressed` — przypomnienie o Stałej opłacie (2026-11-11,
+        // `data.route:'subscriptions'`) otwiera ekran TYLKO po stuknięciu.
+        // Alarm (`alert-test`) dalej też na samo DELIVERED — to pełnoekranowy
+        // alarm, ma przejąć ekran sam; zwykłe przypomnienie NIE może wyrywać
+        // usera z tego co robi w appce w momencie doręczenia.
+        const route = (data: Record<string, string | object | number> | undefined, pressed: boolean) => {
+          if (typeof data?.route !== 'string') return;
+          if (data.route === 'alert-test') router.replace('/alert-test');
+          else if (data.route === 'subscriptions' && pressed) router.push('/subscriptions');
         };
 
         const initial = await notifee.getInitialNotification();
-        if (initial) goToAlert(initial.notification.data);
+        if (initial) route(initial.notification.data, true);
 
         unsubscribeForeground = notifee.onForegroundEvent(({ type, detail }) => {
           if (type === EventType.PRESS || type === EventType.DELIVERED) {
-            goToAlert(detail.notification?.data);
+            route(detail.notification?.data, type === EventType.PRESS);
           }
         });
 
         notifee.onBackgroundEvent(async ({ type, detail }) => {
           if (type === EventType.PRESS) {
-            goToAlert(detail.notification?.data);
+            route(detail.notification?.data, true);
           }
         });
       } catch {

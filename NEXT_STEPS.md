@@ -3977,3 +3977,47 @@ jest ikonka księżyca".
 **Zweryfikowane:** tsc czysty, jest 356/356, `expo web`+Playwright: event
 "[JD] 07:00 - 15:00 (8h)" jutro → "16h 11m" / "JUTRO 07:00" / tytuł / "JD"
 w rogu.
+
+## Realne przypomnienia o Stałych opłatach (2026-11-11)
+
+User: "dawaj dalej rozwijaj apkę". `reminderDaysBefore` ("Przypomnienie: 3 dni
+przed" w formularzu Stałych opłat) było od początku ZAPISYWANE, ale nic go nie
+planowało — martwy przełącznik (CLAUDE.md #7), wcześniej świadomie odłożony.
+
+- `utils/billReminders.ts`'s `planBillReminders` (czysta funkcja + 6 testów) —
+  dla każdej aktywnej subskrypcji z przypomnieniem: termin N dni przed, o
+  9:00. Zaległa data (ekran jeszcze jej nie przesunął) → liczy od realnego
+  następnego terminu. Okno już minęło (np. ustawione dzień przed płatnością
+  wieczorem) → od razu NASTĘPNY cykl, zamiast spóźnionego powiadomienia przy
+  każdym starcie appki. Wygasłe (`durationMonths`) pomijane.
+- `services/billReminders.ts`'s `syncBillReminders` — ten sam, sprawdzony na
+  urządzeniu mechanizm co test alertu w Ustawieniach (notifee
+  `TriggerType.TIMESTAMP` + `alarmManager.allowWhileIdle`), ale zwykłe
+  powiadomienie, nie pełnoekranowe; kanał `bill-reminders-v1`. Id `bill_<subId>`
+  — ponowne zaplanowanie ZASTĘPUJE, a przypomnienia usuniętych/wyłączonych
+  subskrypcji są kasowane. Szeregowo (kilka zmian store'u pod rząd się nie
+  przeplata). O zgodę pyta TYLKO gdy jest co zaplanować.
+- `hooks/useBillReminderSync.ts` (w `app/_layout.tsx`) — po hydracji store'u
+  (przed nią lista jest pusta → skasowałby wszystko) i przy każdej zmianie
+  subskrypcji. Każdy start appki dokłada przypomnienie na kolejny cykl.
+- `useNotifeeAlertLaunch.ts`: stuknięcie w przypomnienie → `/subscriptions`.
+  Pełnoekranowy alarm dalej przejmuje ekran też na samo DELIVERED;
+  przypomnienie TYLKO po stuknięciu (nie wyrywa usera z appki w momencie
+  doręczenia).
+- Formularz: "Dzień przed" zamiast "1 dni przed", podpowiedź "Powiadomienie o
+  9:00 rano. Jeśli nie przychodzi, wyłącz optymalizację baterii".
+
+Zero nowych uprawnień (POST_NOTIFICATIONS/SCHEDULE_EXACT_ALARM już są w
+`app.json`), notifee już w buildzie → wystarczy OTA, nie nowy APK.
+
+**Zweryfikowane:** tsc czysty, jest 362/362. `expo web`+Playwright: start
+appki bez błędów (serwis na webie nic nie robi), podpowiedź w formularzu.
+
+**DO POTWIERDZENIA NA URZĄDZENIU:** ustaw subskrypcję z płatnością za 2 dni i
+przypomnieniem "Dzień przed" → jutro o 9:00 powinno przyjść powiadomienie,
+stuknięcie otwiera Stałe opłaty. Szybszy test: termin jutro + "Dzień przed"
+planuje się od razu na NASTĘPNY cykl (okno minęło) — to zamierzone.
+
+**Świadomie NIE w tej rundzie:** przypomnienia dla PRZEWIDYWANYCH rachunków z
+historii (czynsz/prąd z `detectRecurringBills`) — nie mają ustawienia
+"przypomnienie", trzeba by najpierw zdecydować gdzie user je włącza.

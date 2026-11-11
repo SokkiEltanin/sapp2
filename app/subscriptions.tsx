@@ -232,10 +232,13 @@ export default function SubscriptionsScreen() {
             <View style={s.pillRow}>
               {REMINDER_OPTS.map((r) => (
                 <TouchableOpacity key={r} style={[s.pill, form.reminderDaysBefore === r && s.pillOn]} onPress={() => setF('reminderDaysBefore', r)} activeOpacity={0.8}>
-                  <Text style={[s.pillLabel, form.reminderDaysBefore === r && s.pillLabelOn]}>{r === 0 ? 'Brak' : `${r} dni przed`}</Text>
+                  <Text style={[s.pillLabel, form.reminderDaysBefore === r && s.pillLabelOn]}>{r === 0 ? 'Brak' : r === 1 ? 'Dzień przed' : `${r} dni przed`}</Text>
                 </TouchableOpacity>
               ))}
             </View>
+            {form.reminderDaysBefore > 0 && (
+              <Text style={s.reminderHint}>Powiadomienie o 9:00 rano. Jeśli nie przychodzi, wyłącz optymalizację baterii dla appki (Ustawienia → Alerty).</Text>
+            )}
 
             <Text style={[s.label, s.labelSpaced]}>Tagi (opcjonalnie)</Text>
             <TextInput value={form.tags} onChangeText={(v) => setF('tags', v)} style={s.input} placeholder="np. prąd, dom" placeholderTextColor={colors.text.muted} autoCapitalize="none" />
@@ -354,6 +357,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   dateBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   dateBtnLabel: { fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.primary },
   btnDisabled: { opacity: 0.4 },
+  reminderHint: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[2], lineHeight: 15 },
 
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[2] },
   pill: { paddingHorizontal: spacing[3], paddingVertical: 8, borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default, backgroundColor: c.bg.elevated },

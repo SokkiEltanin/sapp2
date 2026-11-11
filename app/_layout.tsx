@@ -18,6 +18,7 @@ import {
 import { colors } from '@/theme/colors';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { useNotifeeAlertLaunch } from '@/hooks/useNotifeeAlertLaunch';
+import { useBillReminderSync } from '@/hooks/useBillReminderSync';
 import { useShareReceiptLaunch } from '@/hooks/useShareReceiptLaunch';
 import { loadOwnName } from '@/utils/ownName';
 import { loadHapticsEnabled } from '@/utils/haptics';
@@ -111,6 +112,9 @@ export default function RootLayout() {
   // Deep-link z pełnoekranowego alertu notifee na dedykowany ekran alarmu (patrz
   // app/alert-test.tsx) — patrz komentarz w src/hooks/useNotifeeAlertLaunch.ts.
   useNotifeeAlertLaunch();
+  // Realne przypomnienia o Stałych opłatach (2026-11-11) — patrz
+  // src/services/billReminders.ts.
+  useBillReminderSync();
 
   // Udostępnij paragon przez Android Share Sheet (2026-11-09, user: "a zrobisz jak w
   // sapp udostępnianie paragonu po share?") — patrz komentarz w
