@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Screen, Row, Tile, StatTile, Cap } from '@/ui/layout';
 import { C, T, S } from '@/ui/theme';
 import MoodPad from '@/components/design/MoodPad';
+import { moodColor, energyGlow, MOOD_LABELS, ENERGY_LABELS, roundLevel } from '@/types/mood';
 import { todayISO } from '@/utils/date';
 import { useMoodStore } from '@/store/moodStore';
 import { useHealthStore } from '@/store/healthStore';
@@ -27,6 +28,12 @@ import HabitsModal from '@/components/dashboard/HabitsModal';
 // zmiany wizualnej dla usera bez zegarka. Ćwiczenia = appka nie ma jeszcze
 // store'a treningów (osobna, nieportowalna z sapp 1:1 funkcja — inny model
 // danych), ten sam stub co wcześniej. Nastrój = `useMoodStore`, bez zmian.
+// "bez energii" / "energia niska…dobra" / "pełna energia" — czyta się jak zdanie.
+function energyText(e: number): string {
+  const l = roundLevel(e);
+  return l === 1 || l === 5 ? ENERGY_LABELS[l].toLowerCase() : `energia ${ENERGY_LABELS[l].toLowerCase()}`;
+}
+
 function fmtMin(m: number): string {
   return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
 }
@@ -51,6 +58,22 @@ export default function DailyScreen() {
   }), [habitDays, today]);
 
   const todayEntries = useMemo(() => entries.filter((e) => e.date === todayISO()), [entries]);
+  // Ostatnie 7 dni nastroju (2026-11-12, CLAUDE.md zasada 10 — zamiast pustego
+  // "appka nie śledzi treningów"): średnia z wpisów dnia, kolor = przyjemność,
+  // wysokość słupka = energia (ta sama semantyka co MoodPad).
+  const week = useMemo(() => {
+    const out: { key: string; label: string; mood: number | null; energy: number | null }[] = [];
+    const now = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const day = entries.filter((e) => e.date === key);
+      const avg = (f: (e: typeof day[number]) => number) => (day.length ? day.reduce((a, e) => a + f(e), 0) / day.length : null);
+      out.push({ key, label: ['nd', 'pn', 'wt', 'śr', 'cz', 'pt', 'sb'][d.getDay()], mood: avg((e) => e.mood), energy: avg((e) => e.energy) });
+    }
+    return out;
+  }, [entries]);
+  const weekHasMood = week.some((d) => d.mood != null);
   const lastToday = todayEntries[todayEntries.length - 1];
   const dayLabel = new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
 
@@ -89,8 +112,25 @@ export default function DailyScreen() {
 
       <Row flex={1}>
         <Tile span={4} style={st.exTile}>
-          <Cap l="Ćwiczenia" />
-          <Text style={[T.small, st.exEmpty]}>Jeszcze nic dziś — appka nie śledzi jeszcze treningów.</Text>
+          <Cap l="Ostatnie 7 dni" r={weekHasMood ? 'nastrój · wysokość = energia' : undefined} />
+          {weekHasMood ? (
+            <TouchableOpacity style={st.week} onPress={() => setMoodOpen(true)} activeOpacity={0.8}>
+              {week.map((d) => (
+                <View key={d.key} style={st.weekCol}>
+                  <View style={st.weekBarBox}>
+                    {d.mood != null && d.energy != null ? (
+                      <View style={[st.weekBar, { height: `${18 + energyGlow(d.energy) * 82}%`, backgroundColor: moodColor(d.mood) }]} />
+                    ) : (
+                      <View style={st.weekEmpty} />
+                    )}
+                  </View>
+                  <Text style={[T.small, d.key === today && { color: C.hi }]}>{d.label}</Text>
+                </View>
+              ))}
+            </TouchableOpacity>
+          ) : (
+            <Text style={[T.small, st.exEmpty]}>Zapisuj nastrój — tu zobaczysz cały tydzień.</Text>
+          )}
           {/* 2026-11-09 — odhaczanie nawyków (Woda/Słodycze/Trening, dawniej 3
               kafle streak na Dashboardzie, USUNIĘTE stamtąd) przeniesione tu, w
               TEN SAM, już luźny `flex:1` rząd — osobny `TouchableOpacity`
@@ -121,9 +161,10 @@ export default function DailyScreen() {
           <MoodPad mood={lastToday?.mood} energy={lastToday?.energy} mini />
           <View style={st.moodTextCol}>
             <Cap l="Nastrój" r="dotknij, by zapisać" />
-            <Text style={[T.rowHi]} numberOfLines={1}>
-              {lastToday ? 'Zapisane dziś' : 'Jeszcze nie zapisano'}
+            <Text style={[T.rowHi, lastToday && { color: moodColor(lastToday.mood) }]} numberOfLines={1}>
+              {lastToday ? `${MOOD_LABELS[roundLevel(lastToday.mood)]} · ${energyText(lastToday.energy)}` : 'Jeszcze nie zapisano'}
             </Text>
+            {todayEntries.length > 1 && <Text style={T.rowSub}>{todayEntries.length}× dziś</Text>}
           </View>
         </Tile>
       </Row>
@@ -139,6 +180,11 @@ const st = StyleSheet.create({
   exTile: { justifyContent: 'space-between' },
   exEmpty: { textAlign: 'center', marginTop: S.gap },
   habitsRow: { marginTop: S.gap },
+  week: { flex: 1, flexDirection: 'row', gap: 6, marginTop: S.gap, minHeight: 70 },
+  weekCol: { flex: 1, alignItems: 'center', gap: 4 },
+  weekBarBox: { flex: 1, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
+  weekBar: { width: '70%', borderRadius: 4, minHeight: 6 },
+  weekEmpty: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.dim },
   habitsCols: { flexDirection: 'row', justifyContent: 'space-around', marginTop: S.gap },
   habitsCol: { alignItems: 'center' },
   moodTile: { flexDirection: 'row', alignItems: 'center', gap: S.pad },
