@@ -142,7 +142,7 @@ describe('detectRecurringBills — rozpoznaje cykliczne rachunki logowane jako z
       exp({ id: 'a', storeName: 'PGE', amount: 180, date: '2026-08-05' }),
       exp({ id: 'b', storeName: 'PGE', amount: 200, date: '2026-09-07' }),
     ], []);
-    expect(out).toEqual([{ tag: 'prąd', name: 'Prąd', icon: 'Zap', lastAmount: 200, months: 2, lastDate: '2026-09-07', dayOfMonth: 7 }]);
+    expect(out).toEqual([{ tag: 'prąd', name: 'Prąd', icon: 'Zap', lastAmount: 200, months: 2, lastDate: '2026-09-07', dayOfMonth: 7, kind: 'bill' }]);
   });
 
   test('tylko 1 miesiąc → za mało historii, pomijane', () => {
@@ -231,5 +231,33 @@ describe('upcomingPayments / nextUpcomingPayment — Subskrypcje + przewidywane 
     const result = nextUpcomingPayment(expenses, [], now);
     expect(result?.kind).toBe('bill');
     expect(result?.name).toBe('Prąd');
+  });
+});
+
+describe('detectRecurringBills — subskrypcje (2026-11-12)', () => {
+  const now = new Date(2026, 10, 12);
+  test('znany serwis (Netflix) wystarczy raz w ostatnich 2 mies.; stary (pół roku temu) pomijany', () => {
+    const out = detectRecurringBills([exp({ id: 'n', storeName: 'NETFLIX.COM', amount: 43, date: '2026-10-28' })], [], [], now);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ tag: 'netflix', name: 'Netflix', kind: 'subscription', lastAmount: 43, dayOfMonth: 28 });
+    expect(detectRecurringBills([exp({ id: 'o', storeName: 'NETFLIX.COM', amount: 43, date: '2026-04-28' })], [], [], now)).toEqual([]);
+  });
+
+  test('ogólnie: ten sam sprzedawca ~co miesiąc, podobna kwota, ≥3 mies. → subskrypcja', () => {
+    const e = ['2026-08-03', '2026-09-03', '2026-10-03', '2026-11-03'].map((d, i) => exp({ id: `g${i}`, storeName: 'PATREON MEMBERSHIP', amount: 20 + i * 0.5, date: d }));
+    const out = detectRecurringBills(e, [], [], now);
+    expect(out.map((b) => b.tag)).toEqual(['patreon']);
+  });
+
+  test('sklep codzienny (Lidl) i nieregularne kwoty nie są subskrypcją', () => {
+    const lidl = ['2026-08-03', '2026-09-03', '2026-10-03'].map((d, i) => exp({ id: `l${i}`, storeName: 'LIDL', amount: 50, date: d }));
+    const random = ['2026-08-03', '2026-09-03', '2026-10-03'].map((d, i) => exp({ id: `r${i}`, storeName: 'Sklep Xyz', amount: [20, 90, 45][i], date: d }));
+    expect(detectRecurringBills([...lidl, ...random], [], [], now)).toEqual([]);
+  });
+
+  test('pokryte aktywną Subskrypcją albo odrzucone → pomijane', () => {
+    const n = [exp({ id: 'n', storeName: 'Spotify AB', amount: 24, date: '2026-11-01' })];
+    expect(detectRecurringBills(n, [sub({ name: 'Spotify Family' })], [], now)).toEqual([]);
+    expect(detectRecurringBills(n, [], ['spotify'], now)).toEqual([]);
   });
 });

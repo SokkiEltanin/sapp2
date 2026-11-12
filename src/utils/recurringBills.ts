@@ -138,7 +138,45 @@ export interface BillCandidate {
   months: number;     // distinct months it appeared in
   lastDate: string;   // YYYY-MM-DD
   dayOfMonth: number; // day to predict the next occurrence on (from the last one)
+  // 'bill' = rachunek z BILL_TYPES (czynsz/prąd...), 'subscription' = serwis z
+  // SUB_SERVICES albo ogólnie powtarzalna płatność u tego samego sprzedawcy.
+  kind?: 'bill' | 'subscription';
 }
+
+// Subskrypcje (2026-11-12, user: "do najbliższych płatności dodaj jeszcze
+// subskrypcję itp"). Znane serwisy wystarczy zobaczyć RAZ w ostatnich ~2 mies.
+// (to prawie zawsze abonament); `tag` = klucz bez spacji, idzie też jako tag
+// prefillu "Dodaj jako stałą opłatę".
+export const SUB_SERVICES: { match: string[]; name: string; tag: string; icon: string }[] = [
+  { match: ['netflix'], name: 'Netflix', tag: 'netflix', icon: 'Tv' },
+  { match: ['spotify'], name: 'Spotify', tag: 'spotify', icon: 'Music' },
+  { match: ['youtube', 'google *youtube', 'yt premium'], name: 'YouTube Premium', tag: 'youtube', icon: 'Tv' },
+  { match: ['disney'], name: 'Disney+', tag: 'disney', icon: 'Tv' },
+  { match: ['hbo', 'max.com', 'hbomax'], name: 'Max (HBO)', tag: 'max', icon: 'Tv' },
+  { match: ['prime video', 'amazon prime', 'primevideo'], name: 'Prime Video', tag: 'prime', icon: 'Tv' },
+  { match: ['canal+', 'canal plus'], name: 'Canal+', tag: 'canalplus', icon: 'Tv' },
+  { match: ['skyshowtime'], name: 'SkyShowtime', tag: 'skyshowtime', icon: 'Tv' },
+  { match: ['apple.com/bill', 'icloud', 'apple music'], name: 'Apple / iCloud', tag: 'apple', icon: 'Cloud' },
+  { match: ['google one', 'google storage'], name: 'Google One', tag: 'googleone', icon: 'Cloud' },
+  { match: ['openai', 'chatgpt'], name: 'ChatGPT', tag: 'chatgpt', icon: 'Bot' },
+  { match: ['anthropic', 'claude.ai'], name: 'Claude', tag: 'claude', icon: 'Bot' },
+  { match: ['xbox', 'game pass'], name: 'Xbox Game Pass', tag: 'xbox', icon: 'Gamepad2' },
+  { match: ['playstation', 'psn'], name: 'PlayStation Plus', tag: 'psplus', icon: 'Gamepad2' },
+  { match: ['tidal'], name: 'Tidal', tag: 'tidal', icon: 'Music' },
+  { match: ['audioteka', 'storytel', 'legimi', 'empik go'], name: 'Audiobooki / e-booki', tag: 'ksiazki', icon: 'BookOpen' },
+  { match: ['zdrofit', 'cityfit', 'city fit', 'calypso', 'just gym', 'justgym', 'smartgym', 'fitness', 'siłownia', 'silownia', 'multisport', 'medicover sport'], name: 'Siłownia / karnet', tag: 'silownia', icon: 'Dumbbell' },
+];
+
+export function subServiceFor(e: { note?: string; storeName?: string; tags?: string[] }): { tag: string; name: string; icon: string } | null {
+  const hay = `${e.note ?? ''} ${e.storeName ?? ''} ${(e.tags ?? []).join(' ')}`.toLowerCase();
+  const t = SUB_SERVICES.find((sv) => sv.match.some((m) => hay.includes(m)));
+  return t ? { tag: t.tag, name: t.name, icon: t.icon } : null;
+}
+
+// Sklepy codzienne — nawet jeśli raz w miesiącu wydasz tam podobną kwotę, to
+// nie abonament (ogólne wykrywanie niżej je pomija).
+const NOT_RECURRING = /lidl|biedronka|kaufland|auchan|carrefour|żabka|zabka|aldi|netto|dino|stokrotka|lewiatan|rossmann|hebe|orlen|shell|\bbp\b|circle|moya|lotos|amic|mcdonald|kfc|uber|bolt|allegro|pyszne|glovo|wolt|apteka|blik/;
+const DAY_MS = 86400000;
 
 // Port z sapp's `detectRecurringBills` — rachunki, które user loguje ręcznie co
 // miesiąc (czynsz, prąd, internet...) BEZ założenia im osobnej Subskrypcji.
@@ -146,7 +184,7 @@ export interface BillCandidate {
 // wystąpienie to zbyt mało, żeby zgadywać dzień miesiąca). Pomija typ już
 // pokryty przez AKTYWNĄ Subskrypcję z pasującym tagiem/nazwą — ten sam rachunek
 // nie ma liczyć się podwójnie w `upcomingPayments` niżej.
-export function detectRecurringBills(expenses: Expense[], subs: Subscription[], dismissed: readonly string[] = []): BillCandidate[] {
+export function detectRecurringBills(expenses: Expense[], subs: Subscription[], dismissed: readonly string[] = [], now: Date = new Date()): BillCandidate[] {
   const byTag: Record<string, { months: Set<string>; lastDate: string; lastAmount: number }> = {};
   for (const e of expenses) {
     if (e.type === 'income') continue;
@@ -168,9 +206,58 @@ export function detectRecurringBills(expenses: Expense[], subs: Subscription[], 
     out.push({
       tag: t.tag, name: t.name, icon: t.icon, lastAmount: g.lastAmount, months: g.months.size,
       lastDate: g.lastDate, dayOfMonth: Math.min(28, Math.max(1, parseInt(g.lastDate.slice(8, 10), 10) || 10)),
+      kind: 'bill',
     });
   }
-  return out.sort((a, b) => b.months - a.months);
+  return [...out, ...detectRecurringSubscriptions(expenses, subs, dismissed, now)].sort((a, b) => b.months - a.months);
+}
+
+// Subskrypcje z historii: (1) znane serwisy (SUB_SERVICES) — wystarczy 1 raz w
+// ostatnich 62 dniach; (2) OGÓLNIE: ten sam sprzedawca (pierwsze słowo nazwy) w
+// ≥3 różnych miesiącach, ~raz w miesiącu (≤1,34 płatności/mies.), kwoty w ±15%
+// mediany, ostatnia w ostatnich 62 dniach (inaczej pewnie anulowana).
+function detectRecurringSubscriptions(expenses: Expense[], subs: Subscription[], dismissed: readonly string[], now: Date): BillCandidate[] {
+  const recentCut = new Date(now.getTime() - 62 * DAY_MS).toISOString().slice(0, 10);
+  const covered = (tag: string, name: string) => subs.some((sb) => sb.active && (
+    (sb.tags ?? []).some((t) => t.toLowerCase() === tag) || sb.name.toLowerCase().includes(tag) || sb.name.toLowerCase().includes(name.toLowerCase())));
+  type G = { name: string; icon: string; months: Set<string>; count: number; amounts: number[]; lastDate: string; lastAmount: number };
+  const known: Record<string, G> = {};
+  const generic: Record<string, G> = {};
+  for (const e of expenses) {
+    if (e.type === 'income' || billTagFor(e)) continue;
+    const date = (e.date ?? '').slice(0, 10);
+    if (!date || !(e.amount > 0)) continue;
+    const sv = subServiceFor(e);
+    let g: G;
+    if (sv) {
+      g = (known[sv.tag] ??= { name: sv.name, icon: sv.icon, months: new Set(), count: 0, amounts: [], lastDate: '', lastAmount: 0 });
+    } else {
+      const store = (e.storeName || e.note || '').trim();
+      const key = store.toLowerCase().split(/\s+/)[0]?.replace(/[^a-z0-9ąćęłńóśźż.+]/g, '') ?? '';
+      if (key.length < 3 || NOT_RECURRING.test(store.toLowerCase()) || e.fvOverride === 'food' || (e.receiptItems?.length ?? 0) > 1) continue;
+      g = (generic[key] ??= { name: store.split(/\s+/).slice(0, 2).join(' '), icon: 'Repeat', months: new Set(), count: 0, amounts: [], lastDate: '', lastAmount: 0 });
+    }
+    g.months.add(date.slice(0, 7)); g.count++; g.amounts.push(e.amount);
+    if (date > g.lastDate) { g.lastDate = date; g.lastAmount = e.amount; }
+  }
+  const out: BillCandidate[] = [];
+  const push = (tag: string, g: G) => out.push({
+    tag, name: g.name, icon: g.icon, lastAmount: g.lastAmount, months: g.months.size, lastDate: g.lastDate,
+    dayOfMonth: Math.min(28, Math.max(1, parseInt(g.lastDate.slice(8, 10), 10) || 10)), kind: 'subscription',
+  });
+  for (const [tag, g] of Object.entries(known)) {
+    if (g.lastDate < recentCut || dismissed.includes(tag) || covered(tag, g.name)) continue;
+    push(tag, g);
+  }
+  for (const [tag, g] of Object.entries(generic)) {
+    if (g.months.size < 3 || g.count > g.months.size * 1.34 || g.lastDate < recentCut) continue;
+    if (dismissed.includes(tag) || covered(tag, g.name)) continue;
+    const sorted = [...g.amounts].sort((a, b) => a - b);
+    const med = sorted[Math.floor(sorted.length / 2)];
+    if (!g.amounts.every((a) => Math.abs(a - med) <= med * 0.15)) continue;
+    push(tag, g);
+  }
+  return out;
 }
 
 // Port 1:1 sapp's `nextBillingDate` — najbliższe wystąpienie dnia miesiąca (ten
@@ -206,7 +293,7 @@ export function upcomingPayments(expenses: Expense[], subs: Subscription[], now:
   for (const { sub, daysUntil } of upcomingSubscriptions(subs, now)) {
     out.push({ id: sub.id, kind: 'subscription', name: sub.name, amount: sub.amount, daysUntil, dueDate: sub.nextBillingDate, fx: pendingFxOf(sub) });
   }
-  for (const b of detectRecurringBills(expenses, subs, dismissed)) {
+  for (const b of detectRecurringBills(expenses, subs, dismissed, now)) {
     const dueDate = nextBillingDate(b.dayOfMonth, today);
     const daysUntil = Math.round((new Date(`${dueDate}T00:00:00`).getTime() - today.getTime()) / 86400000);
     out.push({ id: `bill_${b.tag}`, kind: 'bill', name: b.name, amount: b.lastAmount, daysUntil, dueDate, icon: b.icon });

@@ -10,7 +10,7 @@ import { spacing, radius, themedStyles } from '@/theme';
 import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import { useExpensesStore } from '@/store/expensesStore';
 import { CYCLE_LABEL, CYCLE_SHORT, type BillingCycle, type Subscription } from '@/types/subscriptions';
-import { billTagFor, advanceNextBillingDate, rollOverdueSubscription, isDurationExpired, detectRecurringBills, nextBillingDate, BILL_TYPES, type BillCandidate } from '@/utils/recurringBills';
+import { billTagFor, advanceNextBillingDate, rollOverdueSubscription, isDurationExpired, detectRecurringBills, nextBillingDate, BILL_TYPES, SUB_SERVICES, type BillCandidate } from '@/utils/recurringBills';
 import { todayISO, ymd } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
 import { pendingFxOf, formatFx } from '@/utils/fx';
@@ -114,7 +114,7 @@ export default function SubscriptionsScreen() {
   // własna data/kwota) albo odrzucić.
   const detected = useMemo(() => detectRecurringBills(expenses, subscriptions, dismissedBills), [expenses, subscriptions, dismissedBills]);
   const dismissedNames = useMemo(
-    () => dismissedBills.map((tag) => ({ tag, name: BILL_TYPES.find((t) => t.tag === tag)?.name ?? tag })),
+    () => dismissedBills.map((tag) => ({ tag, name: [...BILL_TYPES, ...SUB_SERVICES].find((t) => t.tag === tag)?.name ?? tag })),
     [dismissedBills],
   );
   const scrollRef = useRef<ScrollView>(null);
@@ -326,7 +326,7 @@ export default function SubscriptionsScreen() {
         {detected.length > 0 && (
           <View style={[s.section, s.sectionSpaced]}>
             <Text style={s.sectionTitle}>WYKRYTE Z HISTORII</Text>
-            <Text style={s.sectionHint}>Ten sam rachunek co miesiąc w Twoich wydatkach — appka przewiduje następny termin (stąd kafel w Finansach). Dodaj, żeby ustawić przypomnienie, albo odrzuć, jeśli to nie stała opłata.</Text>
+            <Text style={s.sectionHint}>Rachunki i subskrypcje powtarzające się w wydatkach. Dodaj (przypomnienie) albo odrzuć ×.</Text>
             {detected.map((b) => (
               <DetectedRow key={b.tag} bill={b} s={s} onAdd={openFromBill} onDismiss={(tag) => { haptic.tap(); dismissBill(tag); }} />
             ))}
@@ -373,7 +373,7 @@ function DetectedRow({ bill, s, onAdd, onDismiss }: {
       </View>
       <TouchableOpacity style={s.itemBody} onPress={() => onAdd(bill)} activeOpacity={0.7}>
         <Text style={s.itemName} numberOfLines={1}>{bill.name}</Text>
-        <Text style={s.itemSub} numberOfLines={1}>ostatnio {bill.lastAmount.toFixed(2)} zł · {toDisplayDate(bill.lastDate).slice(0, 5)} · {bill.months} mies.</Text>
+        <Text style={s.itemSub} numberOfLines={1}>{bill.kind === 'subscription' ? 'subskrypcja · ' : ''}ostatnio {bill.lastAmount.toFixed(2)} zł · {toDisplayDate(bill.lastDate).slice(0, 5)} · {bill.months} mies.</Text>
         <Text style={s.itemSub} numberOfLines={1}>następna ≈ {toDisplayDate(due).slice(0, 5)} · {nextLabel(days)}</Text>
       </TouchableOpacity>
       <View style={s.detectedActions}>
