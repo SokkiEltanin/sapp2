@@ -6,7 +6,7 @@ import { parseBankNotification, findExpenseForBankTx, amountMatches } from '@/ut
 const CARD = 'Zapłacono kwotę 10,18 PLN karta *8743 dnia 03-07-2026 godz. 06:37:30 w LIDL HETMANSKA LIDL HETMANSKA Rzeszow POL. Bank Pekao S.A.';
 
 describe('paragon dodany przed powiadomieniem', () => {
-  const tx = parseBankNotification(CARD)!;
+  const tx = parseBankNotification('Pekao', CARD)!;
 
   test('paragon z tą samą kwotą i dniem (data bez godziny) → łączy', () => {
     const receipt = { id: 'r', type: 'expense', amount: 10.18, date: '2026-07-03', storeName: 'Lidl' };

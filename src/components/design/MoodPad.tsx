@@ -5,7 +5,7 @@ import { runOnJS, useSharedValue } from 'react-native-reanimated';
 import Svg, { Defs, RadialGradient, Stop, Circle } from 'react-native-svg';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
-import { MOOD_LABELS, MOOD_COLORS, ENERGY_LABELS, ENERGY_COLORS, roundLevel } from '@/types/mood';
+import { MOOD_LABELS, ENERGY_LABELS, roundLevel, moodColor, energyGlow } from '@/types/mood';
 
 // `MoodPad` — design/app-design.html §Komponenty "MoodPad – pole 2D (X = przyjemność,
 // Y = energia), drag". ZASTĘPUJE `MoodEnergyGrid.tsx` (ta sama, już battle-tested na
@@ -62,7 +62,11 @@ export default function MoodPad({
   const { width: winWidth } = useWindowDimensions();
   const size = mini ? 76 : Math.min(300, winWidth - spacing[4] * 2 - 2);
   const dotSize = mini ? 12 : 24;
-  const glowSize = mini ? 70 : 180;
+  // Poświata = ENERGIA (2026-11-12): mała i blada przy "bez energii", szeroka i
+  // jaśniejsza przy pełnej. Stały kontener (max rozmiar) + skalowany promień
+  // gradientu w środku, żeby nic nie skakało w layoucie.
+  const glowMax = mini ? 90 : 240;
+  const glowSize = glowMax;
 
   const commit = (m: number, e: number) => onChange?.(m, e);
   // `dragging` (2026-11-08, user: "laguje tylko wtedy gdy przesuwam palec, jak
@@ -124,7 +128,11 @@ export default function MoodPad({
   }, [mood, energy, size, dotSize, dragging]);
 
   const hasValue = !!mood && !!energy;
-  const ringColor = energy ? ENERGY_COLORS[roundLevel(energy)] : colors.text.muted;
+  // Kolor = PRZYJEMNOŚĆ (oś X), płynnie (types/mood.ts's `moodColor`).
+  const ringColor = mood ? moodColor(mood) : colors.text.muted;
+  const glowK = energy ? energyGlow(energy) : 0;
+  const glowR = (glowMax / 2) * (0.22 + 0.78 * glowK);
+  const glowOpacity = 0.12 + 0.28 * glowK;
 
   const pad = (
     <View style={[s.pad, { width: size, height: size, borderRadius: mini ? radius.chip : radius.lg }]}>
@@ -164,7 +172,7 @@ export default function MoodPad({
       {!mini && history.slice(0, -1).map((h, i) => (
         <View
           key={i}
-          style={[s.histDot, { left: ((h.mood - 1) / 4) * size, top: (1 - (h.energy - 1) / 4) * size }]}
+          style={[s.histDot, { left: ((h.mood - 1) / 4) * size, top: (1 - (h.energy - 1) / 4) * size, backgroundColor: moodColor(h.mood), opacity: 0.45 }]}
         />
       ))}
 
@@ -182,11 +190,11 @@ export default function MoodPad({
           <Svg width={glowSize} height={glowSize} style={[s.glow, { width: glowSize, height: glowSize, marginLeft: -glowSize / 2, marginTop: -glowSize / 2 }]}>
             <Defs>
               <RadialGradient id="glow" cx="50%" cy="50%" r="50%">
-                <Stop offset="0" stopColor={ringColor} stopOpacity={0.16} />
+                <Stop offset="0" stopColor={ringColor} stopOpacity={glowOpacity} />
                 <Stop offset="1" stopColor={ringColor} stopOpacity={0} />
               </RadialGradient>
             </Defs>
-            <Circle cx={glowSize / 2} cy={glowSize / 2} r={glowSize / 2} fill="url(#glow)" />
+            <Circle cx={glowSize / 2} cy={glowSize / 2} r={glowR} fill="url(#glow)" />
           </Svg>
         )}
         <View style={[s.dot, { width: dotSize, height: dotSize, borderColor: ringColor, backgroundColor: hasValue ? ringColor + '33' : 'transparent' }]} />
