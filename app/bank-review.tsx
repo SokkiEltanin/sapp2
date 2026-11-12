@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import { ChevronLeft, Check, X, Landmark, Zap, Sparkles, AlertTriangle, Plus, BookmarkPlus, History } from 'lucide-react-native';
+import { ChevronLeft, Check, X, Landmark, Zap, Sparkles, AlertTriangle, BookmarkPlus, History } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { useBankQueue, type PendingBankTx } from '@/store/bankQueueStore';
@@ -164,11 +164,13 @@ export default function BankReview() {
                   naprawdę: kwota=0 dopóki user nie wpisze PLN w edycji wydatku. */}
               {foreign && <Text style={s.fxHint}>Waluta obca — zostanie dodana z kwotą 0 zł, otwórz ją potem w Finansach i wpisz realną kwotę w PLN.</Text>}
 
-              <Text style={s.fieldLabel}>{isIn ? 'Nadawca / tytuł' : 'Sklep'}</Text>
+              {/* 2026-11-12 (CLAUDE.md zasada 10): nazwa = edytowalny nagłówek bez
+                  etykiety/ramki, tagi = chipy + mały input w jednym rzędzie,
+                  zaufanie + szablon = jedna linijka. Karta ~o połowę niższa. */}
               <TextInput
                 value={p.store}
                 onChangeText={(v) => update(p.id, { store: v })}
-                style={s.input}
+                style={s.storeInline}
                 placeholderTextColor={colors.text.muted}
                 placeholder={isIn ? 'Nadawca' : 'Sklep'}
               />
@@ -213,51 +215,44 @@ export default function BankReview() {
                 </>
               ) : (
                 <>
-                  <Text style={s.fieldLabel}>Tagi</Text>
-                  <View style={s.tagInputRow}>
+                  <View style={s.chips}>
+                    {p.tags.map((t) => (
+                      <TouchableOpacity key={t} style={s.tagChip} onPress={() => removeTag(p, t)} activeOpacity={0.7}>
+                        <Text style={s.tagChipLabel}>{t}</Text>
+                        <X size={10} color={colors.bg.primary} />
+                      </TouchableOpacity>
+                    ))}
                     <TextInput
                       value={tagDrafts[p.id] ?? ''}
                       onChangeText={(v) => setTagDrafts((d2) => ({ ...d2, [p.id]: v }))}
-                      placeholder="np. Spożywcze, Transport…"
+                      placeholder="+ tag"
                       placeholderTextColor={colors.text.muted}
-                      style={s.tagInputField}
+                      style={s.tagInline}
                       onSubmitEditing={() => addTag(p)}
+                      onBlur={() => { if ((tagDrafts[p.id] ?? '').trim()) addTag(p); }}
                       returnKeyType="done"
                     />
-                    <TouchableOpacity style={s.tagAddBtn} onPress={() => addTag(p)} activeOpacity={0.7}>
-                      <Plus size={14} color={colors.bg.primary} />
-                    </TouchableOpacity>
                   </View>
-                  {p.tags.length > 0 && (
-                    <View style={s.chips}>
-                      {p.tags.map((t) => (
-                        <TouchableOpacity key={t} style={s.tagChip} onPress={() => removeTag(p, t)} activeOpacity={0.7}>
-                          <Text style={s.tagChipLabel}>{t}</Text>
-                          <X size={10} color={colors.bg.primary} />
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-                  {info?.auto ? (
-                    <View style={s.trustRow}>
-                      <Zap size={13} color={colors.accent.green} />
-                      <Text style={s.trustAuto}>Sklep na automacie — kolejne dodam sam</Text>
-                    </View>
-                  ) : (
-                    <>
-                      <View style={s.trustRow}>
-                        <Sparkles size={13} color={colors.text.muted} />
-                        <Text style={s.trustText}>Zaufanie {accepts}/{AUTO_THRESHOLD} → automat</Text>
+                  <View style={s.trustRow}>
+                    {info?.auto ? (
+                      <>
+                        <Zap size={12} color={colors.accent.green} />
+                        <Text style={s.trustAuto}>Sklep na automacie</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={12} color={colors.text.muted} />
+                        <Text style={s.trustText}>Zaufanie {accepts}/{AUTO_THRESHOLD}</Text>
                         <View style={s.trustBar}>
                           <View style={[s.trustFill, { width: `${Math.min(100, (accepts / AUTO_THRESHOLD) * 100)}%` }]} />
                         </View>
-                      </View>
-                      <TouchableOpacity style={s.templateBtn} onPress={() => createTemplate(p)} activeOpacity={0.8}>
-                        <BookmarkPlus size={13} color={colors.text.secondary} />
-                        <Text style={s.templateBtnText}>Stwórz szablon z tego (automat od razu)</Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
+                        <TouchableOpacity onPress={() => createTemplate(p)} hitSlop={8} style={s.templateLink}>
+                          <BookmarkPlus size={12} color={colors.text.secondary} />
+                          <Text style={s.templateBtnText}>Szablon</Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
+                  </View>
                 </>
               )}
 
@@ -330,15 +325,6 @@ const makeS = themedStyles((c) => StyleSheet.create({
   time: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.muted },
 
   fieldLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: spacing[3], marginBottom: spacing[1] },
-  input: { backgroundColor: c.bg.elevated, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, paddingHorizontal: spacing[3], paddingVertical: 11, fontSize: 15, fontFamily: 'Inter_500Medium', color: c.text.primary },
-
-  tagInputRow: { flexDirection: 'row', gap: spacing[2] },
-  tagInputField: {
-    flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: c.text.primary,
-    backgroundColor: c.bg.elevated, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default,
-    paddingHorizontal: spacing[3], paddingVertical: 10,
-  },
-  tagAddBtn: { width: 40, borderRadius: radius.md, backgroundColor: c.text.bright, alignItems: 'center', justifyContent: 'center' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[2] },
   tagChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -362,15 +348,14 @@ const makeS = themedStyles((c) => StyleSheet.create({
 
   linkedRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: spacing[3], backgroundColor: c.accent.green + '14', borderRadius: radius.md, padding: spacing[2] },
   linkedText: { flex: 1, fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.accent.green, lineHeight: 16 },
+  storeInline: { fontSize: 15, fontFamily: 'Inter_800ExtraBold', color: c.text.primary, paddingVertical: 2, marginTop: spacing[1] },
+  tagInline: { minWidth: 70, fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.primary, paddingHorizontal: spacing[2], paddingVertical: 4, borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default, borderStyle: 'dashed' },
+  templateLink: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: spacing[1] },
   trustRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing[3] },
   trustText: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
   trustAuto: { fontSize: 11.5, fontFamily: 'Inter_900Black', color: c.accent.green },
   trustBar: { flex: 1, height: 5, borderRadius: 3, backgroundColor: c.border.default, overflow: 'hidden', marginLeft: 4 },
   trustFill: { height: '100%', borderRadius: 3, backgroundColor: c.accent.green },
-  templateBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: spacing[2],
-    paddingVertical: 8, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, backgroundColor: c.bg.elevated,
-  },
   templateBtnText: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
 
   trusted: { marginTop: spacing[4], backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default, padding: spacing[4] },

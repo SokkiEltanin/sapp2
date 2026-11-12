@@ -10,10 +10,11 @@ import { spacing, radius, themedStyles } from '@/theme';
 import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import { useExpensesStore } from '@/store/expensesStore';
 import { CYCLE_LABEL, CYCLE_SHORT, type BillingCycle, type Subscription } from '@/types/subscriptions';
-import { billTagFor, advanceNextBillingDate, rollOverdueSubscription, isDurationExpired, detectRecurringBills, nextBillingDate, BILL_TYPES, SUB_SERVICES, type BillCandidate } from '@/utils/recurringBills';
+import { billTagFor, advanceNextBillingDate, rollOverdueSubscription, isDurationExpired, detectRecurringBills, nextBillingDate, upcomingPayments, BILL_TYPES, SUB_SERVICES, type BillCandidate } from '@/utils/recurringBills';
 import { todayISO, ymd } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
 import { pendingFxOf, formatFx } from '@/utils/fx';
+import AppBottomSheet from '@/components/design/AppBottomSheet';
 
 // Ekran "Stałe opłaty" / Subskrypcje (2026-11-09, user: "czy w sapp mozemy
 // eksportować szablony te do łapania powiadomien i stałych? Zeby przeniesc je do
@@ -118,6 +119,16 @@ export default function SubscriptionsScreen() {
     [dismissedBills],
   );
   const scrollRef = useRef<ScrollView>(null);
+  // "Do końca miesiąca" (2026-11-12, zasada 10 — liczba zamiast samej listy):
+  // ręczne + przewidywane z historii, z terminem w TYM miesiącu.
+  const leftThisMonth = useMemo(() => {
+    const now = new Date();
+    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const list = upcomingPayments(expenses, subscriptions, now, dismissedBills).filter((p) => p.dueDate.startsWith(ym) && p.daysUntil >= 0);
+    return { sum: list.reduce((a, p) => a + p.amount, 0), count: list.length };
+  }, [expenses, subscriptions, dismissedBills]);
+  const nameRef = useRef<TextInput>(null);
+  const amountRef = useRef<TextInput>(null);
 
   // Auto-wyłącz subskrypcje z wygasłym czasem trwania, cicho przesuń zaległe
   // `nextBillingDate` w przyszłość — port 1:1 sapp's efektu w
@@ -149,7 +160,6 @@ export default function SubscriptionsScreen() {
     setEditing(null);
     setForm({ ...emptyForm(), name: b.name, amount: String(b.lastAmount), nextBillingDate: toDisplayDate(nextBillingDate(b.dayOfMonth)), tags: b.tag });
     setFormOpen(true);
-    scrollRef.current?.scrollTo({ y: 0, animated: true });
   };
 
   const openDatePicker = () => {
@@ -201,7 +211,7 @@ export default function SubscriptionsScreen() {
   const monthlyTotal = useMemo(() => active.reduce((sum, sub) => {
     const factor = sub.billingCycle === 'weekly' ? 4.33 : sub.billingCycle === 'quarterly' ? 1 / 3 : sub.billingCycle === 'yearly' ? 1 / 12 : 1;
     return sum + sub.amount * factor;
-  }, 0), [active]);
+  }, 0) + detected.reduce((sum, b) => sum + b.lastAmount, 0), [active, detected]);
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -216,7 +226,7 @@ export default function SubscriptionsScreen() {
       </View>
 
       <ScrollView ref={scrollRef} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {subscriptions.length > 0 && (
+        {(subscriptions.length > 0 || detected.length > 0) && (
           <View style={s.summaryCard}>
             <View style={s.summaryItem}>
               <Text style={s.summaryVal}>{monthlyTotal.toFixed(2)} zł</Text>
@@ -225,87 +235,17 @@ export default function SubscriptionsScreen() {
             </View>
             <View style={s.summaryDivider} />
             <View style={s.summaryItem}>
-              <Text style={[s.summaryVal, { color: colors.accent.blue }]}>{active.length}</Text>
-              <Text style={s.summaryLabel}>aktywnych</Text>
+              <Text style={s.summaryVal}>{leftThisMonth.sum.toFixed(0)} zł</Text>
+              <Text style={s.summaryLabel}>do końca mies.</Text>
+              <Text style={s.summarySub}>{leftThisMonth.count} płatn. · {active.length} aktywnych</Text>
             </View>
           </View>
         )}
 
-        {formOpen && (
-          <View style={s.card}>
-            <Text style={s.label}>Nazwa</Text>
-            <TextInput value={form.name} onChangeText={(v) => setF('name', v)} style={s.input} placeholder="Netflix, Spotify, siłownia..." placeholderTextColor={colors.text.muted} autoFocus={!editingFx} />
-
-            <Text style={[s.label, s.labelSpaced]}>Kwota (zł)</Text>
-            {editingFx && (
-              <Text style={s.fxBanner}>
-                Płatność w obcej walucie: {formatFx(editingFx)}. Wpisz ile to w PLN (z wyciągu) — kurs się zmienia, więc w razie czego popraw przy kolejnej płatności.
-              </Text>
-            )}
-            <TextInput value={form.amount} onChangeText={(v) => setF('amount', v)} style={s.input} placeholder="49.99" placeholderTextColor={colors.text.muted} keyboardType="decimal-pad" autoFocus={!!editingFx} />
-
-            <Text style={[s.label, s.labelSpaced]}>Cykl</Text>
-            <View style={s.pillRow}>
-              {CYCLES.map((c) => (
-                <TouchableOpacity key={c} style={[s.pill, form.billingCycle === c && s.pillOn]} onPress={() => setF('billingCycle', c)} activeOpacity={0.8}>
-                  <Text style={[s.pillLabel, form.billingCycle === c && s.pillLabelOn]}>{CYCLE_LABEL[c]}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={[s.label, s.labelSpaced]}>Następna płatność</Text>
-            {/* Natywny kalendarz (2026-11-11) zamiast ręcznego wpisywania
-                "DD.MM.RRRR" — ten sam picker co w wydatkach/zadaniach. */}
-            <TouchableOpacity style={[s.input, s.dateBtn]} onPress={openDatePicker} activeOpacity={0.7}>
-              <CalendarDays size={14} color={colors.text.secondary} />
-              <Text style={s.dateBtnLabel}>{form.nextBillingDate}</Text>
-            </TouchableOpacity>
-
-            <Text style={[s.label, s.labelSpaced]}>Czas trwania</Text>
-            <View style={s.pillRow}>
-              {DURATION_OPTS.map((d) => (
-                <TouchableOpacity key={d} style={[s.pill, form.durationMonths === d && s.pillOn]} onPress={() => setF('durationMonths', d)} activeOpacity={0.8}>
-                  <Text style={[s.pillLabel, form.durationMonths === d && s.pillLabelOn]}>{d === 0 ? 'Zawsze' : `${d} mies.`}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={[s.label, s.labelSpaced]}>Przypomnienie</Text>
-            <View style={s.pillRow}>
-              {REMINDER_OPTS.map((r) => (
-                <TouchableOpacity key={r} style={[s.pill, form.reminderDaysBefore === r && s.pillOn]} onPress={() => setF('reminderDaysBefore', r)} activeOpacity={0.8}>
-                  <Text style={[s.pillLabel, form.reminderDaysBefore === r && s.pillLabelOn]}>{r === 0 ? 'Brak' : r === 1 ? 'Dzień przed' : `${r} dni przed`}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            {form.reminderDaysBefore > 0 && (
-              <Text style={s.reminderHint}>Powiadomienie o 9:00 rano. Jeśli nie przychodzi, wyłącz optymalizację baterii dla appki (Ustawienia → Alerty).</Text>
-            )}
-
-            <Text style={[s.label, s.labelSpaced]}>Tagi (opcjonalnie)</Text>
-            <TextInput value={form.tags} onChangeText={(v) => setF('tags', v)} style={s.input} placeholder="np. prąd, dom" placeholderTextColor={colors.text.muted} autoCapitalize="none" />
-
-            <Text style={[s.label, s.labelSpaced]}>Notatka (opcjonalnie)</Text>
-            <TextInput value={form.note} onChangeText={(v) => setF('note', v)} style={[s.input, { height: 56, textAlignVertical: 'top' }]} placeholder="np. plan Family" placeholderTextColor={colors.text.muted} multiline />
-
-            <View style={[s.rowBetween, s.labelSpaced]}>
-              <TouchableOpacity style={s.cancelBtn} onPress={() => setFormOpen(false)} activeOpacity={0.8}>
-                <Text style={s.cancelBtnLabel}>Odrzuć</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[s.addBtn, { flex: 1 }, !canSave && s.btnDisabled]} onPress={save} disabled={!canSave} activeOpacity={0.8}>
-                <Check size={16} color={colors.bg.primary} />
-                <Text style={s.addBtnLabel}>{editing ? 'Zapisz zmiany' : 'Dodaj'}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {subscriptions.length === 0 && !formOpen && (
+        {subscriptions.length === 0 && detected.length === 0 && (
           <View style={s.empty}>
             <Text style={s.emptyText}>
-              {detected.length > 0
-                ? 'Nie masz jeszcze dodanych stałych opłat. Niżej to, co appka sama wykryła w Twoich wydatkach — dodaj je, żeby dostawać przypomnienia.'
-                : 'Brak stałych opłat. Dodaj pierwszą, np. czynsz, Netflix, siłownię.'}
+              Brak stałych opłat. Dodaj pierwszą, np. czynsz, Netflix, siłownię.
             </Text>
             <TouchableOpacity style={s.addBtn} onPress={openAdd} activeOpacity={0.8}>
               <Plus size={16} color={colors.bg.primary} />
@@ -355,6 +295,75 @@ export default function SubscriptionsScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      <AppBottomSheet visible={formOpen} onClose={() => setFormOpen(false)} initialFocusRef={editingFx ? amountRef : nameRef}
+        header={<Text style={s.sheetTitle}>{editing ? 'Edytuj opłatę' : 'Nowa stała opłata'}</Text>}
+        footer={(
+            <View style={s.rowBetween}>
+              <TouchableOpacity style={s.cancelBtn} onPress={() => setFormOpen(false)} activeOpacity={0.8}>
+                <Text style={s.cancelBtnLabel}>Odrzuć</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.addBtn, { flex: 1 }, !canSave && s.btnDisabled]} onPress={save} disabled={!canSave} activeOpacity={0.8}>
+                <Check size={16} color={colors.bg.primary} />
+                <Text style={s.addBtnLabel}>{editing ? 'Zapisz zmiany' : 'Dodaj'}</Text>
+              </TouchableOpacity>
+            </View>
+        )}>
+            <Text style={s.label}>Nazwa</Text>
+            <TextInput ref={nameRef} value={form.name} onChangeText={(v) => setF('name', v)} style={s.input} placeholder="Netflix, Spotify, siłownia..." placeholderTextColor={colors.text.muted} />
+
+            <Text style={[s.label, s.labelSpaced]}>Kwota (zł)</Text>
+            {editingFx && (
+              <Text style={s.fxBanner}>
+                Płatność w obcej walucie: {formatFx(editingFx)}. Wpisz ile to w PLN (z wyciągu) — kurs się zmienia, więc w razie czego popraw przy kolejnej płatności.
+              </Text>
+            )}
+            <TextInput ref={amountRef} value={form.amount} onChangeText={(v) => setF('amount', v)} style={s.input} placeholder="49.99" placeholderTextColor={colors.text.muted} keyboardType="decimal-pad" />
+
+            <Text style={[s.label, s.labelSpaced]}>Cykl</Text>
+            <View style={s.pillRow}>
+              {CYCLES.map((c) => (
+                <TouchableOpacity key={c} style={[s.pill, form.billingCycle === c && s.pillOn]} onPress={() => setF('billingCycle', c)} activeOpacity={0.8}>
+                  <Text style={[s.pillLabel, form.billingCycle === c && s.pillLabelOn]}>{CYCLE_LABEL[c]}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[s.label, s.labelSpaced]}>Następna płatność</Text>
+            {/* Natywny kalendarz (2026-11-11) zamiast ręcznego wpisywania
+                "DD.MM.RRRR" — ten sam picker co w wydatkach/zadaniach. */}
+            <TouchableOpacity style={[s.input, s.dateBtn]} onPress={openDatePicker} activeOpacity={0.7}>
+              <CalendarDays size={14} color={colors.text.secondary} />
+              <Text style={s.dateBtnLabel}>{form.nextBillingDate}</Text>
+            </TouchableOpacity>
+
+            <Text style={[s.label, s.labelSpaced]}>Czas trwania</Text>
+            <View style={s.pillRow}>
+              {DURATION_OPTS.map((d) => (
+                <TouchableOpacity key={d} style={[s.pill, form.durationMonths === d && s.pillOn]} onPress={() => setF('durationMonths', d)} activeOpacity={0.8}>
+                  <Text style={[s.pillLabel, form.durationMonths === d && s.pillLabelOn]}>{d === 0 ? 'Zawsze' : `${d} mies.`}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[s.label, s.labelSpaced]}>Przypomnienie</Text>
+            <View style={s.pillRow}>
+              {REMINDER_OPTS.map((r) => (
+                <TouchableOpacity key={r} style={[s.pill, form.reminderDaysBefore === r && s.pillOn]} onPress={() => setF('reminderDaysBefore', r)} activeOpacity={0.8}>
+                  <Text style={[s.pillLabel, form.reminderDaysBefore === r && s.pillLabelOn]}>{r === 0 ? 'Brak' : r === 1 ? 'Dzień przed' : `${r} dni przed`}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {form.reminderDaysBefore > 0 && (
+              <Text style={s.reminderHint}>Powiadomienie o 9:00 rano. Jeśli nie przychodzi, wyłącz optymalizację baterii dla appki (Ustawienia → Alerty).</Text>
+            )}
+
+            <Text style={[s.label, s.labelSpaced]}>Tagi (opcjonalnie)</Text>
+            <TextInput value={form.tags} onChangeText={(v) => setF('tags', v)} style={s.input} placeholder="np. prąd, dom" placeholderTextColor={colors.text.muted} autoCapitalize="none" />
+
+            <Text style={[s.label, s.labelSpaced]}>Notatka (opcjonalnie)</Text>
+            <TextInput value={form.note} onChangeText={(v) => setF('note', v)} style={[s.input, { height: 56, textAlignVertical: 'top' }]} placeholder="np. plan Family" placeholderTextColor={colors.text.muted} multiline />
+
+      </AppBottomSheet>
     </SafeAreaView>
   );
 }
@@ -373,7 +382,7 @@ function DetectedRow({ bill, s, onAdd, onDismiss }: {
       </View>
       <TouchableOpacity style={s.itemBody} onPress={() => onAdd(bill)} activeOpacity={0.7}>
         <Text style={s.itemName} numberOfLines={1}>{bill.name}</Text>
-        <Text style={s.itemSub} numberOfLines={1}>{bill.kind === 'subscription' ? 'subskrypcja · ' : ''}ostatnio {bill.lastAmount.toFixed(2)} zł · {toDisplayDate(bill.lastDate).slice(0, 5)} · {bill.months} mies.</Text>
+        <Text style={s.itemSub} numberOfLines={1}>ostatnio {bill.lastAmount.toFixed(2)} zł · {toDisplayDate(bill.lastDate).slice(0, 5)}{bill.months > 1 ? ` · ${bill.months} mies.` : ''}</Text>
         <Text style={s.itemSub} numberOfLines={1}>następna ≈ {toDisplayDate(due).slice(0, 5)} · {nextLabel(days)}</Text>
       </TouchableOpacity>
       <View style={s.detectedActions}>
@@ -444,6 +453,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   summaryItem: { flex: 1, alignItems: 'center', gap: 4 },
   summaryDivider: { width: 1, backgroundColor: c.border.default },
   summaryVal: { fontSize: 18, fontFamily: 'Inter_900Black', color: c.text.primary },
+  summarySub: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 2 },
   summaryLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.4 },
 
   card: { backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default, padding: spacing[4], marginBottom: spacing[3] },
@@ -474,6 +484,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   emptyText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', lineHeight: 19 },
 
   section: { gap: spacing[2], marginTop: spacing[1] },
+  sheetTitle: { fontSize: 17, fontFamily: 'Inter_900Black', color: c.text.primary, marginBottom: spacing[2] },
   sectionSpaced: { marginTop: spacing[4] },
   sectionHint: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, lineHeight: 15, marginBottom: spacing[1] },
   itemDetected: { borderStyle: 'dashed' },

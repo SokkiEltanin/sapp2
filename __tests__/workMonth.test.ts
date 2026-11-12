@@ -1,4 +1,4 @@
-import { workMonthProgress } from '@/utils/workMonth';
+import { workMonthProgress, upcomingShifts } from '@/utils/workMonth';
 import type { Employer } from '@/types/work';
 import type { Expense } from '@/types/finances';
 import type { CalendarEvent } from '@/types/calendar';
@@ -47,5 +47,14 @@ describe('workMonthProgress — kafel Praca', () => {
     expect(r.hoursDone).toBeNull();
     expect(r.hoursPlanned).toBeNull();
     expect(r.nextPay).toEqual({ month: '2026-11', amount: 5000 });
+  });
+});
+
+describe('upcomingShifts', () => {
+  test('pomija zakończone, bierze trwającą i następny miesiąc', () => {
+    const e = emp({ workPrefix: '[JD]' });
+    const ev = [shift('2026-11-03'), shift('2026-11-11'), shift('2026-11-20'), shift('2026-12-01'), shift('2026-12-05')];
+    const r = upcomingShifts(e, ev, new Date(2026, 10, 11, 12), 3);
+    expect(r.map((x) => x.date)).toEqual(['2026-11-11', '2026-11-20', '2026-12-01']);
   });
 });

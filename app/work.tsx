@@ -2,32 +2,32 @@ import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChevronLeft, Plus, ChevronDown, ChevronUp, CheckCircle2, EyeOff, Eye, BadgeCheck } from 'lucide-react-native';
+import { ChevronLeft, Plus, ChevronDown, ChevronUp, CheckCircle2, EyeOff, Eye, BadgeCheck, Pencil, Check } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import Segmented from '@/components/design/Segmented';
-import Toggle from '@/components/design/Toggle';
 import NumberInput from '@/components/design/NumberInput';
+import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useWorkStore } from '@/store/workStore';
 import { useCalendarStore } from '@/store/calendarStore';
 import { useExpensesStore } from '@/store/expensesStore';
-import { computeWorkRate } from '@/utils/workRate';
 import { computePayMonths, payMonthsSummary } from '@/utils/workSummary';
+import { workMonthProgress, upcomingShifts } from '@/utils/workMonth';
 import { haptic } from '@/utils/haptics';
 
-// Ekran "Praca" (2026-11-09, user: "lecimy z zakładką Praca", potem "Pełny port z
-// sapp od razu") — satelicki ekran Finansów (ten sam wzorzec co bank-review.tsx/
-// bank-history.tsx: `SafeAreaView`+ręczny header z `ChevronLeft`, nie `src/ui/
-// layout.tsx`'s kit zarezerwowany dla 4 głównych zakładek), wejście z Finanse's
-// kafelka "Praca" (StatTile, `app/(tabs)/finances.tsx`). Pełny opis portu/adaptacji
-// (dlaczego `Employer[]` bez mirrorowanego `WorkSettings`, co świadomie NIE
-// portowane) w src/types/work.ts/src/utils/workRate.ts.
-//
-// Jeden ekran łączy to co w sapp było rozbite na Ustawienia→Praca + app/work/add.tsx
-// + app/work/history.tsx (ten sam "jeden ujednolicony" wzorzec co AddExpenseModal
-// scaliło scan.tsx+manual.tsx w sapp2) — lista pracodawców, edycja aktywnego,
-// statystyki, historia wypłat z potwierdzaniem/wykluczaniem miesięcy, wszystko w
-// jednym scrollu.
+// Ekran "Praca" (2026-11-09 port z sapp; przebudowa 2026-11-12 wg CLAUDE.md
+// zasady 10 "ekran = dane, nie konfiguracja"). Na górze: najbliższa wypłata,
+// godziny X/Y w tym miesiącu, stawka, zarobione w roku, najbliższe zmiany,
+// historia wypłat (kompaktowo: miesiąc · godziny · zł/h · kwota, potwierdź/
+// wyklucz ikonami). Nazwa/aktywny/ukryty/tryb/prefiks/pensja/nadpisania →
+// sheet "Edytuj" (ołówek). Logika stawki bez zmian (utils/workRate.ts).
+
+const MONTHS = ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień'];
+const WD = ['nd', 'pn', 'wt', 'śr', 'cz', 'pt', 'sb'];
+const monthName = (ym: string) => MONTHS[Number(ym.slice(5, 7)) - 1] ?? ym;
+const pl = (n: number, d = 0) => n.toLocaleString('pl-PL', { minimumFractionDigits: d, maximumFractionDigits: d });
+const hrs = (h: number) => { const r = Math.round(h * 2) / 2; return Number.isInteger(r) ? String(r) : r.toFixed(1).replace('.', ','); };
+const shiftDay = (iso: string) => { const [y, m, d] = iso.split('-').map(Number); return `${WD[new Date(y, m - 1, d).getDay()]} ${String(d).padStart(2, '0')}.${String(m).padStart(2, '0')}`; };
 
 export default function WorkScreen() {
   const s = makeS();
@@ -43,25 +43,33 @@ export default function WorkScreen() {
   const allEvents = useMemo(() => [...events, ...gcalEvents], [events, gcalEvents]);
 
   const [viewingId, setViewingId] = useState<string | null>(activeEmployerId ?? employers[0]?.id ?? null);
+  const [editOpen, setEditOpen] = useState(false);
   const [overridesOpen, setOverridesOpen] = useState(false);
   const viewing = employers.find((e) => e.id === viewingId) ?? null;
+  const isCalendar = (viewing?.workMode ?? 'calendar') === 'calendar';
 
   const handleAddEmployer = () => {
     haptic.tap();
     const emp = addEmployer({ name: 'Nowy pracodawca', monthlySalary: 5000, hoursPerMonth: 168, workMode: 'calendar' });
     setViewingId(emp.id);
+    setEditOpen(true);
   };
 
-  const rate = useMemo(() => (viewing ? computeWorkRate(viewing, allEvents, expenses) : null), [viewing, allEvents, expenses]);
+  const progress = useMemo(() => (viewing ? workMonthProgress(viewing, allEvents, expenses) : null), [viewing, allEvents, expenses]);
+  const shifts = useMemo(() => (viewing && isCalendar ? upcomingShifts(viewing, allEvents, new Date(), 3) : []), [viewing, allEvents, isCalendar]);
   const payMonths = useMemo(() => (viewing ? computePayMonths(expenses, allEvents, viewing) : []), [viewing, expenses, allEvents]);
   const summary = useMemo(() => payMonthsSummary(payMonths), [payMonths]);
+  const yearEarned = useMemo(() => {
+    const y = String(new Date().getFullYear());
+    return payMonths.filter((r) => r.date.startsWith(y)).reduce((sum, r) => sum + r.amount, 0);
+  }, [payMonths]);
 
   const confirmMonth = (month: string, amount: number, hours: number) => {
     if (!viewing) return;
     haptic.success();
-    updateEmployer(viewing.id, {
-      confirmedMonths: { ...(viewing.confirmedMonths ?? {}), [month]: { salary: amount, hours } },
-    });
+    const cur = { ...(viewing.confirmedMonths ?? {}) };
+    if (cur[month]) delete cur[month]; else cur[month] = { salary: amount, hours };
+    updateEmployer(viewing.id, { confirmedMonths: cur });
   };
   const toggleExcludeMonth = (month: string) => {
     if (!viewing) return;
@@ -70,6 +78,9 @@ export default function WorkScreen() {
     if (cur.has(month)) cur.delete(month); else cur.add(month);
     updateEmployer(viewing.id, { excludedPayMonths: [...cur] });
   };
+
+  const rate = progress?.rate ?? null;
+  const pct = progress?.hoursPlanned ? Math.min(100, ((progress.hoursDone ?? 0) / progress.hoursPlanned) * 100) : 0;
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -84,7 +95,7 @@ export default function WorkScreen() {
       </View>
 
       {employers.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.empRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.empRow} style={{ flexGrow: 0 }}>
           {employers.map((e) => (
             <TouchableOpacity
               key={e.id}
@@ -101,24 +112,111 @@ export default function WorkScreen() {
 
       {!viewing ? (
         <View style={s.empty}>
-          <Text style={s.emptyText}>Brak pracodawców. Dodaj pierwszego, żeby appka zaczęła liczyć godziny i stawkę.</Text>
+          <Text style={s.emptyText}>Brak pracodawców. Dodaj pierwszego, żeby appka liczyła godziny, stawkę i wypłaty.</Text>
           <TouchableOpacity style={s.addBtn} onPress={handleAddEmployer} activeOpacity={0.8}>
             <Plus size={16} color={colors.bg.primary} />
             <Text style={s.addBtnLabel}>Dodaj pracodawcę</Text>
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {/* Nazwa + aktywny/ukryty */}
+        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+          {/* Karta główna */}
           <View style={s.card}>
-            <TextInput
-              value={viewing.name}
-              onChangeText={(t) => updateEmployer(viewing.id, { name: t })}
-              style={s.nameInput}
-              placeholder="Nazwa pracodawcy"
-              placeholderTextColor={colors.text.muted}
-            />
-            <View style={s.rowBetween}>
+            <View style={s.heroHead}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.heroName} numberOfLines={1}>{viewing.name}</Text>
+                <Text style={s.heroSub} numberOfLines={1}>
+                  {viewing.id === activeEmployerId ? 'aktywny' : 'nieaktywny'}
+                  {isCalendar ? ` · z kalendarza${viewing.workPrefix ? ` ${viewing.workPrefix}` : ''}` : ' · ręcznie'}
+                  {viewing.hidden ? ' · ukryty' : ''}
+                </Text>
+              </View>
+              <TouchableOpacity style={s.iconBtn} onPress={() => { haptic.tap(); setEditOpen(true); }} hitSlop={6} accessibilityLabel="Edytuj pracodawcę">
+                <Pencil size={15} color={colors.text.secondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={s.payBig}>
+              {progress?.nextPay ? `≈${pl(Math.round(progress.nextPay.amount))}` : '—'}<Text style={s.payCur}> zł</Text>
+            </Text>
+            <Text style={s.paySub}>{progress?.nextPay ? `najbliższa wypłata · za ${monthName(progress.nextPay.month)}` : 'brak stawki — ustaw prefiks albo pensję w Edytuj'}</Text>
+
+            {progress?.hoursPlanned != null && (
+              <View style={s.hoursBlock}>
+                <View style={s.track}><View style={[s.fill, { width: `${pct}%` }]} /></View>
+                <Text style={s.hoursText}>{hrs(progress.hoursDone ?? 0)} / {hrs(progress.hoursPlanned)} h w tym miesiącu</Text>
+              </View>
+            )}
+
+            <View style={s.grid}>
+              <View style={s.gridCell}>
+                <Text style={s.gridNum}>{rate != null ? pl(rate, 2) : '—'}</Text>
+                <Text style={s.gridUnit}>zł / h</Text>
+                {summary.avgRate != null && <Text style={s.gridSub}>śr. z wypłat {pl(summary.avgRate, 2)}</Text>}
+              </View>
+              <View style={s.gridCell}>
+                <Text style={s.gridNum}>{pl(yearEarned)}</Text>
+                <Text style={s.gridUnit}>zł w {new Date().getFullYear()}</Text>
+                {summary.includedCount > 0 && <Text style={s.gridSub}>śr. {pl(summary.totalEarned / summary.includedCount)} zł / wypłatę</Text>}
+              </View>
+            </View>
+          </View>
+
+          {/* Najbliższe zmiany */}
+          {shifts.length > 0 && (
+            <View style={s.card}>
+              <Text style={s.label}>Najbliższe zmiany</Text>
+              {shifts.map((sh) => (
+                <View key={sh.id} style={s.row}>
+                  <Text style={s.rowMain}>{shiftDay(sh.date)}</Text>
+                  <Text style={s.rowMid}>{sh.startTime && sh.endTime ? `${sh.startTime}–${sh.endTime}` : ''} · {hrs(sh.hours)} h</Text>
+                  {rate != null && <Text style={s.rowRight}>≈{pl(Math.round(sh.hours * rate))} zł</Text>}
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Historia wypłat */}
+          <View style={s.card}>
+            <Text style={s.label}>Wypłaty</Text>
+            {payMonths.length === 0 ? (
+              <Text style={s.note}>
+                {isCalendar ? `Brak przychodu z prefiksem ${viewing.workPrefix || '(ustaw w Edytuj)'}.` : 'Tryb ręczny — wypłaty nie są dopasowywane.'}
+              </Text>
+            ) : payMonths.map((row) => {
+              const confirmed = !!viewing.confirmedMonths?.[row.month];
+              const monthRate = row.hours > 0 ? row.amount / row.hours : null;
+              return (
+                <View key={row.month} style={[s.row, row.excluded && { opacity: 0.45 }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.rowMain}>{monthName(row.month)} {row.month.slice(0, 4)}</Text>
+                    <Text style={s.rowSub}>{hrs(row.hours)} h{monthRate != null ? ` · ${pl(monthRate, 2)} zł/h` : ''}{row.excluded ? ' · poza średnią' : ''}</Text>
+                  </View>
+                  <Text style={s.payAmount}>{pl(row.amount, 2)} zł</Text>
+                  <TouchableOpacity style={[s.miniBtn, confirmed && s.miniBtnOn]} onPress={() => confirmMonth(row.month, row.amount, row.hours)} hitSlop={6} accessibilityLabel="Potwierdź miesiąc">
+                    <Check size={13} color={confirmed ? colors.bg.primary : colors.text.muted} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.miniBtn} onPress={() => toggleExcludeMonth(row.month)} hitSlop={6} accessibilityLabel="Wyklucz ze średniej">
+                    {row.excluded ? <EyeOff size={13} color={colors.text.muted} /> : <Eye size={13} color={colors.text.secondary} />}
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+            {payMonths.length > 0 && <Text style={s.note}>Ptaszek = miesiąc potwierdzony · oko = liczony do średniej</Text>}
+          </View>
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      )}
+
+      <AppBottomSheet visible={editOpen && !!viewing} onClose={() => setEditOpen(false)}>
+        {viewing && (
+          <>
+            <Text style={s.sheetTitle}>Edytuj pracodawcę</Text>
+            <Text style={s.label}>Nazwa</Text>
+            <TextInput value={viewing.name} onChangeText={(t) => updateEmployer(viewing.id, { name: t })} style={s.input} placeholder="Nazwa pracodawcy" placeholderTextColor={colors.text.muted} />
+
+            <View style={[s.rowBetween, s.spaced]}>
               <TouchableOpacity
                 style={[s.pillBtn, viewing.id === activeEmployerId && s.pillBtnOn]}
                 onPress={() => { haptic.success(); setActiveEmployer(viewing.id); }}
@@ -126,194 +224,85 @@ export default function WorkScreen() {
                 disabled={viewing.id === activeEmployerId}
               >
                 <CheckCircle2 size={13} color={viewing.id === activeEmployerId ? colors.bg.primary : colors.text.secondary} />
-                <Text style={[s.pillLabel, viewing.id === activeEmployerId && s.pillLabelOn]}>
-                  {viewing.id === activeEmployerId ? 'Aktywny pracodawca' : 'Ustaw jako aktywny'}
-                </Text>
+                <Text style={[s.pillLabel, viewing.id === activeEmployerId && s.pillLabelOn]}>{viewing.id === activeEmployerId ? 'Aktywny' : 'Ustaw jako aktywny'}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={s.iconBtn} onPress={() => toggleEmployerHidden(viewing.id)} activeOpacity={0.8}>
-                {viewing.hidden ? <EyeOff size={16} color={colors.text.muted} /> : <Eye size={16} color={colors.text.secondary} />}
+              <TouchableOpacity style={s.pillBtn} onPress={() => toggleEmployerHidden(viewing.id)} activeOpacity={0.8}>
+                {viewing.hidden ? <EyeOff size={13} color={colors.text.muted} /> : <Eye size={13} color={colors.text.secondary} />}
+                <Text style={s.pillLabel}>{viewing.hidden ? 'Ukryty w sumach' : 'Liczony w sumach'}</Text>
               </TouchableOpacity>
             </View>
-            {viewing.hidden && <Text style={s.hiddenNote}>Ukryty z łącznych statystyk — dane zostają, można odkryć.</Text>}
-          </View>
 
-          {/* Tryb liczenia — 2026-11-09, user: "dodawanie pracodawców chujowe,
-              wszystko ma być automatycznie jak w sapp... godziny z kalendarza,
-              wypłata z finansów musi być po [prefiksie]" — WCZEŚNIEJ ten kard
-              zawsze pokazywał WSZYSTKIE pola naraz (prefiks+kolor+pensja+godziny),
-              wyglądające jak ręczna konfiguracja każdego z osobna, choć
-              `computeWorkRate` i tak liczy wszystko samo z prefiksu. Teraz: tryb
-              Kalendarz pokazuje TYLKO prefiks (jedyne co trzeba wpisać — reszta,
-              godziny z kalendarza + wypłata z Finansów, dopasowuje się
-              automatycznie przez ten prefiks, bez dalszej konfiguracji). Pensja/
-              godziny/kolor przeniesione do "Nadpisania" jako wartości ZAPASOWE
-              (używane TYLKO dopóki appka nie ma jeszcze żadnej realnej wypłaty/
-              zmiany do policzenia) — tryb Ręczny jest wyjątkiem, tam SĄ jedynym
-              wejściem, więc zostają tu widoczne. */}
-          <View style={s.card}>
-            <Text style={s.label}>Tryb liczenia</Text>
+            <Text style={[s.label, s.spaced]}>Tryb liczenia</Text>
             <Segmented
               options={[{ key: 'calendar', label: 'Kalendarz' }, { key: 'manual', label: 'Ręczny' }]}
               activeKey={viewing.workMode ?? 'calendar'}
               onChange={(k) => updateEmployer(viewing.id, { workMode: k as 'calendar' | 'manual' })}
             />
-            {(viewing.workMode ?? 'calendar') === 'calendar' ? (
+            {isCalendar ? (
               <>
-                <Text style={[s.label, s.labelSpaced]}>Prefiks tytułu wydarzenia (np. "[JD]")</Text>
-                <TextInput
-                  value={viewing.workPrefix ?? ''}
-                  onChangeText={(t) => updateEmployer(viewing.id, { workPrefix: t })}
-                  style={s.input}
-                  placeholder="[JD]"
-                  placeholderTextColor={colors.text.muted}
-                  autoCapitalize="none"
-                />
-                <Text style={s.hiddenNote}>
-                  I tyle — oznacz zmiany w kalendarzu i wypłatę w Finansach (tag albo notatka) tym samym prefiksem, appka sama policzy godziny, stawkę i średnią. Reszta pól (pensja zapasowa, kolor, nadpisania) w "Nadpisania" niżej, opcjonalne.
-                </Text>
+                <Text style={[s.label, s.spaced]}>Prefiks (np. "[JD]")</Text>
+                <TextInput value={viewing.workPrefix ?? ''} onChangeText={(t) => updateEmployer(viewing.id, { workPrefix: t })} style={s.input} placeholder="[JD]" placeholderTextColor={colors.text.muted} autoCapitalize="none" />
+                <Text style={s.note}>Zmiany w kalendarzu i wypłata w Finansach z tym prefiksem — reszta liczy się sama.</Text>
               </>
             ) : (
-              <>
-                <Text style={[s.label, s.labelSpaced]}>Pensja miesięczna</Text>
-                <NumberInput
-                  value={viewing.monthlySalary}
-                  onChangeValue={(n) => updateEmployer(viewing.id, { monthlySalary: n ?? 0 })}
-                  style={s.input}
-                  placeholder="np. 4500"
-                  placeholderTextColor={colors.text.muted}
-                />
-                <Text style={[s.label, s.labelSpaced]}>Godziny miesięcznie</Text>
-                <NumberInput
-                  value={viewing.hoursPerMonth}
-                  onChangeValue={(n) => updateEmployer(viewing.id, { hoursPerMonth: n ?? 0 })}
-                  style={s.input}
-                  placeholder="np. 160"
-                  placeholderTextColor={colors.text.muted}
-                />
-              </>
+              <View style={s.twoCol}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.label, s.spaced]}>Pensja / mies.</Text>
+                  <NumberInput value={viewing.monthlySalary} onChangeValue={(n) => updateEmployer(viewing.id, { monthlySalary: n ?? 0 })} style={s.input} placeholder="4500" placeholderTextColor={colors.text.muted} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.label, s.spaced]}>Godziny / mies.</Text>
+                  <NumberInput value={viewing.hoursPerMonth} onChangeValue={(n) => updateEmployer(viewing.id, { hoursPerMonth: n ?? 0 })} style={s.input} placeholder="160" placeholderTextColor={colors.text.muted} />
+                </View>
+              </View>
             )}
-          </View>
 
-          {/* Nadpisania — zwinięte, ten sam wzorzec co AddExpenseModal's "Rozlicz jako" */}
-          <View style={s.card}>
-            <TouchableOpacity style={s.summaryRow} onPress={() => setOverridesOpen((v) => !v)} activeOpacity={0.7}>
-              <Text style={s.label}>Nadpisania</Text>
+            <TouchableOpacity style={[s.summaryRow, s.spaced]} onPress={() => setOverridesOpen((v) => !v)} activeOpacity={0.7}>
+              <Text style={s.label}>Nadpisania (opcjonalne)</Text>
               {overridesOpen ? <ChevronUp size={16} color={colors.text.muted} /> : <ChevronDown size={16} color={colors.text.muted} />}
             </TouchableOpacity>
             {overridesOpen && (
-              <View style={s.overridesBody}>
-                {(viewing.workMode ?? 'calendar') === 'calendar' && (
-                  <>
-                    <Text style={s.hiddenNote}>Poniższe liczą się TYLKO dopóki appka nie ma jeszcze żadnej realnej wypłaty/zmiany do policzenia z prefiksu — potem są ignorowane.</Text>
-                    <Text style={[s.label, s.labelSpaced]}>Pensja miesięczna (zapasowa)</Text>
-                    <NumberInput
-                      value={viewing.monthlySalary}
-                      onChangeValue={(n) => updateEmployer(viewing.id, { monthlySalary: n ?? 0 })}
-                      style={s.input}
-                      placeholder="np. 4500"
-                      placeholderTextColor={colors.text.muted}
-                    />
-                    <Text style={[s.label, s.labelSpaced]}>Godziny miesięcznie (zapasowe)</Text>
-                    <NumberInput
-                      value={viewing.hoursPerMonth}
-                      onChangeValue={(n) => updateEmployer(viewing.id, { hoursPerMonth: n ?? 0 })}
-                      style={s.input}
-                      placeholder="np. 160"
-                      placeholderTextColor={colors.text.muted}
-                    />
-                    <Text style={[s.label, s.labelSpaced]}>Albo kolor wydarzenia (hex, zamiast/obok prefiksu)</Text>
-                    <TextInput
-                      value={viewing.workColor ?? ''}
-                      onChangeText={(t) => updateEmployer(viewing.id, { workColor: t || undefined })}
-                      style={s.input}
-                      placeholder="#FF0000"
-                      placeholderTextColor={colors.text.muted}
-                      autoCapitalize="none"
-                    />
-                  </>
-                )}
-                <Text style={[s.label, s.labelSpaced]}>Stała stawka zł/h (nadpisuje wszystko)</Text>
-                <NumberInput
-                  value={viewing.rateOverride}
-                  onChangeValue={(n) => updateEmployer(viewing.id, { rateOverride: n || undefined })}
-                  style={s.input}
-                  placeholder="np. 35"
-                  placeholderTextColor={colors.text.muted}
-                />
-                <Text style={[s.label, s.labelSpaced]}>Nadpisanie godzin (ostatni miesiąc)</Text>
-                <NumberInput
-                  value={viewing.hoursOverride}
-                  onChangeValue={(n) => updateEmployer(viewing.id, { hoursOverride: n || undefined })}
-                  style={s.input}
-                  placeholder="np. 160"
-                  placeholderTextColor={colors.text.muted}
-                />
-                <Text style={[s.label, s.labelSpaced]}>Nadpisanie kwoty wypłaty</Text>
-                <NumberInput
-                  value={viewing.salaryOverride}
-                  onChangeValue={(n) => updateEmployer(viewing.id, { salaryOverride: n || undefined })}
-                  style={s.input}
-                  placeholder="np. 4200"
-                  placeholderTextColor={colors.text.muted}
-                />
-              </View>
-            )}
-          </View>
-
-          {/* Statystyki */}
-          <View style={s.card}>
-            <Text style={s.label}>Statystyki</Text>
-            <View style={s.statsRow}>
-              <View style={s.statCol}>
-                <Text style={s.statNum}>{rate?.rate != null ? rate.rate.toFixed(2) : '—'}</Text>
-                <Text style={s.statUnit}>zł / h</Text>
-              </View>
-              <View style={s.statCol}>
-                <Text style={s.statNum}>{rate ? rate.monthWorkHours.toFixed(1) : '—'}</Text>
-                <Text style={s.statUnit}>h ten miesiąc</Text>
-              </View>
-              <View style={s.statCol}>
-                <Text style={s.statNum}>{summary.totalEarned.toFixed(0)}</Text>
-                <Text style={s.statUnit}>zł łącznie</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Historia wypłat */}
-          <View style={s.card}>
-            <Text style={s.label}>Historia wypłat</Text>
-            {payMonths.length === 0 ? (
-              <Text style={s.hiddenNote}>
-                {(viewing.workMode ?? 'calendar') === 'manual'
-                  ? 'Tryb ręczny — bez dopasowywania wypłat z kalendarza.'
-                  : 'Jeszcze żadnej wypłaty z tagiem/notatką pasującą do prefiksu.'}
-              </Text>
-            ) : payMonths.map((row) => {
-              const confirmed = viewing.confirmedMonths?.[row.month];
-              return (
-                <View key={row.month} style={s.payRow}>
-                  <View style={s.payRowTop}>
-                    <Text style={s.payMonth}>{row.month}</Text>
-                    <Text style={s.payAmount}>{row.amount.toFixed(2)} zł</Text>
+              <>
+                <View style={s.twoCol}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.label, s.spaced]}>Stała zł/h</Text>
+                    <NumberInput value={viewing.rateOverride} onChangeValue={(n) => updateEmployer(viewing.id, { rateOverride: n || undefined })} style={s.input} placeholder="35" placeholderTextColor={colors.text.muted} />
                   </View>
-                  <Text style={s.payHours}>{row.hours.toFixed(1)} h kalendarza{row.count > 1 ? ` · ${row.count} wypłaty w tym miesiącu` : ''}</Text>
-                  <View style={s.payActions}>
-                    <TouchableOpacity style={s.payActBtn} onPress={() => confirmMonth(row.month, row.amount, row.hours)} activeOpacity={0.8}>
-                      <Text style={[s.payActText, !!confirmed && s.payActTextOn]}>{confirmed ? 'Potwierdzone' : 'Potwierdź'}</Text>
-                    </TouchableOpacity>
-                    <View style={s.excludeRow}>
-                      <Text style={s.payActText}>Wyklucz ze średniej</Text>
-                      <Toggle value={row.excluded} onValueChange={() => toggleExcludeMonth(row.month)} />
-                    </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.label, s.spaced]}>Kwota wypłaty</Text>
+                    <NumberInput value={viewing.salaryOverride} onChangeValue={(n) => updateEmployer(viewing.id, { salaryOverride: n || undefined })} style={s.input} placeholder="4200" placeholderTextColor={colors.text.muted} />
                   </View>
                 </View>
-              );
-            })}
-          </View>
-
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      )}
+                <View style={s.twoCol}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.label, s.spaced]}>Godziny (ost. mies.)</Text>
+                    <NumberInput value={viewing.hoursOverride} onChangeValue={(n) => updateEmployer(viewing.id, { hoursOverride: n || undefined })} style={s.input} placeholder="160" placeholderTextColor={colors.text.muted} />
+                  </View>
+                  {isCalendar && (
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.label, s.spaced]}>Kolor wydarzeń</Text>
+                      <TextInput value={viewing.workColor ?? ''} onChangeText={(t) => updateEmployer(viewing.id, { workColor: t || undefined })} style={s.input} placeholder="#FF0000" placeholderTextColor={colors.text.muted} autoCapitalize="none" />
+                    </View>
+                  )}
+                </View>
+                {isCalendar && (
+                  <View style={s.twoCol}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.label, s.spaced]}>Pensja zapasowa</Text>
+                      <NumberInput value={viewing.monthlySalary} onChangeValue={(n) => updateEmployer(viewing.id, { monthlySalary: n ?? 0 })} style={s.input} placeholder="4500" placeholderTextColor={colors.text.muted} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.label, s.spaced]}>Godziny zapasowe</Text>
+                      <NumberInput value={viewing.hoursPerMonth} onChangeValue={(n) => updateEmployer(viewing.id, { hoursPerMonth: n ?? 0 })} style={s.input} placeholder="160" placeholderTextColor={colors.text.muted} />
+                    </View>
+                  </View>
+                )}
+                <Text style={s.note}>Zapasowe działają tylko, dopóki nie ma realnych zmian i wypłat.</Text>
+              </>
+            )}
+          </>
+        )}
+      </AppBottomSheet>
     </SafeAreaView>
   );
 }
@@ -324,12 +313,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, textAlign: 'center', fontSize: 17, fontFamily: 'Inter_900Black', color: c.text.primary },
 
-  empRow: { paddingHorizontal: spacing[3], gap: spacing[2], paddingBottom: spacing[2] },
+  empRow: { paddingHorizontal: spacing[4], gap: spacing[2], paddingBottom: spacing[2] },
   empChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing[3], paddingVertical: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing[3], paddingVertical: 7,
     borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default, backgroundColor: c.bg.elevated,
   },
-  empChipOn: { backgroundColor: c.text.primary, borderColor: c.text.primary },
+  empChipOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
   empChipHidden: { opacity: 0.5 },
   empChipLabel: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   empChipLabelOn: { color: c.bg.primary },
@@ -342,8 +331,38 @@ const makeS = themedStyles((c) => StyleSheet.create({
   scroll: { padding: spacing[4], paddingTop: spacing[2] },
   card: { backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default, padding: spacing[4], marginBottom: spacing[3] },
 
-  nameInput: { fontSize: 16, fontFamily: 'Inter_900Black', color: c.text.primary, paddingVertical: spacing[1], marginBottom: spacing[2] },
+  heroHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  heroName: { fontSize: 18, fontFamily: 'Inter_900Black', color: c.text.primary },
+  heroSub: { fontSize: 11.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 2 },
+  payBig: { fontSize: 36, fontFamily: 'Inter_900Black', color: c.text.primary, letterSpacing: -1.2, marginTop: spacing[4], fontVariant: ['tabular-nums'] },
+  payCur: { fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.muted, letterSpacing: 0 },
+  paySub: { fontSize: 11.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 2 },
+  hoursBlock: { marginTop: spacing[3], gap: 6 },
+  track: { height: 6, borderRadius: 3, backgroundColor: c.bg.elevated, overflow: 'hidden' },
+  fill: { height: 6, borderRadius: 3, backgroundColor: c.text.bright },
+  hoursText: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
+  grid: { flexDirection: 'row', marginTop: spacing[4] },
+  gridCell: { flex: 1 },
+  gridNum: { fontSize: 22, fontFamily: 'Inter_900Black', color: c.text.primary, letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
+  gridUnit: { fontSize: 10, fontFamily: 'Inter_700Bold', color: c.text.secondary, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 1 },
+  gridSub: { fontSize: 10.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 2 },
+
+  label: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  note: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[2], lineHeight: 15 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], borderTopWidth: 1, borderTopColor: c.border.default, paddingTop: spacing[2], marginTop: spacing[2] },
+  rowMain: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  rowMid: { flex: 1, fontSize: 11.5, fontFamily: 'Inter_500Medium', color: c.text.muted },
+  rowRight: { fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary },
+  rowSub: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 2 },
+  payAmount: { fontSize: 13.5, fontFamily: 'Inter_900Black', color: c.accent.green },
+  miniBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm, backgroundColor: c.bg.elevated },
+  miniBtnOn: { backgroundColor: c.accent.green },
+
+  sheetTitle: { fontSize: 17, fontFamily: 'Inter_900Black', color: c.text.primary, marginBottom: spacing[3] },
+  spaced: { marginTop: spacing[3] },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2] },
+  twoCol: { flexDirection: 'row', gap: spacing[2] },
+  iconBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
   pillBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing[3], paddingVertical: 8,
     borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, backgroundColor: c.bg.elevated, flexShrink: 1,
@@ -351,32 +370,9 @@ const makeS = themedStyles((c) => StyleSheet.create({
   pillBtnOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
   pillLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   pillLabelOn: { color: c.bg.primary },
-  iconBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
-  hiddenNote: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[2], lineHeight: 16 },
-
-  label: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  labelSpaced: { marginTop: spacing[3] },
+  summaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   input: {
     marginTop: spacing[2], borderWidth: 1, borderColor: c.border.default, borderRadius: radius.md,
     paddingHorizontal: spacing[3], paddingVertical: spacing[2], fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.primary,
   },
-
-  summaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  overridesBody: { marginTop: spacing[1] },
-
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: spacing[3] },
-  statCol: { alignItems: 'center' },
-  statNum: { fontSize: 20, fontFamily: 'Inter_900Black', color: c.text.primary },
-  statUnit: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted, marginTop: 2 },
-
-  payRow: { borderTopWidth: 1, borderTopColor: c.border.default, paddingTop: spacing[2], marginTop: spacing[2] },
-  payRowTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-  payMonth: { fontSize: 13, fontFamily: 'Inter_900Black', color: c.text.primary },
-  payAmount: { fontSize: 14, fontFamily: 'Inter_900Black', color: c.accent.green },
-  payHours: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 2 },
-  payActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing[2] },
-  payActBtn: { paddingVertical: 6, paddingHorizontal: spacing[2], borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, backgroundColor: c.bg.elevated },
-  payActText: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.secondary },
-  payActTextOn: { color: c.accent.green },
-  excludeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
 }));

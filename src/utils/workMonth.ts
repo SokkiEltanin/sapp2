@@ -75,3 +75,19 @@ export function workMonthProgress(emp: Employer, events: CalendarEvent[], expens
 
   return { rate, hoursDone, hoursPlanned, nextPay, isCalendarMode: true };
 }
+
+// Najbliższe zmiany (ekran Praca, 2026-11-12 — CLAUDE.md zasada 10: dane na
+// górze). Bieżący + następny miesiąc, tylko te, które jeszcze się nie skończyły.
+export function upcomingShifts(
+  emp: Employer, events: CalendarEvent[], now: Date = new Date(), limit = 3,
+): { id: string; date: string; startTime: string; endTime: string; hours: number }[] {
+  const ym = ymOf(now);
+  const next = ymOf(new Date(now.getFullYear(), now.getMonth() + 1, 1));
+  return [...shiftsForEmployerInMonth(events, emp, ym), ...shiftsForEmployerInMonth(events, emp, next)]
+    .filter((sh) => {
+      const start = sh.startTime ? at(sh.date, sh.startTime) : null;
+      if (!start) return sh.date >= `${ym}-${pad(now.getDate())}`;
+      return start.getTime() + sh.hours * 3_600_000 > now.getTime();
+    })
+    .slice(0, limit);
+}
