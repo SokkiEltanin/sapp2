@@ -14,7 +14,7 @@ import {
 } from '@/utils/productMemory';
 import { saveMerchant } from '@/utils/merchantMemory';
 import { EXPENSE_CATEGORIES } from '@/utils/expenseCategory';
-import { findPossibleDuplicate } from '@/utils/duplicateExpense';
+import { findReceiptTarget, isConfidentReceiptMatch, mergeReceiptInto } from '@/utils/duplicateExpense';
 import { buildProductCatalog } from '@/utils/productCatalog';
 import { haptic } from '@/utils/haptics';
 import type { Expense, ReceiptItem, PaymentMethod, FvOverride } from '@/types/finances';
@@ -315,7 +315,9 @@ export default function AddExpenseModal({
   const mismatch = usedPaste && parsedTotal > 0 && Math.abs(includedSum - parsedTotal) > 0.01;
   const canSave = amount > 0;
 
-  const handleSave = () => {
+  // `mode`: 'merge' = paragon wchodzi do istniejącej płatności (baner "Połącz"),
+  // 'separate' = świadomie osobny wydatek ("Zapisz osobno").
+  const handleSave = (mode?: 'merge' | 'separate') => {
     if (!canSave) return;
     // Wykrycie możliwego duplikatu TYLKO dla nowego wydatku (nie edycji —
     // edytowany wydatek NIE jest swoim własnym duplikatem). `dup.id !==
@@ -323,12 +325,22 @@ export default function AddExpenseModal({
     // "Zapisz mimo to" poniżej, który nie zmienia pól) przechodzi dalej:
     // jeśli to ta sama propozycja co już pokazana, user ją świadomie
     // potwierdził, nie pytamy drugi raz.
-    if (type === 'expense' && !editingExpense) {
-      const dup = findPossibleDuplicate({ amount, date }, expenses);
-      if (dup && dup.id !== duplicateOf?.id) {
-        haptic.tap();
-        setDuplicateOf(dup);
-        return;
+    // 2026-11-12 (user: "jak dodaję paragon z lidla... jak klikam tak to mi
+    // dubluje a powinno rozumieć że to to samo co złapało z powiadomień"):
+    // pewne dopasowanie (płatność z banku, bez paragonu, ten sam sklep) →
+    // łączymy od razu, bez pytania; niepewne → baner z "Połącz"/"Zapisz osobno".
+    // `getState()` — świeży stan (CLAUDE.md zasada 3), nie snapshot z renderu.
+    let mergeInto: Expense | null = null;
+    if (type === 'expense' && !editingExpense && mode !== 'separate') {
+      const dup = mode === 'merge' ? duplicateOf : findReceiptTarget({ amount, date, storeName }, useExpensesStore.getState().expenses);
+      if (dup) {
+        if (mode === 'merge' || isConfidentReceiptMatch(dup, storeName.trim() || note.trim())) {
+          mergeInto = dup;
+        } else {
+          haptic.tap();
+          setDuplicateOf(dup);
+          return;
+        }
       }
     }
     haptic.success();
@@ -353,6 +365,8 @@ export default function AddExpenseModal({
     };
     if (editingExpense) {
       updateExpense(editingExpense.id, { ...shared, updatedAt: now });
+    } else if (mergeInto) {
+      updateExpense(mergeInto.id, { ...mergeReceiptInto(mergeInto, shared), updatedAt: now });
     } else {
       const expense: Expense = { id: genId(), ...shared, source: usedPaste ? 'receipt' : 'manual', createdAt: now, updatedAt: now };
       addExpense(expense);
@@ -416,14 +430,14 @@ export default function AddExpenseModal({
       {duplicateOf && (
         <View style={s.dupWarning}>
           <Text style={s.dupWarningText}>
-            Podobna transakcja już istnieje: {duplicateOf.note || duplicateOf.storeName || 'Wydatek'} · {duplicateOf.amount.toFixed(2)} zł · {duplicateOf.date.slice(0, 10)}. Zapisać mimo to?
+            Ta płatność już jest{duplicateOf.bankMatched ? ' (z powiadomienia banku)' : ''}: {duplicateOf.storeName || duplicateOf.note || 'Wydatek'} · {duplicateOf.amount.toFixed(2)} zł · {duplicateOf.date.slice(0, 10)}{duplicateOf.date.length > 10 ? ` ${duplicateOf.date.slice(11, 16)}` : ''}. Połączyć z nią ten {items.length > 0 ? 'paragon' : 'wpis'}?
           </Text>
           <View style={s.dupWarningActions}>
-            <TouchableOpacity style={s.dupWarningBtnSecondary} onPress={() => { haptic.tap(); setDuplicateOf(null); }} activeOpacity={0.7}>
-              <Text style={s.dupWarningBtnSecondaryLabel}>Popraw</Text>
+            <TouchableOpacity style={s.dupWarningBtnSecondary} onPress={() => handleSave('separate')} activeOpacity={0.7}>
+              <Text style={s.dupWarningBtnSecondaryLabel}>Zapisz osobno</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.dupWarningBtnPrimary} onPress={handleSave} activeOpacity={0.7}>
-              <Text style={s.dupWarningBtnPrimaryLabel}>Zapisz mimo to</Text>
+            <TouchableOpacity style={s.dupWarningBtnPrimary} onPress={() => handleSave('merge')} activeOpacity={0.7}>
+              <Text style={s.dupWarningBtnPrimaryLabel}>Połącz</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -433,7 +447,7 @@ export default function AddExpenseModal({
           <Text style={s.footerLabel}>{type === 'expense' ? 'Wydatek' : 'Przychód'}</Text>
           <Text style={s.footerAmount}>{amount.toFixed(2)} zł</Text>
         </View>
-        <TouchableOpacity style={[s.saveBtn, !canSave && s.btnDisabled]} onPress={handleSave} disabled={!canSave} activeOpacity={0.7}>
+        <TouchableOpacity style={[s.saveBtn, !canSave && s.btnDisabled]} onPress={() => handleSave()} disabled={!canSave} activeOpacity={0.7}>
           <Text style={s.saveLabel}>{editingExpense ? 'Zaktualizuj' : 'Zapisz'}</Text>
         </TouchableOpacity>
       </View>

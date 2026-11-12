@@ -1,6 +1,6 @@
 import { useExpensesStore } from '@/store/expensesStore';
 import { useWorkStore } from '@/store/workStore';
-import { findMatchingExpense, findMatchingIncome, sameLocalDay, localDayKey, amountMatches } from '@/utils/bankNotification';
+import { findExpenseForBankTx, findMatchingIncome, sameLocalDay, localDayKey, amountMatches } from '@/utils/bankNotification';
 import { withLock } from '@/utils/asyncLock';
 import { recordMerchantAccept, MerchantInfo } from '@/utils/merchantMemory';
 import { rememberPaycheckSender, rememberPaycheckSenderEmployer } from '@/utils/paycheckSenders';
@@ -107,26 +107,18 @@ export async function commitBankTx(
     // Dedup: redostarczone/powtórnie osuszone powiadomienie NIE może zaksięgować tej
     // samej płatności drugi raz — w tym jednej, którą już kiedyś zaksięgowaliśmy z banku
     // (findMatchingExpense pomija bankMatched, więc nie złapie re-drainu).
-    const pTime = new Date(p.dateISO).getTime();
-    const storeMatches = (e: { storeName?: string; note?: string }) => {
-      const hay = `${e.storeName ?? ''} ${e.note ?? ''}`.toLowerCase();
-      return !p.storeKey || hay.includes(p.storeKey) || p.storeKey.includes((e.storeName ?? '').toLowerCase().split(/\s+/)[0] ?? '');
-    };
-    const already = st.expenses.find((e) =>
-      e.type === 'expense'
-      && amountMatches(e, p.amount)
-      && !!e.date && sameLocalDay(new Date(e.date).getTime(), pTime)
-      && storeMatches(e));
-    if (already) {
-      if (!already.bankMatched) st.updateExpense(already.id, { bankMatched: true, updatedAt: now });
-      return { ok: true, matched: true, expenseId: already.id };
-    }
-
-    const match = findMatchingExpense(p, st.expenses);
+    // Wspólna logika z podglądem w bank-review (bankNotification.ts's
+    // `findExpenseForBankTx`) — co user widzi jako "połączę z…", to się dzieje.
+    const existing = findExpenseForBankTx(p, st.expenses);
     let expenseId: string;
-    if (match) {
-      st.updateExpense(match.id, { bankMatched: true, updatedAt: now });
-      expenseId = match.id;
+    let match = false;
+    // Już podpięty = to samo powiadomienie drugi raz → nic, bez nauki pamięci
+    // sprzedawcy (nie liczyć tej samej płatności dwa razy do zaufania).
+    if (existing?.bankMatched) return { ok: true, matched: true, expenseId: existing.id };
+    if (existing) {
+      st.updateExpense(existing.id, { bankMatched: true, updatedAt: now });
+      expenseId = existing.id;
+      match = true;
     } else {
       expenseId = genId();
       st.addExpense({
@@ -143,7 +135,7 @@ export async function commitBankTx(
     if (opts?.learn !== false) {
       merchant = await recordMerchantAccept(p.storeKey, { tags: p.tags ?? [], name: p.store, corrected: !!opts?.corrected });
     }
-    return { ok: true, matched: !!match, merchant, expenseId };
+    return { ok: true, matched: match, merchant, expenseId };
   });
 }
 

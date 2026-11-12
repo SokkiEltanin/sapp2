@@ -7,6 +7,8 @@ import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { useBankQueue, type PendingBankTx } from '@/store/bankQueueStore';
 import { useWorkStore } from '@/store/workStore';
+import { useExpensesStore } from '@/store/expensesStore';
+import { findExpenseForBankTx } from '@/utils/bankNotification';
 import { commitBankTx } from '@/services/bankCommit';
 import { loadMerchantMemory, setMerchantAuto, AUTO_THRESHOLD, type MerchantMemory } from '@/utils/merchantMemory';
 import { haptic } from '@/utils/haptics';
@@ -32,6 +34,7 @@ export default function BankReview() {
   const { pending, update, remove, updateHistoryEntry } = useBankQueue();
   const employers = useWorkStore((st) => st.employers);
   const activeEmployerId = useWorkStore((st) => st.activeEmployerId);
+  const expenses = useExpensesStore((st) => st.expenses);
   const [mem, setMem] = useState<MerchantMemory>({});
   const [tagDrafts, setTagDrafts] = useState<Record<string, string>>({});
   const [submittingIds, setSubmittingIds] = useState<Set<string>>(new Set());
@@ -132,6 +135,9 @@ export default function BankReview() {
           const d = new Date(p.dateISO);
           const info = mem[p.storeKey];
           const accepts = info?.cleanAccepts ?? 0;
+          // 2026-11-12: wydatek, z którym zatwierdzenie się POŁĄCZY (np. wcześniej
+          // dodany paragon) — ta sama funkcja co w commitBankTx, więc podgląd = efekt.
+          const linked = p.direction === 'out' ? findExpenseForBankTx(p, expenses) : null;
           const isIn = p.direction === 'in';
           const foreign = !!p.currency && p.currency !== 'PLN';
           const submitting = submittingIds.has(p.id);
@@ -255,6 +261,16 @@ export default function BankReview() {
                 </>
               )}
 
+              {linked && (
+                <View style={s.linkedRow}>
+                  <Check size={13} color={colors.accent.green} />
+                  <Text style={s.linkedText} numberOfLines={2}>
+                    Już jest w wydatkach: {linked.storeName || linked.note || 'wydatek'} · {linked.amount.toFixed(2)} zł
+                    {linked.receiptItems?.length ? ' (paragon)' : ''} — zatwierdzenie połączy, nie doda drugi raz.
+                  </Text>
+                </View>
+              )}
+
               <View style={s.actions}>
                 <TouchableOpacity style={[s.actBtn, s.rejectBtn]} onPress={() => reject(p)} activeOpacity={0.85} disabled={submitting}>
                   <X size={16} color={colors.accent.red} />
@@ -262,7 +278,7 @@ export default function BankReview() {
                 </TouchableOpacity>
                 <TouchableOpacity style={[s.actBtn, s.acceptBtn, submitting && s.acceptBtnDisabled]} onPress={() => accept(p)} activeOpacity={0.85} disabled={submitting}>
                   {submitting ? <ActivityIndicator size="small" color={colors.bg.primary} /> : <Check size={16} color={colors.bg.primary} />}
-                  <Text style={[s.actText, { color: colors.bg.primary }]}>{submitting ? 'Dodaję…' : 'Zatwierdź'}</Text>
+                  <Text style={[s.actText, { color: colors.bg.primary }]}>{submitting ? 'Dodaję…' : linked ? 'Połącz' : 'Zatwierdź'}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -344,6 +360,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
   employerChipLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   employerChipLabelOn: { color: c.bg.primary },
 
+  linkedRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: spacing[3], backgroundColor: c.accent.green + '14', borderRadius: radius.md, padding: spacing[2] },
+  linkedText: { flex: 1, fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.accent.green, lineHeight: 16 },
   trustRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing[3] },
   trustText: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
   trustAuto: { fontSize: 11.5, fontFamily: 'Inter_900Black', color: c.accent.green },

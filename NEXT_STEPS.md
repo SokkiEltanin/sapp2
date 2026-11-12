@@ -41,6 +41,10 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+- **Do sprawdzenia na urządzeniu (2026-11-12)**: paragon z Lidla dodany po
+  złapanym powiadomieniu → ma się wpiąć w istniejącą płatność (1 wpis, pozycje
+  z paragonu). Odwrotnie: paragon najpierw → w Płatnościach z banku zielony
+  "Już jest w wydatkach… Połącz".
 - **Do sprawdzenia na urządzeniu (2026-11-11)**: kafel Praca w Finansach —
   "≈X zł / wypłata za <miesiąc>" + pasek "X / Y h" + zł/h w nagłówku. Czy
   wybór miesiąca wypłaty pasuje do realnego (wypłata za poprzedni miesiąc

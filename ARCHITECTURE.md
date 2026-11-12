@@ -1423,6 +1423,18 @@ podpowiedziami z własnych wydatków) — używany w `app/bank-history.tsx` (kar
 "Szablony sklepów" z listą + przycisk przy pozycji) i `app/bank-review.tsx`.
 Nie wracać do cichego jednego tapu.
 
+**Paragon ↔ płatność z banku — bez dubli** (2026-11-12): dwa kierunki, jedna
+zasada "ta sama kwota + ten sam dzień (+ sklep) = ten sam zakup".
+- Paragon PO powiadomieniu: `AddExpenseModal.handleSave` → `findReceiptTarget`
+  (utils/duplicateExpense.ts); `isConfidentReceiptMatch` (wpis z banku, bez
+  paragonu, ten sam sklep) → `mergeReceiptInto` po cichu (pozycje/sklep/tagi z
+  paragonu, DATA z godziną z banku zostaje); niepewne → baner "Połącz"/"Zapisz
+  osobno".
+- Paragon PRZED powiadomieniem: `bankNotification.ts`'s `findExpenseForBankTx`
+  — JEDNA funkcja dla `commitBankTx` i podglądu w bank-review ("Już jest w
+  wydatkach… — Połącz"). `amountMatches` liczy też pełną sumę pozycji paragonu
+  (z wykluczonymi), bo to realnie zapłacona kwota.
+
 ## SUBSKRYPCJE / "Stałe opłaty" [PE]
 
 Port z sapp (2026-11-09, user: "czy w sapp mozemy eksportować szablony te do

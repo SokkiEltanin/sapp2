@@ -129,14 +129,25 @@ export function findMatchingIncome(tx: ParsedBankTx, expenses: MatchExpense[], w
 }
 
 // ── Dopasowanie sparsowanej transakcji do już istniejącego wydatku ───────────
-export interface MatchExpense { id: string; type?: string; amount: number; originalAmount?: number; date?: string; storeName?: string; note?: string; bankMatched?: boolean }
+export interface MatchExpense { id: string; type?: string; amount: number; originalAmount?: number; date?: string; storeName?: string; note?: string; bankMatched?: boolean; receiptItems?: { price: number }[] }
 
 // Gdy `e.amount` jest skonwertowaną wartością PLN (`plnOverride` przy potwierdzaniu
 // walutowej płatności), oryginalna, walutowa kwota zostaje na `e.originalAmount`.
 // Redostarczone powiadomienie wciąż niesie SUROWĄ, walutową kwotę — porównanie
 // WYŁĄCZNIE do `e.amount` nigdy nie wykrywało takiego duplikatu. Sprawdź obie wartości.
-export function amountMatches(e: { amount: number; originalAmount?: number }, txAmount: number): boolean {
-  return Math.abs(e.amount - txAmount) <= 0.011 || (e.originalAmount != null && Math.abs(e.originalAmount - txAmount) <= 0.011);
+//
+// Paragon (2026-11-12, user: paragon z Lidla + powiadomienie = dubel): `amount`
+// paragonu to suma pozycji NIEWYKLUCZONYCH — po wykluczeniu np. kaucji/rzeczy
+// współlokatora różni się od kwoty z karty. Pełna suma WSZYSTKICH pozycji to
+// realnie zapłacona kwota, więc też się liczy.
+export function amountMatches(e: { amount: number; originalAmount?: number; receiptItems?: { price: number }[] }, txAmount: number): boolean {
+  if (Math.abs(e.amount - txAmount) <= 0.011) return true;
+  if (e.originalAmount != null && Math.abs(e.originalAmount - txAmount) <= 0.011) return true;
+  if (e.receiptItems?.length) {
+    const gross = e.receiptItems.reduce((sum, it) => sum + (it.price || 0), 0);
+    if (Math.abs(gross - txAmount) <= 0.011) return true;
+  }
+  return false;
 }
 
 export function sameLocalDay(a: number, b: number): boolean {
@@ -168,4 +179,23 @@ export function findMatchingExpense(tx: ParsedBankTx, expenses: MatchExpense[], 
     if (!best || score > best.score) best = { e, score };
   }
   return best ? best.e : null;
+}
+
+// Istniejący wydatek, z którym zatwierdzenie płatności z banku się POŁĄCZY
+// zamiast dodać nowy — dokładnie ta sama logika co `commitBankTx` (bankCommit.ts
+// woła to samo), wydzielona żeby bank-review mógł to POKAZAĆ przed tapnięciem
+// ("to już jest: paragon Lidl — połączę"). Najpierw ten sam dzień + sklep
+// (też już podpięty — redostarczone powiadomienie), potem `findMatchingExpense`.
+export function findExpenseForBankTx(tx: ParsedBankTx, expenses: MatchExpense[]): MatchExpense | null {
+  const txTime = new Date(tx.dateISO).getTime();
+  const storeMatches = (e: MatchExpense) => {
+    const hay = `${e.storeName ?? ''} ${e.note ?? ''}`.toLowerCase();
+    return !tx.storeKey || hay.includes(tx.storeKey) || tx.storeKey.includes((e.storeName ?? '').toLowerCase().split(/\s+/)[0] ?? '');
+  };
+  const already = expenses.find((e) =>
+    e.type === 'expense'
+    && amountMatches(e, tx.amount)
+    && !!e.date && sameLocalDay(new Date(e.date).getTime(), txTime)
+    && storeMatches(e));
+  return already ?? findMatchingExpense(tx, expenses);
 }
