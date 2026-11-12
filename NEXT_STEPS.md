@@ -41,6 +41,12 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+- **Audyt zasady 10 (CLAUDE.md: "ekran = dane, nie konfiguracja")** — user
+  2026-11-12 chce tego w KAŻDEJ zakładce. Pojazdy zrobione jako pierwsze.
+  Do przejrzenia: Praca (app/work.tsx — formularz pracodawcy na stałe na
+  ekranie), Stałe opłaty (opis sekcji), Zadania, Daily, Ustawienia → szablony,
+  Płatności z banku (trust/szablon przy każdej pozycji). Przy każdym: config do
+  sheetu "Edytuj", na ekranie liczby/wnioski.
 - **Do sprawdzenia na urządzeniu (2026-11-12)**: paragon z Lidla dodany po
   złapanym powiadomieniu → ma się wpiąć w istniejącą płatność (1 wpis, pozycje
   z paragonu). Odwrotnie: paragon najpierw → w Płatnościach z banku zielony

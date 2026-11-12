@@ -44,11 +44,34 @@ export function logFuelFillUp(
   });
 }
 
+// Uzupełnia tankowanie dla wydatku, który JUŻ jest (np. Orlen złapany z
+// powiadomienia banku, 2026-11-12, user: "przy wydatku automatycznym z
+// tankowania muszę mieć formularz tankowania") — bez drugiego wydatku: FuelLog
+// wskazuje istniejący, a wydatek dostaje tagi 'paliwo' + tag pojazdu (i
+// ewentualnie poprawioną kwotę z formularza).
+export function logFuelForExistingExpense(
+  vehicleId: string,
+  expenseId: string,
+  input: { date: string; odometerKm: number; fuelType: FuelType; liters: number; amount: number },
+): void {
+  const vehicle = useVehiclesStore.getState().vehicles.find((v) => v.id === vehicleId);
+  const exp = useExpensesStore.getState().expenses.find((e) => e.id === expenseId);
+  if (!vehicle || !exp) return;
+  const tags = [...(exp.tags ?? [])];
+  for (const t of ['paliwo', vehicle.tag]) if (t && !tags.some((x) => x.toLowerCase() === t.toLowerCase())) tags.push(t);
+  useExpensesStore.getState().updateExpense(expenseId, {
+    tags,
+    ...(Math.abs(exp.amount - input.amount) > 0.001 ? { amount: input.amount } : {}),
+    updatedAt: new Date().toISOString(),
+  });
+  useVehiclesStore.getState().addFuelLog(vehicleId, { ...input, expenseId, linkedExisting: true });
+}
+
 // Usuwa wpis tankowania I powiązany wydatek razem — inaczej user widziałby "duch"
 // wydatku w Finansach bez możliwości powiązania go z niczym.
 export function deleteFuelLogEntry(vehicleId: string, entryId: string): void {
   const vehicle = useVehiclesStore.getState().vehicles.find((v) => v.id === vehicleId);
   const entry = vehicle?.fuelLog.find((f) => f.id === entryId);
   useVehiclesStore.getState().deleteFuelLog(vehicleId, entryId);
-  if (entry?.expenseId) useExpensesStore.getState().deleteExpense(entry.expenseId);
+  if (entry?.expenseId && !entry.linkedExisting) useExpensesStore.getState().deleteExpense(entry.expenseId);
 }

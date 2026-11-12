@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { X, Receipt, Banknote, ClipboardPaste, Plus, ChevronDown, ChevronUp, Trash2, CalendarDays } from 'lucide-react-native';
+import { X, Receipt, Banknote, ClipboardPaste, Plus, ChevronDown, ChevronUp, Trash2, CalendarDays, Fuel } from 'lucide-react-native';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -20,6 +20,10 @@ import { haptic } from '@/utils/haptics';
 import type { Expense, ReceiptItem, PaymentMethod, FvOverride } from '@/types/finances';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import ReceiptItemRow from './ReceiptItemRow';
+import FuelSheet from '@/components/vehicles/FuelSheet';
+import { useVehiclesStore } from '@/store/vehiclesStore';
+import { looksLikeFuel, expenseMatchesVehicle, mainCarId } from '@/utils/vehicleMatch';
+import { vehicleHasFuel, type Vehicle } from '@/types/vehicles';
 
 // "Jeden ujednolicony dodaj" (ARCHITECTURE.md §FINANSE, decyzja 2026-10-26) — PASTE
 // paragonu i RĘCZNE dodawanie pozycji nie są dwoma osobnymi ekranami (jak w sapp:
@@ -317,6 +321,20 @@ export default function AddExpenseModal({
 
   // `mode`: 'merge' = paragon wchodzi do istniejącej płatności (baner "Połącz"),
   // 'separate' = świadomie osobny wydatek ("Zapisz osobno").
+  // Wydatek "na paliwo" bez wpisu tankowania (np. Orlen z powiadomienia banku)
+  // → skrót do formularza tankowania (2026-11-12, user: "przy wyborze wydatku
+  // automatycznego z tankowania muszę mieć formularz tankowania"). FuelSheet
+  // stackuje się na wierzchu i PODPINA ten wydatek, nie tworzy drugiego.
+  const vehicles = useVehiclesStore((st) => st.vehicles);
+  const [fuelSheetFor, setFuelSheetFor] = useState<Vehicle | null>(null);
+  const fuelVehicle = useMemo(() => {
+    if (!editingExpense || editingExpense.type !== 'expense' || !looksLikeFuel(editingExpense)) return null;
+    const mainId = mainCarId(vehicles);
+    return vehicles.find((v) => vehicleHasFuel(v.kind)
+      && expenseMatchesVehicle(editingExpense, v, mainId)
+      && !v.fuelLog.some((f) => f.expenseId === editingExpense.id)) ?? null;
+  }, [editingExpense, vehicles]);
+
   const handleSave = (mode?: 'merge' | 'separate') => {
     if (!canSave) return;
     // Wykrycie możliwego duplikatu TYLKO dla nowego wydatku (nie edycji —
@@ -455,7 +473,14 @@ export default function AddExpenseModal({
   );
 
   return (
+    <>
     <AppBottomSheet visible={visible} onClose={handleClose} header={header} footer={footer}>
+      {fuelVehicle && editingExpense && (
+        <TouchableOpacity style={s.fuelLink} onPress={() => { haptic.tap(); setFuelSheetFor(fuelVehicle); }} activeOpacity={0.8}>
+          <Fuel size={14} color={colors.accent.orange} />
+          <Text style={s.fuelLinkText} numberOfLines={1}>Tankowanie {fuelVehicle.name} — uzupełnij litry i przebieg</Text>
+        </TouchableOpacity>
+      )}
       <View style={s.typeRow}>
         <TouchableOpacity
           style={[s.typeChip, type === 'expense' && s.typeChipActive]}
@@ -773,10 +798,23 @@ export default function AddExpenseModal({
         )}
       </View>
     </AppBottomSheet>
+    <FuelSheet
+      vehicle={fuelSheetFor}
+      prefill={editingExpense ? { expenseId: editingExpense.id, amount: editingExpense.amount, date: editingExpense.date, label: `${editingExpense.storeName || editingExpense.note || 'Wydatek'} · ${editingExpense.amount.toFixed(2)} zł` } : null}
+      onClose={() => setFuelSheetFor(null)}
+      onSaved={handleClose}
+    />
+    </>
   );
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
+  fuelLink: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[3],
+    paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.md,
+    borderWidth: 1, borderColor: c.accent.orange + '66', backgroundColor: c.accent.orange + '14',
+  },
+  fuelLinkText: { flex: 1, fontSize: 12, fontFamily: 'Inter_700Bold', color: c.accent.orange },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingBottom: spacing[3],

@@ -230,3 +230,116 @@ export function avgFuelConsumption(v: Pick<Vehicle, 'fuelLog'>, fuelType?: strin
   if (totalKm <= 0) return null;
   return (totalLiters / totalKm) * 100;
 }
+
+// ── Widok "dane, nie konfiguracja" (2026-11-12, CLAUDE.md zasada 10) ─────────
+// User: "mało danych, np. z przebiegu ile km robię przy jakim spalaniu względem
+// wydatków". Jedno miejsce liczące wszystko, co ekran Pojazdy pokazuje na górze.
+export interface FuelFillRow {
+  id: string;
+  date: string;
+  odometerKm: number;
+  fuelType: string;
+  liters: number;
+  amount: number;
+  pricePerLiter: number | null;
+  kmSincePrev: number | null;   // od poprzedniego tankowania TEGO typu
+  consumption: number | null;   // l/100km dla tego odcinka
+}
+
+export interface VehicleStats {
+  odometer: number | null;
+  kmThisMonth: number | null;
+  kmPerMonth: number | null;      // średnio, z całego okresu śledzenia (≥14 dni)
+  consumption: number | null;     // l/100km, główne paliwo (najczęściej tankowane)
+  mainFuel: string | null;
+  avgPricePerLiter: number | null; // z ostatnich 3 tankowań
+  costPer100km: number | null;    // wszystkie wydatki pojazdu / km × 100
+  fuelPer100km: number | null;    // samo paliwo: spalanie × cena litra
+  lastFillDaysAgo: number | null;
+  fills: FuelFillRow[];           // najnowsze pierwsze
+}
+
+const dayDiff = (a: string, b: string) => Math.round((new Date(`${b.slice(0, 10)}T12:00:00`).getTime() - new Date(`${a.slice(0, 10)}T12:00:00`).getTime()) / 86400000);
+
+export function vehicleStats(
+  v: Pick<Vehicle, 'id' | 'kind' | 'tag' | 'fuelLog' | 'odometerLog'>,
+  expenses: Expense[],
+  mainId?: string,
+  now: Date = new Date(),
+): VehicleStats {
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const monthStart = `${today.slice(0, 7)}-01`;
+  const readings = [
+    ...(v.odometerLog ?? []).map((o) => ({ date: o.date.slice(0, 10), km: o.km })),
+    ...(v.fuelLog ?? []).map((f) => ({ date: f.date.slice(0, 10), km: f.odometerKm })),
+  ].sort((a, b) => a.date.localeCompare(b.date) || a.km - b.km);
+  const odometer = readings.length ? Math.max(...readings.map((r) => r.km)) : null;
+
+  let kmThisMonth: number | null = null;
+  const before = readings.filter((r) => r.date < monthStart);
+  const inMonth = readings.filter((r) => r.date >= monthStart);
+  if (inMonth.length) {
+    const base = before.length ? Math.max(...before.map((r) => r.km)) : Math.min(...inMonth.map((r) => r.km));
+    kmThisMonth = Math.max(0, Math.max(...inMonth.map((r) => r.km)) - base);
+  }
+
+  let kmPerMonth: number | null = null;
+  if (readings.length >= 2) {
+    const first = readings[0], last = readings[readings.length - 1];
+    const days = dayDiff(first.date, last.date);
+    if (days >= 14 && last.km > first.km) kmPerMonth = ((last.km - first.km) / days) * 30.44;
+  }
+
+  // Wiersze tankowań z odcinkowym spalaniem (metoda "do pełna": litry z
+  // TEGO tankowania pokrywają km od POPRZEDNIEGO tego samego paliwa).
+  const byKm = [...(v.fuelLog ?? [])].sort((a, b) => a.odometerKm - b.odometerKm);
+  const lastKmByType: Record<string, number> = {};
+  const rows: FuelFillRow[] = byKm.map((f) => {
+    const prev = lastKmByType[f.fuelType];
+    lastKmByType[f.fuelType] = f.odometerKm;
+    const kmSincePrev = prev != null && f.odometerKm > prev ? f.odometerKm - prev : null;
+    return {
+      id: f.id, date: f.date, odometerKm: f.odometerKm, fuelType: f.fuelType, liters: f.liters, amount: f.amount,
+      pricePerLiter: f.liters > 0 ? f.amount / f.liters : null,
+      kmSincePrev,
+      consumption: kmSincePrev ? (f.liters / kmSincePrev) * 100 : null,
+    };
+  });
+  const fills = rows.sort((a, b) => b.date.localeCompare(a.date) || b.odometerKm - a.odometerKm);
+
+  const typeCount: Record<string, number> = {};
+  for (const f of v.fuelLog ?? []) typeCount[f.fuelType] = (typeCount[f.fuelType] ?? 0) + 1;
+  const mainFuel = Object.entries(typeCount).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  const consumption = mainFuel ? avgFuelConsumption(v, mainFuel) : null;
+
+  const recentMain = fills.filter((f) => f.fuelType === mainFuel && f.pricePerLiter != null).slice(0, 3);
+  const avgPricePerLiter = recentMain.length
+    ? recentMain.reduce((s, f) => s + f.amount, 0) / recentMain.reduce((s, f) => s + f.liters, 0)
+    : null;
+
+  const cpk = costPerKm(v, expenses, mainId);
+  const costPer100km = cpk ? cpk.value * 100 : null;
+  const fuelPer100km = consumption != null && avgPricePerLiter != null ? (consumption * avgPricePerLiter) : null;
+  const lastFillDaysAgo = fills.length ? dayDiff(fills[0].date, today) : null;
+
+  return { odometer, kmThisMonth, kmPerMonth, consumption, mainFuel, avgPricePerLiter, costPer100km, fuelPer100km, lastFillDaysAgo, fills };
+}
+
+// Wydatki "na paliwo" tego pojazdu BEZ wpisu tankowania (np. złapane
+// automatycznie z powiadomienia banku) — user: "przy wydatku automatycznym z
+// tankowania muszę mieć formularz tankowania". Ekran Pojazdy pokazuje je jako
+// "Do uzupełnienia" (litry + przebieg), AddExpenseModal daje skrót do formularza.
+export function unlinkedFuelExpenses(
+  v: Pick<Vehicle, 'id' | 'kind' | 'tag' | 'fuelLog'>,
+  expenses: Expense[],
+  mainId?: string,
+  sinceDays = 90,
+  now: Date = new Date(),
+): Expense[] {
+  const linked = new Set((v.fuelLog ?? []).map((f) => f.expenseId).filter(Boolean));
+  const since = new Date(now.getTime() - sinceDays * 86400000).toISOString().slice(0, 10);
+  return expenses
+    .filter((e) => e.type === 'expense' && !linked.has(e.id) && looksLikeFuel(e)
+      && expenseMatchesVehicle(e, v as Vehicle, mainId) && (e.date ?? '').slice(0, 10) >= since)
+    .sort((a, b) => b.date.localeCompare(a.date));
+}

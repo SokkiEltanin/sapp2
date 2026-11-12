@@ -54,6 +54,9 @@ export interface FuelLog {
   liters: number;
   amount: number;      // łączna kwota zapłacona (zł)
   expenseId?: string;  // auto-utworzony, otagowany Expense (dla agregatów Finansów)
+  // true = podpięty do JUŻ ISTNIEJĄCEGO wydatku (np. złapanego z banku) zamiast
+  // tworzyć nowy — usunięcie tankowania NIE kasuje wtedy tego wydatku.
+  linkedExisting?: boolean;
 }
 
 // Samodzielny odczyt licznika (pojazdy bez paliwa, np. rower, albo dowolny ręczny

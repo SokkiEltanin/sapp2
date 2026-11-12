@@ -1435,6 +1435,18 @@ zasada "ta sama kwota + ten sam dzień (+ sklep) = ten sam zakup".
   wydatkach… — Połącz"). `amountMatches` liczy też pełną sumę pozycji paragonu
   (z wykluczonymi), bo to realnie zapłacona kwota.
 
+**Pojazdy — przebudowa "dane, nie konfiguracja"** (2026-11-12, CLAUDE.md zasada
+10): `app/vehicles.tsx` = karta z liczbami (`vehicleMatch.ts`'s `vehicleStats`:
+przebieg, km w mies., km/mies., spalanie l/100 głównego paliwa, zł/l z 3
+ostatnich, zł/100 km, ten miesiąc + 12 mies.), "Tankowania do uzupełnienia"
+(`unlinkedFuelExpenses` — wydatki na paliwo bez FuelLog, np. Orlen z banku),
+akcje Zatankuj/Licznik/Serwis (sheety), historia tankowań z odcinkowym
+spalaniem. Konfiguracja (nazwa/kolor/rodzaj/paliwo/tag/główny/usuń) → sheet
+"Edytuj". Formularz tankowania = `src/components/vehicles/FuelSheet.tsx`, też w
+`AddExpenseModal` (edycja wydatku paliwowego → "uzupełnij litry i przebieg").
+Podpięcie do istniejącego wydatku: `logFuelForExistingExpense` (FuelLog
+`linkedExisting:true` — usunięcie tankowania NIE kasuje wydatku z banku).
+
 ## SUBSKRYPCJE / "Stałe opłaty" [PE]
 
 Port z sapp (2026-11-09, user: "czy w sapp mozemy eksportować szablony te do

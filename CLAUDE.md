@@ -40,6 +40,21 @@ skończeniu/odkryciu czegoś nowego.
    wyłącznie dla treści jawnie humorystycznej/żartobliwej, nigdy dla statusów typu
    sukces/błąd/w toku — te plain-textem ("Błąd: ...", "Wysłano", nie "✅ Wysłano").
 
+10. **Ekran = dane, nie konfiguracja** (user, 2026-11-12: "zobacz ile miejsca
+    zajmuje sam wybór koloru... a mało danych... i tak w każdej zakładce musimy, bo
+    inaczej lipa, jak na stronie kolorek lub tekst informacyjny zajmuje większość
+    miejsca"). Na głównym widoku każdej zakładki/ekranu pierwsze miejsce mają
+    LICZBY I WNIOSKI z danych usera (ile, za ile, trend, porównanie, co dalej).
+    - Ustawienia obiektu (kolor, typ, tag, nazwa, tryb, ikona) → za przyciskiem
+      "Edytuj" (bottom sheet), nie rozłożone na ekranie na stałe.
+    - Teksty pomocy/objaśnienia → jedna linijka max, albo w sheecie edycji/pod
+      ikoną info; nigdy akapit stale zajmujący pół ekranu.
+    - Formularze dodawania → otwierane akcją (przycisk/sheet), nie wiecznie
+      rozwinięte.
+    - Pusty stan = krótko co zrobić, jednym przyciskiem.
+    Dodając nową sekcję, zadaj sobie pytanie: "co user z tego ODCZYTA?" — jeśli
+    nic poza konfiguracją, to nie należy do widoku głównego.
+
 ## Stack (skrót)
 
 Expo SDK 54 · RN 0.81 New Arch · expo-router v6 · Zustand · Firebase (Firestore) ·
