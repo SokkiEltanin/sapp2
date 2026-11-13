@@ -1,5 +1,5 @@
 import type { Subscription } from '@/types/subscriptions';
-import { advanceNextBillingDate, isDurationExpired } from './recurringBills';
+import { advanceNextBillingDate, isDurationExpired, subscriptionEndDate } from './recurringBills';
 import { ymdLocal } from './dateMath';
 import { pendingFxOf, formatFx } from './fx';
 
@@ -53,6 +53,9 @@ export function planBillReminders(subs: Subscription[], now: Date = new Date()):
       due = advanceNextBillingDate(due, sub.billingCycle);
       fire = fireTimeFor(due, sub.reminderDaysBefore);
     }
+    // Termin po końcu trwania (endDate / start+N mies.) — tej płatności już nie ma.
+    const end = subscriptionEndDate(sub);
+    if (end && due > end) continue;
     const [, m, d] = due.split('-').map(Number);
     const fx = pendingFxOf(sub);
     out.push({

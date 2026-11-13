@@ -45,6 +45,10 @@ export interface Subscription {
   note?: string;
   durationMonths?: number; // 0/undefined = na zawsze, N = auto-wyłącz po N mies.
   startDate?: string; // potrzebne tylko gdy durationMonths > 0
+  // Data końca wybrana z kalendarza / wpisana (2026-11-13, user: "w czasie
+  // trwania opłaty... możliwość z kalendarza lub wpisania"). Ma pierwszeństwo
+  // nad durationMonths; płatności z terminem PO tej dacie już nie ma.
+  endDate?: string; // YYYY-MM-DD
   missedCycles?: number; // licznik zaległych cykli bez złapanej płatności (dane, bez UI w v1)
   // Obca waluta czekająca na kwotę PLN (2026-11-11) — ta sama konwencja co
   // `Expense` (patrz utils/fx.ts): obecność `originalCurrency` = czeka,

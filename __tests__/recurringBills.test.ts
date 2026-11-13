@@ -1,6 +1,6 @@
 import {
   looksLikeBill, billTagFor,
-  advanceNextBillingDate, isDurationExpired, rollOverdueSubscription,
+  advanceNextBillingDate, isDurationExpired, subscriptionEndDate, rollOverdueSubscription,
   upcomingSubscriptions, nextDueSubscription,
   detectRecurringBills, nextBillingDate, upcomingPayments, nextUpcomingPayment,
 } from '@/utils/recurringBills';
@@ -259,5 +259,22 @@ describe('detectRecurringBills — subskrypcje (2026-11-12)', () => {
     const n = [exp({ id: 'n', storeName: 'Spotify AB', amount: 24, date: '2026-11-01' })];
     expect(detectRecurringBills(n, [sub({ name: 'Spotify Family' })], [], now)).toEqual([]);
     expect(detectRecurringBills(n, [], ['spotify'], now)).toEqual([]);
+  });
+});
+
+describe('endDate — koniec trwania wpisany/wybrany z kalendarza (2026-11-13)', () => {
+  test('isDurationExpired: po endDate wygasła, w dniu endDate jeszcze nie', () => {
+    expect(isDurationExpired({ endDate: '2026-11-12' }, new Date(2026, 10, 13))).toBe(true);
+    expect(isDurationExpired({ endDate: '2026-11-13' }, new Date(2026, 10, 13))).toBe(false);
+  });
+  test('subscriptionEndDate: endDate wprost albo start + N mies. − 1 dzień', () => {
+    expect(subscriptionEndDate({ endDate: '2027-03-12' })).toBe('2027-03-12');
+    expect(subscriptionEndDate({ durationMonths: 3, startDate: '2026-11-13' })).toBe('2027-02-12');
+    expect(subscriptionEndDate({})).toBeNull();
+  });
+  test('upcomingPayments pomija subskrypcję, której termin wypada po końcu', () => {
+    const s1 = sub({ id: 'a', nextBillingDate: '2026-12-01', endDate: '2026-11-30' });
+    const s2 = sub({ id: 'b', nextBillingDate: '2026-12-01', endDate: '2026-12-31' });
+    expect(upcomingPayments([], [s1, s2], new Date(2026, 10, 13)).map((p) => p.id)).toEqual(['b']);
   });
 });

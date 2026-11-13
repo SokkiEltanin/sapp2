@@ -97,11 +97,22 @@ export function rollOverdueSubscription(
 
 // Port 1:1 sapp's `isDurationExpired` — subskrypcja z ograniczonym czasem trwania
 // (np. "3 mies. próbnie") kwalifikuje się do auto-wyłączenia.
-export function isDurationExpired(sub: Pick<Subscription, 'durationMonths' | 'startDate'>): boolean {
+export function isDurationExpired(sub: Pick<Subscription, 'durationMonths' | 'startDate' | 'endDate'>, now: Date = new Date()): boolean {
+  if (sub.endDate) return sub.endDate < ymdLocal(now);
   if (!sub.durationMonths || sub.durationMonths === 0 || !sub.startDate) return false;
   const end = addMonthsClipped(new Date(`${sub.startDate}T00:00:00`), sub.durationMonths);
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const today = new Date(now); today.setHours(0, 0, 0, 0);
   return end <= today;
+}
+
+// Ostatni dzień trwania (YYYY-MM-DD) albo null = bezterminowo — `endDate`
+// wprost, inaczej start + N miesięcy (dzień przed rocznicą).
+export function subscriptionEndDate(sub: Pick<Subscription, 'durationMonths' | 'startDate' | 'endDate'>): string | null {
+  if (sub.endDate) return sub.endDate;
+  if (!sub.durationMonths || !sub.startDate) return null;
+  const end = addMonthsClipped(new Date(`${sub.startDate}T00:00:00`), sub.durationMonths);
+  end.setDate(end.getDate() - 1);
+  return ymdLocal(end);
 }
 
 export interface UpcomingSubscription {
@@ -114,7 +125,7 @@ export interface UpcomingSubscription {
 export function upcomingSubscriptions(subs: Subscription[], now: Date = new Date()): UpcomingSubscription[] {
   const today = new Date(now); today.setHours(0, 0, 0, 0);
   return subs
-    .filter((s) => s.active)
+    .filter((s) => s.active && !(subscriptionEndDate(s) && s.nextBillingDate > subscriptionEndDate(s)!))
     .map((sub) => ({ sub, daysUntil: Math.round((new Date(`${sub.nextBillingDate}T00:00:00`).getTime() - today.getTime()) / 86400000) }))
     .sort((a, b) => a.daysUntil - b.daysUntil);
 }

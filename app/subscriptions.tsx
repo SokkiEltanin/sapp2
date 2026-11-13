@@ -10,7 +10,7 @@ import { spacing, radius, themedStyles } from '@/theme';
 import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import { useExpensesStore } from '@/store/expensesStore';
 import { CYCLE_LABEL, CYCLE_SHORT, type BillingCycle, type Subscription } from '@/types/subscriptions';
-import { billTagFor, advanceNextBillingDate, rollOverdueSubscription, isDurationExpired, detectRecurringBills, nextBillingDate, upcomingPayments, BILL_TYPES, SUB_SERVICES, type BillCandidate } from '@/utils/recurringBills';
+import { billTagFor, advanceNextBillingDate, rollOverdueSubscription, isDurationExpired, subscriptionEndDate, detectRecurringBills, nextBillingDate, upcomingPayments, BILL_TYPES, SUB_SERVICES, type BillCandidate } from '@/utils/recurringBills';
 import { todayISO, ymd } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
 import { pendingFxOf, formatFx } from '@/utils/fx';
@@ -60,9 +60,18 @@ function parseDisplayDate(str: string): string | null {
   const parts = str.split('.');
   if (parts.length !== 3) return null;
   const [d, m, y] = parts.map(Number);
+  if (!(y >= 2000 && y <= 2100) || !(m >= 1 && m <= 12) || !(d >= 1 && d <= 31)) return null;
   const dt = new Date(y, m - 1, d);
-  if (isNaN(dt.getTime())) return null;
+  if (isNaN(dt.getTime()) || dt.getMonth() !== m - 1) return null;
   return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+// Wpisywanie daty samymi cyframi (klawiatura numeryczna nie ma kropki):
+// "12032027" → "12.03.2027", kropki wstawiane same w trakcie pisania.
+function maskDateDigits(v: string): string {
+  const dg = v.replace(/\D/g, '').slice(0, 8);
+  if (dg.length <= 2) return dg;
+  if (dg.length <= 4) return `${dg.slice(0, 2)}.${dg.slice(2)}`;
+  return `${dg.slice(0, 2)}.${dg.slice(2, 4)}.${dg.slice(4)}`;
 }
 
 interface FormState {
@@ -70,7 +79,11 @@ interface FormState {
   amount: string;
   billingCycle: BillingCycle;
   nextBillingDate: string; // display DD.MM.RRRR
-  durationMonths: number;
+  // Czas trwania (2026-11-13, user: "z kalendarza lub wpisania"):
+  // 'forever' | 'months' (wpisana liczba miesięcy) | 'date' (data końca).
+  durationMode: 'forever' | 'months' | 'date';
+  durationMonths: string;
+  endDate: string; // display DD.MM.RRRR
   reminderDaysBefore: number;
   tags: string;
   note: string;
@@ -80,7 +93,7 @@ function emptyForm(): FormState {
   return {
     name: '', amount: '', billingCycle: 'monthly',
     nextBillingDate: toDisplayDate(ymd(d)),
-    durationMonths: 0, reminderDaysBefore: 3, tags: '', note: '',
+    durationMode: 'forever', durationMonths: '', endDate: '', reminderDaysBefore: 3, tags: '', note: '',
   };
 }
 function subToForm(sub: Subscription): FormState {
@@ -89,7 +102,10 @@ function subToForm(sub: Subscription): FormState {
     // nie "0" wyglądające na już wypełnione.
     name: sub.name, amount: pendingFxOf(sub) ? '' : String(sub.amount), billingCycle: sub.billingCycle,
     nextBillingDate: toDisplayDate(sub.nextBillingDate),
-    durationMonths: sub.durationMonths ?? 0, reminderDaysBefore: sub.reminderDaysBefore,
+    durationMode: sub.endDate ? 'date' : (sub.durationMonths ? 'months' : 'forever'),
+    durationMonths: sub.durationMonths ? String(sub.durationMonths) : '',
+    endDate: sub.endDate ? toDisplayDate(sub.endDate) : '',
+    reminderDaysBefore: sub.reminderDaysBefore,
     tags: (sub.tags ?? []).join(', '), note: sub.note ?? '',
   };
 }
@@ -162,6 +178,17 @@ export default function SubscriptionsScreen() {
     setFormOpen(true);
   };
 
+  const openEndDatePicker = () => {
+    haptic.tap();
+    const iso = parseDisplayDate(form.endDate) ?? parseDisplayDate(form.nextBillingDate) ?? todayISO();
+    DateTimePickerAndroid.open({
+      value: new Date(`${iso}T12:00:00`),
+      mode: 'date',
+      onChange: (event, selected) => {
+        if (event.type === 'set' && selected) setF('endDate', toDisplayDate(ymd(selected)));
+      },
+    });
+  };
   const openDatePicker = () => {
     haptic.tap();
     const iso = parseDisplayDate(form.nextBillingDate) ?? todayISO();
@@ -177,17 +204,33 @@ export default function SubscriptionsScreen() {
   const editingFx = editing ? pendingFxOf(editing) : undefined;
   const pendingFxCount = useMemo(() => subscriptions.filter((x) => x.active && pendingFxOf(x)).length, [subscriptions]);
   const formAmount = parseFloat(form.amount.replace(',', '.'));
-  const canSave = !!form.name.trim() && !isNaN(formAmount) && formAmount > 0 && !!parseDisplayDate(form.nextBillingDate);
+  const durMonths = parseInt(form.durationMonths, 10);
+  const endIso = form.durationMode === 'date' ? parseDisplayDate(form.endDate) : null;
+  const durationValid = form.durationMode === 'forever'
+    || (form.durationMode === 'months' && durMonths > 0 && durMonths <= 120)
+    || (form.durationMode === 'date' && !!endIso);
+  const canSave = !!form.name.trim() && !isNaN(formAmount) && formAmount > 0 && !!parseDisplayDate(form.nextBillingDate) && durationValid;
+  // Podgląd końca dla "Ile miesięcy" — start = istniejący startDate (edycja) albo dziś.
+  const monthsEndPreview = form.durationMode === 'months' && durMonths > 0
+    ? subscriptionEndDate({ durationMonths: durMonths, startDate: editing?.startDate ?? todayISO() })
+    : null;
 
   const save = () => {
     const amt = formAmount;
     const dateIso = parseDisplayDate(form.nextBillingDate);
     if (!canSave || !dateIso) return;
     const tags = parseTags(form.tags);
+    const duration = form.durationMode === 'months'
+      ? { durationMonths: durMonths, startDate: editing?.startDate ?? todayISO(), endDate: undefined }
+      : form.durationMode === 'date'
+        ? { durationMonths: 0, startDate: undefined, endDate: endIso ?? undefined }
+        : { durationMonths: 0, startDate: undefined, endDate: undefined };
     if (editing) {
       updateSubscription(editing.id, {
         name: form.name.trim(), amount: amt, billingCycle: form.billingCycle, nextBillingDate: dateIso,
-        durationMonths: form.durationMonths, reminderDaysBefore: form.reminderDaysBefore,
+        ...duration, reminderDaysBefore: form.reminderDaysBefore,
+        // Zmiana końca na przyszły → opłata wraca do aktywnych.
+        ...(editing.active === false && !isDurationExpired({ ...editing, ...duration }) ? { active: true } : {}),
         tags, note: form.note.trim() || undefined,
         // Zapis = wpisana realna kwota PLN, więc oczekiwanie na przeliczenie
         // waluty znika (ta sama konwencja co AddExpenseModal).
@@ -196,9 +239,8 @@ export default function SubscriptionsScreen() {
     } else {
       addSubscription({
         name: form.name.trim(), amount: amt, billingCycle: form.billingCycle, nextBillingDate: dateIso,
-        durationMonths: form.durationMonths, reminderDaysBefore: form.reminderDaysBefore,
+        ...duration, reminderDaysBefore: form.reminderDaysBefore,
         tags, note: form.note.trim() || undefined, active: true,
-        startDate: form.durationMonths > 0 ? todayISO() : undefined,
       });
     }
     haptic.success();
@@ -331,19 +373,52 @@ export default function SubscriptionsScreen() {
             <Text style={[s.label, s.labelSpaced]}>Następna płatność</Text>
             {/* Natywny kalendarz (2026-11-11) zamiast ręcznego wpisywania
                 "DD.MM.RRRR" — ten sam picker co w wydatkach/zadaniach. */}
-            <TouchableOpacity style={[s.input, s.dateBtn]} onPress={openDatePicker} activeOpacity={0.7}>
-              <CalendarDays size={14} color={colors.text.secondary} />
-              <Text style={s.dateBtnLabel}>{form.nextBillingDate}</Text>
-            </TouchableOpacity>
+            <View style={s.dateRow}>
+              <TextInput value={form.nextBillingDate} onChangeText={(v) => setF('nextBillingDate', maskDateDigits(v))} style={[s.input, s.dateInput]}
+                placeholder="DD.MM.RRRR" placeholderTextColor={colors.text.muted} keyboardType="number-pad" maxLength={10} />
+              <TouchableOpacity style={s.calBtn} onPress={openDatePicker} activeOpacity={0.7} accessibilityLabel="Wybierz z kalendarza">
+                <CalendarDays size={16} color={colors.text.secondary} />
+              </TouchableOpacity>
+            </View>
 
             <Text style={[s.label, s.labelSpaced]}>Czas trwania</Text>
             <View style={s.pillRow}>
-              {DURATION_OPTS.map((d) => (
-                <TouchableOpacity key={d} style={[s.pill, form.durationMonths === d && s.pillOn]} onPress={() => setF('durationMonths', d)} activeOpacity={0.8}>
-                  <Text style={[s.pillLabel, form.durationMonths === d && s.pillLabelOn]}>{d === 0 ? 'Zawsze' : `${d} mies.`}</Text>
+              {([['forever', 'Zawsze'], ['months', 'Ile miesięcy'], ['date', 'Do daty']] as const).map(([k, l]) => (
+                <TouchableOpacity key={k} style={[s.pill, form.durationMode === k && s.pillOn]} onPress={() => { haptic.tap(); setF('durationMode', k); }} activeOpacity={0.8}>
+                  <Text style={[s.pillLabel, form.durationMode === k && s.pillLabelOn]}>{l}</Text>
                 </TouchableOpacity>
               ))}
             </View>
+            {form.durationMode === 'months' && (
+              <>
+                <View style={s.dateRow}>
+                  <TextInput value={form.durationMonths} onChangeText={(v) => setF('durationMonths', v.replace(/\D/g, '').slice(0, 3))} style={[s.input, s.dateInput]}
+                    placeholder="np. 12" placeholderTextColor={colors.text.muted} keyboardType="number-pad" />
+                  <Text style={s.unitLabel}>mies.</Text>
+                </View>
+                <View style={s.pillRow}>
+                  {DURATION_OPTS.filter((d) => d > 0).map((d) => (
+                    <TouchableOpacity key={d} style={[s.pillSm, durMonths === d && s.pillOn]} onPress={() => setF('durationMonths', String(d))} activeOpacity={0.8}>
+                      <Text style={[s.pillLabel, durMonths === d && s.pillLabelOn]}>{d}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                {monthsEndPreview && <Text style={s.reminderHint}>Ostatni dzień: {toDisplayDate(monthsEndPreview)}</Text>}
+              </>
+            )}
+            {form.durationMode === 'date' && (
+              <>
+                <View style={s.dateRow}>
+                  <TextInput value={form.endDate} onChangeText={(v) => setF('endDate', maskDateDigits(v))} style={[s.input, s.dateInput]}
+                    placeholder="DD.MM.RRRR" placeholderTextColor={colors.text.muted} keyboardType="number-pad" maxLength={10} />
+                  <TouchableOpacity style={s.calBtn} onPress={openEndDatePicker} activeOpacity={0.7} accessibilityLabel="Wybierz koniec z kalendarza">
+                    <CalendarDays size={16} color={colors.text.secondary} />
+                  </TouchableOpacity>
+                </View>
+                {form.endDate.length === 10 && !endIso && <Text style={s.errHint}>Niepoprawna data</Text>}
+                {endIso && <Text style={s.reminderHint}>Płatności po {toDisplayDate(endIso)} nie będą liczone ani przypominane.</Text>}
+              </>
+            )}
 
             <Text style={[s.label, s.labelSpaced]}>Przypomnienie</Text>
             <View style={s.pillRow}>
@@ -407,6 +482,7 @@ function SubRow({ sub, s, onEdit, onDelete, onToggle }: {
   const days = daysUntil(sub.nextBillingDate);
   const color = urgencyColor(days);
   const fx = pendingFxOf(sub);
+  const end = subscriptionEndDate(sub);
 
   return (
     <View style={[s.item, !sub.active && s.itemInactive, fx && s.itemFx]}>
@@ -418,7 +494,8 @@ function SubRow({ sub, s, onEdit, onDelete, onToggle }: {
         <Text style={s.itemSub} numberOfLines={1}>
           {fx ? (
             <Text style={s.fxText}>{formatFx(fx)}{CYCLE_SHORT[sub.billingCycle]} · wpisz PLN</Text>
-          ) : `${sub.amount.toFixed(2)} zł${CYCLE_SHORT[sub.billingCycle]}`} · {toDisplayDate(sub.nextBillingDate)}
+          ) : `${sub.amount.toFixed(2)} zł${CYCLE_SHORT[sub.billingCycle]}`} · {end ? toDisplayDate(sub.nextBillingDate).slice(0, 5) : toDisplayDate(sub.nextBillingDate)}
+          {end ? ` · do ${toDisplayDate(end).slice(0, 5)}.${end.slice(2, 4)}` : ''}
         </Text>
       </TouchableOpacity>
       <View style={s.itemActions}>
@@ -464,8 +541,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
     paddingHorizontal: spacing[3], paddingVertical: spacing[2], fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.primary,
   },
   rowBetween: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  dateBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  dateBtnLabel: { fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[2] },
+  dateInput: { flex: 1, marginTop: 0 },
+  calBtn: { width: 42, height: 40, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.elevated },
+  unitLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.muted, paddingHorizontal: spacing[2] },
+  pillSm: { minWidth: 40, alignItems: 'center', paddingHorizontal: spacing[2], paddingVertical: 6, borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default, backgroundColor: c.bg.elevated },
+  errHint: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.accent.red, marginTop: spacing[1] },
   btnDisabled: { opacity: 0.4 },
   reminderHint: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[2], lineHeight: 15 },
 
