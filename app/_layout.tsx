@@ -25,6 +25,7 @@ import { colors } from '@/theme/colors';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { useNotifeeAlertLaunch } from '@/hooks/useNotifeeAlertLaunch';
 import { useBillReminderSync } from '@/hooks/useBillReminderSync';
+import { useReplaceReminderSync } from '@/hooks/useReplaceReminderSync';
 import { useAutoBackup } from '@/hooks/useAutoBackup';
 import { useCloudSync } from '@/hooks/useCloudSync';
 import { useShareReceiptLaunch } from '@/hooks/useShareReceiptLaunch';
@@ -123,6 +124,7 @@ export default function RootLayout() {
   // Realne przypomnienia o Stałych opłatach (2026-11-11) — patrz
   // src/services/billReminders.ts.
   useBillReminderSync();
+  useReplaceReminderSync();
   // Automatyczna kopia zapasowa w chmurze (2026-11-11) — patrz
   // src/services/cloudBackup.ts.
   useAutoBackup(!!user);

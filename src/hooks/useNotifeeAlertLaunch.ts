@@ -43,6 +43,7 @@ export function useNotifeeAlertLaunch() {
           if (typeof data?.route !== 'string') return;
           if (data.route === 'alert-test') router.replace('/alert-test');
           else if (data.route === 'subscriptions' && pressed) router.push('/subscriptions');
+          else if (data.route === 'replacements' && pressed) router.push('/replacements' as any);
         };
 
         const initial = await notifee.getInitialNotification();

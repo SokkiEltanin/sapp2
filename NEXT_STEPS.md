@@ -46,6 +46,10 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
   Jeśli nadal laguje — zgłoś który ekran/akcja, zmierzę konkretnie.
 - **[sprawdź] Pogoda/sen w kafelkach**: legendy (deszcz % / chmury %, pasek 7 dni),
   "Radar opadów" otwiera RainViewer w przeglądarce.
+- **[sprawdź] Wymiany** (Finanse → Wymiany): dodaj filtr/końcówki z szablonu,
+  ✓ = wymienione dziś, przypomnienie o 9:00. Paragon z „Dafi”/„Oral-B” itp. →
+  karta „wymienione?”. Pomysły na potem: sync między urządzeniami (jak zadania),
+  przycisk „Wymienione” wprost w powiadomieniu.
 - **[sprawdź] Widget "Pogoda"**: dodaj z listy widgetów (przytrzymaj pulpit →
   Widgety → sapp2 → Pogoda). Otwórz raz Dashboard, żeby dostał lokalizację;
   potem ma się sam odświeżać co ~30 min (godzina w prawym górnym rogu widgetu).

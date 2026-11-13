@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { router } from 'expo-router';
-import { Plus, Package, Car, ChevronRight } from 'lucide-react-native';
+import { Plus, Package, Car, ChevronRight, RefreshCw } from 'lucide-react-native';
 import { spacing, radius, themedStyles } from '@/theme';
 import { Screen, Row, Tile, Cap, FitList, Item, Price, StackBar } from '@/ui/layout';
 import { C, T, S } from '@/ui/theme';
@@ -230,12 +230,18 @@ export default function FinancesScreen() {
         </Tile>
         <View style={s.sideCol}>
           <Tile span={1} center style={s.sideBtn} onPress={() => setProductsOpen(true)}>
-            <Package size={16} color={C.txt} />
+            <Package size={14} color={C.txt} />
             <Text style={s.sideBtnLabel} numberOfLines={1}>Produkty</Text>
           </Tile>
           <Tile span={1} center style={s.sideBtn} onPress={() => router.push('/vehicles')}>
-            <Car size={16} color={C.txt} />
+            <Car size={14} color={C.txt} />
             <Text style={s.sideBtnLabel} numberOfLines={1}>Pojazdy</Text>
+          </Tile>
+          {/* Wymiany domowe (2026-11-13): filtry, końcówki szczoteczki… — zakupy z
+              paragonów podpowiadają wymianę, stąd przy Finansach (jak Pojazdy). */}
+          <Tile span={1} center style={s.sideBtn} onPress={() => router.push('/replacements' as any)}>
+            <RefreshCw size={14} color={C.txt} />
+            <Text style={s.sideBtnLabel} numberOfLines={1}>Wymiany</Text>
           </Tile>
         </View>
       </Row>
@@ -442,7 +448,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
 
   barSpace: { marginTop: spacing[3] },
   sideCol: { gap: S.gap },
-  sideBtn: { flex: 1, padding: 6, gap: 3 },
+  sideBtn: { flex: 1, padding: 4, gap: 2 },
   sideBtnLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: C.txt },
   emptyInline: { textAlign: 'center', marginTop: spacing[3] },
 

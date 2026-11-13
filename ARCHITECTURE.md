@@ -1594,6 +1594,36 @@ powodu co `subscriptionAuto.ts` wyżej.
 rundy). **DO POTWIERDZENIA NA URZĄDZENIU**: realny dodaj/edytuj/usuń na
 telefonie, auto-roll po realnym upływie czasu.
 
+## WYMIANY DOMOWE [PE] (2026-11-13)
+
+User: "ogarnij... wszystko z wymianami, filtrów w dzbanku, do powietrza itp itd i
+szczoteczek końcówek". Rzeczy zużywające się co N dni/tyg./mies.
+
+- **Model** `src/types/replacements.ts` (`ReplaceItem`: every+unit, lastDate,
+  history, remindDaysBefore, keywords, dismissedBuys). Store
+  `src/store/replacementsStore.ts` (`replacements-v1`; `replaced(id, date)`,
+  `undo`, `dismissBuy`).
+- **Logika** `src/utils/replacements.ts` (testy `__tests__/replacements.test.ts`):
+  `REPLACE_PRESETS` (12 szablonów z interwałem, ikoną lucide i słowami z
+  paragonu), `replaceDue` (termin, dni, zużycie), `markReplaced`/`undoLastReplace`
+  (historia), `findBuys`/`pendingBuy` (pozycje paragonu ze słowami rzeczy, po
+  ostatniej wymianie → "wymienione?"), `yearlyCost`, `nextHomeReplacement`.
+- **Ekran** `app/replacements.tsx` (wejście: Finanse → przycisk "Wymiany" pod
+  Pojazdami): 3 liczby (po terminie / w 7 dni / zł na rok), karty zakupów do
+  potwierdzenia, lista od najpilniejszej z paskiem zużycia i ✓ "wymienione dziś",
+  "Dodaj szybko" z brakujących szablonów. Formularz/edycja:
+  `src/components/replacements/ReplaceSheet.tsx` (szablon, nazwa, co ile,
+  ostatnio — szybkie daty/wpis/kalendarz, przypomnienie, słowa, historia + cofnij).
+- **Przypomnienia** `utils/replaceReminders.ts` (plan, testy) →
+  `services/replaceReminders.ts` (notifee, kanał `replace-reminders-v1`, id
+  `repl_<id>`) ← `hooks/useReplaceReminderSync.ts` w `app/_layout.tsx`. 9:00 w
+  dniu / N dni przed; po terminie jedno "minął wczoraj". Tap → `/replacements`
+  (`useNotifeeAlertLaunch` route `replacements`).
+- **Dashboard** "Najbliższa wymiana": bliższy z serwisu pojazdów i wymian domowych
+  (`app/(tabs)/index.tsx`, podpis "dom"). Backup: klucz w kopii automatycznie,
+  rehydrate w `services/cloudBackup.ts`.
+- Pola dat formularzy: `src/utils/dateInput.ts` (wspólne z Subskrypcjami).
+
 ## PUPIL — USUNIĘTY (Faza 3.1, 2026-11-01)
 
 Zakładka CAŁKOWICIE usunięta (user: "usuwamy pupila zupełnie go nie będzie zakładka

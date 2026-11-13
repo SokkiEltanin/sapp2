@@ -25,6 +25,8 @@ import { upcomingPayments } from '@/utils/recurringBills';
 import { pendingFxOf, type PendingFx } from '@/utils/fx';
 import { useVehiclesStore } from '@/store/vehiclesStore';
 import { nextMaintenanceDue } from '@/utils/vehicleMatch';
+import { nextHomeReplacement } from '@/utils/replacements';
+import { useReplacementsStore } from '@/store/replacementsStore';
 import type { CalendarEvent } from '@/types/calendar';
 import type { Expense } from '@/types/finances';
 import { haptic } from '@/utils/haptics';
@@ -265,7 +267,17 @@ export default function Dashboard() {
   }, [wx]);
   const weatherHint = wxError ?? (wxDenied && !wxLocation ? 'Stuknij i wpisz miasto' : 'Pobieram pogodę…');
 
-  const nextMaintenance = useMemo(() => nextMaintenanceDue(vehicles, now), [vehicles, now]);
+  // "Najbliższa wymiana" (2026-11-13): serwis pojazdów + wymiany domowe (filtry,
+  // końcówki szczoteczki…) — wygrywa bliższy termin.
+  const replaceItems = useReplacementsStore((st) => st.items);
+  const nextMaintenance = useMemo(() => {
+    const car = nextMaintenanceDue(vehicles, now);
+    const home = nextHomeReplacement(replaceItems, now);
+    if (home && (!car || home.daysLeft < car.dueMonths * 30.44)) {
+      return { vehicleName: 'dom', label: home.name, dueLabel: home.label, dueMonths: home.daysLeft / 30.44 };
+    }
+    return car;
+  }, [vehicles, replaceItems, now]);
 
   const data: DashData = {
     next: upcomingEvent ? { title: upcomingEvent.e.title, start: upcomingEvent.start } : null,
@@ -274,7 +286,7 @@ export default function Dashboard() {
     weatherHint,
     foodMonths: foodMonths.map((m) => ({ label: m.label, value: m.value })),
     nextMaintenance: nextMaintenance
-      ? { vehicleName: nextMaintenance.vehicleName, label: nextMaintenance.label, dueLabel: nextMaintenance.dueLabel, overdue: nextMaintenance.dueMonths <= 0 }
+      ? { vehicleName: nextMaintenance.vehicleName, label: nextMaintenance.label, dueLabel: nextMaintenance.dueLabel, overdue: nextMaintenance.dueMonths < 0 }
       : null,
     transactions: recentExpenses.map((e) => ({
       id: e.id,
