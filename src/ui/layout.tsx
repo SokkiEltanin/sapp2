@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, Animated, Easing, useWindowDimensions, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { View, Text, Pressable, Animated, Easing, useWindowDimensions, StyleSheet, StyleProp, ViewStyle, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic } from '@/utils/haptics';
 import { C, R, S, T, F } from './theme';
@@ -13,10 +13,18 @@ import { C, R, S, T, F } from './theme';
  *   tile(span) = span*col + (span-1)*gap
  * ------------------------------------------------------------------ */
 const ColCtx = createContext(0);
+
+// Wersja na komputer (PWA, 2026-11-13): appka żyje w wyśrodkowanej kolumnie
+// (app/_layout.tsx), więc siatka kafli liczy się z jej szerokości, nie z okna.
+export const WEB_MAX_W = 560;
+export function useAppWidth(): number {
+  const { width } = useWindowDimensions();
+  return Platform.OS === 'web' ? Math.min(width, WEB_MAX_W) : width;
+}
 const HotCtx = createContext(false);
 
 export function Screen({ title, right, children }: { title?: string; right?: React.ReactNode; children: React.ReactNode }) {
-  const { width } = useWindowDimensions();
+  const width = useAppWidth();
   const insets = useSafeAreaInsets();
   const col = (width - S.x * 2 - S.gap * 3) / 4;
   return (

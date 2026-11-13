@@ -84,6 +84,17 @@
       "@react-native-community/datetimepicker",
       "react-native-health-connect",
       "./plugins/withHealthConnectQueries.js"
-    ]
+    ],
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "sapp2",
+      "shortName": "sapp2",
+      "themeColor": "#000000",
+      "backgroundColor": "#000000"
+    },
+    "experiments": {
+      "baseUrl": "/sapp2"
+    }
   }
 }

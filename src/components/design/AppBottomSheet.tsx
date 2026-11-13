@@ -279,6 +279,8 @@ const makeS = (maxHeightRatio: number) => StyleSheet.create({
     paddingHorizontal: spacing[2], paddingBottom: spacing[2],
   },
   sheet: {
+    // Wersja na komputer (2026-11-13): sheet nie rozlewa się na cały szeroki ekran.
+    width: '100%', maxWidth: 560, alignSelf: 'center',
     maxHeight: SCREEN_H * maxHeightRatio,
     backgroundColor: colors.bg.card, borderRadius: radius.sheet,
     borderWidth: 1, borderColor: '#1f1f1f', overflow: 'hidden',

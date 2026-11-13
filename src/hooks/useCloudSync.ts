@@ -5,7 +5,7 @@ import { startCloudSync, stopCloudSync } from '@/services/cloudSync';
 // services/cloudSync.ts. Wylogowanie zatrzymuje nasłuch.
 export function useCloudSync(uid: string | null | undefined): void {
   useEffect(() => {
-    if (!uid) { stopCloudSync(); return; }
+    if (!uid || uid === 'web-preview') { stopCloudSync(); return; } // atrapa podglądu web
     startCloudSync(uid).catch(() => {});
     return () => stopCloudSync();
   }, [uid]);

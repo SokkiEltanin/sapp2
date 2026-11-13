@@ -1,0 +1,14 @@
+{
+  "name": "sapp2",
+  "short_name": "sapp2",
+  "description": "Zadania, kalendarz, finanse i statystyki — zsynchronizowane z telefonem",
+  "start_url": "/sapp2/",
+  "scope": "/sapp2/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    { "src": "/sapp2/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/sapp2/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

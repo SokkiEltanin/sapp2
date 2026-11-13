@@ -1485,6 +1485,16 @@ update*. Status: `useSyncStatus` (Ustawienia → Dane). Następne kolekcje (wyda
 stałe opłaty…) = dopisać Binding w `bindings`. gcalEvents NIE są synchronizowane
 (każde urządzenie czyta Google Calendar samo).
 
+**Wersja na komputer (PWA)** (2026-11-13): ten sam kod na web →
+`.github/workflows/web.yml` (expo export web + `scripts/pwa-postbuild.js`: manifest,
+service worker `public/sw.js`, 404.html dla podstron) → GitHub Pages
+https://sokkieltanin.github.io/sapp2/ (`experiments.baseUrl: "/sapp2"`). Logowanie na
+web: `signInWithPopup` (googleAuth.ts); atrapa usera tylko `web && __DEV__`. Na web
+appka w wyśrodkowanej kolumnie `WEB_MAX_W` (ui/layout.tsx's `useAppWidth`, root w
+app/_layout.tsx, AppBottomSheet maxWidth). Natywne rzeczy (bank, Health Connect,
+widget, powiadomienia) na web = ciche no-op; dane z nich przychodzą synchronizacją.
+UWAGA dev: z baseUrl serwer deweloperski dalej działa pod `localhost:8099/<trasa>`.
+
 ## SUBSKRYPCJE / "Stałe opłaty" [PE]
 
 Port z sapp (2026-11-09, user: "czy w sapp mozemy eksportować szablony te do

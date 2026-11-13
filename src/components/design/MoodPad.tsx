@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
+import { useAppWidth } from '@/ui/layout';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS, useSharedValue } from 'react-native-reanimated';
 import Svg, { Defs, RadialGradient, Stop, Circle } from 'react-native-svg';
@@ -59,7 +60,7 @@ export default function MoodPad({
   // Klucz throttlujący `runOnJS` do ~0.02 kroku (nie co ramkę gestu, patrz niżej) —
   // zaokrąglona do 2 miejsc wartość zakodowana w jednej liczbie (mood*1000+energy).
   const lastKey = useSharedValue(-1);
-  const { width: winWidth } = useWindowDimensions();
+  const winWidth = useAppWidth();
   const size = mini ? 76 : Math.min(300, winWidth - spacing[4] * 2 - 2);
   const dotSize = mini ? 12 : 24;
   // Poświata = ENERGIA (2026-11-12): mała i blada przy "bez energii", szeroka i

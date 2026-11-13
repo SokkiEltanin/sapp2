@@ -22,7 +22,9 @@ export function useAuthUser() {
   const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
-    if (Platform.OS === 'web') {
+    // Atrapa TYLKO na serwerze deweloperskim (podgląd/Playwright). Zbudowana wersja
+    // na komputer (PWA, 2026-11-13) loguje się naprawdę — patrz googleAuth.ts.
+    if (Platform.OS === 'web' && __DEV__) {
       setUser({ email: 'web-preview@localhost', uid: 'web-preview' } as User);
       setInitializing(false);
       return;

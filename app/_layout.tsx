@@ -3,7 +3,8 @@ import { useCalendarStore } from '@/store/calendarStore';
 import { syncTasksWidget, applyWidgetAppearance } from '@/services/widgetSync';
 import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
 import { drainWidgetToggleQueue } from '@/services/widgetToggleDrain';
-import { View, ActivityIndicator, AppState, Dimensions, Image } from 'react-native';
+import { View, ActivityIndicator, AppState, Dimensions, Image, Platform } from 'react-native';
+import { WEB_MAX_W } from '@/ui/layout';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -210,7 +211,13 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style="light" />
-        <Stack key={dimensionKey} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg.primary } }} />
+        {/* Wersja na komputer (PWA, 2026-11-13): appka projektowana pod telefon —
+            na szerokim oknie wyśrodkowana kolumna zamiast rozciągniętych kafli. */}
+        <View style={Platform.OS === 'web' ? { flex: 1, backgroundColor: '#050505' } : { flex: 1 }}>
+          <View style={Platform.OS === 'web' ? { flex: 1, width: '100%', maxWidth: WEB_MAX_W, alignSelf: 'center' } : { flex: 1 }}>
+            <Stack key={dimensionKey} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg.primary } }} />
+          </View>
+        </View>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
