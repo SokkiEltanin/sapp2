@@ -2,15 +2,16 @@ import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChevronLeft, Plus, Check, ShoppingBag, X } from 'lucide-react-native';
+import { ChevronLeft, ChevronDown, ChevronUp, Plus, Check, ShoppingBag, X, Car } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import ReplaceSheet, { ReplaceIcon } from '@/components/replacements/ReplaceSheet';
 import LazyMount from '@/components/design/LazyMount';
 import { useReplacementsStore } from '@/store/replacementsStore';
 import { useExpensesStore } from '@/store/expensesStore';
+import { useVehiclesStore } from '@/store/vehiclesStore';
 import type { ReplaceItem } from '@/types/replacements';
-import { REPLACE_PRESETS, presetByKey, sortByDue, shortEvery, pendingBuy, yearlyCost } from '@/utils/replacements';
+import { REPLACE_PRESETS, presetByKey, allReplaceRows, shortEvery, pendingBuy, yearlyCost } from '@/utils/replacements';
 import { toDisplayDate } from '@/utils/dateInput';
 import { todayISO } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
@@ -22,8 +23,14 @@ import { haptic } from '@/utils/haptics';
 //      wymianie (utils/replacements.ts's pendingBuy): 1 stuknięcie = wymiana z
 //      datą zakupu, "nie to" = już nie pytaj o ten paragon.
 //   3. Lista od najpilniejszej: pasek zużycia, termin, ✓ = wymienione dziś.
-//   4. Szybkie dodanie z szablonów, których jeszcze nie ma.
+//      Razem z serwisem pojazdów (olej, klocki…; dane w Pojazdach — tap tam,
+//      ✓ dopisuje wykonanie do historii pojazdu).
+//   4. Szablony do szybkiego dodania — domyślnie zwinięte (user: "zajmują dużo miejsca").
 // Konfiguracja (co ile, przypomnienie, słowa, historia) → ReplaceSheet.
+
+// "DD.MM", a z innego roku "DD.MM.RR" (olej sprzed roku nie może udawać tegorocznego).
+const shortDate = (iso: string, today: string) =>
+  (iso.slice(0, 4) === today.slice(0, 4) ? toDisplayDate(iso).slice(0, 5) : `${toDisplayDate(iso).slice(0, 6)}${iso.slice(2, 4)}`);
 
 export default function ReplacementsScreen() {
   const s = makeS();
@@ -31,12 +38,15 @@ export default function ReplacementsScreen() {
   const replaced = useReplacementsStore((st) => st.replaced);
   const dismissBuy = useReplacementsStore((st) => st.dismissBuy);
   const expenses = useExpensesStore((st) => st.expenses);
+  const vehicles = useVehiclesStore((st) => st.vehicles);
+  const addMaintenance = useVehiclesStore((st) => st.addMaintenance);
+  const [presetsOpen, setPresetsOpen] = useState(false);
 
   const [sheet, setSheet] = useState<{ editing?: ReplaceItem | null; preset?: string | null } | null>(null);
   const today = todayISO();
   const now = useMemo(() => new Date(), [today]);
 
-  const rows = useMemo(() => sortByDue(items, now), [items, now]);
+  const rows = useMemo(() => allReplaceRows(items, vehicles, now), [items, vehicles, now]);
   const buys = useMemo(() => items.map((it) => ({ it, buy: pendingBuy(it, expenses) })).filter((x) => x.buy), [items, expenses]);
   const costs = useMemo(() => new Map(items.map((it) => [it.id, yearlyCost(it, expenses)])), [items, expenses]);
   const overdue = rows.filter((r) => r.due.daysLeft < 0).length;
@@ -46,7 +56,7 @@ export default function ReplacementsScreen() {
   const missingPresets = REPLACE_PRESETS.filter((p) => !items.some((it) => it.preset === p.key));
 
   const open = (v: { editing?: ReplaceItem | null; preset?: string | null }) => { haptic.tap(); setSheet(v); };
-  const done = (it: ReplaceItem, date = today) => { haptic.success(); replaced(it.id, date); };
+  const done = (it: ReplaceItem, date: string) => { haptic.success(); replaced(it.id, date); };
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -61,8 +71,8 @@ export default function ReplacementsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        {items.length === 0 ? (
-          <Text style={s.emptyText}>Filtry, końcówki szczoteczki, ostrza — dodaj, co wymieniasz, a appka przypomni i pokaże koszt na rok.</Text>
+        {rows.length === 0 ? (
+          <Text style={s.emptyText}>Filtry, końcówki szczoteczki, olej w aucie — dodaj, co wymieniasz, a appka przypomni i pokaże koszt na rok.</Text>
         ) : (
           <View style={s.stats}>
             <View style={s.stat}>
@@ -75,7 +85,7 @@ export default function ReplacementsScreen() {
             </View>
             <View style={s.stat}>
               <Text style={s.statNum}>{knownCosts.length ? `${yearTotal}` : '—'}<Text style={s.statUnit}>{knownCosts.length ? ' zł' : ''}</Text></Text>
-              <Text style={s.statKey}>na rok{knownCosts.length && knownCosts.length < items.length ? ` (${knownCosts.length}/${items.length})` : ''}</Text>
+              <Text style={s.statKey}>na rok{knownCosts.length && knownCosts.length < rows.length ? ` (${knownCosts.length}/${rows.length})` : ''}</Text>
             </View>
           </View>
         )}
@@ -85,7 +95,7 @@ export default function ReplacementsScreen() {
             <ShoppingBag size={16} color={colors.accent.blue} />
             <View style={{ flex: 1 }}>
               <Text style={s.buyTitle} numberOfLines={1}>{it.name} — wymienione?</Text>
-              <Text style={s.buySub} numberOfLines={1}>kupione {toDisplayDate(buy!.date).slice(0, 5)}: {buy!.text}{buy!.price ? ` · ${buy!.price.toFixed(2).replace('.', ',')} zł` : ''}</Text>
+              <Text style={s.buySub} numberOfLines={1}>kupione {shortDate(buy!.date, today)}: {buy!.text}{buy!.price ? ` · ${buy!.price.toFixed(2).replace('.', ',')} zł` : ''}</Text>
             </View>
             <TouchableOpacity style={s.buyYes} onPress={() => done(it, buy!.date)} activeOpacity={0.8}>
               <Text style={s.buyYesLabel}>Tak</Text>
@@ -96,24 +106,46 @@ export default function ReplacementsScreen() {
           </View>
         ))}
 
-        {rows.map(({ item: it, due }) => {
+        {rows.map((r) => {
+          const { due } = r;
           const color = due.daysLeft < 0 ? colors.accent.red : due.daysLeft <= 7 ? colors.accent.orange : colors.text.secondary;
-          const cost = costs.get(it.id);
-          const doneToday = it.lastDate === today;
+          const isCar = r.kind === 'car';
+          const lastDate = isCar ? r.car.lastDate : r.item.lastDate;
+          const doneToday = lastDate === today;
+          const cost = isCar ? null : costs.get(r.item.id);
+          const name = isCar ? r.car.label : r.item.name;
+          const every = isCar ? shortEvery(r.car.every, 'm') : shortEvery(r.item.every, r.item.unit);
+          const onPress = () => {
+            haptic.tap();
+            if (r.kind === 'car') router.push({ pathname: '/vehicles', params: { id: r.car.vehicleId } } as any);
+            else open({ editing: r.item });
+          };
+          const onDone = () => {
+            if (doneToday) return;
+            haptic.success();
+            if (r.kind === 'car') addMaintenance(r.car.vehicleId, { label: r.car.label, date: today, intervalMonths: r.car.every });
+            else replaced(r.item.id, today);
+          };
           return (
-            <TouchableOpacity key={it.id} style={s.row} onPress={() => open({ editing: it })} activeOpacity={0.8}>
+            <TouchableOpacity key={r.key} style={s.row} onPress={onPress} activeOpacity={0.8}>
               <View style={s.rowTop}>
-                <View style={s.icon}><ReplaceIcon name={presetByKey(it.preset)?.icon} size={16} color={colors.text.secondary} /></View>
+                <View style={s.icon}>
+                  {r.kind === 'car'
+                    ? <Car size={16} color={r.car.vehicleColor || colors.text.secondary} />
+                    : <ReplaceIcon name={presetByKey(r.item.preset)?.icon} size={16} color={colors.text.secondary} />}
+                </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.name} numberOfLines={1}>{it.name}</Text>
+                  <Text style={s.name} numberOfLines={1}>
+                    {name}{r.kind === 'car' ? <Text style={s.owner}>{`  ${r.car.vehicleName}`}</Text> : null}
+                  </Text>
                   <Text style={s.sub} numberOfLines={1}>
                     <Text style={[s.due, { color }]}>{doneToday ? 'wymienione dziś' : due.label}</Text>
-                    {` · co ${shortEvery(it.every, it.unit)} · ost. ${toDisplayDate(it.lastDate).slice(0, 5)}${cost ? ` · ~${cost} zł/rok` : ''}`}
+                    {` · co ${every} · ost. ${shortDate(lastDate, today)}${cost ? ` · ~${cost} zł/rok` : ''}`}
                   </Text>
                 </View>
                 <TouchableOpacity
                   style={[s.check, doneToday && s.checkOn]}
-                  onPress={() => { if (!doneToday) done(it); }}
+                  onPress={onDone}
                   hitSlop={6}
                   accessibilityLabel="Wymienione dziś"
                 >
@@ -129,8 +161,11 @@ export default function ReplacementsScreen() {
 
         {missingPresets.length > 0 && (
           <>
-            <Text style={s.section}>Dodaj szybko</Text>
-            <View style={s.quick}>
+            <TouchableOpacity style={s.presetsHead} onPress={() => { haptic.tap(); setPresetsOpen((v) => !v); }} activeOpacity={0.7}>
+              <Text style={s.section}>Szablony ({missingPresets.length})</Text>
+              {presetsOpen ? <ChevronUp size={14} color={colors.text.muted} /> : <ChevronDown size={14} color={colors.text.muted} />}
+            </TouchableOpacity>
+            {presetsOpen && <View style={s.quick}>
               {missingPresets.map((p) => (
                 <TouchableOpacity key={p.key} style={s.quickItem} onPress={() => open({ preset: p.key })} activeOpacity={0.8}>
                   <ReplaceIcon name={p.icon} size={13} color={colors.text.secondary} />
@@ -138,7 +173,7 @@ export default function ReplacementsScreen() {
                   <Text style={s.quickEvery}>{shortEvery(p.every, p.unit)}</Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </View>}
           </>
         )}
         <View style={{ height: 40 }} />
@@ -182,7 +217,9 @@ const makeS = themedStyles((c) => StyleSheet.create({
   track: { height: 4, borderRadius: 2, backgroundColor: c.ui.in, overflow: 'hidden' },
   fill: { height: 4, borderRadius: 2 },
 
-  section: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: spacing[3] },
+  section: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.6 },
+  presetsHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing[3], paddingVertical: spacing[1] },
+  owner: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted },
   quick: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   quickItem: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing[3], paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, borderStyle: 'dashed' },
   quickLabel: { flex: 1, fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },

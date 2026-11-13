@@ -24,8 +24,7 @@ import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import { upcomingPayments } from '@/utils/recurringBills';
 import { pendingFxOf, type PendingFx } from '@/utils/fx';
 import { useVehiclesStore } from '@/store/vehiclesStore';
-import { nextMaintenanceDue } from '@/utils/vehicleMatch';
-import { nextHomeReplacement } from '@/utils/replacements';
+import { allReplaceRows, rowName } from '@/utils/replacements';
 import { useReplacementsStore } from '@/store/replacementsStore';
 import type { CalendarEvent } from '@/types/calendar';
 import type { Expense } from '@/types/finances';
@@ -271,12 +270,9 @@ export default function Dashboard() {
   // końcówki szczoteczki…) — wygrywa bliższy termin.
   const replaceItems = useReplacementsStore((st) => st.items);
   const nextMaintenance = useMemo(() => {
-    const car = nextMaintenanceDue(vehicles, now);
-    const home = nextHomeReplacement(replaceItems, now);
-    if (home && (!car || home.daysLeft < car.dueMonths * 30.44)) {
-      return { vehicleName: 'dom', label: home.name, dueLabel: home.label, dueMonths: home.daysLeft / 30.44 };
-    }
-    return car;
+    const [r] = allReplaceRows(replaceItems, vehicles, now);
+    if (!r) return null;
+    return { vehicleName: r.kind === 'car' ? r.car.vehicleName : 'dom', label: rowName(r), dueLabel: r.due.label, overdue: r.due.daysLeft < 0 };
   }, [vehicles, replaceItems, now]);
 
   const data: DashData = {
@@ -285,9 +281,7 @@ export default function Dashboard() {
     weather,
     weatherHint,
     foodMonths: foodMonths.map((m) => ({ label: m.label, value: m.value })),
-    nextMaintenance: nextMaintenance
-      ? { vehicleName: nextMaintenance.vehicleName, label: nextMaintenance.label, dueLabel: nextMaintenance.dueLabel, overdue: nextMaintenance.dueMonths < 0 }
-      : null,
+    nextMaintenance,
     transactions: recentExpenses.map((e) => ({
       id: e.id,
       name: e.note || e.storeName || (e.type === 'income' ? 'Przychód' : 'Płatność'),

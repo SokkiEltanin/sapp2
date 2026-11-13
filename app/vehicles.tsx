@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Plus, Fuel, Gauge, Wrench, Trash2, Star, Pencil, AlertCircle } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -55,7 +55,9 @@ export default function VehiclesScreen() {
   const addOdometerReading = useVehiclesStore((st) => st.addOdometerReading);
   const expenses = useExpensesStore((st) => st.expenses);
 
-  const [viewingId, setViewingId] = useState<string | null>(vehicles[0]?.id ?? null);
+  // ?id= — wejście z Wymian (stuknięcie w serwis konkretnego pojazdu).
+  const { id: paramId } = useLocalSearchParams<{ id?: string }>();
+  const [viewingId, setViewingId] = useState<string | null>((paramId && vehicles.some((v) => v.id === paramId) ? paramId : null) ?? vehicles[0]?.id ?? null);
   const viewing = vehicles.find((v) => v.id === viewingId) ?? null;
   const mainId = useMemo(() => mainCarId(vehicles), [vehicles]);
 

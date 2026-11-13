@@ -1,6 +1,6 @@
 import {
   addInterval, replaceDue, dueLabel, everyLabel, markReplaced, undoLastReplace, realAvgDays,
-  findBuys, pendingBuy, yearlyCost, sortByDue, nextHomeReplacement, REPLACE_PRESETS,
+  findBuys, pendingBuy, yearlyCost, sortByDue, allReplaceRows, carMaintItems, carReminderItems, REPLACE_PRESETS,
 } from '@/utils/replacements';
 import type { ReplaceItem } from '@/types/replacements';
 import type { Expense } from '@/types/finances';
@@ -43,8 +43,6 @@ describe('terminy', () => {
     const a = item({ id: 'a', name: 'A', lastDate: '2026-11-01' });
     const b = item({ id: 'b', name: 'B', lastDate: '2026-10-01' });
     expect(sortByDue([a, b], NOW).map((x) => x.item.id)).toEqual(['b', 'a']);
-    expect(nextHomeReplacement([a, b], NOW)).toEqual({ name: 'B', daysLeft: -12, label: '12 dni po terminie' });
-    expect(nextHomeReplacement([], NOW)).toBeNull();
   });
 });
 
@@ -107,5 +105,29 @@ describe('przypomnienia', () => {
     const [p] = planReplaceReminders([item({ lastDate: '2026-10-13' })], NOW); // termin 13.11, 10:00 > 9:00
     expect(new Date(p.fireAt)).toEqual(new Date(2026, 10, 14, 9));
     expect(planReplaceReminders([item({ lastDate: '2026-10-01' })], NOW)).toEqual([]);
+  });
+});
+
+describe('dom + pojazdy', () => {
+  const civic = { id: 'v1', name: 'Civic', color: '#fff', maintenance: [
+    { id: 'm1', label: 'Wymiana oleju', date: '2025-11-10', intervalMonths: 12 },
+    { id: 'm2', label: 'Wymiana oleju', date: '2024-11-10', intervalMonths: 12 },
+    { id: 'm3', label: 'Płyn do spryskiwaczy', date: '2026-10-01' },
+    { id: 'm4', label: 'Klocki hamulcowe', date: '2026-01-01', intervalMonths: 24 },
+  ] };
+  test('najnowszy wpis per pozycja, tylko z interwałem', () => {
+    const cars = carMaintItems([civic]);
+    expect(cars.map((c) => [c.label, c.lastDate])).toEqual([['Wymiana oleju', '2025-11-10'], ['Klocki hamulcowe', '2026-01-01']]);
+  });
+  test('jedna lista od najpilniejszej', () => {
+    const rows = allReplaceRows([item()], [civic], NOW);
+    expect(rows.map((r) => r.kind === 'car' ? r.car.label : r.item.name)).toEqual(['Wymiana oleju', 'Filtr w dzbanku', 'Klocki hamulcowe']);
+    expect(rows[0].due.label).toBe('3 dni po terminie');
+  });
+  test('przypomnienia pojazdu tydzień przed', () => {
+    const [r] = carReminderItems(carMaintItems([civic]));
+    expect(r.name).toBe('Civic: Wymiana oleju');
+    expect(r.remindDaysBefore).toBe(7);
+    expect(r.id).toBe('car_v1_Wymianaoleju');
   });
 });

@@ -1619,8 +1619,15 @@ szczoteczek końcówek". Rzeczy zużywające się co N dni/tyg./mies.
   `repl_<id>`) ← `hooks/useReplaceReminderSync.ts` w `app/_layout.tsx`. 9:00 w
   dniu / N dni przed; po terminie jedno "minął wczoraj". Tap → `/replacements`
   (`useNotifeeAlertLaunch` route `replacements`).
-- **Dashboard** "Najbliższa wymiana": bliższy z serwisu pojazdów i wymian domowych
-  (`app/(tabs)/index.tsx`, podpis "dom"). Backup: klucz w kopii automatycznie,
+- **Dom + pojazdy razem** (2026-11-13, user: "muszą się pokazywać zwykłe rzeczy,
+  ale też te z samochodu — olej za tydzień"): `allReplaceRows(items, vehicles)` —
+  serwis pojazdów z interwałem (najnowszy wpis per pozycja, `carMaintItems`) na tej
+  samej liście; ✓ dopisuje `addMaintenance` do pojazdu, tap → `/vehicles?id=`.
+  Formularz: "Dom / <pojazd>" — dla pojazdu szablony z `maintenancePresets`, zapis
+  jako serwis pojazdu (jedno źródło danych). Przypomnienia serwisu: 7 dni przed
+  (`carReminderItems`). Szablony domyślnie zwinięte (formularz i ekran).
+- **Dashboard** "Najbliższa wymiana": pierwszy wiersz `allReplaceRows` (podpis =
+  nazwa pojazdu albo "dom"); `nextMaintenanceDue` z vehicleMatch zostaje tylko w testach. Backup: klucz w kopii automatycznie,
   rehydrate w `services/cloudBackup.ts`.
 - Pola dat formularzy: `src/utils/dateInput.ts` (wspólne z Subskrypcjami).
 

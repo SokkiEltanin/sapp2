@@ -31,7 +31,7 @@ export type DashData = {
   // Lewa połowa Rzędu 1 (2026-11-09, user: "tam gdzie zielony musimy coś
   // zrobić i może zróbmy będzie najbliższa wymiana (oleju, filtra itp z
   // zapisanych)") — wcześniej świadomie pusty `Tile` (user: "zostaw pusty
-  // kafelek"), teraz zasilany `nextMaintenanceDue` (vehicleMatch.ts) ze
+  // kafelek"), od 2026-11-13 zasilany `allReplaceRows` (utils/replacements.ts): dom + pojazdy, ze
   // WSZYSTKICH pojazdów naraz. CELOWO bez `onPress` — user ustalił wcześniej
   // (przy decyzji "zostaw pusty"), że to miejsce MUSI zostać czysto
   // informacyjne, nie klikane, bo jest wysoko na ekranie (trudno dosięgnąć

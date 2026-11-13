@@ -1,5 +1,6 @@
 import type { ReplaceItem, ReplaceUnit } from '@/types/replacements';
 import type { Expense } from '@/types/finances';
+import type { Vehicle } from '@/types/vehicles';
 import { addMonthsClipped, ymdLocal } from './dateMath';
 
 // Logika wymian domowych (2026-11-13) — czyste funkcje, testy w
@@ -145,9 +146,47 @@ export function yearlyCost(item: Pick<ReplaceItem, 'every' | 'unit' | 'keywords'
   return Math.round(last.price * perYear);
 }
 
-// ── Dashboard: najbliższa wymiana z domu ──────────────────────────────────────
-export interface NextHomeReplace { name: string; daysLeft: number; label: string }
-export function nextHomeReplacement(items: ReplaceItem[], now: Date = new Date()): NextHomeReplace | null {
-  const [first] = sortByDue(items, now);
-  return first ? { name: first.item.name, daysLeft: first.due.daysLeft, label: first.due.label } : null;
+// ── Wspólna lista: dom + pojazdy ─────────────────────────────────────────────
+// (2026-11-13, user: "tutaj też muszą się pokazywać zwykłe rzeczy, ale też te
+// rzeczy z samochodu — olej do wymienienia za tydzień"). Serwis pojazdów żyje w
+// vehiclesStore (ekran Pojazdy); tu najnowszy wpis per pozycja z interwałem.
+export interface CarMaint { vehicleId: string; vehicleName: string; vehicleColor: string; label: string; every: number; lastDate: string }
+export type ReplaceRow =
+  | { key: string; kind: 'home'; item: ReplaceItem; due: ReplaceDue }
+  | { key: string; kind: 'car'; car: CarMaint; due: ReplaceDue };
+
+export function carMaintItems(vehicles: Pick<Vehicle, 'id' | 'name' | 'color' | 'maintenance'>[]): CarMaint[] {
+  const out: CarMaint[] = [];
+  for (const v of vehicles) {
+    const latest = new Map<string, { date: string; intervalMonths?: number }>();
+    for (const m of v.maintenance) {
+      const cur = latest.get(m.label);
+      if (!cur || m.date > cur.date) latest.set(m.label, m);
+    }
+    for (const [label, m] of latest) {
+      if (!m.intervalMonths) continue; // najnowszy wpis bez interwału = bez terminu
+      out.push({ vehicleId: v.id, vehicleName: v.name, vehicleColor: v.color, label, every: m.intervalMonths, lastDate: m.date.slice(0, 10) });
+    }
+  }
+  return out;
+}
+
+export function allReplaceRows(items: ReplaceItem[], vehicles: Pick<Vehicle, 'id' | 'name' | 'color' | 'maintenance'>[], now: Date = new Date()): ReplaceRow[] {
+  const rows: ReplaceRow[] = items.map((item) => ({ key: item.id, kind: 'home' as const, item, due: replaceDue(item, now) }));
+  for (const car of carMaintItems(vehicles)) {
+    rows.push({ key: `car:${car.vehicleId}:${car.label}`, kind: 'car', car, due: replaceDue({ lastDate: car.lastDate, every: car.every, unit: 'm' }, now) });
+  }
+  return rows.sort((a, b) => a.due.daysLeft - b.due.daysLeft);
+}
+
+export const rowName = (r: ReplaceRow) => (r.kind === 'home' ? r.item.name : r.car.label);
+
+// Przypomnienia dla serwisu pojazdów: tydzień przed (czas na umówienie warsztatu).
+export const CAR_REMIND_DAYS = 7;
+export function carReminderItems(cars: CarMaint[]): ReplaceItem[] {
+  return cars.map((c) => ({
+    id: `car_${c.vehicleId}_${c.label.replace(/[^A-Za-z0-9]/g, '').slice(0, 24)}`,
+    name: `${c.vehicleName}: ${c.label}`, every: c.every, unit: 'm' as const, lastDate: c.lastDate, history: [],
+    remindDaysBefore: CAR_REMIND_DAYS, keywords: [], createdAt: '', updatedAt: '',
+  }));
 }

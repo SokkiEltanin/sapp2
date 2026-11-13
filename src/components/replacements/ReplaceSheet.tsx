@@ -2,13 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform } from 'react-native';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import * as LucideIcons from 'lucide-react-native';
-import { CalendarDays, Minus, Plus, Trash2, Undo2 } from 'lucide-react-native';
+import { CalendarDays, Minus, Plus, Trash2, Undo2, ChevronDown, ChevronUp, Home, Car } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useReplacementsStore } from '@/store/replacementsStore';
+import { useVehiclesStore } from '@/store/vehiclesStore';
+import { maintenancePresets } from '@/utils/vehicleMatch';
 import type { ReplaceItem, ReplaceUnit } from '@/types/replacements';
-import { REPLACE_PRESETS, presetByKey, everyLabel, addInterval, realAvgDays } from '@/utils/replacements';
+import { REPLACE_PRESETS, presetByKey, everyLabel, addInterval, realAvgDays, CAR_REMIND_DAYS } from '@/utils/replacements';
 import { toDisplayDate, parseDisplayDate, maskDateDigits } from '@/utils/dateInput';
 import { todayISO, ymd } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
@@ -17,6 +19,9 @@ import { haptic } from '@/utils/haptics';
 // szablon (filtr w dzbanku, końcówki szczoteczki…) wypełnia wszystko jednym
 // stuknięciem; potem nazwa, co ile (liczba + dni/tyg./mies.), kiedy ostatnio,
 // przypomnienie i słowa z paragonu. W edycji dodatkowo historia wymian.
+// "Gdzie": Dom albo pojazd — wymiana w aucie (olej, klocki…) zapisuje się jako
+// serwis tego pojazdu (vehiclesStore), żeby Pojazdy i Wymiany miały te same dane.
+// Szablony domyślnie zwinięte (user: "zajmują dużo miejsca").
 
 export const ReplaceIcon = ({ name, size = 16, color = colors.text.primary }: { name?: string; size?: number; color?: string }) => {
   const C = (name && (LucideIcons as any)[name]) || LucideIcons.RefreshCw;
@@ -40,6 +45,10 @@ export default function ReplaceSheet({ visible, onClose, editing, presetKey }: {
   const remove = useReplacementsStore((st) => st.remove);
   const undo = useReplacementsStore((st) => st.undo);
   const live = useReplacementsStore((st) => (editing ? st.items.find((x) => x.id === editing.id) : undefined));
+  const vehicles = useVehiclesStore((st) => st.vehicles);
+  const addMaintenance = useVehiclesStore((st) => st.addMaintenance);
+  const [target, setTarget] = useState<string>('home'); // 'home' | vehicleId
+  const [presetsOpen, setPresetsOpen] = useState(false);
 
   const [preset, setPreset] = useState<string | undefined>();
   const [name, setName] = useState('');
@@ -60,6 +69,8 @@ export default function ReplaceSheet({ visible, onClose, editing, presetKey }: {
   useEffect(() => {
     if (!visible) return;
     setConfirmDel(false);
+    setTarget('home');
+    setPresetsOpen(false);
     if (editing) {
       setPreset(editing.preset); setName(editing.name); setEvery(String(editing.every)); setUnit(editing.unit);
       setLast(toDisplayDate(editing.lastDate)); setRemind(editing.remindDaysBefore); setKeywords(editing.keywords.join(', '));
@@ -84,9 +95,23 @@ export default function ReplaceSheet({ visible, onClose, editing, presetKey }: {
     });
   };
 
+  const vehicle = vehicles.find((v) => v.id === target);
+  const carPresets = vehicle ? maintenancePresets(vehicle.kind).filter((p) => p.intervalMonths) : [];
+  const pickTarget = (t: string) => {
+    haptic.tap();
+    setTarget(t);
+    setPreset(undefined);
+    if (t !== 'home') { setUnit('m'); setName(''); setEvery('12'); setKeywords(''); }
+  };
+
   const save = () => {
     if (!valid || !lastIso) return;
     haptic.success();
+    if (vehicle) {
+      addMaintenance(vehicle.id, { label: name.trim(), date: lastIso, intervalMonths: unit === 'm' ? everyN : Math.max(1, Math.round(everyN / (unit === 'w' ? 4.35 : 30.44))) });
+      onClose();
+      return;
+    }
     const data = {
       name: name.trim(), preset, every: everyN, unit, remindDaysBefore: remind,
       keywords: keywords.split(',').map((k) => k.trim()).filter(Boolean),
@@ -127,25 +152,53 @@ export default function ReplaceSheet({ visible, onClose, editing, presetKey }: {
   return (
     <AppBottomSheet visible={visible} onClose={onClose} footer={footer} maxHeightRatio={0.9}
       header={<Text style={s.title}>{editing ? editing.name : 'Nowa wymiana'}</Text>}>
-      {!editing && (
+      {!editing && vehicles.length > 0 && (
+        <View style={[s.chips, { marginTop: 0, marginBottom: spacing[3] }]}>
+          {[{ id: 'home', name: 'Dom' }, ...vehicles.map((v) => ({ id: v.id, name: v.name }))].map((t) => {
+            const on = target === t.id;
+            const Ico = t.id === 'home' ? Home : Car;
+            return (
+              <TouchableOpacity key={t.id} style={[s.chip, s.targetChip, on && s.chipOn]} onPress={() => pickTarget(t.id)} activeOpacity={0.8}>
+                <Ico size={12} color={on ? colors.bg.primary : colors.text.secondary} />
+                <Text style={[s.chipLabel, on && s.chipLabelOn]} numberOfLines={1}>{t.name}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
+      {!editing && (vehicle ? carPresets.length > 0 : true) && (
         <>
-          <Text style={s.label}>Szablon</Text>
-          <View style={s.presetGrid}>
-            {REPLACE_PRESETS.map((p) => {
-              const on = preset === p.key;
-              return (
-                <TouchableOpacity key={p.key} style={[s.preset, on && s.presetOn]} onPress={() => { haptic.tap(); applyPreset(p.key); }} activeOpacity={0.8}>
-                  <ReplaceIcon name={p.icon} size={14} color={on ? colors.bg.primary : colors.text.secondary} />
-                  <Text style={[s.presetLabel, on && s.presetLabelOn]} numberOfLines={2}>{p.name}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <TouchableOpacity style={s.toggle} onPress={() => { haptic.tap(); setPresetsOpen((v) => !v); }} activeOpacity={0.7}>
+            <Text style={s.label}>Szablony{preset ? ` · ${presetByKey(preset)?.name ?? ''}` : ''}</Text>
+            {presetsOpen ? <ChevronUp size={14} color={colors.text.muted} /> : <ChevronDown size={14} color={colors.text.muted} />}
+          </TouchableOpacity>
+          {presetsOpen && (
+            <View style={s.presetGrid}>
+              {vehicle ? carPresets.map((p) => {
+                const on = name === p.label;
+                return (
+                  <TouchableOpacity key={p.label} style={[s.preset, on && s.presetOn]} onPress={() => { haptic.tap(); setName(p.label); setEvery(String(p.intervalMonths)); setUnit('m'); setPresetsOpen(false); }} activeOpacity={0.8}>
+                    <Car size={14} color={on ? colors.bg.primary : colors.text.secondary} />
+                    <Text style={[s.presetLabel, on && s.presetLabelOn]} numberOfLines={2}>{p.label}</Text>
+                  </TouchableOpacity>
+                );
+              }) : REPLACE_PRESETS.map((p) => {
+                const on = preset === p.key;
+                return (
+                  <TouchableOpacity key={p.key} style={[s.preset, on && s.presetOn]} onPress={() => { haptic.tap(); applyPreset(p.key); setPresetsOpen(false); }} activeOpacity={0.8}>
+                    <ReplaceIcon name={p.icon} size={14} color={on ? colors.bg.primary : colors.text.secondary} />
+                    <Text style={[s.presetLabel, on && s.presetLabelOn]} numberOfLines={2}>{p.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
         </>
       )}
 
-      <Text style={[s.label, s.gap]}>Nazwa</Text>
-      <TextInput ref={nameRef} value={name} onChangeText={setName} style={s.input} placeholder="np. Filtr w dzbanku" placeholderTextColor={colors.text.muted} />
+      <Text style={[s.label, !editing && s.gap]}>Nazwa</Text>
+      <TextInput ref={nameRef} value={name} onChangeText={setName} style={s.input} placeholder={vehicle ? "np. Wymiana oleju" : "np. Filtr w dzbanku"} placeholderTextColor={colors.text.muted} />
 
       <Text style={[s.label, s.gap]}>Co ile</Text>
       <View style={s.row}>
@@ -153,7 +206,7 @@ export default function ReplaceSheet({ visible, onClose, editing, presetKey }: {
         <TextInput value={every} onChangeText={(v) => setEvery(v.replace(/\D/g, '').slice(0, 3))} style={[s.input, s.numInput]} keyboardType="number-pad" />
         <TouchableOpacity style={s.stepBtn} onPress={() => step(1)} hitSlop={6}><Plus size={16} color={colors.text.primary} /></TouchableOpacity>
         <View style={s.seg}>
-          {UNITS.map((u) => (
+          {(vehicle ? UNITS.filter((u) => u.key === 'm') : UNITS).map((u) => (
             <TouchableOpacity key={u.key} style={[s.segItem, unit === u.key && s.segOn]} onPress={() => { haptic.tap(); setUnit(u.key); }} activeOpacity={0.8}>
               <Text style={[s.segLabel, unit === u.key && s.segLabelOn]}>{u.label}</Text>
             </TouchableOpacity>
@@ -180,6 +233,10 @@ export default function ReplaceSheet({ visible, onClose, editing, presetKey }: {
         {nextIso ? `${everyLabel(everyN, unit)} · następna ${toDisplayDate(nextIso)}` : last.length === 10 ? 'Niepoprawna data' : ' '}
       </Text>
 
+      {vehicle ? (
+        <Text style={[s.hint, s.gap]}>Zapisze się jako serwis pojazdu {vehicle.name} (widać też w Pojazdach). Przypomnienie {CAR_REMIND_DAYS} dni przed terminem.</Text>
+      ) : (
+        <>
       <Text style={[s.label, s.gap]}>Przypomnienie</Text>
       <View style={s.chips}>
         {REMIND.map((r) => {
@@ -195,6 +252,9 @@ export default function ReplaceSheet({ visible, onClose, editing, presetKey }: {
       <Text style={[s.label, s.gap]}>Słowa z paragonu</Text>
       <TextInput value={keywords} onChangeText={setKeywords} style={s.input} placeholder="np. dafi, brita" placeholderTextColor={colors.text.muted} autoCapitalize="none" />
       <Text style={s.hint}>Zakup z tym słowem na paragonie podpowie „wymienione?” i policzy koszt na rok.</Text>
+
+        </>
+      )}
 
       {editing && history.length > 0 && (
         <>
@@ -249,6 +309,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
   chipOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
   chipLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   chipLabelOn: { color: c.bg.primary },
+  targetChip: { flexDirection: 'row', alignItems: 'center', gap: 5, maxWidth: 160 },
+  toggle: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: spacing[1] },
   histChip: { paddingHorizontal: spacing[2], paddingVertical: 4, borderRadius: radius.sm, backgroundColor: c.ui.in },
   histChipFirst: { backgroundColor: c.ui.in2 },
   histLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted, fontVariant: ['tabular-nums'] },
