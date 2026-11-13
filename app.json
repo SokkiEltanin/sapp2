@@ -31,13 +31,20 @@
         "android.permission.health.READ_SLEEP",
         "android.permission.health.READ_WEIGHT",
         "android.permission.health.READ_RESTING_HEART_RATE",
-        "android.permission.health.READ_HYDRATION"
+        "android.permission.health.READ_HYDRATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ]
     },
     "plugins": [
       "expo-router",
       "expo-font",
       "expo-notifications",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Pogoda dla Twojej okolicy."
+        }
+      ],
       "./plugins/withFullScreenAlert.js",
       "./plugins/withBankNotificationListener.js",
       "./plugins/withReceiptShareIntent.js",

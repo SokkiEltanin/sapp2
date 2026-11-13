@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Globe, Moon, ListTodo, CalendarClock, Wrench } from 'lucide-react-native';
+import { Globe, ListTodo, CalendarClock, Wrench, MapPin } from 'lucide-react-native';
+import * as LucideIcons from 'lucide-react-native';
 import { C, T, F } from './theme';
 import { Screen, Row, Tile, Cap, FitList, Item, Tag, Price, Bars, StackBar, splitTag } from './layout';
 import { countdownParts, formatCountdown } from '@/utils/countdown';
@@ -13,7 +14,10 @@ import { countdownParts, formatCountdown } from '@/utils/countdown';
 export type DashData = {
   next?: { title: string; start: Date } | null;
   fact: string;
-  sleep?: { minutes: number; from: string; to: string; phases: { kind: 'deep' | 'light' | 'rem' | 'awake'; min: number }[] } | null;
+  // Pogoda ZAMIAST snu (2026-11-13, user: "sen na dashboardzie jest spoko, ale
+  // on jest zaraz w zakładce obok") — `null` + `weatherHint` = stan pusty.
+  weather: { temp: string; feels: string; label: string; icon: string; place: string; rain: string; aqi?: { value: number; color: string } } | null;
+  weatherHint: string;
   foodMonths: { label: string; value: number }[];
   transactions: { id: string; name: string; amount: number; fx?: { amount: number; currency: string } }[];
   // "Bezpieczne wydatki" ZASTĄPIONE "Odliczaniem" (2026-11-09, user: "ten
@@ -37,8 +41,6 @@ export type DashData = {
   onOpen: (what: string, id?: string) => void; // otwiera bottom sheet
 };
 
-const fmtMin = (m: number) => `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
-const phaseColor = { deep: C.deep, light: C.light, rem: C.rem, awake: C.awake };
 
 // KIEDY (konkretna pora, nie odstęp) — pod dużym odliczaniem (2026-11-11), więc
 // "za 3h" dublowałoby liczbę wyżej: "dziś 18:00" / "jutro 07:00" / "śr. 08:00" /
@@ -127,20 +129,29 @@ export function DashboardScreen(d: DashData) {
           <Globe size={12} color={C.dim} style={st.icoL} />
           <Text style={[T.body, { textAlign: 'center' }]} numberOfLines={3}>{d.fact}</Text>
         </Tile>
-        <Tile span={2} onPress={() => d.onOpen('sleep')} style={{ justifyContent: 'space-between' }}>
-          <Moon size={12} color={C.dim} style={st.icoR} />
-          {d.sleep ? (
+        <Tile span={2} onPress={() => d.onOpen('weather')} style={{ justifyContent: 'space-between' }}>
+          {d.weather ? (
             <>
+              <WeatherIcon name={d.weather.icon} />
               <View>
-                <Text style={T.num}>{fmtMin(d.sleep.minutes)}</Text>
-                <Text style={T.unit}>snu · {d.sleep.from} – {d.sleep.to}</Text>
+                <Text style={T.num} numberOfLines={1}>{d.weather.temp}</Text>
+                <Text style={T.unit} numberOfLines={1}>odcz. {d.weather.feels} · {d.weather.label}</Text>
               </View>
-              <StackBar height={6} legend={false} parts={d.sleep.phases.map((p) => ({ label: p.kind, value: p.min, color: phaseColor[p.kind] }))} />
+              <View style={st.wxFoot}>
+                <Text style={[T.small, { flex: 1 }]} numberOfLines={1}>{d.weather.rain}</Text>
+                {d.weather.aqi && (
+                  <View style={st.wxAqi}>
+                    <View style={[st.wxDot, { backgroundColor: d.weather.aqi.color }]} />
+                    <Text style={T.small}>{d.weather.aqi.value}</Text>
+                  </View>
+                )}
+              </View>
             </>
           ) : (
             <>
-              <Text style={[T.num, { color: C.dim }]}>0h 00m</Text>
-              <Text style={T.small}>Połącz zegarek w Ustawieniach</Text>
+              <MapPin size={12} color={C.dim} style={st.icoR} />
+              <Text style={[T.num, { color: C.dim }]}>--°</Text>
+              <Text style={T.small} numberOfLines={2}>{d.weatherHint}</Text>
             </>
           )}
         </Tile>
@@ -219,7 +230,16 @@ export function DashboardScreen(d: DashData) {
   );
 }
 
+// Ikona warunków (nazwa z utils/weather.ts's weatherCodeInfo → komponent lucide).
+function WeatherIcon({ name }: { name: string }) {
+  const Icon = (LucideIcons as any)[name] ?? LucideIcons.Cloud;
+  return <Icon size={14} color={C.txt} style={st.icoR} />;
+}
+
 const st = StyleSheet.create({
+  wxFoot: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  wxAqi: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  wxDot: { width: 7, height: 7, borderRadius: 4 },
   icoL: { position: 'absolute', top: 10, left: 10 },
   icoR: { position: 'absolute', top: 10, right: 10 },
   when: { width: 64, fontFamily: F.xb, fontSize: 10, color: C.mut, fontVariant: ['tabular-nums'] },

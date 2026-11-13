@@ -1447,6 +1447,15 @@ spalaniem. Konfiguracja (nazwa/kolor/rodzaj/paliwo/tag/główny/usuń) → sheet
 Podpięcie do istniejącego wydatku: `logFuelForExistingExpense` (FuelLog
 `linkedExisting:true` — usunięcie tankowania NIE kasuje wydatku z banku).
 
+**Pogoda** (2026-11-13, Dashboard — ZAMIAST snu, sen jest w Daily): Open-Meteo
+bez klucza. `utils/weather.ts` (czyste: parseWeather, weatherCodeInfo PL+ikona,
+aqiInfo EAQI, rainSummary, weatherTip; testy na fixture `__tests__/fixtures/
+openmeteo-*.json`), `services/weather.ts` (fetchWeather prognoza+powietrze,
+searchCity geokodowanie), `store/weatherStore.ts` (lokalizacja gps|city + cache),
+`hooks/useWeather.ts` (odświeżanie >30 min / powrót z tła; GPS przez expo-location,
+uprawnienie ACCESS_COARSE_LOCATION w app.json), `components/weather/
+WeatherSheet.tsx` (teraz, 24 h, 7 dni, powietrze z normami WHO, zmiana lokalizacji).
+
 ## SUBSKRYPCJE / "Stałe opłaty" [PE]
 
 Port z sapp (2026-11-09, user: "czy w sapp mozemy eksportować szablony te do

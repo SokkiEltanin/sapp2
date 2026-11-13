@@ -10,8 +10,10 @@ import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { colors } from '@/theme/colors';
 import { useCalendarStore } from '@/store/calendarStore';
 import { useExpensesStore } from '@/store/expensesStore';
-import { useHealthStore } from '@/store/healthStore';
-import { useHealthSync } from '@/hooks/useHealthSync';
+import { useWeather } from '@/hooks/useWeather';
+import { useWeatherStore } from '@/store/weatherStore';
+import { weatherCodeInfo, rainSummary, aqiInfo, fmtTemp } from '@/utils/weather';
+import WeatherSheet from '@/components/weather/WeatherSheet';
 import { useGoogleCalendarSync } from '@/hooks/useGoogleCalendarSync';
 import { todayISO } from '@/utils/date';
 import { foodByMonth } from '@/utils/foodStats';
@@ -39,6 +41,8 @@ import { haptic } from '@/utils/haptics';
 // bez promptu — zgoda przyznawana TYLKO z przycisku w Ustawieniach),
 // `useHealthStore` czyta ostatni snapshot. Bez zegarka/braku zgody →
 // `sleep: null`, kit renderuje zaprojektowany stan pusty.
+// 2026-11-13: sen USUNIĘTY z Dashboardu (jest w Daily) — w jego miejscu pogoda
+// (hooks/useWeather.ts, components/weather/WeatherSheet.tsx).
 // - Kalendarz/jedzenie/transakcje/saldo/48h — bez zmian, te same store'y/hooki.
 const FACTS = [
   'Mózg zużywa jedną piątą energii twojego organizmu',
@@ -107,11 +111,9 @@ export default function Dashboard() {
   const gcalEvents = useCalendarStore((st) => st.gcalEvents);
   const setSelectedDate = useCalendarStore((st) => st.setSelectedDate);
   const expenses = useExpensesStore((st) => st.expenses);
-  const healthToday = useHealthStore((st) => st.today);
   const subscriptions = useSubscriptionsStore((st) => st.subscriptions);
   const dismissedBills = useSubscriptionsStore((st) => st.dismissedBills);
   const vehicles = useVehiclesStore((st) => st.vehicles);
-  useHealthSync();
   // 2026-11-08, user: "jak wchodzę do apki to kalendarz sie nie ładuje na
   // dashbordzie a powinien... tylko rozsądnie bez lagów" — wcześniej TYLKO
   // `tasks.tsx` odświeżał `gcalEvents`, więc Dashboard pokazywał cokolwiek
@@ -238,23 +240,30 @@ export default function Dashboard() {
     return out.sort((a, b) => a.at.getTime() - b.at.getTime());
   }, [allEvents, calendarTasks, subscriptions, expenses, now, dismissedBills]);
 
-  const sleep = useMemo(() => {
-    if (!healthToday || healthToday.sleepMinutes == null || !healthToday.sleepFrom || !healthToday.sleepTo) return null;
-    const phases: { kind: 'deep' | 'light' | 'rem' | 'awake'; min: number }[] = [
-      { kind: 'deep' as const, min: healthToday.sleepDeepMin ?? 0 },
-      { kind: 'light' as const, min: healthToday.sleepLightMin ?? 0 },
-      { kind: 'rem' as const, min: healthToday.sleepRemMin ?? 0 },
-      { kind: 'awake' as const, min: healthToday.sleepAwakeMin ?? 0 },
-    ].filter((p) => p.min > 0);
-    return { minutes: healthToday.sleepMinutes, from: healthToday.sleepFrom, to: healthToday.sleepTo, phases };
-  }, [healthToday]);
+  // Pogoda zamiast snu (2026-11-13) — sen jest w Daily.
+  const { data: wx } = useWeather();
+  const wxLocation = useWeatherStore((st) => st.location);
+  const wxDenied = useWeatherStore((st) => st.gpsDenied);
+  const wxError = useWeatherStore((st) => st.error);
+  const [weatherOpen, setWeatherOpen] = useState(false);
+  const weather = useMemo(() => {
+    if (!wx) return null;
+    const info = weatherCodeInfo(wx.current.code, wx.current.isDay);
+    return {
+      temp: fmtTemp(wx.current.temp), feels: fmtTemp(wx.current.feels), label: info.label, icon: info.icon,
+      place: wx.place, rain: rainSummary(wx.hourly),
+      aqi: wx.air ? { value: wx.air.aqi, color: aqiInfo(wx.air.aqi).color } : undefined,
+    };
+  }, [wx]);
+  const weatherHint = wxError ?? (wxDenied && !wxLocation ? 'Stuknij i wpisz miasto' : 'Pobieram pogodę…');
 
   const nextMaintenance = useMemo(() => nextMaintenanceDue(vehicles, now), [vehicles, now]);
 
   const data: DashData = {
     next: upcomingEvent ? { title: upcomingEvent.e.title, start: upcomingEvent.start } : null,
     fact: FACTS[factIndex ?? 0],
-    sleep,
+    weather,
+    weatherHint,
     foodMonths: foodMonths.map((m) => ({ label: m.label, value: m.value })),
     nextMaintenance: nextMaintenance
       ? { vehicleName: nextMaintenance.vehicleName, label: nextMaintenance.label, dueLabel: nextMaintenance.dueLabel, overdue: nextMaintenance.dueMonths <= 0 }
@@ -286,7 +295,8 @@ export default function Dashboard() {
       else if (what === 'countdown') setCountdownPickerOpen(true);
       else if (what === 'next' && upcomingEvent) setNextOpen(true);
       else if (what === 'bill') router.push('/subscriptions');
-      // sleep/upcoming — jeszcze bez docelowego popupu (szczegół pojedynczego
+      else if (what === 'weather') setWeatherOpen(true);
+      // upcoming — jeszcze bez docelowego popupu (szczegół pojedynczego
       // wydarzenia/terminu z listy "Najbliższe eventy"), świadomie bez akcji na razie.
       // 'streak' — przeniesione do Daily (`app/(tabs)/daily.tsx`'s rząd "Nawyki"),
       // patrz komentarz w DashboardScreen.tsx przy usunięciu kafli streak.
@@ -309,6 +319,7 @@ export default function Dashboard() {
   return (
     <>
       <DashboardScreen {...data} />
+      <WeatherSheet visible={weatherOpen} onClose={() => setWeatherOpen(false)} />
       <AddExpenseModal
         visible={!!editingExpense}
         onClose={() => setEditingExpense(null)}
