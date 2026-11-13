@@ -41,6 +41,10 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+- **Daily (2026-11-13)**: sen (hipnogram z Health Connect `stages` — sprawdzić na
+  zegarku, czy etapy przychodzą), kroki + BodySheet (waga ręczna), humor z
+  kropkami tygodnia. Wolne miejsce w kaflu snu / propozycje dla Daily czekają na
+  decyzję usera.
 - **Do sprawdzenia na urządzeniu (2026-11-13)**: pogoda na Dashboardzie (prośba
   o lokalizację przy pierwszym wejściu; po odmowie — wpisanie miasta w szczegółach),
   widget Zadania (dodaj z listy widgetów appki: odhaczanie kółkiem bez otwierania,

@@ -19,6 +19,16 @@ async function syncNow(): Promise<void> {
     if (!res.ok) return;
     const snap = await readHealthDay(new Date());
     setToday(snap);
+    // Poprzednie 6 dni (tydzień snu/kroków w Daily) — tylko brakujące albo bez
+    // przebiegu faz; przeszłe dni się nie zmieniają, więc czytane raz.
+    const { history, setDay } = useHealthStore.getState();
+    for (let i = 1; i <= 6; i++) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const have = history[key];
+      if (have && (have.sleepStages || have.sleepMinutes == null)) continue;
+      try { setDay(await readHealthDay(d)); } catch { /* pomiń dzień */ }
+    }
   })().finally(() => { inFlight = null; });
   return inFlight;
 }

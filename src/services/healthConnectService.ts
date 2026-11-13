@@ -1,5 +1,5 @@
 import type { HealthConnectResult } from '@/types/health';
-import type { HealthDaySnapshot } from '@/types/health';
+import type { SleepStageSpan, HealthDaySnapshot } from '@/types/health';
 
 // Health Connect — natywny moduł (`react-native-health-connect`, patrz
 // `plugins/withHealthConnectQueries.js`), niedostępny w Expo Go. Ten sam wzorzec
@@ -158,17 +158,19 @@ export async function readHealthDay(date: Date): Promise<HealthDaySnapshot> {
   let sleepMinutes: number | null = null, sleepDeepMin: number | null = null, sleepRemMin: number | null = null;
   let sleepLightMin: number | null = null, sleepAwakeMin: number | null = null;
   let sleepFrom: string | null = null, sleepTo: string | null = null;
+  let sleepStages: SleepStageSpan[] = [];
+  let sleepStartMs: number | null = null, sleepEndMs: number | null = null;
   try {
     // Sen kończy się RANO — okno sięga 30h wstecz, żeby złapać sesję zaczętą
     // poprzedniego wieczoru, ale licz go na dzień, w którym się KOŃCZY (budzenie).
     const sleepWin = { operator: 'between' as const, startTime: new Date(date.getTime() - 30 * 3600_000).toISOString(), endTime: filter.endTime };
-    const bySrc = new Map<string, { min: number; deep: number; rem: number; light: number; awake: number; start: number; end: number }>();
+    const bySrc = new Map<string, { min: number; deep: number; rem: number; light: number; awake: number; start: number; end: number; spans: SleepStageSpan[] }>();
     for (const r of await read(lib, 'SleepSession', sleepWin)) {
       const st = new Date(r.startTime).getTime();
       const en = new Date(r.endTime).getTime();
       if (en <= st || localKey(new Date(en)) !== dayKey) continue;
       const src = srcOf(r);
-      const e = bySrc.get(src) ?? { min: 0, deep: 0, rem: 0, light: 0, awake: 0, start: st, end: en };
+      const e = bySrc.get(src) ?? { min: 0, deep: 0, rem: 0, light: 0, awake: 0, start: st, end: en, spans: [] };
       e.min += Math.round((en - st) / 60000);
       e.start = Math.min(e.start, st);
       e.end = Math.max(e.end, en);
@@ -177,21 +179,23 @@ export async function readHealthDay(date: Date): Promise<HealthDaySnapshot> {
         const se = new Date(stage.endTime).getTime();
         if (se <= ss) continue;
         const mins = Math.round((se - ss) / 60000);
-        if (stage.stage === lib.SleepStageType.DEEP) e.deep += mins;
-        else if (stage.stage === lib.SleepStageType.REM) e.rem += mins;
-        else if (stage.stage === lib.SleepStageType.LIGHT) e.light += mins;
-        else if (stage.stage === lib.SleepStageType.AWAKE) e.awake += mins;
+        if (stage.stage === lib.SleepStageType.DEEP) { e.deep += mins; e.spans.push({ stage: 'deep', start: ss, end: se }); }
+        else if (stage.stage === lib.SleepStageType.REM) { e.rem += mins; e.spans.push({ stage: 'rem', start: ss, end: se }); }
+        else if (stage.stage === lib.SleepStageType.LIGHT) { e.light += mins; e.spans.push({ stage: 'light', start: ss, end: se }); }
+        else if (stage.stage === lib.SleepStageType.AWAKE) { e.awake += mins; e.spans.push({ stage: 'awake', start: ss, end: se }); }
       }
       bySrc.set(src, e);
     }
     const best = [...bySrc.values()].reduce(
       (a, b) => (b.min > a.min ? b : a),
-      { min: 0, deep: 0, rem: 0, light: 0, awake: 0, start: 0, end: 0 },
+      { min: 0, deep: 0, rem: 0, light: 0, awake: 0, start: 0, end: 0, spans: [] as SleepStageSpan[] },
     );
     if (best.min > 0) {
       sleepMinutes = best.min; sleepDeepMin = best.deep; sleepRemMin = best.rem; sleepLightMin = best.light; sleepAwakeMin = best.awake;
       const hhmm = (ms: number) => new Date(ms).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
       sleepFrom = hhmm(best.start); sleepTo = hhmm(best.end);
+      sleepStages = best.spans.sort((a, b) => a.start - b.start);
+      sleepStartMs = best.start; sleepEndMs = best.end;
     }
   } catch { /* brak danych/uprawnień */ }
 
@@ -218,6 +222,6 @@ export async function readHealthDay(date: Date): Promise<HealthDaySnapshot> {
 
   return {
     date: dayKey, steps, sleepMinutes, sleepDeepMin, sleepRemMin, sleepLightMin, sleepAwakeMin, sleepFrom, sleepTo,
-    weightKg, restingHeartRate, hydrationMl,
+    weightKg, restingHeartRate, hydrationMl, sleepStages, sleepStartMs, sleepEndMs,
   };
 }

@@ -1,166 +1,157 @@
 import { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Screen, Row, Tile, StatTile, Cap } from '@/ui/layout';
+import { View, Text, StyleSheet } from 'react-native';
+import { Screen, Row, Tile, Cap, StackBar } from '@/ui/layout';
 import { C, T, S } from '@/ui/theme';
 import MoodPad from '@/components/design/MoodPad';
+import MoodModal from '@/components/mood/MoodModal';
+import SleepSheet from '@/components/health/SleepSheet';
+import BodySheet from '@/components/health/BodySheet';
+import Hypnogram from '@/components/health/Hypnogram';
 import { moodColor, energyGlow, MOOD_LABELS, ENERGY_LABELS, roundLevel } from '@/types/mood';
 import { todayISO } from '@/utils/date';
 import { useMoodStore } from '@/store/moodStore';
 import { useHealthStore } from '@/store/healthStore';
 import { useHealthSync } from '@/hooks/useHealthSync';
-import MoodModal from '@/components/mood/MoodModal';
-import { useHabitsStore } from '@/store/habitsStore';
-import { habitStreak } from '@/utils/habitStreak';
-import { haptic } from '@/utils/haptics';
+import { sleepSummary, sleepWeek, vsAverage, fmtDur, PHASE_META, PHASE_COLOR, PHASE_ORDER, SLEEP_GOAL_MIN } from '@/utils/sleepStats';
 
-// Faza 3.10 (design/rn kit) — Daily przebudowany na kitu's `src/ui/layout.tsx`
-// prymitywy (Screen/Row/Tile/StatTile/Cap), ten sam powód co Dashboard (Faza
-// 3.10, ARCHITECTURE.md): jawna siatka kolumn zamiast `flex` w rzędzie z `gap`.
-// Kolejność i spany 1:1 z design/app-design.html's `#daily` (`grid-template-
-// rows: auto auto auto 1fr auto`): Sen (4) → Kroki(2)|Tętno(2) →
-// Waga(2)|Woda(2) → Ćwiczenia (4, fill) → Nastrój (4, row).
-//
-// Faza 3.12 (2026-11-02) — Sen/Kroki/Tętno/Waga/Woda DOSTAŁY realny Health
-// Connect (port z sapp, `src/services/healthConnectService.ts`). Bez zegarka/
-// bez zgody (`useHealthStore().today === null`) → `StatTile value={null}`
-// (DESIGN.md's zaprojektowany stan pusty, "0" dim + "brak") i Sen zostaje przy
-// "0h 00m" + "Połącz zegarek w Ustawieniach" — DOKŁADNIE jak wcześniej, zero
-// zmiany wizualnej dla usera bez zegarka. Ćwiczenia = appka nie ma jeszcze
-// store'a treningów (osobna, nieportowalna z sapp 1:1 funkcja — inny model
-// danych), ten sam stub co wcześniej. Nastrój = `useMoodStore`, bez zmian.
-// "bez energii" / "energia niska…dobra" / "pełna energia" — czyta się jak zdanie.
+// Daily (przebudowa 2026-11-13, user: "zostawiamy sen, wpisywanie humoru, kroki;
+// głównie patrzę ile spałem"). Trzy rzeczy, bez scrolla:
+//   1. SEN — duży kafel: czas, okno snu, porównanie z tygodniem, fazy (pasek +
+//      minuty), 7 nocy. Tap → components/health/SleepSheet (hipnogram, normy faz,
+//      wydajność, wybudzenia, średnie godziny, dług snu).
+//   2. KROKI — dziś + 7 dni. Tap → components/health/BodySheet (waga do wpisania,
+//      tętno, woda — drugorzędne, poza głównym widokiem).
+//   3. HUMOR — mini pad + co zapisane + kropki ostatniego tygodnia (kolor =
+//      przyjemność, wielkość = energia). Tap → MoodModal.
+// USUNIĘTE (user): wykres "Ostatnie 7 dni" humoru, trening/streaki, osobne kafle
+// Waga/Woda/Tętno (te w BodySheet).
+const WD = ['nd', 'pn', 'wt', 'śr', 'cz', 'pt', 'sb'];
+const keyOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 function energyText(e: number): string {
   const l = roundLevel(e);
   return l === 1 || l === 5 ? ENERGY_LABELS[l].toLowerCase() : `energia ${ENERGY_LABELS[l].toLowerCase()}`;
 }
 
-function fmtMin(m: number): string {
-  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
-}
-
 export default function DailyScreen() {
   const entries = useMoodStore((st) => st.entries);
-  const [moodOpen, setMoodOpen] = useState(false);
   const health = useHealthStore((st) => st.today);
+  const history = useHealthStore((st) => st.history);
+  const connected = useHealthStore((st) => st.connected);
   useHealthSync();
-
-  // 2026-11-09, user: "wywalimy streaki" (z Dashboardu) — odhaczanie nawyków
-  // (Woda/Słodycze/Trening, `habitsStore.ts`) przeniesione tu, żeby nie
-  // zostawić dead-endu (`HabitsModal` z `components/dashboard/` — nazwa
-  // folderu to tylko historia, komponent nie jest dashboard-specyficzny).
-  // 2026-11-13, user: "wywalamy streaki... picia wody i słodyczy, bo raz
-  // zjesz słodycze i cały streak chuja daje... zostawimy tylko w treningu" —
-  // zostaje SAM trening, odhaczany tapem wprost w kafelku (bez modala):
-  // ile razy w tym tygodniu / miesiącu + seria dni z rzędu.
-  const habitDays = useHabitsStore((st) => st.days);
-  const setHabit = useHabitsStore((st) => st.setHabit);
+  const [moodOpen, setMoodOpen] = useState(false);
+  const [sleepOpen, setSleepOpen] = useState(false);
+  const [bodyOpen, setBodyOpen] = useState(false);
   const today = todayISO();
-  const trainedToday = habitDays.find((d) => d.date === today)?.training === true;
-  const training = useMemo(() => {
-    const now = new Date();
-    const dow = (now.getDay() + 6) % 7; // pon = 0
-    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const weekStart = iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow));
-    const monthStart = `${today.slice(0, 7)}-01`;
-    const done = habitDays.filter((d) => d.training);
-    return {
-      week: done.filter((d) => d.date >= weekStart && d.date <= today).length,
-      month: done.filter((d) => d.date >= monthStart && d.date <= today).length,
-      streak: habitStreak(habitDays, 'training', today),
-    };
-  }, [habitDays, today]);
 
-  const todayEntries = useMemo(() => entries.filter((e) => e.date === todayISO()), [entries]);
-  // Ostatnie 7 dni nastroju (2026-11-12, CLAUDE.md zasada 10 — zamiast pustego
-  // "appka nie śledzi treningów"): średnia z wpisów dnia, kolor = przyjemność,
-  // wysokość słupka = energia (ta sama semantyka co MoodPad).
-  const week = useMemo(() => {
-    const out: { key: string; label: string; mood: number | null; energy: number | null }[] = [];
-    const now = new Date();
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const day = entries.filter((e) => e.date === key);
-      const avg = (f: (e: typeof day[number]) => number) => (day.length ? day.reduce((a, e) => a + f(e), 0) / day.length : null);
-      out.push({ key, label: ['nd', 'pn', 'wt', 'śr', 'cz', 'pt', 'sb'][d.getDay()], mood: avg((e) => e.mood), energy: avg((e) => e.energy) });
-    }
-    return out;
-  }, [entries]);
-  const weekHasMood = week.some((d) => d.mood != null);
-  const lastToday = todayEntries[todayEntries.length - 1];
   const dayLabel = new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
+  const sleep = useMemo(() => (health && health.date === today ? sleepSummary(health) : null), [health, today]);
+  const week = useMemo(() => sleepWeek({ ...history, ...(health ? { [health.date]: health } : {}) }), [history, health]);
+  const cmp = sleep ? vsAverage(sleep.total, week) : null;
+  const maxNight = Math.max(SLEEP_GOAL_MIN, ...week.nights.map((n) => n.minutes ?? 0));
 
-  const hasSleep = !!health && health.sleepMinutes != null && !!health.sleepFrom && !!health.sleepTo;
-  const weightVal = health?.weightKg != null ? health.weightKg.toFixed(1).replace('.', ',') : null;
-  const hydrationVal = health?.hydrationMl != null ? (health.hydrationMl / 1000).toFixed(1).replace('.', ',') : null;
+  const stepsWeek = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (6 - i));
+      const k = keyOf(d);
+      const snap = k === health?.date ? health : history[k];
+      return { key: k, label: WD[d.getDay()], steps: snap?.steps ?? null };
+    });
+  }, [history, health]);
+  const maxSteps = Math.max(1, ...stepsWeek.map((x) => x.steps ?? 0));
+  const stepsToday = health?.date === today ? health.steps : null;
+
+  const todayEntries = useMemo(() => entries.filter((e) => e.date === today), [entries, today]);
+  const lastToday = todayEntries[todayEntries.length - 1];
+  const moodWeek = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (6 - i));
+      const k = keyOf(d);
+      const day = entries.filter((e) => e.date === k);
+      const avg = (f: (e: typeof day[number]) => number) => (day.length ? day.reduce((a, e) => a + f(e), 0) / day.length : null);
+      return { key: k, label: WD[d.getDay()], mood: avg((e) => e.mood), energy: avg((e) => e.energy) };
+    });
+  }, [entries]);
 
   return (
     <Screen title="Daily" right={<Text style={T.small} numberOfLines={1}>{dayLabel}</Text>}>
-      <Row>
-        <Tile span={4}>
-          <Cap l="Sen" />
-          {hasSleep ? (
+      <Row flex={1}>
+        <Tile span={4} onPress={() => setSleepOpen(true)} style={st.sleepTile}>
+          <Cap l="Sen" r={sleep ? (cmp ?? 'szczegóły') : undefined} />
+          {sleep ? (
             <>
-              <Text style={T.num}>{fmtMin(health!.sleepMinutes!)}</Text>
-              <Text style={T.small}>{health!.sleepFrom} – {health!.sleepTo}</Text>
+              <View>
+                <Text style={T.numXl}>{fmtDur(sleep.total)}</Text>
+                <Text style={T.small}>{health!.sleepFrom} – {health!.sleepTo}{sleep.efficiency != null ? ` · wydajność ${sleep.efficiency}%` : ''}</Text>
+              </View>
+              {(health!.sleepStages?.length ?? 0) > 0 && health!.sleepStartMs != null && health!.sleepEndMs != null ? (
+                <View>
+                  <Hypnogram spans={health!.sleepStages!} start={health!.sleepStartMs} end={health!.sleepEndMs} />
+                  <View style={st.phaseLegend}>
+                    {sleep.phases.map((p) => (
+                      <Text key={p.kind} style={T.small} numberOfLines={1}>{PHASE_META[p.kind].label} <Text style={st.phaseMin}>{fmtDur(p.min)}</Text></Text>
+                    ))}
+                  </View>
+                </View>
+              ) : sleep.hasPhases && (
+                <View>
+                  <StackBar height={8} legend={false} parts={PHASE_ORDER.map((k) => ({ label: PHASE_META[k].label, value: Math.max(0.001, sleep.phases.find((p) => p.kind === k)!.min), color: PHASE_COLOR[k] }))} />
+                  <View style={st.phaseLegend}>
+                    {sleep.phases.map((p) => (
+                      <View key={p.kind} style={st.phaseItem}>
+                        <View style={[st.phaseDot, { backgroundColor: PHASE_COLOR[p.kind] }]} />
+                        <Text style={T.small} numberOfLines={1}>{PHASE_META[p.kind].label} <Text style={st.phaseMin}>{fmtDur(p.min)}</Text></Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
             </>
           ) : (
-            <>
-              <Text style={[T.num, st.sleepNum]}>0h 00m</Text>
-              <Text style={T.small}>Połącz zegarek w Ustawieniach</Text>
-            </>
+            <View>
+              <Text style={[T.numXl, { color: C.dim }]}>0h 00m</Text>
+              <Text style={T.small}>{connected ? 'Brak danych z dzisiejszej nocy' : 'Połącz zegarek w Ustawieniach'}</Text>
+            </View>
+          )}
+          {week.count > 0 && (
+            <View style={st.nights}>
+              {week.nights.map((n, i) => (
+                <View key={n.date} style={st.nightCol}>
+                  <View style={st.nightBox}>
+                    <View style={[st.goalLine, { bottom: `${(SLEEP_GOAL_MIN / maxNight) * 100}%` }]} />
+                    {n.minutes != null
+                      ? <View style={[st.nightBar, { height: `${(n.minutes / maxNight) * 100}%` }, i === 6 && { backgroundColor: PHASE_COLOR.rem }]} />
+                      : <View style={st.dotEmpty} />}
+                  </View>
+                  <Text style={[st.dayLbl, i === 6 && { color: C.hi }]}>{WD[new Date(`${n.date}T12:00:00`).getDay()]}</Text>
+                </View>
+              ))}
+            </View>
           )}
         </Tile>
       </Row>
 
       <Row>
-        <StatTile value={health?.steps ?? null} unit="kroki" label="Kroki" span={2} />
-        <StatTile value={health?.restingHeartRate ?? null} unit="bpm" label="Tętno" span={2} />
-      </Row>
-
-      <Row>
-        <StatTile value={weightVal} unit="kg" label="Waga" span={2} />
-        <StatTile value={hydrationVal} unit="litra" label="Woda" span={2} />
-      </Row>
-
-      <Row flex={1}>
-        <Tile span={4} style={st.exTile}>
-          <Cap l="Ostatnie 7 dni" r={weekHasMood ? 'nastrój · wysokość = energia' : undefined} />
-          {weekHasMood ? (
-            <TouchableOpacity style={st.week} onPress={() => setMoodOpen(true)} activeOpacity={0.8}>
-              {week.map((d) => (
-                <View key={d.key} style={st.weekCol}>
-                  <View style={st.weekBarBox}>
-                    {d.mood != null && d.energy != null ? (
-                      <View style={[st.weekBar, { height: `${18 + energyGlow(d.energy) * 82}%`, backgroundColor: moodColor(d.mood) }]} />
-                    ) : (
-                      <View style={st.weekEmpty} />
-                    )}
-                  </View>
-                  <Text style={[T.small, d.key === today && { color: C.hi }]}>{d.label}</Text>
+        <Tile span={4} onPress={() => setBodyOpen(true)} style={st.stepsTile}>
+          <View style={{ flex: 1 }}>
+            <Cap l="Kroki" r="waga i więcej" />
+            <Text style={[T.num, stepsToday == null && { color: C.dim }]}>{stepsToday != null ? stepsToday.toLocaleString('pl-PL') : '0'}</Text>
+            <Text style={T.small}>{stepsToday != null ? 'dziś' : 'brak danych'}</Text>
+          </View>
+          <View style={st.stepsBars}>
+            {stepsWeek.map((x, i) => (
+              <View key={x.key} style={st.stepCol}>
+                <View style={st.stepBox}>
+                  {x.steps != null
+                    ? <View style={[st.stepBar, { height: `${Math.max(6, (x.steps / maxSteps) * 100)}%` }, i === 6 && { backgroundColor: C.hi }]} />
+                    : <View style={st.dotEmpty} />}
                 </View>
-              ))}
-            </TouchableOpacity>
-          ) : (
-            <Text style={[T.small, st.exEmpty]}>Zapisuj nastrój — tu zobaczysz cały tydzień.</Text>
-          )}
-          <TouchableOpacity style={st.habitsRow} onPress={() => { haptic.success(); setHabit(today, 'training', !trainedToday); }} activeOpacity={0.7}>
-            <Cap l={trainedToday ? 'Trening · dziś zrobiony' : 'Trening'} r={trainedToday ? 'stuknij, by cofnąć' : 'stuknij, gdy zrobisz'} />
-            <View style={st.habitsCols}>
-              <View style={st.habitsCol}>
-                <Text style={[T.num, trainedToday && { color: C.ok }]}>{training.week}</Text>
-                <Text style={T.small}>w tym tygodniu</Text>
+                <Text style={[st.dayLbl, i === 6 && { color: C.hi }]}>{x.label}</Text>
               </View>
-              <View style={st.habitsCol}>
-                <Text style={T.num}>{training.month}</Text>
-                <Text style={T.small}>w tym miesiącu</Text>
-              </View>
-              <View style={st.habitsCol}>
-                <Text style={T.num}>{training.streak}</Text>
-                <Text style={T.small}>dni z rzędu</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
+            ))}
+          </View>
         </Tile>
       </Row>
 
@@ -168,32 +159,55 @@ export default function DailyScreen() {
         <Tile span={4} onPress={() => setMoodOpen(true)} style={st.moodTile}>
           <MoodPad mood={lastToday?.mood} energy={lastToday?.energy} mini />
           <View style={st.moodTextCol}>
-            <Cap l="Nastrój" r="dotknij, by zapisać" />
+            <Cap l="Humor" r="dotknij, by zapisać" />
             <Text style={[T.rowHi, lastToday && { color: moodColor(lastToday.mood) }]} numberOfLines={1}>
               {lastToday ? `${MOOD_LABELS[roundLevel(lastToday.mood)]} · ${energyText(lastToday.energy)}` : 'Jeszcze nie zapisano'}
             </Text>
-            {todayEntries.length > 1 && <Text style={T.rowSub}>{todayEntries.length}× dziś</Text>}
+            <View style={st.moodDots}>
+              {moodWeek.map((d, i) => (
+                <View key={d.key} style={st.moodDotCol}>
+                  <View style={st.moodDotBox}>
+                    {d.mood != null && d.energy != null
+                      ? <View style={[st.moodDot, { backgroundColor: moodColor(d.mood), width: 7 + energyGlow(d.energy) * 9, height: 7 + energyGlow(d.energy) * 9 }]} />
+                      : <View style={st.dotEmpty} />}
+                  </View>
+                  <Text style={[st.dayLbl, i === 6 && { color: C.hi }]}>{d.label}</Text>
+                </View>
+              ))}
+            </View>
           </View>
         </Tile>
       </Row>
 
+      <SleepSheet visible={sleepOpen} onClose={() => setSleepOpen(false)} />
+      <BodySheet visible={bodyOpen} onClose={() => setBodyOpen(false)} />
       <MoodModal visible={moodOpen} onClose={() => setMoodOpen(false)} />
     </Screen>
   );
 }
 
 const st = StyleSheet.create({
-  sleepNum: { color: C.dim, marginTop: 4 },
-  exTile: { justifyContent: 'space-between' },
-  exEmpty: { textAlign: 'center', marginTop: S.gap },
-  habitsRow: { marginTop: S.gap },
-  week: { flex: 1, flexDirection: 'row', gap: 6, marginTop: S.gap, minHeight: 70 },
-  weekCol: { flex: 1, alignItems: 'center', gap: 4 },
-  weekBarBox: { flex: 1, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
-  weekBar: { width: '70%', borderRadius: 4, minHeight: 6 },
-  weekEmpty: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.dim },
-  habitsCols: { flexDirection: 'row', justifyContent: 'space-around', marginTop: S.gap },
-  habitsCol: { alignItems: 'center' },
+  sleepTile: { justifyContent: 'space-between', gap: S.gap },
+  phaseLegend: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 4, marginTop: 8 },
+  phaseItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  phaseDot: { width: 7, height: 7, borderRadius: 4 },
+  phaseMin: { color: C.hi },
+  nights: { flexDirection: 'row', gap: 6, height: 64 },
+  nightCol: { flex: 1, alignItems: 'center', gap: 3 },
+  nightBox: { flex: 1, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
+  nightBar: { width: '60%', borderRadius: 3, backgroundColor: PHASE_COLOR.light, minHeight: 3 },
+  goalLine: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: C.dim },
+  dayLbl: { fontSize: 9.5, color: C.mut, fontFamily: 'Inter_700Bold' },
+  dotEmpty: { width: 5, height: 5, borderRadius: 3, backgroundColor: C.dim },
+  stepsTile: { flexDirection: 'row', alignItems: 'stretch', gap: S.pad },
+  stepsBars: { flex: 1.1, flexDirection: 'row', gap: 4, minHeight: 64 },
+  stepCol: { flex: 1, alignItems: 'center', gap: 3 },
+  stepBox: { flex: 1, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
+  stepBar: { width: '70%', borderRadius: 3, backgroundColor: C.mut },
   moodTile: { flexDirection: 'row', alignItems: 'center', gap: S.pad },
   moodTextCol: { flex: 1, minWidth: 0 },
+  moodDots: { flexDirection: 'row', marginTop: 8 },
+  moodDotCol: { flex: 1, alignItems: 'center', gap: 2 },
+  moodDotBox: { height: 18, justifyContent: 'center', alignItems: 'center' },
+  moodDot: { borderRadius: 9 },
 });

@@ -15,7 +15,16 @@ export interface HealthDaySnapshot {
   weightKg: number | null;
   restingHeartRate: number | null;
   hydrationMl: number | null;
+  // Przebieg faz nocy (2026-11-13, user: "fazy... wszystkie szczegóły snu") —
+  // odcinki z Health Connect dla wybranego źródła, czasy w ms (epoch). Brak w
+  // starych snapshotach → optional.
+  sleepStages?: SleepStageSpan[];
+  sleepStartMs?: number | null;
+  sleepEndMs?: number | null;
 }
+
+export type SleepStageKind = 'deep' | 'light' | 'rem' | 'awake';
+export interface SleepStageSpan { stage: SleepStageKind; start: number; end: number }
 
 export type HealthConnectFailReason = 'no-module' | 'unavailable' | 'update' | 'init' | 'denied' | 'error';
 export type HealthConnectResult = { ok: true } | { ok: false; reason: HealthConnectFailReason };
