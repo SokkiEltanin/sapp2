@@ -712,7 +712,15 @@ otwiera go teraz przycisk "+" przy `Segmented`, nie floating FAB.
 - Zewnętrzna referencja zachowania kalendarza: TickTick (pasek kalendarza u góry +
   lista pod spodem) — zachowana.
 
-**Widget na pulpicie Androida — JESZCZE NIE ZROBIONY** (user, 2026-10-26: "jak
+**Widget na pulpicie Androida — ZROBIONY 2026-11-13**: `plugins/withTasksWidget.js`
+(natywny AppWidgetProvider+RemoteViews, 6 slotów, tło w kolorze kafli, kółko =
+odhacz bez otwierania appki, tap = `sapp2://tasks`), `utils/widgetTasks.ts`
+(`buildWidgetSnapshot`, test), `services/widgetSync.ts` (snapshot do filesDir +
+`TasksWidget.requestUpdate`), `services/widgetToggleDrain.ts` (kolejka odhaczeń →
+`updateTask(status:'done')`), podpięte w `app/_layout.tsx` (subskrypcja na
+`calendarStore.tasks` + drenaż przy starcie/powrocie). Historia decyzji niżej:
+
+**(archiwalne) Widget na pulpicie Androida — JESZCZE NIE ZROBIONY** (user, 2026-10-26: "jak
 będziemy robić zadania to musimy zrobić to tak jak tam [w `sapp`]"; ponowiona
 prośba 2026-10-30 przy okazji feedbacku o kalendarzu — świadomie odłożone w tej
 rundzie, osobny ciężki kawałek natywnej roboty). `sapp` ma to zrobione jako

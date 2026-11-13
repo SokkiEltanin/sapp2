@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { useCalendarStore } from '@/store/calendarStore';
+import { syncTasksWidget } from '@/services/widgetSync';
+import { drainWidgetToggleQueue } from '@/services/widgetToggleDrain';
 import { View, ActivityIndicator, AppState, Dimensions, Image } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -147,6 +150,22 @@ export default function RootLayout() {
     const t = setTimeout(drainThenAuto, 1500);
     const sub = AppState.addEventListener('change', (state) => { if (state === 'active') drainThenAuto(); });
     return () => { clearTimeout(t); sub.remove(); };
+  }, []);
+
+  // Widget pulpitu "Zadania" (2026-11-13): świeży snapshot przy każdej zmianie
+  // listy zadań + odbiór odhaczeń z widgetu przy starcie i powrocie z tła.
+  // Na web/starym APK oba to ciche no-opy (services/widgetSync.ts).
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const flush = () => syncTasksWidget(useCalendarStore.getState().tasks).catch(() => {});
+    const unsub = useCalendarStore.subscribe((st, prev) => {
+      if (st.tasks === prev.tasks) return;
+      if (t) clearTimeout(t);
+      t = setTimeout(flush, 400);
+    });
+    const start = setTimeout(() => { drainWidgetToggleQueue().finally(flush); }, 1200);
+    const sub = AppState.addEventListener('change', (state) => { if (state === 'active') drainWidgetToggleQueue(); });
+    return () => { unsub(); sub.remove(); clearTimeout(start); if (t) clearTimeout(t); };
   }, []);
 
   // W przeciwieństwie do fontów, TEGO jednego czekania appka nie może "ignorować" —

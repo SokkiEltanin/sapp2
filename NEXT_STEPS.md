@@ -41,6 +41,14 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+- **Do sprawdzenia na urządzeniu (2026-11-13)**: pogoda na Dashboardzie (prośba
+  o lokalizację przy pierwszym wejściu; po odmowie — wpisanie miasta w szczegółach),
+  widget Zadania (dodaj z listy widgetów appki: odhaczanie kółkiem bez otwierania,
+  tap otwiera Zadania), Daily: trening tapem (tydzień/miesiąc/seria).
+- **Budżety i limity** — user: "tak, okej" (2026-11-13), następne w kolejce: limit
+  miesięczny na kategorię, ile zostało, ile dziennie do końca miesiąca, ostrzeżenie.
+- **Dashboard** — user planuje usunąć Finanse z Dashboardu (są w zakładce) i coś
+  zmienić w kalendarzu; jeszcze nie wie na co — czekać na decyzję.
 - **Audyt zasady 10 (CLAUDE.md: "ekran = dane, nie konfiguracja")** — user
   2026-11-12 chce tego w KAŻDEJ zakładce. ZROBIONE: Pojazdy, Praca, Stałe
   opłaty (formularz w sheecie, "do końca mies."), Płatności z banku (karta 2×

@@ -48,6 +48,7 @@
       "./plugins/withFullScreenAlert.js",
       "./plugins/withBankNotificationListener.js",
       "./plugins/withReceiptShareIntent.js",
+      "./plugins/withTasksWidget.js",
       [
         "expo-build-properties",
         {
