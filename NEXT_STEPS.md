@@ -46,6 +46,10 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
   Jeśli nadal laguje — zgłoś który ekran/akcja, zmierzę konkretnie.
 - **[sprawdź] Pogoda/sen w kafelkach**: legendy (deszcz % / chmury %, pasek 7 dni),
   "Radar opadów" otwiera RainViewer w przeglądarce.
+- **[sprawdź] Widget "Pogoda"**: dodaj z listy widgetów (przytrzymaj pulpit →
+  Widgety → sapp2 → Pogoda). Otwórz raz Dashboard, żeby dostał lokalizację;
+  potem ma się sam odświeżać co ~30 min (godzina w prawym górnym rogu widgetu).
+  Do decyzji: widget snu (user: "może i do snu też").
 - **[user, jednorazowo] GitHub Pages**: deploy PWA pada na kroku `deploy-pages`
   (build OK) → repo Settings → Pages → Source: "GitHub Actions", potem
   Actions → "Deploy web (PWA)" → Re-run.

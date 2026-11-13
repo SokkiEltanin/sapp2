@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
 import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { DashboardScreen, type DashData } from '@/ui/DashboardScreen';
 import { Cap, Tag, splitTag } from '@/ui/layout';
 import { T, S, R, C, F } from '@/ui/theme';
@@ -247,6 +247,13 @@ export default function Dashboard() {
   const wxDenied = useWeatherStore((st) => st.gpsDenied);
   const wxError = useWeatherStore((st) => st.error);
   const [weatherOpen, setWeatherOpen] = useState(false);
+  // Kliknięcie widgetu "Pogoda" na pulpicie → app/weather.tsx → tu z ?weather=1.
+  const { weather: weatherParam } = useLocalSearchParams<{ weather?: string }>();
+  useEffect(() => {
+    if (weatherParam !== '1') return;
+    setWeatherOpen(true);
+    router.setParams({ weather: undefined });
+  }, [weatherParam]);
   const weather = useMemo(() => {
     if (!wx) return null;
     const info = weatherCodeInfo(wx.current.code, wx.current.isDay);

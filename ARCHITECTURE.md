@@ -1623,6 +1623,17 @@ więc nie ma nic do migracji/zachowania.
   - `findDuplicateCandidates` (`utils/productCatalog.ts`) liczy normalizację i
     trigramy raz na produkt, nie raz na parę.
   - Tickery: max co 60 s (Dashboard odliczanie), żadnych sekundowych.
+- **Widget pulpitu "Pogoda" (2026-11-13, user: "pogodę na ekran główny")** —
+  `plugins/withWeatherWidget.js` (natywny Kotlin, wzorzec jak widget Zadań).
+  Temp + ikona + opis, max/min, zdanie o deszczu, 5 godzin co 3 h (chowane, gdy
+  widget ma 1 rząd wysokości). Dane: `utils/widgetWeather.ts`
+  (`buildWeatherWidgetSnapshot`) → `services/widgetSync.ts`'s `syncWeatherWidget`
+  przy każdej zmianie `weatherStore.data` (`app/_layout.tsx`) → `widget_weather.json`.
+  Gdy appka zamknięta, provider sam pobiera Open-Meteo co ~30 min (Kotlinowy port
+  `weatherCodeInfo`/`rainSummary` — zmiana formatu = zmiana w OBU miejscach).
+  Wygląd wspólny z Zadaniami (`TasksWidgetPrefs`). Tap → `sapp2://weather` →
+  `app/weather.tsx` → Dashboard `?weather=1` → WeatherSheet. Ikony = wektory z
+  lucide wpisane do pluginu (test pilnuje, że każda ikona z `weatherCodeInfo` ma drawable).
 - **Sheety szczegółów = kafelki (2026-11-13, user: "podziel to na kafelki...
   zrób legendę, bo nie wiem o co chodzi z paskami")** — `SheetCard` + `Legend`
   (`src/components/design/SheetCard.tsx`): każdy temat w osobnej karcie `ui.in`,

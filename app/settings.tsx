@@ -202,9 +202,9 @@ function buildSections(
   // Widget pulpitu "Zadania" (2026-11-13, user: "ma ustawienia przezroczystości?").
   {
     id: 'widget', title: 'Widget na pulpit', icon: LayoutGrid, group: 'main',
-    summary: `Zadania · tło ${widget.opacity === 0 ? 'przezroczyste' : `${widget.opacity}%`} · tekst ${widget.textScale === 'small' ? 'mały' : widget.textScale === 'large' ? 'duży' : 'średni'}`,
+    summary: `Zadania i Pogoda · tło ${widget.opacity === 0 ? 'przezroczyste' : `${widget.opacity}%`} · tekst ${widget.textScale === 'small' ? 'mały' : widget.textScale === 'large' ? 'duży' : 'średni'}`,
     items: [
-      { kind: 'action', key: 'widget-appearance', label: 'Wygląd widgetu Zadania', description: 'przezroczystość i kolor tła, wielkość tekstu — z podglądem', icon: LayoutGrid },
+      { kind: 'action', key: 'widget-appearance', label: 'Wygląd widgetów', description: 'Zadania i Pogoda: przezroczystość, kolor tła, wielkość tekstu', icon: LayoutGrid },
     ],
   },
   {

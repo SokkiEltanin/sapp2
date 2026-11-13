@@ -39,7 +39,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   card: { backgroundColor: c.ui.in, borderRadius: radius.lg, padding: spacing[3], marginTop: spacing[2] },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2], marginBottom: spacing[2] },
   title: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.6 },
-  legend: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', columnGap: spacing[3], rowGap: 2, flexShrink: 1 },
+  legend: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', columnGap: spacing[2], rowGap: 2 },
   legItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legSq: { width: 8, height: 8, borderRadius: 2 },
   legLine: { width: 10, height: 2, borderRadius: 1 },

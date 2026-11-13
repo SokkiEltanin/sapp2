@@ -50,7 +50,7 @@ export default function WidgetAppearanceSheet({ visible, onClose }: { visible: b
 
   return (
     <AppBottomSheet visible={visible} onClose={onClose}>
-      <Text style={s.title}>Widget „Zadania”</Text>
+      <Text style={s.title}>Widgety: Zadania i Pogoda</Text>
       <Text style={s.hint}>Dodasz go z listy widgetów na pulpicie. Zmiany widać od razu.</Text>
 
       {/* Podgląd na "tapecie" */}

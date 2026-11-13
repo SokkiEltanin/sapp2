@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCalendarStore } from '@/store/calendarStore';
-import { syncTasksWidget, applyWidgetAppearance } from '@/services/widgetSync';
+import { syncTasksWidget, syncWeatherWidget, applyWidgetAppearance } from '@/services/widgetSync';
+import { useWeatherStore } from '@/store/weatherStore';
 import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
 import { drainWidgetToggleQueue } from '@/services/widgetToggleDrain';
 import { View, ActivityIndicator, AppState, Dimensions, Image, Platform } from 'react-native';
@@ -175,7 +176,14 @@ export default function RootLayout() {
       applyWidgetAppearance(w.bgOpacity, w.bgColor, w.textScale);
     }, 1200);
     const sub = AppState.addEventListener('change', (state) => { if (state === 'active') drainWidgetToggleQueue(); });
-    return () => { unsub(); sub.remove(); clearTimeout(start); if (t) clearTimeout(t); };
+    // Widget "Pogoda": nowy odczyt w appce → snapshot dla pulpitu.
+    const pushWeather = () => {
+      const { data, location } = useWeatherStore.getState();
+      if (data && location) syncWeatherWidget(data, location.lat, location.lon).catch(() => {});
+    };
+    const unsubWx = useWeatherStore.subscribe((st, prev) => { if (st.data !== prev.data) pushWeather(); });
+    const wxStart = setTimeout(pushWeather, 1500);
+    return () => { unsub(); unsubWx(); sub.remove(); clearTimeout(start); clearTimeout(wxStart); if (t) clearTimeout(t); };
   }, []);
 
   // W przeciwieństwie do fontów, TEGO jednego czekania appka nie może "ignorować" —

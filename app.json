@@ -71,6 +71,7 @@
       "./plugins/withBankNotificationListener.js",
       "./plugins/withReceiptShareIntent.js",
       "./plugins/withTasksWidget.js",
+      "./plugins/withWeatherWidget.js",
       [
         "expo-build-properties",
         {
