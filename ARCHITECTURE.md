@@ -1464,6 +1464,15 @@ searchCity geokodowanie), `store/weatherStore.ts` (lokalizacja gps|city + cache)
 uprawnienie ACCESS_COARSE_LOCATION w app.json), `components/weather/
 WeatherSheet.tsx` (teraz, 24 h, 7 dni, powietrze z normami WHO, zmiana lokalizacji).
 
+**Daily** (2026-11-13): Sen (kompaktowo, `utils/sleepStats.ts`, szczegóły w
+`components/health/SleepSheet.tsx` + `Hypnogram.tsx`), Plan dnia (`utils/dayPlan.ts`:
+wydarzenia z wybranych tagów `[UR]`/`[JD]` + zadania z `scheduledDate`/deadline na
+dzień, skrót jutra; tagi w `store/dayPlanStore.ts`, wybór w `components/daily/
+DayPlanTagsSheet.tsx`), Kroki (`components/health/BodySheet.tsx`: waga ręczna w
+`healthStore.manualWeights`, tętno, woda), Humor (kropki 7 dni). Health Connect:
+`healthStore.history` (30 dni), `useHealthSync` dociąga 6 dni wstecz; test
+wszystkich typów: `app/health-debug.tsx` (Ustawienia → Połączenia).
+
 ## SUBSKRYPCJE / "Stałe opłaty" [PE]
 
 Port z sapp (2026-11-09, user: "czy w sapp mozemy eksportować szablony te do
