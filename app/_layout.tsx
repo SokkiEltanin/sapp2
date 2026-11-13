@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCalendarStore } from '@/store/calendarStore';
-import { syncTasksWidget } from '@/services/widgetSync';
+import { syncTasksWidget, applyWidgetAppearance } from '@/services/widgetSync';
+import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
 import { drainWidgetToggleQueue } from '@/services/widgetToggleDrain';
 import { View, ActivityIndicator, AppState, Dimensions, Image } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
@@ -163,7 +164,12 @@ export default function RootLayout() {
       if (t) clearTimeout(t);
       t = setTimeout(flush, 400);
     });
-    const start = setTimeout(() => { drainWidgetToggleQueue().finally(flush); }, 1200);
+    const start = setTimeout(() => {
+      drainWidgetToggleQueue().finally(flush);
+      // Odtwórz wygląd (np. po przywróceniu kopii na nowym telefonie).
+      const w = useWidgetSettingsStore.getState();
+      applyWidgetAppearance(w.bgOpacity, w.bgColor, w.textScale);
+    }, 1200);
     const sub = AppState.addEventListener('change', (state) => { if (state === 'active') drainWidgetToggleQueue(); });
     return () => { unsub(); sub.remove(); clearTimeout(start); if (t) clearTimeout(t); };
   }, []);

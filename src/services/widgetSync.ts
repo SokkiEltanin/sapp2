@@ -20,3 +20,9 @@ export async function syncTasksWidget(tasks: Task[]): Promise<void> {
     NativeModules.TasksWidget?.requestUpdate?.();
   } catch { /* widget to dodatek — nigdy nie blokuje appki */ }
 }
+
+// Wygląd (Ustawienia → Widget): natywny zapis do SharedPreferences + przemalowanie.
+export function applyWidgetAppearance(opacity: number, color: string, textScale: string): void {
+  if (Platform.OS !== 'android') return;
+  try { NativeModules.TasksWidget?.setAppearance?.(opacity, color, textScale); } catch { /* stary APK */ }
+}

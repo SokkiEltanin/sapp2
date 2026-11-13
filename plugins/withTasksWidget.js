@@ -2,9 +2,11 @@
 // pulpit, bo to by się w sumie przydało"; prośba z 2026-10-26 "tak jak w sapp").
 // Port sapp's plugins/withTasksWidget.js — natywny Kotlin wpięty config-pluginem,
 // ŚWIADOMIE bez zewnętrznej biblioteki widgetów (sapp już raz miał build-breaking
-// problem z takim pakietem na SDK 54). Różnice vs sapp: tło = statyczny drawable w
-// kolorze kafli sapp2 (bez sliderów przezroczystości/koloru — nikt o nie nie prosił),
-// zero emotek (CLAUDE.md zasada 9), deep link `sapp2://tasks`.
+// problem z takim pakietem na SDK 54). Wygląd (2026-11-13, user: "ma ustawienia
+// przezroczystości?") jak w sapp: przezroczystość/kolor tła/wielkość tekstu z
+// Ustawień → `TasksWidgetModule.setAppearance()` → SharedPreferences; tło rysowane
+// jako bitmapa (jedyny sposób na dowolny kolor+alpha z zaokrąglonymi rogami w
+// RemoteViews). Zero emotek (CLAUDE.md zasada 9), deep link `sapp2://tasks`.
 //
 // Przepływ: JS (services/widgetSync.ts) pisze JSON snapshot do filesDir i woła
 // `TasksWidgetModule.requestUpdate()`; `TasksWidgetProvider.updateAll()` renderuje do 6
@@ -33,8 +35,14 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
 import android.net.Uri
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import org.json.JSONArray
@@ -56,6 +64,10 @@ class ${PROVIDER_CLASS} : AppWidgetProvider() {
   }
 
   companion object {
+    const val PREFS_NAME = "TasksWidgetPrefs"
+    const val PREF_BG_OPACITY = "bg_opacity"  // Int 0-100
+    const val PREF_BG_COLOR = "bg_color"      // String hex
+    const val PREF_TEXT_SCALE = "text_scale"  // "small" | "medium" | "large"
     const val ACTION_TOGGLE = "${pkg}.WIDGET_TASK_TOGGLE"
     const val EXTRA_TASK_ID = "task_id"
     const val TASKS_FILE = "widget_tasks.json"
@@ -66,6 +78,35 @@ class ${PROVIDER_CLASS} : AppWidgetProvider() {
     private val TITLE_IDS = intArrayOf(${ids('title')})
     private val SUB_IDS = intArrayOf(${ids('sub')})
     private val CHECK_IDS = intArrayOf(${ids('check')})
+
+    fun prefs(context: Context): SharedPreferences =
+      context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    private fun bgBitmap(context: Context, argb: Int): Bitmap {
+      val d = context.resources.displayMetrics.density
+      val w = (300 * d).toInt().coerceAtLeast(1)
+      val h = (160 * d).toInt().coerceAtLeast(1)
+      val radius = 22f * d
+      val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+      val canvas = Canvas(bmp)
+      val rect = RectF(1f, 1f, w - 1f, h - 1f)
+      canvas.drawRoundRect(rect, radius, radius, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = argb; style = Paint.Style.FILL })
+      val strokeAlpha = (Color.alpha(argb) * 0x22 / 255).coerceIn(0, 255)
+      canvas.drawRoundRect(rect, radius, radius, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = (strokeAlpha shl 24) or 0x00FFFFFF; style = Paint.Style.STROKE; strokeWidth = d
+      })
+      return bmp
+    }
+
+    private fun applyTextScale(views: RemoteViews, scale: String) {
+      val mult = when (scale) { "small" -> 0.85f; "large" -> 1.2f; else -> 1f }
+      views.setTextViewTextSize(R.id.widget_header, TypedValue.COMPLEX_UNIT_SP, 10f * mult)
+      views.setTextViewTextSize(R.id.widget_empty, TypedValue.COMPLEX_UNIT_SP, 13f * mult)
+      for (i in 0 until ROWS) {
+        views.setTextViewTextSize(TITLE_IDS[i], TypedValue.COMPLEX_UNIT_SP, 13f * mult)
+        views.setTextViewTextSize(SUB_IDS[i], TypedValue.COMPLEX_UNIT_SP, 10f * mult)
+      }
+    }
 
     fun updateAll(context: Context) {
       try {
@@ -79,6 +120,21 @@ class ${PROVIDER_CLASS} : AppWidgetProvider() {
 
     private fun buildViews(context: Context): RemoteViews {
       val views = RemoteViews(context.packageName, R.layout.tasks_widget)
+      val p = prefs(context)
+      val opacity = p.getInt(PREF_BG_OPACITY, 100).coerceIn(0, 100)
+      if (opacity <= 0) {
+        views.setViewVisibility(R.id.widget_bg_image, View.GONE)
+      } else {
+        views.setViewVisibility(R.id.widget_bg_image, View.VISIBLE)
+        try {
+          val rgb = Color.parseColor(p.getString(PREF_BG_COLOR, "#141414") ?: "#141414") and 0x00FFFFFF
+          val argb = ((opacity * 255 / 100).coerceIn(0, 255) shl 24) or rgb
+          views.setImageViewBitmap(R.id.widget_bg_image, bgBitmap(context, argb))
+        } catch (e: Exception) {
+          views.setViewVisibility(R.id.widget_bg_image, View.GONE)
+        }
+      }
+      applyTextScale(views, p.getString(PREF_TEXT_SCALE, "medium") ?: "medium")
       val openIntent = Intent(Intent.ACTION_VIEW, Uri.parse("${SCHEME}://tasks")).apply {
         setPackage(context.packageName)
       }
@@ -184,6 +240,18 @@ class ${MODULE_CLASS}(reactContext: ReactApplicationContext) : ReactContextBaseJ
   fun requestUpdate() {
     ${PROVIDER_CLASS}.updateAll(reactApplicationContext)
   }
+
+  // Ustawienia → Widget (przezroczystość / kolor tła / wielkość tekstu) —
+  // jeden zapis SharedPreferences + jedno przemalowanie.
+  @ReactMethod
+  fun setAppearance(opacityPct: Double, color: String, textScale: String) {
+    ${PROVIDER_CLASS}.prefs(reactApplicationContext).edit()
+      .putInt(${PROVIDER_CLASS}.PREF_BG_OPACITY, opacityPct.toInt())
+      .putString(${PROVIDER_CLASS}.PREF_BG_COLOR, color)
+      .putString(${PROVIDER_CLASS}.PREF_TEXT_SCALE, textScale)
+      .apply()
+    ${PROVIDER_CLASS}.updateAll(reactApplicationContext)
+  }
 }
 `;
 }
@@ -253,13 +321,22 @@ function widgetRowXml(i) {
 function widgetLayoutXml() {
   const rows = Array.from({ length: ROWS }, (_, i) => widgetRowXml(i)).join('\n');
   return `<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@drawable/widget_bg"
-    android:padding="12dp">
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/widget_bg_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="12dp">
 
     <TextView
         android:id="@+id/widget_header"
@@ -282,18 +359,12 @@ function widgetLayoutXml() {
         android:visibility="gone" />
 
 ${rows}
-</LinearLayout>
+    </LinearLayout>
+</FrameLayout>
 `;
 }
 
 const drawables = {
-  widget_bg: `<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#141414" />
-    <corners android:radius="22dp" />
-    <stroke android:width="1dp" android:color="#222222" />
-</shape>
-`,
   widget_dot_circle: `<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
     <solid android:color="#FFFFFF" />

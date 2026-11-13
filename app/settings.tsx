@@ -9,7 +9,7 @@ import {
   Info, Stethoscope, Clock, Bell, Copy,
   LogIn, LogOut, User as UserIcon, Database, CalendarDays, AlertTriangle, Rocket,
   BatteryWarning, AlarmClock, Landmark, Zap, Vibrate, ShieldCheck, History, Watch, Download,
-  CloudUpload, CloudDownload,
+  CloudUpload, CloudDownload, LayoutGrid,
 } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -27,6 +27,8 @@ import { isHealthConnectAvailable, ensureHealthConnect, openHealthConnectSetting
 import { isHapticsEnabled, setHapticsEnabled } from '@/utils/haptics';
 import Toggle from '@/components/design/Toggle';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
+import WidgetAppearanceSheet from '@/components/settings/WidgetAppearanceSheet';
+import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
 import {
   uploadBackup, fetchBackupMeta, restoreBackup, getLastBackupAt, isAutoBackupEnabled, setAutoBackupEnabled,
   type BackupMeta,
@@ -87,6 +89,7 @@ function buildSections(
   hapticsEnabled: boolean,
   health: { connected: boolean; lastSyncedAt: string | null },
   backup: { auto: boolean; lastAt: string | null; busy: boolean; error: string | null },
+  widget: { opacity: number; textScale: string },
 ): SettingsSection[] {
   return [
   {
@@ -191,6 +194,14 @@ function buildSections(
       { kind: 'action', tier: 'sub', permission: true, key: 'alert-exact-alarm', label: 'Dokładne alarmy', description: 'zgoda systemowa wymagana na Androidzie 12+', icon: AlarmClock },
     ],
   },
+  // Widget pulpitu "Zadania" (2026-11-13, user: "ma ustawienia przezroczystości?").
+  {
+    id: 'widget', title: 'Widget na pulpit', icon: LayoutGrid, group: 'main',
+    summary: `Zadania · tło ${widget.opacity === 0 ? 'przezroczyste' : `${widget.opacity}%`} · tekst ${widget.textScale === 'small' ? 'mały' : widget.textScale === 'large' ? 'duży' : 'średni'}`,
+    items: [
+      { kind: 'action', key: 'widget-appearance', label: 'Wygląd widgetu Zadania', description: 'przezroczystość i kolor tła, wielkość tekstu — z podglądem', icon: LayoutGrid },
+    ],
+  },
   {
     id: 'ogolne', title: 'Ogólne', icon: Vibrate, group: 'main',
     summary: `wibracje ${hapticsEnabled ? 'włączone' : 'wyłączone'}`,
@@ -289,6 +300,9 @@ export default function SettingsScreen() {
     isAutoBackupEnabled().then(setBackupAuto).catch(() => {});
     getLastBackupAt().then(setBackupLastAt).catch(() => {});
   }, []);
+  const widgetOpacity = useWidgetSettingsStore((st) => st.bgOpacity);
+  const widgetTextScale = useWidgetSettingsStore((st) => st.textScale);
+  const [widgetOpen, setWidgetOpen] = useState(false);
   const sections = useMemo(
     () => buildSections(
       user?.email ?? null,
@@ -296,8 +310,9 @@ export default function SettingsScreen() {
       hapticsEnabled,
       { connected: healthConnected, lastSyncedAt: healthLastSyncedAt },
       { auto: backupAuto, lastAt: backupLastAt, busy: backupBusy, error: backupError },
+      { opacity: widgetOpacity, textScale: widgetTextScale },
     ),
-    [user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError],
+    [user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, widgetOpacity, widgetTextScale],
   );
 
   const backupNow = async () => {
@@ -842,6 +857,7 @@ export default function SettingsScreen() {
     'backup-auto': toggleBackupAuto,
     'backup-now': backupNow,
     'backup-restore': openRestore,
+    'widget-appearance': leave(() => setWidgetOpen(true)),
   };
 
   const q = query.trim().toLowerCase();
@@ -1056,6 +1072,7 @@ export default function SettingsScreen() {
           </View>
         )}
       </AppBottomSheet>
+      <WidgetAppearanceSheet visible={widgetOpen} onClose={() => setWidgetOpen(false)} />
     </SafeAreaView>
   );
 }
