@@ -116,6 +116,7 @@ function buildSections(
           : 'stuknij, aby połączyć (sen, kroki, tętno, waga, woda)',
         icon: Watch,
       },
+      { kind: 'action', tier: 'sub', key: 'health-diag', label: 'Test: wszystko z zegarka', description: 'co łapiemy z Health Connect (Samsung Health, zegarek…) — z kopiowaniem raportu', icon: Stethoscope },
     ],
   },
   // Sekcja "Finanse" miała dotąd tylko statyczne "W budowie" — stałe od Fazy 2.1,
@@ -858,6 +859,7 @@ export default function SettingsScreen() {
     'backup-now': backupNow,
     'backup-restore': openRestore,
     'widget-appearance': leave(() => setWidgetOpen(true)),
+    'health-diag': leave(() => router.push('/health-debug' as any)),
   };
 
   const q = query.trim().toLowerCase();

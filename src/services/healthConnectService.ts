@@ -225,3 +225,87 @@ export async function readHealthDay(date: Date): Promise<HealthDaySnapshot> {
     weightKg, restingHeartRate, hydrationMl, sleepStages, sleepStartMs, sleepEndMs,
   };
 }
+
+
+// ── Diagnostyka: wszystko, co łapiemy (2026-11-13, user: "w ustawieniach test
+// wszystkiego, co łapię z zegarka, z Health Connect... do skopiowania, żebyśmy
+// mieli jakąś bazę"). Prosi o odczyt WSZYSTKICH sensownych typów (każdy musi być
+// też w app.json android.permissions — CLAUDE.md zasada 2), czyta ostatnie 7 dni
+// i zwraca raport: ile rekordów, z jakich aplikacji (Samsung Health, zegarek…),
+// przykładowe rekordy. Samsung Health/Galaxy Watch są widoczne TYLKO przez Health
+// Connect (tam, gdzie Samsung Health synchronizuje).
+export const DIAG_RECORD_TYPES = [
+  'Steps', 'Distance', 'FloorsClimbed', 'ElevationGained', 'ActiveCaloriesBurned', 'TotalCaloriesBurned',
+  'BasalMetabolicRate', 'ExerciseSession', 'Speed', 'SleepSession', 'HeartRate', 'RestingHeartRate',
+  'HeartRateVariabilityRmssd', 'OxygenSaturation', 'RespiratoryRate', 'Vo2Max', 'BloodPressure',
+  'BloodGlucose', 'BodyTemperature', 'Weight', 'Height', 'BodyFat', 'BodyWaterMass', 'LeanBodyMass',
+  'BoneMass', 'Hydration', 'Nutrition',
+] as const;
+
+export interface DiagTypeResult {
+  type: string;
+  granted: boolean;
+  count: number;
+  origins: Record<string, number>;
+  first?: string; // ISO najstarszego
+  last?: string;  // ISO najnowszego
+  samples: unknown[];
+  error?: string;
+}
+export interface HealthDiagReport {
+  at: string;
+  sdk: string;
+  days: number;
+  types: DiagTypeResult[];
+}
+
+function slim(r: any): unknown {
+  // Bez długich tablic (np. samples HeartRate po kilkaset) — tylko początek.
+  const out: any = {};
+  for (const [k, v] of Object.entries(r ?? {})) {
+    if (k === 'metadata') { out.origin = (v as any)?.dataOrigin; out.device = (v as any)?.device; continue; }
+    if (Array.isArray(v)) { out[k] = v.slice(0, 3); if (v.length > 3) out[`${k}Count`] = v.length; continue; }
+    out[k] = v;
+  }
+  return out;
+}
+
+export async function healthDiagnostics(days = 7): Promise<HealthDiagReport> {
+  const lib = await mod();
+  const report: HealthDiagReport = { at: new Date().toISOString(), sdk: 'brak modułu', days, types: [] };
+  if (!lib) return report;
+  try {
+    const st = await lib.getSdkStatus();
+    report.sdk = st === lib.SdkAvailabilityStatus.SDK_AVAILABLE ? 'dostępny' : `status ${st}`;
+    if (st !== lib.SdkAvailabilityStatus.SDK_AVAILABLE) return report;
+    if (!inited) inited = await lib.initialize();
+  } catch (e: any) {
+    report.sdk = `błąd: ${String(e?.message ?? e)}`;
+    return report;
+  }
+  const perms = DIAG_RECORD_TYPES.map((t) => ({ accessType: 'read' as const, recordType: t }));
+  try { await lib.requestPermission(perms as any); } catch { /* część typów może być nieobsługiwana — czytamy, co się da */ }
+  let granted = new Set<string>();
+  try { granted = new Set(((await lib.getGrantedPermissions()) as any[]).filter((p) => p.accessType === 'read').map((p) => p.recordType)); } catch { /* */ }
+  const filter = { operator: 'between' as const, startTime: new Date(Date.now() - days * 86400_000).toISOString(), endTime: new Date().toISOString() };
+  for (const type of DIAG_RECORD_TYPES) {
+    const res: DiagTypeResult = { type, granted: granted.has(type), count: 0, origins: {}, samples: [] };
+    if (res.granted) {
+      try {
+        const recs = await read(lib, type, filter);
+        res.count = recs.length;
+        for (const r of recs) {
+          const o = r?.metadata?.dataOrigin ?? '?';
+          res.origins[o] = (res.origins[o] ?? 0) + 1;
+        }
+        const times = recs.map((r: any) => r.time ?? r.startTime).filter(Boolean).sort();
+        res.first = times[0]; res.last = times[times.length - 1];
+        res.samples = recs.slice(-2).map(slim);
+      } catch (e: any) {
+        res.error = String(e?.message ?? e);
+      }
+    }
+    report.types.push(res);
+  }
+  return report;
+}
