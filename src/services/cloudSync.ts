@@ -15,6 +15,7 @@ import { useWorkStore } from '@/store/workStore';
 import { useHealthStore } from '@/store/healthStore';
 import { useBalanceStore } from '@/store/balanceStore';
 import { useDayPlanStore } from '@/store/dayPlanStore';
+import { useBudgetsStore } from '@/store/budgetsStore';
 import { getBalanceOffset } from '@/utils/balance';
 import {
   planInitialMerge, applyRemote, diffByHash, itemHash, planDocMerge, stripMeta,
@@ -78,6 +79,7 @@ const bindings: Binding<any>[] = [
   listBinding('sync_replacements', S(useReplacementsStore), 'items'),
   listBinding('sync_vehicles', S(useVehiclesStore), 'vehicles'),
   listBinding('sync_employers', S(useWorkStore), 'employers'),
+  listBinding('sync_budgets', S(useBudgetsStore), 'budgets'),
 ];
 
 // Pojedyncze dokumenty: get → obiekt, set ← obiekt z chmury.

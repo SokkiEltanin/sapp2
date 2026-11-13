@@ -10,6 +10,9 @@ import AddExpenseModal from '@/components/finances/AddExpenseModal';
 import ProductsModal from '@/components/finances/ProductsModal';
 import TransactionsModal from '@/components/finances/TransactionsModal';
 import WydatkiModal from '@/components/dashboard/WydatkiModal';
+import BudgetSheet, { BudgetBar, budgetLine, levelColor } from '@/components/budgets/BudgetSheet';
+import { useBudgetsStore } from '@/store/budgetsStore';
+import { budgetStatuses, scopeLabel } from '@/utils/budgets';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useExpensesStore } from '@/store/expensesStore';
 import { useShareReceiptStore } from '@/store/shareReceiptStore';
@@ -200,6 +203,11 @@ export default function FinancesScreen() {
     ];
   }, [wydatkiData]);
 
+  // Budżety (2026-11-13): najpilniejsze 3 na kafelku, reszta i ustawienia w sheecie.
+  const budgets = useBudgetsStore((st) => st.budgets);
+  const budgetStats = useMemo(() => budgetStatuses(budgets, expenses, now), [budgets, expenses, now]);
+  const [budgetOpen, setBudgetOpen] = useState(false);
+
   const foodCats = wydatkiData.food.categories;
   const foodTotal = parseZl(wydatkiData.food.total);
 
@@ -252,6 +260,24 @@ export default function FinancesScreen() {
           <View style={s.barSpace}>
             <StackBar parts={split} height={10} />
           </View>
+        </Tile>
+      </Row>
+
+      <Row>
+        <Tile span={4} onPress={() => { haptic.tap(); setBudgetOpen(true); }}>
+          <Cap l="Budżet" r={budgetStats.length ? `${budgetStats[0].daysLeft} dni do końca mies.${budgetStats.length > 3 ? ` · +${budgetStats.length - 3}` : ''}` : 'ustaw limit'} />
+          {budgetStats.length === 0 ? (
+            <Text style={[T.small, s.emptyInline]}>Limit na jedzenie, zmienne albo kategorię — ile zostało na dzień</Text>
+          ) : budgetStats.slice(0, 3).map((st) => (
+            <View key={st.budget.id} style={s.budgetRow}>
+              <View style={s.budgetHead}>
+                <Text style={s.budgetName} numberOfLines={1}>{scopeLabel(st.budget.scope)}</Text>
+                <Text style={[s.budgetAmt, { color: levelColor(st) }]}>{Math.round(st.spent)}<Text style={s.budgetOf}> / {st.budget.limit} zł</Text></Text>
+              </View>
+              <BudgetBar s={st} height={5} />
+              <Text style={[s.budgetLine, st.left < 0 && { color: C.warn }]} numberOfLines={1}>{budgetLine(st)}</Text>
+            </View>
+          ))}
         </Tile>
       </Row>
 
@@ -384,6 +410,9 @@ export default function FinancesScreen() {
           onInitialPasteTextConsumed={() => useShareReceiptStore.getState().clear()}
         />
       </LazyMount>
+      <LazyMount visible={budgetOpen}>
+        <BudgetSheet visible={budgetOpen} onClose={() => setBudgetOpen(false)} />
+      </LazyMount>
       <LazyMount visible={productsOpen}>
         <ProductsModal visible={productsOpen} onClose={() => setProductsOpen(false)} />
       </LazyMount>
@@ -448,6 +477,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
 
   barSpace: { marginTop: spacing[3] },
   sideCol: { gap: S.gap },
+  budgetRow: { marginTop: 8, gap: 4 },
+  budgetHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
+  budgetName: { flexShrink: 1, fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: C.txt },
+  budgetAmt: { fontSize: 12.5, fontFamily: 'Inter_900Black', fontVariant: ['tabular-nums'] },
+  budgetOf: { fontSize: 11, fontFamily: 'Inter_700Bold', color: C.mut },
+  budgetLine: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: C.mut },
   sideBtn: { flex: 1, padding: 4, gap: 2 },
   sideBtnLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: C.txt },
   emptyInline: { textAlign: 'center', marginTop: spacing[3] },

@@ -1609,6 +1609,27 @@ powodu co `subscriptionAuto.ts` wyżej.
 rundy). **DO POTWIERDZENIA NA URZĄDZENIU**: realny dodaj/edytuj/usuń na
 telefonie, auto-roll po realnym upływie czasu.
 
+## BUDŻETY [PE] (2026-11-13)
+
+User: "tak, okej" na limit miesięczny na kategorię, ile zostało, ile dziennie,
+ostrzeżenie.
+- **Model** `src/types/budgets.ts` (`scope`: 'all' | 'food' | 'variable' | 'fixed' |
+  'cat:<tag>', `limit` zł/mies.). Store `src/store/budgetsStore.ts` (`budgets-v1`;
+  `setBudget(scope, limit)` dodaje albo zmienia; `notified` = zgłoszone progi, per
+  urządzenie).
+- **Logika** `src/utils/budgets.ts` (testy `__tests__/budgets.test.ts`): zakresy =
+  te same kubły co "Podział" (`fvSplitOf`; kategoria = jej wkład do Zmiennych,
+  przelew własny i przychód się nie liczą). `budgetStatus`: wydane, zostało,
+  zł/dzień do końca, prognoza (tempo), poziom over ≥100% / warn ≥80% / pace
+  (prognoza > limit, od 5. dnia). `budgetHistory` (6 pełnych mies.),
+  `suggestLimit` (średnia 3 mies. w górę do 50 zł), `newBudgetAlerts`.
+- **UI**: kafel "Budżet" w Finansach pod Podziałem (3 najpilniejsze, pasek z
+  kreską "dziś") → `components/budgets/BudgetSheet.tsx` (karta na budżet: pasek,
+  historia, limit do zmiany, usuń; "Nowy budżet" z podpowiedzią limitu).
+- **Ostrzeżenia** `services/budgetAlerts.ts` (start w `app/_layout.tsx`): po każdej
+  zmianie wydatków próg 80% i 100% raz w miesiącu → notifee, tap → Finanse.
+- Synchronizacja: kolekcja `sync_budgets`; backup: rehydrate.
+
 ## WYMIANY DOMOWE [PE] (2026-11-13)
 
 User: "ogarnij... wszystko z wymianami, filtrów w dzbanku, do powietrza itp itd i

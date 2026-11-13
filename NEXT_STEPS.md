@@ -73,8 +73,9 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
   o lokalizację przy pierwszym wejściu; po odmowie — wpisanie miasta w szczegółach),
   widget Zadania (dodaj z listy widgetów appki: odhaczanie kółkiem bez otwierania,
   tap otwiera Zadania), Daily: trening tapem (tydzień/miesiąc/seria).
-- **Budżety i limity** — user: "tak, okej" (2026-11-13), następne w kolejce: limit
-  miesięczny na kategorię, ile zostało, ile dziennie do końca miesiąca, ostrzeżenie.
+- **[sprawdź] Budżety (2026-11-13, ZROBIONE)**: Finanse → kafel "Budżet" → limit na
+  jedzenie/zmienne/kategorię; ostrzeżenie przy 80% i 100% (powiadomienie raz w
+  miesiącu na próg). Do decyzji: budżet tygodniowy, przenoszenie niewydanej kwoty.
 - **Dashboard** — user planuje usunąć Finanse z Dashboardu (są w zakładce) i coś
   zmienić w kalendarzu; jeszcze nie wie na co — czekać na decyzję.
 - **Audyt zasady 10 (CLAUDE.md: "ekran = dane, nie konfiguracja")** — user

@@ -44,6 +44,7 @@ export function useNotifeeAlertLaunch() {
           if (data.route === 'alert-test') router.replace('/alert-test');
           else if (data.route === 'subscriptions' && pressed) router.push('/subscriptions');
           else if (data.route === 'replacements' && pressed) router.push('/replacements' as any);
+          else if (data.route === 'finances' && pressed) router.push('/finances' as any);
         };
 
         const initial = await notifee.getInitialNotification();
