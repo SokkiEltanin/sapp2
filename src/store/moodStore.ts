@@ -32,7 +32,7 @@ export const useMoodStore = create<MoodState>()(
       addEntries: (entries) => set((state) => ({ entries: [...state.entries, ...entries] })),
       updateEntry: (id, updates) =>
         set((state) => ({
-          entries: state.entries.map((e) => (e.id === id ? { ...e, ...updates } : e)),
+          entries: state.entries.map((e) => (e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString() } : e)),
         })),
       deleteEntry: (id) =>
         set((state) => ({ entries: state.entries.filter((e) => e.id !== id) })),

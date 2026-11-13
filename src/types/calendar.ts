@@ -28,6 +28,7 @@ export interface CalendarEvent {
   priority: EventPriority;
   color?: string;
   createdAt: string;
+  updatedAt?: string;  // stemplowany przez calendarStore (synchronizacja, 2026-11-13)
 }
 
 // Czy event OBEJMUJE dany dzień (YYYY-MM-DD) — jednodniowy: tylko swój dzień;

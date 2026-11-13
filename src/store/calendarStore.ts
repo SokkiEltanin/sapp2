@@ -46,10 +46,12 @@ export const useCalendarStore = create<CalendarState>()(
 
       setEvents: (events) => set({ events }),
       setGcalEvents: (gcalEvents) => set({ gcalEvents }),
-      addEvent: (event) => set((state) => ({ events: [...state.events, event] })),
+      // `updatedAt` stemplowany tu (2026-11-13, synchronizacja między urządzeniami —
+      // services/cloudSync.ts rozstrzyga konflikty "wygrywa nowsza zmiana").
+      addEvent: (event) => set((state) => ({ events: [...state.events, { updatedAt: new Date().toISOString(), ...event }] })),
       updateEvent: (id, updates) =>
         set((state) => ({
-          events: state.events.map((e) => (e.id === id ? { ...e, ...updates } : e)),
+          events: state.events.map((e) => (e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString() } : e)),
           gcalEvents: state.gcalEvents.map((e) => (e.id === id ? { ...e, ...updates } : e)),
         })),
       deleteEvent: (id) =>
@@ -72,7 +74,7 @@ export const useCalendarStore = create<CalendarState>()(
       addTask: (task) => set((state) => ({ tasks: [...state.tasks, task] })),
       updateTask: (id, updates) =>
         set((state) => ({
-          tasks: state.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+          tasks: state.tasks.map((t) => (t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t)),
         })),
       deleteTask: (id) =>
         set((state) => ({ tasks: state.tasks.filter((t) => t.id !== id) })),

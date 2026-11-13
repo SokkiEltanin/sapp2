@@ -1473,6 +1473,18 @@ DayPlanTagsSheet.tsx`), Kroki (`components/health/BodySheet.tsx`: waga ręczna w
 `healthStore.history` (30 dni), `useHealthSync` dociąga 6 dni wstecz; test
 wszystkich typów: `app/health-debug.tsx` (Ustawienia → Połączenia).
 
+**Synchronizacja między urządzeniami** (2026-11-13, user: telefon + komputer +
+zegarek, "ma działać smooth"): local-first. `services/cloudSync.ts` — dla każdej
+kolekcji (`sync_tasks`, `sync_events`, `sync_mood` w `users/{uid}/`): po
+zalogowaniu i wczytaniu store'ów scalenie z chmurą (`utils/syncMerge.ts`'s
+planInitialMerge — wygrywa nowsza zmiana: lokalnie `updatedAt`, w chmurze `_u`),
+potem zustand subscribe → diff (odłożony 300 ms) → writeBatch, i onSnapshot →
+zmiany z innych urządzeń prosto do store'a. Usunięcia = dokument `{_deleted:true}`
++ lokalna lista `sync-deletes-v1` (offline). Store'y stemplują `updatedAt` w
+update*. Status: `useSyncStatus` (Ustawienia → Dane). Następne kolekcje (wydatki,
+stałe opłaty…) = dopisać Binding w `bindings`. gcalEvents NIE są synchronizowane
+(każde urządzenie czyta Google Calendar samo).
+
 ## SUBSKRYPCJE / "Stałe opłaty" [PE]
 
 Port z sapp (2026-11-09, user: "czy w sapp mozemy eksportować szablony te do

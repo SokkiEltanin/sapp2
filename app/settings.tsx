@@ -29,6 +29,7 @@ import Toggle from '@/components/design/Toggle';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import WidgetAppearanceSheet from '@/components/settings/WidgetAppearanceSheet';
 import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
+import { useSyncStatus } from '@/services/cloudSync';
 import {
   uploadBackup, fetchBackupMeta, restoreBackup, getLastBackupAt, isAutoBackupEnabled, setAutoBackupEnabled,
   type BackupMeta,
@@ -90,6 +91,7 @@ function buildSections(
   health: { connected: boolean; lastSyncedAt: string | null },
   backup: { auto: boolean; lastAt: string | null; busy: boolean; error: string | null },
   widget: { opacity: number; textScale: string },
+  sync: string,
 ): SettingsSection[] {
   return [
   {
@@ -169,6 +171,8 @@ function buildSections(
       },
       { kind: 'action', tier: 'sub', key: 'backup-now', label: 'Zrób kopię teraz', description: backup.busy ? 'trwa…' : backup.error ? `nie udało się: ${backup.error}` : 'wszystkie dane appki na Twoje konto (Firestore)', icon: CloudUpload },
       { kind: 'action', tier: 'sub', key: 'backup-restore', label: 'Przywróć z kopii', description: 'np. po zmianie telefonu — najpierw pokaże, co jest w kopii', icon: CloudDownload },
+      // Synchronizacja na żywo między urządzeniami (2026-11-13, services/cloudSync.ts).
+      { kind: 'value', key: 'sync-status', label: 'Synchronizacja urządzeń', description: 'zadania, kalendarz i humor — telefon, komputer, zegarek', icon: CloudUpload, value: sync },
     ],
   },
   // Faza 3.13 (2026-11-02, user: "podziel ustawienia na kategorie porozmieszczaj to
@@ -301,6 +305,12 @@ export default function SettingsScreen() {
     isAutoBackupEnabled().then(setBackupAuto).catch(() => {});
     getLastBackupAt().then(setBackupLastAt).catch(() => {});
   }, []);
+  const syncState = useSyncStatus((st) => st.state);
+  const syncLastAt = useSyncStatus((st) => st.lastAt);
+  const syncError = useSyncStatus((st) => st.error);
+  const syncLabel = syncState === 'ok'
+    ? `działa${syncLastAt ? ` · ${new Date(syncLastAt).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}` : ''}`
+    : syncState === 'connecting' ? 'łączę…' : syncState === 'error' ? `błąd: ${(syncError ?? '').slice(0, 40)}` : 'wyłączona';
   const widgetOpacity = useWidgetSettingsStore((st) => st.bgOpacity);
   const widgetTextScale = useWidgetSettingsStore((st) => st.textScale);
   const [widgetOpen, setWidgetOpen] = useState(false);
@@ -312,8 +322,9 @@ export default function SettingsScreen() {
       { connected: healthConnected, lastSyncedAt: healthLastSyncedAt },
       { auto: backupAuto, lastAt: backupLastAt, busy: backupBusy, error: backupError },
       { opacity: widgetOpacity, textScale: widgetTextScale },
+      syncLabel,
     ),
-    [user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, widgetOpacity, widgetTextScale],
+    [user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, widgetOpacity, widgetTextScale, syncLabel],
   );
 
   const backupNow = async () => {
