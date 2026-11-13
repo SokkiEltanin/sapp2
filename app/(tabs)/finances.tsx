@@ -18,7 +18,8 @@ import { useCalendarStore } from '@/store/calendarStore';
 import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import { workMonthProgress } from '@/utils/workMonth';
 import { upcomingPayments } from '@/utils/recurringBills';
-import { getBalanceOffset, setBalanceOffset, accountBalance, affectsBalance } from '@/utils/balance';
+import { accountBalance, affectsBalance } from '@/utils/balance';
+import { useBalanceStore } from '@/store/balanceStore';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
 import { haptic } from '@/utils/haptics';
 import { todayISO } from '@/utils/date';
@@ -87,7 +88,8 @@ export default function FinancesScreen() {
   const [productsOpen, setProductsOpen] = useState(false);
   const [transactionsOpen, setTransactionsOpen] = useState(false);
   const [wydatkiOpen, setWydatkiOpen] = useState(false);
-  const [offset, setOffset] = useState(0);
+  const offset = useBalanceStore((st) => st.offset) ?? 0;
+  const setOffset = useBalanceStore((st) => st.setOffset);
   const [editingBalance, setEditingBalance] = useState(false);
   const [balanceInput, setBalanceInput] = useState('');
   const balanceInputRef = useRef<TextInput>(null);
@@ -144,7 +146,6 @@ export default function FinancesScreen() {
   // Ile KOLEJNYCH płatności w ciągu 30 dni po najbliższej — "+2 w 30 dni".
   const moreSoon = useMemo(() => upcoming.slice(1).filter((p) => p.daysUntil <= 30).length, [upcoming]);
 
-  useEffect(() => { getBalanceOffset().then(setOffset); }, []);
 
   const balance = useMemo(() => accountBalance(expenses, offset), [expenses, offset]);
   const monthKey = today.slice(0, 7);
@@ -164,7 +165,6 @@ export default function FinancesScreen() {
       haptic.success();
       const netWithoutOffset = balance - offset;
       const newOffset = real - netWithoutOffset;
-      await setBalanceOffset(newOffset);
       setOffset(newOffset);
     }
     setEditingBalance(false);

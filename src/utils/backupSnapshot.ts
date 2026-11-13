@@ -18,7 +18,9 @@ export const BACKUP_CHUNK_CHARS = 300_000;
 // przywrócenie cudzej/starej sesji nadpisałoby bieżące logowanie. Własne
 // klucze kopii (data ostatniej kopii, włącznik) też nie.
 export function shouldBackupKey(key: string): boolean {
-  return !key.startsWith('firebase:') && !key.startsWith(BACKUP_KEY_PREFIX);
+  // `sync-*` (2026-11-13): stan synchronizacji jest per urządzenie — po przywróceniu
+  // kopii (np. na nowym telefonie) synchronizacja ma zacząć od pełnego scalenia.
+  return !key.startsWith('firebase:') && !key.startsWith(BACKUP_KEY_PREFIX) && !key.startsWith('sync-');
 }
 
 export function chunkString(s: string, size: number = BACKUP_CHUNK_CHARS): string[] {

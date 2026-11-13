@@ -46,6 +46,13 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
   Jeśli nadal laguje — zgłoś który ekran/akcja, zmierzę konkretnie.
 - **[sprawdź] Pogoda/sen w kafelkach**: legendy (deszcz % / chmury %, pasek 7 dni),
   "Radar opadów" otwiera RainViewer w przeglądarce.
+- **[sprawdź] Synchronizacja telefon ↔ komputer (2026-11-13)**: wydatki, stałe
+  opłaty, wymiany, pojazdy, praca, saldo, sen/kroki (podgląd na komputerze).
+  Pierwsze uruchomienie nowej wersji na telefonie wysyła wszystko (przy tysiącach
+  wydatków chwilę potrwa), potem tylko zmiany. Wymaga reguł Firestore
+  `users/{uid}/{document=**}` (już ustawione dla zadań) i GitHub Pages dla komputera.
+- **Zegarek (Wear OS)** — decyzja usera: tylko proste rzeczy, których zegarek nie
+  ma sam (ostatnie wydatki, zadania na dziś, ewentualnie humor); sen ma natywnie.
 - **[sprawdź] Wymiany** (Finanse → Wymiany): dodaj filtr/końcówki z szablonu,
   ✓ = wymienione dziś, przypomnienie o 9:00. Paragon z „Dafi”/„Oral-B” itp. →
   karta „wymienione?”. Pomysły na potem: sync między urządzeniami (jak zadania),

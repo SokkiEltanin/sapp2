@@ -1473,17 +1473,32 @@ DayPlanTagsSheet.tsx`), Kroki (`components/health/BodySheet.tsx`: waga ręczna w
 `healthStore.history` (30 dni), `useHealthSync` dociąga 6 dni wstecz; test
 wszystkich typów: `app/health-debug.tsx` (Ustawienia → Połączenia).
 
-**Synchronizacja między urządzeniami** (2026-11-13, user: telefon + komputer +
-zegarek, "ma działać smooth"): local-first. `services/cloudSync.ts` — dla każdej
-kolekcji (`sync_tasks`, `sync_events`, `sync_mood` w `users/{uid}/`): po
-zalogowaniu i wczytaniu store'ów scalenie z chmurą (`utils/syncMerge.ts`'s
-planInitialMerge — wygrywa nowsza zmiana: lokalnie `updatedAt`, w chmurze `_u`),
-potem zustand subscribe → diff (odłożony 300 ms) → writeBatch, i onSnapshot →
-zmiany z innych urządzeń prosto do store'a. Usunięcia = dokument `{_deleted:true}`
-+ lokalna lista `sync-deletes-v1` (offline). Store'y stemplują `updatedAt` w
-update*. Status: `useSyncStatus` (Ustawienia → Dane). Następne kolekcje (wydatki,
-stałe opłaty…) = dopisać Binding w `bindings`. gcalEvents NIE są synchronizowane
-(każde urządzenie czyta Google Calendar samo).
+**Synchronizacja między urządzeniami** (2026-11-13, user: telefon + komputer;
+"synchronizacja danych, wydatków i w ogóle, żeby był podgląd"): local-first —
+ekrany czytają tylko lokalne store'y. `services/cloudSync.ts`:
+- **Kolekcje** (`users/{uid}/sync_<nazwa>`, dokument = element): tasks, events,
+  mood, expenses, subscriptions, replacements, vehicles (cały pojazd z serwisem i
+  tankowaniami), employers. Nowa kolekcja = `listBinding(...)` w `bindings` +
+  stemplowanie `updatedAt` w update* store'a (ISO albo ms — `localTime` zna oba).
+- **Przyrostowo** (limit darmowych odczytów Firestore przy tysiącach wydatków):
+  per kolekcja w AsyncStorage `sync-col-v2:<nazwa>` = skróty (cyrb53 ze
+  `stableStringify`) elementów potwierdzonych w chmurze + `hw` = czas serwera (`_s`,
+  `serverTimestamp()`) ostatniej widzianej zmiany. Start: `diffByHash` lokalnie vs
+  skróty → kolejka (edycje i usunięcia offline), nasłuch `where('_s' > hw)`.
+  Pierwszy raz na urządzeniu (brak stanu) → pełne `planInitialMerge` (LWW:
+  lokalnie `updatedAt`, w chmurze `_u`). Skrót zapisywany jako potwierdzony
+  dopiero po commit — zamknięcie appki przed wysłaniem nie gubi zmian.
+- **Dokumenty pojedyncze** (`users/{uid}/sync_docs/<nazwa>`): `health` (today,
+  history, wagi — telefon pisze, komputer czyta) i `prefs` (korekta salda
+  `store/balanceStore.ts`, odrzucone rachunki, tagi planu dnia, aktywny pracodawca).
+  `planDocMerge`: pusty dokument nigdy nie nadpisuje pełnego (komputer bez zegarka
+  nie kasuje snu telefonu); pierwszy raz dwa pełne → nowszy `_t`.
+- Usunięcia = `{_deleted:true}` (stara lista `sync-deletes-v1` tylko przy pierwszym
+  pełnym scaleniu). Status: `useSyncStatus` (Ustawienia → Dane). Klucze `sync-*`
+  NIE wchodzą do kopii zapasowej (stan per urządzenie). gcalEvents i pamięci
+  uczące się (sprzedawcy, ceny produktów, aliasy) NIE są synchronizowane.
+- Zegarek (Wear OS, później): tylko proste rzeczy, których zegarek sam nie ma —
+  np. ostatnie wydatki, zadania na dziś (sen/kroki ma natywnie).
 
 **Wersja na komputer (PWA)** (2026-11-13): ten sam kod na web →
 `.github/workflows/web.yml` (expo export web + `scripts/pwa-postbuild.js`: manifest,

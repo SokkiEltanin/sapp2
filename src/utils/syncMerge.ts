@@ -7,7 +7,7 @@
 // usunięcia — zostaje w chmurze, żeby inne urządzenie nie "wskrzesiło" elementu).
 // Konflikt: wygrywa nowsza zmiana (lokalnie: updatedAt elementu; zdalnie: `_u`).
 
-export interface SyncItem { id: string; updatedAt?: string; createdAt?: string }
+export interface SyncItem { id: string; updatedAt?: string | number; createdAt?: string | number }
 export interface RemoteDoc { id: string; data: Record<string, any> }
 
 // JSON z posortowanymi kluczami — porównanie lokalnego i zdalnego bez względu na
@@ -21,12 +21,15 @@ export function stableStringify(v: unknown): string {
 }
 
 export function stripMeta<T>(data: Record<string, any>, id: string): T {
-  const { _u, _deleted, ...rest } = data;
+  const { _u, _deleted, _s, ...rest } = data;
   return { ...rest, id } as T;
 }
 
+// updatedAt bywa ISO (zadania, wydatki) albo ms (pojazdy, subskrypcje).
 export function localTime(item: SyncItem): number {
-  const t = Date.parse(item.updatedAt ?? item.createdAt ?? '');
+  const v = (item.updatedAt ?? item.createdAt) as unknown;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  const t = Date.parse(typeof v === 'string' ? v : '');
   return Number.isFinite(t) ? t : 0;
 }
 
@@ -117,4 +120,63 @@ export function applyRemote<T extends SyncItem>(
     applied.push({ id: c.id, item });
   }
   return { items: [...map.values()], applied };
+}
+
+// ── Synchronizacja przyrostowa (2026-11-13, wydatki itd.) ──────────────────────
+// Przy tysiącach wydatków pełne pobranie kolekcji przy każdym starcie zjadłoby
+// darmowy limit odczytów Firestore. Zamiast tego per kolekcja trzymamy lokalnie
+// (AsyncStorage): skrót (hash) każdego elementu ostatnio zgodnego z chmurą +
+// znacznik czasu serwera ostatniej widzianej zmiany. Start = wyślij lokalne różnice
+// względem skrótów + pobierz tylko dokumenty zmienione po znaczniku.
+
+// cyrb53 — szybki 53-bitowy skrót tekstu (nie kryptograficzny; tu tylko "czy się zmieniło").
+export function hashStr(str: string): string {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+export const itemHash = (item: unknown) => hashStr(stableStringify(item));
+
+// Różnica stanu lokalnego względem znanych skrótów. `refs` — ten sam obiekt co
+// ostatnio (zustand nie kopiuje niezmienionych elementów) = bez liczenia skrótu.
+export function diffByHash<T extends SyncItem>(
+  current: T[],
+  known: Map<string, string>,
+  refs?: Map<string, T>,
+): { upserts: { item: T; hash: string }[]; deletes: string[] } {
+  const upserts: { item: T; hash: string }[] = [];
+  const ids = new Set<string>();
+  for (const it of current) {
+    ids.add(it.id);
+    if (refs && refs.get(it.id) === it && known.has(it.id)) continue;
+    const h = itemHash(it);
+    if (refs) refs.set(it.id, it);
+    if (known.get(it.id) !== h) upserts.push({ item: it, hash: h });
+  }
+  const deletes = [...known.keys()].filter((id) => !ids.has(id));
+  return { upserts, deletes };
+}
+
+// Pojedynczy dokument (np. podsumowanie zdrowia, saldo): co zrobić przy starcie.
+// local/remote = skróty treści; last = skrót ostatnio zgodnego stanu (null = nigdy).
+// Pusty dokument (np. komputer bez danych z zegarka) NIGDY nie nadpisuje pełnego;
+// przy pierwszym spotkaniu dwóch pełnych wygrywa nowszy znacznik (`stamp`, ms).
+export interface DocSide { hash: string; empty: boolean; stamp: number }
+export function planDocMerge(local: DocSide | null, last: string | null, remote: DocSide | null): 'push' | 'pull' | 'none' {
+  if (remote == null) return local != null && !local.empty ? 'push' : 'none';
+  if (local != null && local.hash === remote.hash) return 'none';
+  if (local == null || local.empty) return remote.empty ? 'none' : 'pull';
+  if (remote.empty) return 'push';
+  if (last == null) return local.stamp > remote.stamp ? 'push' : 'pull'; // pierwszy raz na tym urządzeniu
+  return planDocMergeKnown(local.hash, last);
+}
+function planDocMergeKnown(local: string, last: string): 'push' | 'pull' {
+  if (local === last) return 'pull'; // tu bez zmian → zmiana z innego urządzenia
+  return 'push';                     // zmienione tu (offline) → wygrywa lokalne
 }

@@ -55,3 +55,41 @@ describe('diffLocal / applyRemote', () => {
     expect(r.applied.map((x) => x.id)).toEqual(['b', 'c']);
   });
 });
+
+import { hashStr, itemHash, diffByHash, planDocMerge, localTime as lt } from '@/utils/syncMerge';
+describe('przyrostowo', () => {
+  test('skrót stabilny i czuły na zmiany, niezależny od kolejności pól', () => {
+    expect(hashStr('abc')).toBe(hashStr('abc'));
+    expect(hashStr('abc')).not.toBe(hashStr('abd'));
+    expect(itemHash({ a: 1, b: 2 })).toBe(itemHash({ b: 2, a: 1 }));
+  });
+  test('localTime: ISO i ms', () => {
+    expect(lt({ id: 'a', updatedAt: 1000 })).toBe(1000);
+    expect(lt({ id: 'a', updatedAt: '1970-01-01T00:00:01.000Z' })).toBe(1000);
+    expect(lt({ id: 'a' })).toBe(0);
+  });
+  test('diffByHash: nowe, zmienione, usunięte; ten sam obiekt pomijany', () => {
+    const a = { id: 'a', v: 1 }, b = { id: 'b', v: 2 };
+    const known = new Map([['a', itemHash(a)], ['x', 'h']]);
+    const refs = new Map<string, any>();
+    const d = diffByHash([a, b], known, refs);
+    expect(d.upserts.map((u) => u.item.id)).toEqual(['b']);
+    expect(d.deletes).toEqual(['x']);
+    known.set('b', d.upserts[0].hash);
+    expect(diffByHash([a, b], known, refs).upserts).toEqual([]);
+    const b2 = { ...b, v: 3 };
+    expect(diffByHash([a, b2], known, refs).upserts.map((u) => u.item.v)).toEqual([3]);
+  });
+  test('planDocMerge', () => {
+    const D = (hash: string, empty = false, stamp = 0) => ({ hash, empty, stamp });
+    expect(planDocMerge(D('L'), null, null)).toBe('push');
+    expect(planDocMerge(D('E', true), null, null)).toBe('none');       // pusty nie idzie do chmury
+    expect(planDocMerge(D('E', true), null, D('R'))).toBe('pull');
+    expect(planDocMerge(D('L'), null, D('E', true))).toBe('push');     // pusty z komputera nie kasuje telefonu
+    expect(planDocMerge(D('L', false, 5), null, D('R', false, 3))).toBe('push');
+    expect(planDocMerge(D('L', false, 1), null, D('R', false, 3))).toBe('pull');
+    expect(planDocMerge(D('L'), 'L', D('R'))).toBe('pull');
+    expect(planDocMerge(D('L2'), 'L', D('R'))).toBe('push');
+    expect(planDocMerge(D('R'), 'L', D('R'))).toBe('none');
+  });
+});

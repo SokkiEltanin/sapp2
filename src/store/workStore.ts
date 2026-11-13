@@ -35,13 +35,13 @@ export const useWorkStore = create<WorkState>()(
         return emp;
       },
       updateEmployer: (id, patch) => set((s) => ({
-        employers: s.employers.map((e) => (e.id === id ? { ...e, ...patch } : e)),
+        employers: s.employers.map((e) => (e.id === id ? { ...e, ...patch, updatedAt: Date.now() } : e)),
       })),
       // "wyłącz stare żeby były, ale widzieć tylko z nowej pracy" (sapp, user) — miękkie
       // ukrycie z ŁĄCZNYCH statystyk, dane zostają, można odkryć z powrotem. Nigdy nie
       // usuwa pracodawcę z danymi — zbyt ryzykowne dla realnych zarobków bez wyraźnego asku.
       toggleEmployerHidden: (id) => set((s) => ({
-        employers: s.employers.map((e) => (e.id === id ? { ...e, hidden: !e.hidden } : e)),
+        employers: s.employers.map((e) => (e.id === id ? { ...e, hidden: !e.hidden, updatedAt: Date.now() } : e)),
       })),
       setActiveEmployer: (id) => set({ activeEmployerId: id }),
     }),

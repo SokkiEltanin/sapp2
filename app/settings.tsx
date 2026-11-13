@@ -172,7 +172,7 @@ function buildSections(
       { kind: 'action', tier: 'sub', key: 'backup-now', label: 'Zrób kopię teraz', description: backup.busy ? 'trwa…' : backup.error ? `nie udało się: ${backup.error}` : 'wszystkie dane appki na Twoje konto (Firestore)', icon: CloudUpload },
       { kind: 'action', tier: 'sub', key: 'backup-restore', label: 'Przywróć z kopii', description: 'np. po zmianie telefonu — najpierw pokaże, co jest w kopii', icon: CloudDownload },
       // Synchronizacja na żywo między urządzeniami (2026-11-13, services/cloudSync.ts).
-      { kind: 'value', key: 'sync-status', label: 'Synchronizacja urządzeń', description: 'zadania, kalendarz i humor — telefon, komputer, zegarek', icon: CloudUpload, value: sync },
+      { kind: 'value', key: 'sync-status', label: 'Synchronizacja urządzeń', description: 'zadania, kalendarz, humor, wydatki, opłaty, wymiany, pojazdy, praca, sen i kroki — telefon i komputer', icon: CloudUpload, value: sync },
     ],
   },
   // Faza 3.13 (2026-11-02, user: "podziel ustawienia na kategorie porozmieszczaj to

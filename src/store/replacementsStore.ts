@@ -36,7 +36,7 @@ export const useReplacementsStore = create<ReplacementsState>()(
       replaced: (id, date) => set((st) => ({ items: st.items.map((x) => (x.id === id ? markReplaced(x, date) : x)) })),
       undo: (id) => set((st) => ({ items: st.items.map((x) => (x.id === id ? undoLastReplace(x) : x)) })),
       dismissBuy: (id, expenseId) => set((st) => ({
-        items: st.items.map((x) => (x.id === id ? { ...x, dismissedBuys: [...(x.dismissedBuys ?? []), expenseId].slice(-100) } : x)),
+        items: st.items.map((x) => (x.id === id ? { ...x, dismissedBuys: [...(x.dismissedBuys ?? []), expenseId].slice(-100), updatedAt: new Date().toISOString() } : x)),
       })),
     }),
     { name: 'replacements-v1', storage: createJSONStorage(() => AsyncStorage), partialize: (st) => ({ items: st.items }) },

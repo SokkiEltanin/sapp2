@@ -38,7 +38,8 @@ export const useExpensesStore = create<ExpensesState>()(
       addExpenses: (expenses) => set((state) => ({ expenses: [...state.expenses, ...expenses] })),
       updateExpense: (id, updates) =>
         set((state) => ({
-          expenses: state.expenses.map((e) => (e.id === id ? { ...e, ...updates } : e)),
+          // updatedAt — synchronizacja (wygrywa nowsza zmiana) musi wiedzieć, kiedy.
+          expenses: state.expenses.map((e) => (e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString() } : e)),
         })),
       deleteExpense: (id) =>
         set((state) => ({ expenses: state.expenses.filter((e) => e.id !== id) })),

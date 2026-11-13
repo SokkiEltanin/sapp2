@@ -44,6 +44,7 @@ export interface Employer {
   excludedPayMonths?: string[]; // YYYY-MM wyłączone ze średniej liczonej z wypłat
   hidden?: boolean; // wyłączony z ŁĄCZNYCH statystyk (dane zostają, można odkryć z powrotem)
   createdAt: number;
+  updatedAt?: number; // synchronizacja (2026-11-13)
 }
 
 export const DEFAULT_EMPLOYER_FIELDS: Pick<Employer, 'monthlySalary' | 'hoursPerMonth'> = {
