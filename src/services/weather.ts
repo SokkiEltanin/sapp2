@@ -22,7 +22,7 @@ export async function fetchWeather(lat: number, lon: number, place: string): Pro
   const ll = `latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}`;
   const fcUrl = `${FC}?${ll}&timezone=auto&forecast_days=7&wind_speed_unit=kmh`
     + '&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,wind_gusts_10m,pressure_msl,is_day,uv_index'
-    + '&hourly=temperature_2m,precipitation_probability,precipitation,weather_code'
+    + '&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,cloud_cover'
     + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,sunrise,sunset,uv_index_max';
   const aqUrl = `${AQ}?${ll}&timezone=auto&forecast_days=1&current=european_aqi,pm2_5,pm10,nitrogen_dioxide,ozone`;
   const [fc, aq] = await Promise.all([getJson(fcUrl), getJson(aqUrl).catch(() => null)]);

@@ -1,4 +1,4 @@
-import { parseWeather, weatherCodeInfo, aqiInfo, rainSummary, weatherTip, type WeatherHour } from '@/utils/weather';
+import { parseWeather, weatherCodeInfo, aqiInfo, rainSummary, cloudSummary, weatherTip, type WeatherHour } from '@/utils/weather';
 import fc from './fixtures/openmeteo-forecast.json';
 import aq from './fixtures/openmeteo-air.json';
 
@@ -52,6 +52,15 @@ describe('rainSummary', () => {
   test('sucho cały czas', () => {
     expect(rainSummary([h(7, 0), h(8, 0)])).toBe('bez deszczu przez 12 h');
   });
+});
+
+describe('cloudSummary', () => {
+  const c = (hour: number, cloud?: number): WeatherHour => ({ time: `2026-11-13T${String(hour).padStart(2, '0')}:00`, temp: 5, pop: 0, precip: 0, code: 3, cloud });
+  test('brak danych → pusto', () => expect(cloudSummary([c(7), c(8)])).toBe(''));
+  test('bezchmurnie', () => expect(cloudSummary([c(7, 10), c(8, 20)])).toBe('bezchmurnie'));
+  test('cały dzień', () => expect(cloudSummary([c(7, 90), c(8, 80)])).toBe('pochmurno cały dzień'));
+  test('najdłuższy ciąg', () => expect(cloudSummary([c(7, 10), c(8, 80), c(9, 75), c(10, 90), c(11, 20), c(12, 80), c(13, 10)])).toBe('pochmurno 08:00–11:00'));
+  test('pojedyncze godziny → zmienne', () => expect(cloudSummary([c(7, 10), c(8, 80), c(9, 20)])).toBe('zmienne zachmurzenie'));
 });
 
 describe('weatherTip', () => {

@@ -4,6 +4,7 @@ import { Moon } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
+import { SheetCard, Legend } from '@/components/design/SheetCard';
 import Hypnogram from './Hypnogram';
 import { useHealthStore } from '@/store/healthStore';
 import { sleepSummary, sleepWeek, vsAverage, fmtDur, PHASE_META, PHASE_COLOR, SLEEP_GOAL_MIN } from '@/utils/sleepStats';
@@ -42,26 +43,26 @@ export default function SleepSheet({ visible, onClose }: { visible: boolean; onC
         <Text style={s.empty}>{connected ? 'Brak danych o śnie z dzisiejszej nocy — zegarek jeszcze nie zsynchronizował.' : 'Połącz zegarek w Ustawieniach → Połączenia, żeby widzieć sen.'}</Text>
       ) : (
         <>
+          <SheetCard>
           <Text style={s.big}>{fmtDur(sum.total)}</Text>
           <Text style={s.sub}>{today?.sleepFrom} – {today?.sleepTo}{cmp ? ` · ${cmp}` : ''}</Text>
+          </SheetCard>
 
-          <View style={s.grid}>
-            <View style={s.cell}><Text style={s.val}>{fmtDur(sum.asleep)}</Text><Text style={s.key}>sen właściwy</Text></View>
-            <View style={s.cell}><Text style={s.val}>{sum.efficiency != null ? `${sum.efficiency}%` : '—'}</Text><Text style={s.key}>wydajność</Text></View>
-            <View style={s.cell}><Text style={s.val}>{spans.length ? awakenings : '—'}</Text><Text style={s.key}>wybudzenia</Text></View>
-            <View style={s.cell}><Text style={s.val}>{firstDeepMin != null ? `${firstDeepMin} min` : '—'}</Text><Text style={s.key}>do 1. głębokiego</Text></View>
+          <View style={s.miniRow}>
+            <View style={s.mini}><Text style={s.val}>{fmtDur(sum.asleep)}</Text><Text style={s.key}>sen właściwy</Text></View>
+            <View style={s.mini}><Text style={s.val}>{sum.efficiency != null ? `${sum.efficiency}%` : '—'}</Text><Text style={s.key}>wydajność</Text></View>
+            <View style={s.mini}><Text style={s.val}>{spans.length ? awakenings : '—'}</Text><Text style={s.key}>wybudzenia</Text></View>
+            <View style={s.mini}><Text style={s.val}>{firstDeepMin != null ? `${firstDeepMin} min` : '—'}</Text><Text style={s.key}>do 1. głębokiego</Text></View>
           </View>
 
           {spans.length > 0 && start != null && end != null && (
-            <>
-              <Text style={s.section}>Przebieg nocy</Text>
+            <SheetCard title="Przebieg nocy">
               <Hypnogram spans={spans} start={start} end={end} />
-            </>
+            </SheetCard>
           )}
 
           {sum.hasPhases && (
-            <>
-              <Text style={s.section}>Fazy</Text>
+            <SheetCard title="Fazy" right={<Legend items={[{ color: colors.text.secondary, label: 'twój %' }, { color: colors.text.muted, label: 'norma' }]} />}>
               {sum.phases.map((p) => {
                 const [lo, hi] = PHASE_META[p.kind].norm;
                 return (
@@ -77,15 +78,18 @@ export default function SleepSheet({ visible, onClose }: { visible: boolean; onC
                   </View>
                 );
               })}
-              <Text style={s.note}>Szare zakresy = typowe dla dorosłych. Pomarańczowy procent = poza zakresem.</Text>
-            </>
+              <Text style={s.note}>Norma = typowy udział fazy u dorosłych. Pomarańczowy % = poza normą.</Text>
+            </SheetCard>
           )}
         </>
       )}
 
       {week.count > 0 && (
         <>
-          <Text style={s.section}>Ostatnie 7 nocy</Text>
+          <SheetCard
+            title="Ostatnie 7 nocy"
+            right={<Legend items={[{ color: colors.text.muted, label: 'cel 8 h', line: true }, { color: colors.accent.orange, label: '< 7 h' }, { color: PHASE_COLOR.rem, label: 'dziś' }]} />}
+          >
           <View style={s.weekRow}>
             {week.nights.map((n, i) => {
               const [y, m, d] = n.date.split('-').map(Number);
@@ -105,13 +109,14 @@ export default function SleepSheet({ visible, onClose }: { visible: boolean; onC
               );
             })}
           </View>
-          <View style={s.grid}>
-            <View style={s.cell}><Text style={s.val}>{week.avgMinutes != null ? fmtDur(week.avgMinutes) : '—'}</Text><Text style={s.key}>średnio</Text></View>
-            <View style={s.cell}><Text style={s.val}>{week.avgBedtime ?? '—'}</Text><Text style={s.key}>zasypiasz ok.</Text></View>
-            <View style={s.cell}><Text style={s.val}>{week.avgWake ?? '—'}</Text><Text style={s.key}>wstajesz ok.</Text></View>
-            <View style={s.cell}><Text style={[s.val, week.debtMin > 120 && { color: colors.accent.orange }]}>{fmtDur(week.debtMin)}</Text><Text style={s.key}>brakuje do 8 h</Text></View>
+          <Text style={s.note}>Liczba nad słupkiem = godziny snu.</Text>
+          </SheetCard>
+          <View style={s.miniRow}>
+            <View style={s.mini}><Text style={s.val}>{week.avgMinutes != null ? fmtDur(week.avgMinutes) : '—'}</Text><Text style={s.key}>średnio</Text></View>
+            <View style={s.mini}><Text style={s.val}>{week.avgBedtime ?? '—'}</Text><Text style={s.key}>zasypiasz ok.</Text></View>
+            <View style={s.mini}><Text style={s.val}>{week.avgWake ?? '—'}</Text><Text style={s.key}>wstajesz ok.</Text></View>
+            <View style={s.mini}><Text style={[s.val, week.debtMin > 120 && { color: colors.accent.orange }]}>{fmtDur(week.debtMin)}</Text><Text style={s.key}>brakuje do 8 h</Text></View>
           </View>
-          <Text style={s.note}>Kreska = cel 8 h. Pomarańczowe noce = ponad godzinę poniżej celu.</Text>
         </>
       )}
     </AppBottomSheet>
@@ -119,10 +124,12 @@ export default function SleepSheet({ visible, onClose }: { visible: boolean; onC
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
-  head: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  head: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[2] },
   title: { fontSize: 17, fontFamily: 'Inter_900Black', color: c.text.primary },
   empty: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: spacing[3], lineHeight: 19 },
-  big: { fontSize: 40, lineHeight: 46, fontFamily: 'Inter_900Black', color: c.text.primary, letterSpacing: -1.2, marginTop: spacing[3] },
+  big: { fontSize: 40, lineHeight: 46, fontFamily: 'Inter_900Black', color: c.text.primary, letterSpacing: -1.2 },
+  miniRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[2] },
+  mini: { flexGrow: 1, flexBasis: '45%', backgroundColor: c.ui.in, borderRadius: radius.lg, paddingVertical: spacing[2], paddingHorizontal: spacing[3] },
   sub: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing[3], rowGap: spacing[3] },
   cell: { width: '50%' },

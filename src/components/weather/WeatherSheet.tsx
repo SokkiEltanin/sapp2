@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Linking } from 'react-native';
 import * as LucideIcons from 'lucide-react-native';
-import { MapPin, Navigation, RefreshCw, Search } from 'lucide-react-native';
+import { MapPin, Navigation, RefreshCw, Search, Radar, ExternalLink } from 'lucide-react-native';
+import { SheetCard, Legend } from '@/components/design/SheetCard';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useWeatherStore } from '@/store/weatherStore';
 import { refreshWeather } from '@/hooks/useWeather';
 import { searchCity, type CityHit } from '@/services/weather';
-import { weatherCodeInfo, aqiInfo, rainSummary, weatherTip, fmtTemp } from '@/utils/weather';
+import { weatherCodeInfo, aqiInfo, rainSummary, cloudSummary, weatherTip, fmtTemp } from '@/utils/weather';
 import { haptic } from '@/utils/haptics';
 
 // Szczegóły pogody (2026-11-13): teraz (odczuwalna/wilgotność/wiatr/ciśnienie/
@@ -75,7 +76,16 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
     const d = data?.daily.find((x) => x.date === t.slice(0, 10));
     return d ? t >= d.sunrise && t < d.sunset : true;
   };
-  const maxPop = Math.max(1, ...(data?.hourly.map((h) => h.pop) ?? [1]));
+  const clouds = data ? cloudSummary(data.hourly) : '';
+  const hasClouds = !!data?.hourly.some((h) => h.cloud != null);
+  // Radar w przeglądarce/aplikacji RainViewer (nie w appce — interaktywna mapa
+  // w WebView to ciężki element, user: "tylko nie wiem, czy to nie będzie lagować").
+  const coords = location ?? null;
+  const openRadar = () => {
+    if (!coords) return;
+    haptic.tap();
+    Linking.openURL(`https://www.rainviewer.com/map.html?loc=${coords.lat.toFixed(3)},${coords.lon.toFixed(3)},8&layer=radar&sm=1&sn=1`).catch(() => {});
+  };
   const weekMin = data ? Math.min(...data.daily.map((d) => d.min)) : 0;
   const weekMax = data ? Math.max(...data.daily.map((d) => d.max)) : 1;
 
@@ -97,75 +107,98 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
 
       {cur && info && (
         <>
-          <View style={s.nowRow}>
-            <Icon name={info.icon} size={40} />
-            <View style={{ flex: 1 }}>
-              <Text style={s.nowTemp}>{fmtTemp(cur.temp)}</Text>
-              <Text style={s.nowLabel}>{info.label} · odczuwalna {fmtTemp(cur.feels)}</Text>
+          <SheetCard style={{ marginTop: 0 }}>
+            <View style={s.nowRow}>
+              <Icon name={info.icon} size={40} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.nowTemp}>{fmtTemp(cur.temp)}</Text>
+                <Text style={s.nowLabel}>{info.label} · odczuwalna {fmtTemp(cur.feels)}</Text>
+              </View>
+              {today && (
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={s.nowRange}>{fmtTemp(today.max)}</Text>
+                  <Text style={s.nowRangeLo}>{fmtTemp(today.min)}</Text>
+                </View>
+              )}
             </View>
-            {today && <Text style={s.nowRange}>{fmtTemp(today.max)} / {fmtTemp(today.min)}</Text>}
-          </View>
-          <Text style={s.rain}>{rainSummary(data!.hourly)}{today && today.precipSum > 0 ? ` · dziś ${today.precipSum.toFixed(1).replace('.', ',')} mm` : ''}</Text>
-          {tip && <Text style={s.tip}>{tip}</Text>}
+            <Text style={s.rain}>{rainSummary(data!.hourly)}{today && today.precipSum > 0 ? ` · dziś ${today.precipSum.toFixed(1).replace('.', ',')} mm` : ''}</Text>
+            {!!clouds && <Text style={s.cloudLine}>{clouds}</Text>}
+            {tip && <Text style={s.tip}>{tip}</Text>}
+          </SheetCard>
 
-          <View style={s.grid}>
+          <View style={s.miniRow}>
             {[
               ['Wilgotność', `${Math.round(cur.humidity)}%`],
-              ['Wiatr', `${Math.round(cur.wind)} km/h`],
-              ['Porywy', `${Math.round(cur.gusts)} km/h`],
-              ['Ciśnienie', `${Math.round(cur.pressure)} hPa`],
+              ['Wiatr', `${Math.round(cur.wind)}`, 'km/h'],
+              ['Porywy', `${Math.round(cur.gusts)}`, 'km/h'],
+              ['Ciśnienie', `${Math.round(cur.pressure)}`, 'hPa'],
               ['UV max', today ? today.uvMax.toFixed(0) : '—'],
-              ['Słońce', today ? `${hm(today.sunrise)}–${hm(today.sunset)}` : '—'],
-            ].map(([k, v]) => (
-              <View key={k} style={s.gridCell}>
-                <Text style={s.gridVal}>{v}</Text>
-                <Text style={s.gridKey}>{k}</Text>
+              ['Słońce', today ? `${hm(today.sunrise)}` : '—', today ? `do ${hm(today.sunset)}` : undefined],
+            ].map(([k, v, unit]) => (
+              <View key={k} style={s.mini}>
+                <Text style={s.gridVal}>{v}{unit && !unit.startsWith('do') ? <Text style={s.unit}> {unit}</Text> : null}</Text>
+                <Text style={s.gridKey}>{k}{unit?.startsWith('do') ? ` · ${unit}` : ''}</Text>
               </View>
             ))}
           </View>
 
-          <Text style={s.section}>Najbliższe 24 h</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.hours}>
-            {data!.hourly.map((h) => (
-              <View key={h.time} style={s.hour}>
-                <Text style={s.hourT}>{hm(h.time)}</Text>
-                <Icon name={weatherCodeInfo(h.code, isDayAt(h.time)).icon} size={15} color={colors.text.secondary} />
-                <Text style={s.hourTemp}>{fmtTemp(h.temp)}</Text>
-                <View style={s.popBox}>
-                  <View style={[s.popBar, { height: `${(h.pop / maxPop) * 100}%`, opacity: h.pop >= 50 ? 1 : 0.5 }]} />
+          <SheetCard
+            title="24 h"
+            right={<Legend items={[{ color: colors.accent.blue, label: 'deszcz %' }, ...(hasClouds ? [{ color: colors.ui.dim, label: 'chmury %' }] : [])]} />}
+          >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.hours}>
+              {data!.hourly.map((h) => (
+                <View key={h.time} style={s.hour}>
+                  <Text style={s.hourT}>{hm(h.time)}</Text>
+                  <Icon name={weatherCodeInfo(h.code, isDayAt(h.time)).icon} size={15} color={colors.text.secondary} />
+                  <Text style={s.hourTemp}>{fmtTemp(h.temp)}</Text>
+                  <View style={s.barsRow}>
+                    <View style={s.popBox}>
+                      <View style={[s.popBar, { height: `${h.pop}%`, opacity: h.pop >= 50 ? 1 : 0.55 }]} />
+                    </View>
+                    {hasClouds && (
+                      <View style={s.popBox}>
+                        <View style={[s.cloudBar, { height: `${h.cloud ?? 0}%` }]} />
+                      </View>
+                    )}
+                  </View>
+                  <Text style={s.hourPop}>{h.pop > 0 ? `${h.pop}%` : ''}</Text>
+                  <Text style={s.hourMm}>{h.precip >= 0.1 ? `${h.precip.toFixed(1).replace('.', ',')}` : ''}</Text>
                 </View>
-                <Text style={s.hourPop}>{h.pop > 0 ? `${h.pop}%` : ''}</Text>
-              </View>
-            ))}
-          </ScrollView>
+              ))}
+            </ScrollView>
+            <Text style={s.note}>Słupek pełny = 100%. Liczba pod spodem = mm opadu w tej godzinie.</Text>
+          </SheetCard>
 
-          <Text style={s.section}>7 dni</Text>
-          {data!.daily.map((d, i) => {
-            const span = Math.max(1, weekMax - weekMin);
-            return (
-              <View key={d.date} style={s.dayRow}>
-                <Text style={s.dayName}>{dayName(d.date, i)}</Text>
-                <Icon name={weatherCodeInfo(d.code).icon} size={15} color={colors.text.secondary} />
-                <Text style={s.dayPop}>{d.pop >= 20 ? `${d.pop}%` : ''}</Text>
-                <Text style={s.dayMin}>{fmtTemp(d.min)}</Text>
-                <View style={s.rangeTrack}>
-                  <View style={[s.rangeFill, { left: `${((d.min - weekMin) / span) * 100}%`, right: `${((weekMax - d.max) / span) * 100}%` }]} />
+          <SheetCard
+            title="7 dni"
+            right={<Legend items={[{ color: colors.accent.blue, label: '% deszczu' }, { color: colors.text.secondary, label: 'min–max temp.', line: true }]} />}
+          >
+            {data!.daily.map((d, i) => {
+              const span = Math.max(1, weekMax - weekMin);
+              return (
+                <View key={d.date} style={s.dayRow}>
+                  <Text style={s.dayName}>{dayName(d.date, i)}</Text>
+                  <Icon name={weatherCodeInfo(d.code).icon} size={15} color={colors.text.secondary} />
+                  <Text style={s.dayPop}>{d.pop >= 20 ? `${d.pop}%` : ''}</Text>
+                  <Text style={s.dayMin}>{fmtTemp(d.min)}</Text>
+                  <View style={s.rangeTrack}>
+                    <View style={[s.rangeFill, { left: `${((d.min - weekMin) / span) * 100}%`, right: `${((weekMax - d.max) / span) * 100}%` }]} />
+                  </View>
+                  <Text style={s.dayMax}>{fmtTemp(d.max)}</Text>
                 </View>
-                <Text style={s.dayMax}>{fmtTemp(d.max)}</Text>
-              </View>
-            );
-          })}
+              );
+            })}
+            <Text style={s.note}>Pasek = od najzimniejszej do najcieplejszej temperatury dnia na tle całego tygodnia.</Text>
+          </SheetCard>
 
           {data!.air && (() => {
             const a = aqiInfo(data!.air!.aqi);
             return (
-              <>
-                <Text style={s.section}>Powietrze</Text>
-                <View style={s.airHead}>
-                  <View style={[s.airDot, { backgroundColor: a.color }]} />
-                  <Text style={[s.airLabel, { color: a.color }]}>{a.label}</Text>
-                  <Text style={s.airIdx}>indeks {data!.air!.aqi}</Text>
-                </View>
+              <SheetCard
+                title="Powietrze"
+                right={<View style={s.airHead}><View style={[s.airDot, { backgroundColor: a.color }]} /><Text style={[s.airLabel, { color: a.color }]}>{a.label}</Text><Text style={s.airIdx}>{data!.air!.aqi}</Text></View>}
+              >
                 <View style={s.grid}>
                   {[
                     ['PM2,5', data!.air!.pm25, 15],
@@ -179,10 +212,21 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
                     </View>
                   ))}
                 </View>
-                <Text style={s.note}>µg/m³, normy dobowe WHO.</Text>
-              </>
+                <Text style={s.note}>µg/m³, normy dobowe WHO. Czerwone = powyżej normy.</Text>
+              </SheetCard>
             );
           })()}
+
+          {coords && (
+            <TouchableOpacity style={s.radar} onPress={openRadar} activeOpacity={0.75}>
+              <Radar size={18} color={colors.text.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.radarTitle}>Radar opadów</Text>
+                <Text style={s.radarSub}>mapa na żywo z animacją chmur deszczowych</Text>
+              </View>
+              <ExternalLink size={14} color={colors.text.muted} />
+            </TouchableOpacity>
+          )}
         </>
       )}
 
@@ -212,7 +256,7 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
           ))}
         </View>
       )}
-      <Text style={s.note}>Dane: Open-Meteo</Text>
+      <Text style={s.note}>Dane: Open-Meteo · radar: RainViewer</Text>
     </AppBottomSheet>
   );
 }
@@ -226,12 +270,23 @@ const makeS = themedStyles((c) => StyleSheet.create({
   nowRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   nowTemp: { fontSize: 44, lineHeight: 48, fontFamily: 'Inter_900Black', color: c.text.primary, letterSpacing: -1.5 },
   nowLabel: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
-  nowRange: { fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary },
-  rain: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary, marginTop: spacing[3] },
+  nowRange: { fontSize: 14, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
+  nowRangeLo: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  cloudLine: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.secondary, marginTop: 2 },
+  miniRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[2] },
+  mini: { flexGrow: 1, flexBasis: '30%', backgroundColor: c.ui.in, borderRadius: radius.lg, paddingVertical: spacing[2], paddingHorizontal: spacing[3] },
+  unit: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  barsRow: { flexDirection: 'row', gap: 2 },
+  cloudBar: { width: '100%', backgroundColor: c.ui.dim, borderRadius: 4 },
+  hourMm: { fontSize: 9, fontFamily: 'Inter_600SemiBold', color: c.text.muted, height: 11 },
+  radar: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], backgroundColor: c.ui.in, borderRadius: radius.lg, padding: spacing[3], marginTop: spacing[2] },
+  radarTitle: { fontSize: 13.5, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
+  radarSub: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 1 },
+  rain: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary, marginTop: spacing[2] },
   tip: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.accent.orange, marginTop: spacing[1] },
 
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing[3], rowGap: spacing[3] },
-  gridCell: { width: '33.33%' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: spacing[3] },
+  gridCell: { width: '50%' },
   gridVal: { fontSize: 16, fontFamily: 'Inter_900Black', color: c.text.primary },
   gridKey: { fontSize: 10, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 1 },
 
@@ -240,7 +295,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   hour: { alignItems: 'center', width: 42, gap: 4 },
   hourT: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
   hourTemp: { fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
-  popBox: { height: 28, width: 8, borderRadius: 4, backgroundColor: c.bg.elevated, justifyContent: 'flex-end', overflow: 'hidden' },
+  popBox: { height: 32, width: 7, borderRadius: 4, backgroundColor: c.bg.elevated, justifyContent: 'flex-end', overflow: 'hidden' },
   popBar: { width: '100%', backgroundColor: c.accent.blue, borderRadius: 4 },
   hourPop: { fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.accent.blue, height: 12 },
 
@@ -254,7 +309,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
 
   airHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   airDot: { width: 10, height: 10, borderRadius: 5 },
-  airLabel: { fontSize: 15, fontFamily: 'Inter_900Black' },
+  airLabel: { fontSize: 12.5, fontFamily: 'Inter_900Black' },
   airIdx: { fontSize: 11.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
   note: { fontSize: 10.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[2] },
 

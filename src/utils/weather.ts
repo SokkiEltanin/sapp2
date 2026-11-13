@@ -7,7 +7,7 @@
 // Czasy z API przychodzą jako LOKALNE ("2026-11-13T07:00", `timezone=auto`) —
 // porównujemy je jako stringi z `current.time`, żadnej konwersji stref.
 
-export interface WeatherHour { time: string; temp: number; pop: number; precip: number; code: number }
+export interface WeatherHour { time: string; temp: number; pop: number; precip: number; code: number; cloud?: number }
 export interface WeatherDay {
   date: string; code: number; max: number; min: number; precipSum: number; pop: number;
   sunrise: string; sunset: string; uvMax: number;
@@ -41,6 +41,7 @@ export function parseWeather(fc: any, aq: any | null, place: string, fetchedAt =
     pop: n(h.precipitation_probability?.[start + i]),
     precip: n(h.precipitation?.[start + i]),
     code: n(h.weather_code?.[start + i]),
+    cloud: n(h.cloud_cover?.[start + i], -1) >= 0 ? n(h.cloud_cover?.[start + i]) : undefined,
   }));
   const d = fc.daily ?? {};
   const daily: WeatherDay[] = (d.time ?? []).map((date: string, i: number) => ({
@@ -103,6 +104,28 @@ export function aqiInfo(aqi: number): { label: string; color: string } {
 
 const hh = (t: string) => t.slice(11, 16);
 const wet = (x: WeatherHour) => x.precip >= 0.1 || x.pop >= 60;
+
+// Zachmurzenie na 24 h jednym zdaniem (2026-11-13, user: "godziny deszczowe,
+// godziny pochmurne"): najdłuższy ciąg godzin ≥70% → "pochmurno 9:00–18:00".
+export function cloudSummary(hours: WeatherHour[]): string {
+  const hs = hours.filter((x) => x.cloud != null);
+  if (hs.length === 0) return '';
+  if (hs.every((x) => x.cloud! < 30)) return 'bezchmurnie';
+  if (hs.every((x) => x.cloud! >= 70)) return 'pochmurno cały dzień';
+  let best: [number, number] | null = null;
+  let i = 0;
+  while (i < hs.length) {
+    if (hs[i].cloud! >= 70) {
+      let j = i;
+      while (j + 1 < hs.length && hs[j + 1].cloud! >= 70) j++;
+      if (!best || j - i > best[1] - best[0]) best = [i, j];
+      i = j + 1;
+    } else i++;
+  }
+  if (!best || best[1] - best[0] < 1) return 'zmienne zachmurzenie';
+  const endT = hs[best[1] + 1]?.time ?? hs[best[1]].time;
+  return `pochmurno ${hh(hs[best[0]].time)}–${hh(endT)}`;
+}
 
 // Jedno zdanie o deszczu na najbliższe 12 h — najważniejsza informacja
 // "praktyczna" (parasol?), na kafel Dashboardu.

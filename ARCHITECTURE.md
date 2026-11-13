@@ -1623,6 +1623,15 @@ więc nie ma nic do migracji/zachowania.
   - `findDuplicateCandidates` (`utils/productCatalog.ts`) liczy normalizację i
     trigramy raz na produkt, nie raz na parę.
   - Tickery: max co 60 s (Dashboard odliczanie), żadnych sekundowych.
+- **Sheety szczegółów = kafelki (2026-11-13, user: "podziel to na kafelki...
+  zrób legendę, bo nie wiem o co chodzi z paskami")** — `SheetCard` + `Legend`
+  (`src/components/design/SheetCard.tsx`): każdy temat w osobnej karcie `ui.in`,
+  legenda w nagłówku karty, max 1 linia objaśnienia pod wykresem. Użyte w
+  `WeatherSheet` (teraz / mini-kafle / 24 h deszcz+chmury / 7 dni / powietrze /
+  radar) i `SleepSheet` (czas / mini-kafle / przebieg / fazy / 7 nocy). Nowy
+  wykres w sheecie → karta + legenda. Radar = link do RainViewer (zewnętrznie;
+  mapa w WebView byłaby ciężka). Pogoda pobiera też `cloud_cover` →
+  `cloudSummary()` w `utils/weather.ts`.
 
 - **Ustawienia — przeprojektowany wygląd wierszy (2026-11-01)**, user zrzutem
   ekranu sekcji Finanse: "nie rozróżniam nazwy kategorii od podkategorii, oraz jak
