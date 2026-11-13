@@ -41,6 +41,15 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+- **[sprawdź na telefonie, 2026-11-13] Wydajność**: wejście w Finanse bez
+  przycinki (sheety montują się dopiero przy otwarciu, ukryte zakładki zamrożone).
+  Jeśli nadal laguje — zgłoś który ekran/akcja, zmierzę konkretnie.
+- **[sprawdź] Pogoda/sen w kafelkach**: legendy (deszcz % / chmury %, pasek 7 dni),
+  "Radar opadów" otwiera RainViewer w przeglądarce.
+- **[user, jednorazowo] GitHub Pages**: deploy PWA pada na kroku `deploy-pages`
+  (build OK) → repo Settings → Pages → Source: "GitHub Actions", potem
+  Actions → "Deploy web (PWA)" → Re-run.
+
 - **Daily (2026-11-13)**: sen (hipnogram z Health Connect `stages` — sprawdzić na
   zegarku, czy etapy przychodzą), kroki + BodySheet (waga ręczna), humor z
   kropkami tygodnia. Wolne miejsce w kaflu snu / propozycje dla Daily czekają na
