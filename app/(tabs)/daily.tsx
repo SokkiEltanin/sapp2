@@ -11,7 +11,7 @@ import { useHealthSync } from '@/hooks/useHealthSync';
 import MoodModal from '@/components/mood/MoodModal';
 import { useHabitsStore } from '@/store/habitsStore';
 import { habitStreak } from '@/utils/habitStreak';
-import HabitsModal from '@/components/dashboard/HabitsModal';
+import { haptic } from '@/utils/haptics';
 
 // Faza 3.10 (design/rn kit) — Daily przebudowany na kitu's `src/ui/layout.tsx`
 // prymitywy (Screen/Row/Tile/StatTile/Cap), ten sam powód co Dashboard (Faza
@@ -48,14 +48,27 @@ export default function DailyScreen() {
   // (Woda/Słodycze/Trening, `habitsStore.ts`) przeniesione tu, żeby nie
   // zostawić dead-endu (`HabitsModal` z `components/dashboard/` — nazwa
   // folderu to tylko historia, komponent nie jest dashboard-specyficzny).
+  // 2026-11-13, user: "wywalamy streaki... picia wody i słodyczy, bo raz
+  // zjesz słodycze i cały streak chuja daje... zostawimy tylko w treningu" —
+  // zostaje SAM trening, odhaczany tapem wprost w kafelku (bez modala):
+  // ile razy w tym tygodniu / miesiącu + seria dni z rzędu.
   const habitDays = useHabitsStore((st) => st.days);
+  const setHabit = useHabitsStore((st) => st.setHabit);
   const today = todayISO();
-  const [habitsOpen, setHabitsOpen] = useState(false);
-  const streaks = useMemo(() => ({
-    water: habitStreak(habitDays, 'water', today),
-    sweets: habitStreak(habitDays, 'sweets', today),
-    training: habitStreak(habitDays, 'training', today),
-  }), [habitDays, today]);
+  const trainedToday = habitDays.find((d) => d.date === today)?.training === true;
+  const training = useMemo(() => {
+    const now = new Date();
+    const dow = (now.getDay() + 6) % 7; // pon = 0
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const weekStart = iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow));
+    const monthStart = `${today.slice(0, 7)}-01`;
+    const done = habitDays.filter((d) => d.training);
+    return {
+      week: done.filter((d) => d.date >= weekStart && d.date <= today).length,
+      month: done.filter((d) => d.date >= monthStart && d.date <= today).length,
+      streak: habitStreak(habitDays, 'training', today),
+    };
+  }, [habitDays, today]);
 
   const todayEntries = useMemo(() => entries.filter((e) => e.date === todayISO()), [entries]);
   // Ostatnie 7 dni nastroju (2026-11-12, CLAUDE.md zasada 10 — zamiast pustego
@@ -131,25 +144,20 @@ export default function DailyScreen() {
           ) : (
             <Text style={[T.small, st.exEmpty]}>Zapisuj nastrój — tu zobaczysz cały tydzień.</Text>
           )}
-          {/* 2026-11-09 — odhaczanie nawyków (Woda/Słodycze/Trening, dawniej 3
-              kafle streak na Dashboardzie, USUNIĘTE stamtąd) przeniesione tu, w
-              TEN SAM, już luźny `flex:1` rząd — osobny `TouchableOpacity`
-              (nie `Tile`'s własny `onPress`, żeby tap na "Ćwiczenia" wyżej nie
-              otwierał modala o zupełnie innym temacie). */}
-          <TouchableOpacity style={st.habitsRow} onPress={() => setHabitsOpen(true)} activeOpacity={0.7}>
-            <Cap l="Nawyki" r="dotknij, by odhaczyć" />
+          <TouchableOpacity style={st.habitsRow} onPress={() => { haptic.success(); setHabit(today, 'training', !trainedToday); }} activeOpacity={0.7}>
+            <Cap l={trainedToday ? 'Trening · dziś zrobiony' : 'Trening'} r={trainedToday ? 'stuknij, by cofnąć' : 'stuknij, gdy zrobisz'} />
             <View style={st.habitsCols}>
               <View style={st.habitsCol}>
-                <Text style={T.num}>{streaks.water ?? '—'}</Text>
-                <Text style={T.small}>Woda</Text>
+                <Text style={[T.num, trainedToday && { color: C.ok }]}>{training.week}</Text>
+                <Text style={T.small}>w tym tygodniu</Text>
               </View>
               <View style={st.habitsCol}>
-                <Text style={T.num}>{streaks.sweets ?? '—'}</Text>
-                <Text style={T.small}>Słodycze</Text>
+                <Text style={T.num}>{training.month}</Text>
+                <Text style={T.small}>w tym miesiącu</Text>
               </View>
               <View style={st.habitsCol}>
-                <Text style={T.num}>{streaks.training ?? '—'}</Text>
-                <Text style={T.small}>Trening</Text>
+                <Text style={T.num}>{training.streak}</Text>
+                <Text style={T.small}>dni z rzędu</Text>
               </View>
             </View>
           </TouchableOpacity>
@@ -170,7 +178,6 @@ export default function DailyScreen() {
       </Row>
 
       <MoodModal visible={moodOpen} onClose={() => setMoodOpen(false)} />
-      <HabitsModal visible={habitsOpen} onClose={() => setHabitsOpen(false)} />
     </Screen>
   );
 }
