@@ -1663,7 +1663,7 @@ szczoteczek końcówek". Rzeczy zużywające się co N dni/tyg./mies.
   jako serwis pojazdu (jedno źródło danych). Przypomnienia serwisu: 7 dni przed
   (`carReminderItems`). Szablony domyślnie zwinięte (formularz i ekran).
 - **Dashboard** "Najbliższa wymiana": pierwszy wiersz `allReplaceRows` (podpis =
-  nazwa pojazdu albo "dom"); `nextMaintenanceDue` z vehicleMatch zostaje tylko w testach. Backup: klucz w kopii automatycznie,
+  nazwa pojazdu albo "dom"). Backup: klucz w kopii automatycznie,
   rehydrate w `services/cloudBackup.ts`.
 - Pola dat formularzy: `src/utils/dateInput.ts` (wspólne z Subskrypcjami).
 
