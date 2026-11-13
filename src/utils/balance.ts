@@ -6,6 +6,8 @@ import type { Expense } from '@/types/finances';
 // śledził kartę i gotówkę jako dwa osobne pulе — sapp2 świadomie NIE portuje pulu
 // gotówki (user nie prosił o jego podgląd, tylko o to żeby NIE ruszał salda banku) —
 // gotówka jest po prostu wyłączona z sumy, nie liczona gdzie indziej.
+// Stary klucz — od 2026-11-13 saldo żyje w store/balanceStore.ts (synchronizowane);
+// tu tylko odczyt do jednorazowej migracji.
 const OFFSET_KEY = 'account_balance_offset_v1';
 
 export async function getBalanceOffset(): Promise<number> {
@@ -16,11 +18,6 @@ export async function getBalanceOffset(): Promise<number> {
   } catch {
     return 0;
   }
-}
-
-export async function setBalanceOffset(offset: number): Promise<void> {
-  if (!isFinite(offset)) return;
-  try { await AsyncStorage.setItem(OFFSET_KEY, String(offset)); } catch {}
 }
 
 // Czy ten wydatek/przychód realnie rusza saldo konta: TYLKO gdy zapłaciłem JA

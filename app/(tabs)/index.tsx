@@ -17,6 +17,7 @@ import { weatherCodeInfo, rainSummary, aqiInfo, fmtTemp } from '@/utils/weather'
 import WeatherSheet from '@/components/weather/WeatherSheet';
 import { useGoogleCalendarSync } from '@/hooks/useGoogleCalendarSync';
 import { todayISO } from '@/utils/date';
+import { parseDeadline, deadlineHasTime } from '@/utils/taskDeadline';
 import { foodByMonth } from '@/utils/foodStats';
 import { useCountdownStore } from '@/store/countdownStore';
 import { countdownParts, formatCountdown } from '@/utils/countdown';
@@ -216,7 +217,7 @@ export default function Dashboard() {
   // wypadku subskrypcja płatna raz w roku zaśmiecałaby listę miesiącami z
   // wyprzedzeniem, czego lista eventów (z natury bliskich w czasie) nie robi.
   const BILL_WINDOW_DAYS = 14;
-  type TimelineEntry = { key: string; at: Date; title: string; color: string; kind: 'event' | 'deadline' | 'bill'; minutes?: number; amount?: number; fx?: PendingFx };
+  type TimelineEntry = { key: string; at: Date; title: string; color: string; kind: 'event' | 'deadline' | 'bill'; minutes?: number; amount?: number; fx?: PendingFx; dayOnly?: boolean };
   const upcomingTimeline = useMemo<TimelineEntry[]>(() => {
     const out: TimelineEntry[] = [];
     for (const e of allEvents) {
@@ -226,9 +227,12 @@ export default function Dashboard() {
     }
     for (const t of calendarTasks) {
       if (t.status !== 'pending' || !t.deadline) continue;
-      const at = new Date(t.deadline);
-      if (at < now) continue;
-      out.push({ key: `t_${t.id}`, at, title: t.title, color: colors.accent.red, kind: 'deadline' });
+      // Termin bez godziny (2026-11-13 fix): ważny CAŁY dzień — był liczony od
+      // północy, więc dzisiejszy znikał z listy, a reszta pokazywała "śr. 00:00".
+      const timed = deadlineHasTime(t.deadline);
+      const at = parseDeadline(t.deadline);
+      if (timed ? at < now : at.getTime() + 86400000 <= now.getTime()) continue;
+      out.push({ key: `t_${t.id}`, at, title: t.title, color: colors.accent.red, kind: 'deadline', dayOnly: !timed });
     }
     // `upcomingPayments` (nie samo `upcomingSubscriptions`) — 2026-11-09, user:
     // "ta ostatnia platnosc najbliższą ma być automatyczna po stałych i
@@ -291,7 +295,7 @@ export default function Dashboard() {
     countdown,
     upcoming: upcomingTimeline.map((x) => ({
       id: x.key,
-      when: x.kind === 'bill' ? whenLabelDayOnly(x.at, now) : whenLabel(x.at, now),
+      when: x.kind === 'bill' || x.dayOnly ? whenLabelDayOnly(x.at, now) : whenLabel(x.at, now),
       title: x.title,
       kind: x.kind,
       color: x.color,

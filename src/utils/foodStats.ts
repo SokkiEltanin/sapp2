@@ -41,16 +41,6 @@ export function foodByMonth(expenses: Expense[], count = 4, today: Date = new Da
   });
 }
 
-export function foodDailyAverageThisMonth(expenses: Expense[], today: Date = new Date()): number {
-  const key = localMonthKey(today);
-  let sum = 0;
-  for (const e of expenses) {
-    if (e.type !== 'expense' || monthKeyOf(e.date) !== key) continue;
-    sum += fvSplitOf(e).food;
-  }
-  return sum / today.getDate();
-}
-
 export interface FoodWeekBar { label: string; value: number }
 
 // Dni miesiąca pocięte na 5 "tygodni" (T1..T5, po 7 dni, ostatni krótszy/dłuższy) —

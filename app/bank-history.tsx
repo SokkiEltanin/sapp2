@@ -79,14 +79,15 @@ export default function BankHistory() {
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <View style={s.tplCard}>
+          {/* Zasada 10 (2026-11-13): objaśnienie w 1 linii, lista na wierzchu. */}
           <View style={s.tplHead}>
             <Zap size={15} color={colors.accent.green} />
             <Text style={s.tplTitle}>Szablony sklepów</Text>
+            <Text style={s.tplCount}>{templates.length || 'brak'}</Text>
           </View>
-          <Text style={s.tplSub}>
-            Płatności z tych sklepów appka dodaje sama, bez pytania, z podanymi tagami. Nowy szablon: „Stwórz szablon” przy pozycji niżej.
+          <Text style={s.tplSub} numberOfLines={1}>
+            {templates.length ? 'Dodawane same, bez pytania, z tagami.' : 'Dodaj „Stwórz szablon” przy pozycji niżej.'}
           </Text>
-          {templates.length === 0 && <Text style={s.tplEmpty}>Brak szablonów.</Text>}
           {templates.map((t) => (
             <TouchableOpacity
               key={t.key}
@@ -201,9 +202,9 @@ const makeS = themedStyles((c) => StyleSheet.create({
   },
   tplCard: { backgroundColor: c.bg.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default, padding: spacing[4], marginBottom: spacing[4], gap: spacing[2] },
   tplHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  tplCount: { marginLeft: 'auto', fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted },
   tplTitle: { fontSize: 14, fontFamily: 'Inter_900Black', color: c.text.primary },
   tplSub: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: c.text.muted, lineHeight: 16 },
-  tplEmpty: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
   tplRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingVertical: spacing[2], borderTopWidth: 1, borderTopColor: c.border.default },
   tplName: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary },
   tplTags: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 1 },

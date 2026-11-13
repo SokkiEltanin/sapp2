@@ -78,13 +78,20 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
   miesiącu na próg). Do decyzji: budżet tygodniowy, przenoszenie niewydanej kwoty.
 - **Dashboard** — user planuje usunąć Finanse z Dashboardu (są w zakładce) i coś
   zmienić w kalendarzu; jeszcze nie wie na co — czekać na decyzję.
-- **Audyt zasady 10 (CLAUDE.md: "ekran = dane, nie konfiguracja")** — user
-  2026-11-12 chce tego w KAŻDEJ zakładce. ZROBIONE: Pojazdy, Praca, Stałe
-  opłaty (formularz w sheecie, "do końca mies."), Płatności z banku (karta 2×
-  niższa), Daily (7 dni nastroju zamiast pustych "Ćwiczeń", kafel Nastrój z
-  etykietą). Do przejrzenia: Zadania (pusta lista = dużo pustych wierszy),
-  Historia/szablony banku, Ustawienia, Dashboard (kafel ciekawostki — kandydat
-  na pogodę).
+- **Audyt zasady 10 (CLAUDE.md: "ekran = dane, nie konfiguracja")** — ZROBIONE
+  (2026-11-12/13): Pojazdy, Praca, Stałe opłaty, Płatności z banku, Daily, Wymiany,
+  Budżety, Historia banku (karta szablonów 1 linia), Ustawienia (lista sekcji —
+  OK), Zadania (puste wiersze = wzorzec FitList z designu, zostaje). Zostaje
+  decyzja usera: kafel ciekawostki na Dashboardzie (zamienić na coś z danymi?).
+- **Nieużywane podsystemy (do decyzji: podpiąć albo usunąć)** — znalezione
+  2026-11-13 przy sprzątaniu: `utils/productMemory.ts` pamięć wag
+  (`weightFor`/`saveWeightMemory`) i werdyktów linii paragonu
+  (`lineVerdict`/`saveLineVerdicts`), `utils/ownName.ts` `matchesOwnName`/
+  `setOwnName` — port z sapp, nigdzie niewołane. Usunięte jako martwe:
+  `nextMaintenanceDue` (zastąpione `allReplaceRows`), `setBalanceOffset`
+  (saldo w `balanceStore`), `foodDailyAverageThisMonth`.
+- **Poprawione 2026-11-13**: Dashboard "Najbliższe eventy" — termin zadania bez
+  godziny był liczony od północy (dzisiejszy znikał, reszta "śr. 00:00").
 - **Do sprawdzenia na urządzeniu (2026-11-12)**: paragon z Lidla dodany po
   złapanym powiadomieniu → ma się wpiąć w istniejącą płatność (1 wpis, pozycje
   z paragonu). Odwrotnie: paragon najpierw → w Płatnościach z banku zielony
