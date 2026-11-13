@@ -8,6 +8,7 @@ import { spacing, radius, themedStyles } from '@/theme';
 import { todayISO, ymd } from '@/utils/date';
 import { parseReceiptText } from '@/utils/receiptParser';
 import { useExpensesStore } from '@/store/expensesStore';
+import { useDeferredMemo } from '@/hooks/useDeferredMemo';
 import {
   loadNameAliases, canonicalProductName, loadFoodSubcatMemory, applyFoodSubcatMemory,
   loadPriceMemory, savePriceMemory, saveFoodSubcatMemory, type PriceMemory,
@@ -121,7 +122,8 @@ export default function AddExpenseModal({
     loadPriceMemory().then(setPriceMemory);
     loadFoodSubcatMemory().then(setFoodSubcatMemory);
   }, [visible]);
-  const knownNames = useMemo(() => buildProductCatalog(expenses, aliases).map((p) => p.label), [expenses, aliases]);
+  // Katalog nazw (podpowiedzi przy wpisywaniu pozycji) — po animacji otwarcia.
+  const knownNames = useDeferredMemo(() => buildProductCatalog(expenses, aliases).map((p) => p.label), [expenses, aliases], [] as string[]);
 
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [pasteText, setPasteText] = useState('');

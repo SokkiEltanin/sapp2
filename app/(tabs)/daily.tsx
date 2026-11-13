@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import LazyMount from '@/components/design/LazyMount';
 import { View, Text, StyleSheet } from 'react-native';
 import { Screen, Row, Tile, Cap, StackBar, FitList } from '@/ui/layout';
 import { router } from 'expo-router';
@@ -202,10 +203,18 @@ export default function DailyScreen() {
         </Tile>
       </Row>
 
-      <SleepSheet visible={sleepOpen} onClose={() => setSleepOpen(false)} />
-      <BodySheet visible={bodyOpen} onClose={() => setBodyOpen(false)} />
-      <MoodModal visible={moodOpen} onClose={() => setMoodOpen(false)} />
-      <DayPlanTagsSheet visible={tagsOpen} onClose={() => setTagsOpen(false)} />
+      <LazyMount visible={sleepOpen}>
+        <SleepSheet visible={sleepOpen} onClose={() => setSleepOpen(false)} />
+      </LazyMount>
+      <LazyMount visible={bodyOpen}>
+        <BodySheet visible={bodyOpen} onClose={() => setBodyOpen(false)} />
+      </LazyMount>
+      <LazyMount visible={moodOpen}>
+        <MoodModal visible={moodOpen} onClose={() => setMoodOpen(false)} />
+      </LazyMount>
+      <LazyMount visible={tagsOpen}>
+        <DayPlanTagsSheet visible={tagsOpen} onClose={() => setTagsOpen(false)} />
+      </LazyMount>
     </Screen>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import LazyMount from '@/components/design/LazyMount';
 import { View, Text, StyleSheet, TouchableOpacity, type TextInput } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -257,12 +258,14 @@ export default function TasksScreen() {
         )}
       </AppBottomSheet>
 
-      <DayDetailModal
-        visible={!!detailDate}
-        dateYMD={detailDate ?? today}
-        events={detailDateEvents}
-        onClose={() => setDetailDate(null)}
-      />
+      <LazyMount visible={!!detailDate}>
+        <DayDetailModal
+          visible={!!detailDate}
+          dateYMD={detailDate ?? today}
+          events={detailDateEvents}
+          onClose={() => setDetailDate(null)}
+        />
+      </LazyMount>
     </Screen>
   );
 }

@@ -1607,6 +1607,23 @@ więc nie ma nic do migracji/zachowania.
 
 ## Ogólne do appki (cross-cutting)
 
+- **Wydajność — zasady (2026-11-13, user: "wchodzę w finanse... wszystko się
+  odświeża i lekko laguje... żeby nie lagowało jak pierwsza wersja")**:
+  - **Zakładki zamrożone poza ekranem** — `freezeOnBlur: true` w
+    `app/(tabs)/_layout.tsx`. Zmiana store'a nie przelicza niewidocznych zakładek;
+    renderują się raz przy wejściu.
+  - **Ciężkie sheety montowane dopiero przy otwarciu** — `<LazyMount visible>`
+    (`src/components/design/LazyMount.tsx`; trzyma montaż ~450 ms po zamknięciu,
+    żeby animacja zamknięcia zagrała). Dotyczy wszystkiego, co liczy w renderze
+    (katalog produktów, statystyki wydatków, sen, pogoda, dzień w kalendarzu).
+    Nowy sheet z `useMemo` po expenses/events → owiń w `LazyMount`.
+  - **Liczenie po animacji otwarcia** — `useDeferredMemo(compute, deps, initial)`
+    (`src/hooks/useDeferredMemo.ts`): duplikaty produktów (`ProductsModal`),
+    podpowiedzi nazw (`AddExpenseModal`). Klatki animacji nie czekają na O(n²).
+  - `findDuplicateCandidates` (`utils/productCatalog.ts`) liczy normalizację i
+    trigramy raz na produkt, nie raz na parę.
+  - Tickery: max co 60 s (Dashboard odliczanie), żadnych sekundowych.
+
 - **Ustawienia — przeprojektowany wygląd wierszy (2026-11-01)**, user zrzutem
   ekranu sekcji Finanse: "nie rozróżniam nazwy kategorii od podkategorii, oraz jak
   coś jest pozwoleniem żeby miało symbol... albo toggle jak w ustawieniach

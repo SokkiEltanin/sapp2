@@ -4,6 +4,7 @@ import { X, Search, ChevronDown, ChevronUp, GitMerge } from 'lucide-react-native
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { useExpensesStore } from '@/store/expensesStore';
+import { useDeferredMemo } from '@/hooks/useDeferredMemo';
 import { buildProductCatalog, findDuplicateCandidates, type ProductCatalogEntry } from '@/utils/productCatalog';
 import { loadNameAliases, saveNameAliases, saveFoodSubcatMemory } from '@/utils/productMemory';
 import { FOOD_SUBCATS, FOOD_SUBCAT_META } from '@/utils/food';
@@ -37,10 +38,12 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
   }, [visible]);
 
   const catalog = useMemo(() => buildProductCatalog(expenses, aliases), [expenses, aliases]);
+  // Duplikaty (porównanie każdego z każdym) liczone PO animacji otwarcia.
+  const allDuplicates = useDeferredMemo(() => findDuplicateCandidates(catalog), [catalog], [] as ReturnType<typeof findDuplicateCandidates>);
   const duplicates = useMemo(() => {
     const pairKey = (a: ProductCatalogEntry, b: ProductCatalogEntry) => `${a.groupKey}|${b.groupKey}`;
-    return findDuplicateCandidates(catalog).filter((d) => !dismissed.has(pairKey(d.a, d.b)));
-  }, [catalog, dismissed]);
+    return allDuplicates.filter((d) => !dismissed.has(pairKey(d.a, d.b)));
+  }, [allDuplicates, dismissed]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

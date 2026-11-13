@@ -1,5 +1,5 @@
 import type { Expense } from '@/types/finances';
-import { productGroupKey, productGroupLabel, productNameSimilarity, canonicalProductName } from './productMemory';
+import { productGroupKey, productGroupLabel, canonicalProductName, normalizeProductName, trigrams } from './productMemory';
 
 // Faza 2.3 — katalog produktów, agregowany z historii `Expense.receiptItems` (sapp2
 // nie ma osobnej, przechowywanej listy "Produktów" — tylko pamięć per-nazwa
@@ -68,10 +68,25 @@ export function buildProductCatalog(expenses: Expense[], aliases: Record<string,
 export interface DuplicateCandidate { a: ProductCatalogEntry; b: ProductCatalogEntry; score: number }
 
 export function findDuplicateCandidates(entries: ProductCatalogEntry[], lo = 0.45, hi = 0.60): DuplicateCandidate[] {
+  // Wydajność (2026-11-13): nazwy normalizowane i trygramy budowane RAZ na produkt
+  // (wcześniej w każdym z n² porównań — przy ~270 produktach ~73 tys. normalizacji
+  // i budowań zbiorów). Wynik identyczny jak productNameSimilarity.
+  const norm = entries.map((e) => normalizeProductName(e.label));
+  const grams = norm.map((n) => (n.length < 2 ? null : trigrams(n)));
   const result: DuplicateCandidate[] = [];
   for (let i = 0; i < entries.length; i++) {
+    const ga = grams[i];
     for (let j = i + 1; j < entries.length; j++) {
-      const score = productNameSimilarity(entries[i].label, entries[j].label);
+      let score: number;
+      if (norm[i] === norm[j]) score = 1;
+      else {
+        const gb = grams[j];
+        if (!ga || !gb) continue;
+        let inter = 0;
+        const [small, big] = ga.size < gb.size ? [ga, gb] : [gb, ga];
+        for (const t of small) if (big.has(t)) inter++;
+        score = (2 * inter) / (ga.size + gb.size);
+      }
       if (score >= lo && score < hi) result.push({ a: entries[i], b: entries[j], score });
     }
   }

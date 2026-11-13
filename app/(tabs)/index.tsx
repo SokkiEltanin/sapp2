@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import LazyMount from '@/components/design/LazyMount';
 import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { DashboardScreen, type DashData } from '@/ui/DashboardScreen';
@@ -319,20 +320,26 @@ export default function Dashboard() {
   return (
     <>
       <DashboardScreen {...data} />
-      <WeatherSheet visible={weatherOpen} onClose={() => setWeatherOpen(false)} />
-      <AddExpenseModal
-        visible={!!editingExpense}
-        onClose={() => setEditingExpense(null)}
-        editingExpense={editingExpense}
-      />
-      <WydatkiModal
-        visible={wydatkiOpen}
-        onClose={() => setWydatkiOpen(false)}
-        initialTab={wydatkiTab}
-        expenses={expenses}
-        today={now}
-        onEditExpense={setEditingExpense}
-      />
+      <LazyMount visible={weatherOpen}>
+        <WeatherSheet visible={weatherOpen} onClose={() => setWeatherOpen(false)} />
+      </LazyMount>
+      <LazyMount visible={!!editingExpense}>
+        <AddExpenseModal
+          visible={!!editingExpense}
+          onClose={() => setEditingExpense(null)}
+          editingExpense={editingExpense}
+        />
+      </LazyMount>
+      <LazyMount visible={wydatkiOpen}>
+        <WydatkiModal
+          visible={wydatkiOpen}
+          onClose={() => setWydatkiOpen(false)}
+          initialTab={wydatkiTab}
+          expenses={expenses}
+          today={now}
+          onEditExpense={setEditingExpense}
+        />
+      </LazyMount>
       <AppBottomSheet
         visible={nextOpen}
         onClose={() => setNextOpen(false)}

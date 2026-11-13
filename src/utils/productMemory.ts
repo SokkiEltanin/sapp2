@@ -71,7 +71,7 @@ export function productGroupLabel(names: string[]): string {
 
 // ─── Fuzzy matching (podobieństwo trójgramowe) ────────────────────────────────
 
-function trigrams(s: string): Set<string> {
+export function trigrams(s: string): Set<string> {
   const result = new Set<string>();
   const padded = `  ${s}  `;
   for (let i = 0; i < padded.length - 2; i++) result.add(padded.slice(i, i + 3));

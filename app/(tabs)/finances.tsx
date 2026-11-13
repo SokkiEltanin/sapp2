@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import LazyMount from '@/components/design/LazyMount';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import { Plus, Package, Car, ChevronRight } from 'lucide-react-native';
@@ -368,28 +369,36 @@ export default function FinancesScreen() {
         <Plus size={22} color={C.bg} />
       </TouchableOpacity>
 
-      <AddExpenseModal
-        visible={addOpen || !!editingExpense}
-        onClose={() => { setAddOpen(false); setEditingExpense(null); }}
-        editingExpense={editingExpense}
-        initialPasteText={pendingShareText}
-        onInitialPasteTextConsumed={() => useShareReceiptStore.getState().clear()}
-      />
-      <ProductsModal visible={productsOpen} onClose={() => setProductsOpen(false)} />
-      <TransactionsModal
-        visible={transactionsOpen}
-        onClose={() => setTransactionsOpen(false)}
-        expenses={expenses}
-        onSelect={(e) => setEditingExpense(e)}
-      />
-      <WydatkiModal
-        visible={wydatkiOpen}
-        onClose={() => setWydatkiOpen(false)}
-        initialTab="fixed"
-        expenses={expenses}
-        today={now}
-        onEditExpense={(e) => setEditingExpense(e)}
-      />
+      <LazyMount visible={addOpen || !!editingExpense}>
+        <AddExpenseModal
+          visible={addOpen || !!editingExpense}
+          onClose={() => { setAddOpen(false); setEditingExpense(null); }}
+          editingExpense={editingExpense}
+          initialPasteText={pendingShareText}
+          onInitialPasteTextConsumed={() => useShareReceiptStore.getState().clear()}
+        />
+      </LazyMount>
+      <LazyMount visible={productsOpen}>
+        <ProductsModal visible={productsOpen} onClose={() => setProductsOpen(false)} />
+      </LazyMount>
+      <LazyMount visible={transactionsOpen}>
+        <TransactionsModal
+          visible={transactionsOpen}
+          onClose={() => setTransactionsOpen(false)}
+          expenses={expenses}
+          onSelect={(e) => setEditingExpense(e)}
+        />
+      </LazyMount>
+      <LazyMount visible={wydatkiOpen}>
+        <WydatkiModal
+          visible={wydatkiOpen}
+          onClose={() => setWydatkiOpen(false)}
+          initialTab="fixed"
+          expenses={expenses}
+          today={now}
+          onEditExpense={(e) => setEditingExpense(e)}
+        />
+      </LazyMount>
 
       <AppBottomSheet visible={editingBalance} onClose={() => setEditingBalance(false)} scrollable={false} initialFocusRef={balanceInputRef}>
         <View style={s.editCard}>

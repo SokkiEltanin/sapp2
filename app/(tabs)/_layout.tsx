@@ -14,6 +14,11 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         animation: 'none',
+        // Wydajność (2026-11-13, user: "wchodzę w finanse... wszystko się odświeża
+        // i lekko laguje"): niewidoczne zakładki są zamrożone — zmiana w store
+        // (np. nowy wydatek) nie przelicza Dashboardu/Daily/Zadań w tle; zakładka
+        // renderuje się raz, z aktualnym stanem, dopiero gdy na nią wejdziesz.
+        freezeOnBlur: true,
         sceneStyle: { backgroundColor: colors.bg.primary },
       }}
     >
