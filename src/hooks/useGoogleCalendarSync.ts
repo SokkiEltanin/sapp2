@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { useCalendarStore } from '@/store/calendarStore';
 import { googleCalendarService } from '@/services/googleCalendarService';
 
@@ -21,6 +22,9 @@ async function syncNow(): Promise<void> {
   if (inFlight) return inFlight;
   inFlight = (async () => {
     if (Date.now() - lastSyncedAt < THROTTLE_MS) return;
+    // Komputer: brak natywnego logowania Google — wydarzenia przychodzą z telefonu
+    // (dokument synchronizacji `gcal`); pobranie tutaj zwróciłoby [] i je wyczyściło.
+    if (Platform.OS === 'web') return;
     const fetched = await googleCalendarService.fetchEvents();
     useCalendarStore.getState().setGcalEvents(fetched);
     lastSyncedAt = Date.now();

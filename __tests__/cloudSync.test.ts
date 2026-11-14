@@ -18,6 +18,7 @@ const mockStore = (ref: string, d: any) => {
   mockWrites.push(ref);
   mockDb.set(ref, v);
 };
+jest.mock('react-native', () => ({ Platform: { OS: 'android' } }));
 jest.mock('@/firebase', () => ({ db: {}, auth: {} }));
 jest.mock('firebase/firestore', () => ({
   collection: (_db: unknown, ...p: string[]) => p.join('/'),

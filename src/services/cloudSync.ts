@@ -21,6 +21,8 @@ import { useThresholdsStore } from '@/store/thresholdsStore';
 import { useNotesStore } from '@/store/notesStore';
 import { useCategoriesStore } from '@/store/categoriesStore';
 import { getBalanceOffset } from '@/utils/balance';
+import { gcalMirror } from '@/utils/gcalMirror';
+import { Platform } from 'react-native';
 import {
   planInitialMerge, applyRemote, diffByHash, itemHash, planDocMerge, stripMeta,
   type SyncItem, type RemoteDoc,
@@ -97,6 +99,8 @@ interface DocBinding {
   set: (v: Record<string, any>) => void;
   isEmpty: (v: Record<string, any>) => boolean; // pusty nigdy nie nadpisuje pełnego
   stamp: () => number;                            // kiedy dane powstały (ms), 0 = nie wiadomo
+  readOnly?: () => boolean;                       // to urządzenie tylko czyta (nigdy nie wysyła)
+  keepWhenEmpty?: boolean;                        // pusty lokalnie (np. brak sieci/tokenu) nie czyści chmury
 }
 const docBindings: DocBinding[] = [
   {
@@ -130,6 +134,18 @@ const docBindings: DocBinding[] = [
     isEmpty: (v) => !v.balanceOffset && !(v.dismissedBills ?? []).length && v.dayPlanTags == null && v.activeEmployerId == null
       && !Object.keys(v.categories?.overrides ?? {}).length && !(v.categories?.added?.food ?? []).length && !(v.categories?.added?.var ?? []).length,
     stamp: () => 0,
+  },
+  {
+    // Kalendarz Google (2026-11-14): telefon pobiera natywnym logowaniem i wysyła
+    // okno wydarzeń (utils/gcalMirror.ts), komputer tylko czyta — tam nie ma tokenu.
+    name: 'gcal',
+    stores: [S(useCalendarStore)],
+    get: () => ({ events: gcalMirror(useCalendarStore.getState().gcalEvents) }),
+    set: (v) => { if (Platform.OS === 'web' && Array.isArray(v.events)) useCalendarStore.getState().setGcalEvents(v.events); },
+    isEmpty: (v) => !(v.events ?? []).length,
+    stamp: () => 0,
+    readOnly: () => Platform.OS === 'web',
+    keepWhenEmpty: true,
   },
 ];
 
@@ -363,11 +379,12 @@ class DocSync {
   }
 
   private async push(force: boolean) {
+    if (this.b.readOnly?.()) return;
     const h = this.localHash();
     if (!force && h === docHashes[this.b.name]) return;
     const local = this.b.get();
     // Urządzenie, które nigdy nie było zgodne z chmurą, nie wysyła pustego dokumentu.
-    if (this.b.isEmpty(local) && docHashes[this.b.name] == null) return;
+    if (this.b.isEmpty(local) && (docHashes[this.b.name] == null || this.b.keepWhenEmpty)) return;
     try {
       await setDoc(this.ref(), { ...local, _t: this.b.stamp() || Date.now(), _u: Date.now(), _s: serverTimestamp() });
       docHashes[this.b.name] = h;
