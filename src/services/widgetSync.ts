@@ -39,9 +39,10 @@ export async function syncWeatherWidget(data: WeatherData, lat: number, lon: num
 }
 
 // Wygląd (Ustawienia → Widget): natywny zapis do SharedPreferences + przemalowanie.
-export function applyWidgetAppearance(opacity: number, color: string, textScale: string): void {
+// Osobno dla każdego widgetu (2026-11-14). Stary APK bez WeatherWidget.setAppearance
+// — pogoda zostaje przy wspólnym wyglądzie z Zadań, nic się nie wywraca.
+export function applyWidgetAppearance(id: 'tasks' | 'weather', look: { bgOpacity: number; bgColor: string; textScale: string }): void {
   if (Platform.OS !== 'android') return;
-  try { NativeModules.TasksWidget?.setAppearance?.(opacity, color, textScale); } catch { /* stary APK */ }
-  // Pogoda czyta te same SharedPreferences — tylko przemalowanie.
-  try { NativeModules.WeatherWidget?.requestUpdate?.(); } catch { /* stary APK */ }
+  const mod = id === 'tasks' ? NativeModules.TasksWidget : NativeModules.WeatherWidget;
+  try { mod?.setAppearance?.(look.bgOpacity, look.bgColor, look.textScale); } catch { /* stary APK */ }
 }

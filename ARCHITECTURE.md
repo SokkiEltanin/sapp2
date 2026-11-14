@@ -1637,6 +1637,17 @@ Ustawienia → Finanse → Reguły kategorii (`components/settings/CategoryRules
 skrót "Zawsze tak dla „sklep”" pod wyborem kategorii w `AddExpenseModal`.
 Odmiana liczebników: `utils/plural.ts`.
 
+## WIDGETY — OSOBNY WYGLĄD I CZYTELNOŚĆ (2026-11-14)
+
+`store/widgetSettingsStore.ts` v1: `tasks` i `weather` (WidgetLook), migracja v0 →
+oba dostają stary wspólny wygląd. `applyWidgetAppearance(id, look)` →
+`TasksWidget.setAppearance` (klucze `bg_*`) / `WeatherWidget.setAppearance` (klucze
+`wx_*`, fallback na `bg_*`). Ustawienia → Widgety na pulpit: dwa wiersze, arkusz
+`WidgetAppearanceSheet` z prop `widget` i podglądem danego widgetu. Odstęp treści
+16 dp od boków (było 12/14), szarości #A3A3A3 (było #6E6E6E), kółko #8A8A8A,
+kolory kropek/ikon przez `readable()` (Kotlin) / `utils/readableColor.ts` (JS) —
+min. luminancja 0.3 na ciemnym tle.
+
 ## SZUKANIE ZADAŃ (2026-11-14)
 
 `utils/taskFilter.ts` (tekst bez polskich znaków, status do zrobienia/zrobione/wszystkie,

@@ -1,3 +1,4 @@
+import { readableOnDark } from '@/utils/readableColor';
 import fs from 'fs';
 import { parseWeather } from '@/utils/weather';
 import { buildWeatherWidgetSnapshot, widgetIconName } from '@/utils/widgetWeather';
@@ -33,6 +34,6 @@ describe('widget pogody', () => {
 test('kolor ikony w snapshocie = kolor pogody w appce', () => {
   const { weatherColor } = require('@/utils/weather');
   const s = buildWeatherWidgetSnapshot(w, 50.06, 19.94);
-  expect(s.color).toBe(weatherColor(w.current.code, w.current.isDay));
+  expect(s.color).toBe(readableOnDark(weatherColor(w.current.code, w.current.isDay)));
   expect(s.hours[0].color).toMatch(/^#[0-9A-F]{6}$/i);
 });

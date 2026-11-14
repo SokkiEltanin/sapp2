@@ -2,11 +2,13 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Wygląd widgetu "Zadania" (2026-11-13, user: "ma ustawienia przezroczystości?").
-// Źródło prawdy dla RENDEROWANIA = natywne SharedPreferences (ustawiane przez
-// services/widgetSync.ts's applyWidgetAppearance); ten store trzyma wartości dla
-// kontrolek w Ustawieniach i pozwala je odtworzyć (start appki / przywrócenie kopii).
+// Wygląd widgetów na pulpit (2026-11-13; 2026-11-14 user: "rozdzielić ustawienia
+// widgetów" — osobno Zadania i Pogoda). Źródło prawdy dla RENDEROWANIA = natywne
+// SharedPreferences (services/widgetSync.ts's applyWidgetAppearance); ten store trzyma
+// wartości dla kontrolek w Ustawieniach i pozwala je odtworzyć (start / przywrócenie kopii).
 export type WidgetTextScale = 'small' | 'medium' | 'large';
+export type WidgetId = 'tasks' | 'weather';
+export interface WidgetLook { bgOpacity: number; bgColor: string; textScale: WidgetTextScale }
 
 export const WIDGET_BG_COLORS: { key: string; label: string }[] = [
   { key: '#141414', label: 'Grafit' },
@@ -15,21 +17,38 @@ export const WIDGET_BG_COLORS: { key: string; label: string }[] = [
   { key: '#0F1B2D', label: 'Granat' },
 ];
 
+export const DEFAULT_LOOK: WidgetLook = { bgOpacity: 100, bgColor: '#141414', textScale: 'medium' };
+
 interface WidgetSettingsState {
-  bgOpacity: number; // 0-100
-  bgColor: string;
-  textScale: WidgetTextScale;
-  set: (patch: Partial<Pick<WidgetSettingsState, 'bgOpacity' | 'bgColor' | 'textScale'>>) => void;
+  tasks: WidgetLook;
+  weather: WidgetLook;
+  setLook: (id: WidgetId, patch: Partial<WidgetLook>) => void;
 }
 
 export const useWidgetSettingsStore = create<WidgetSettingsState>()(
   persist(
     (set) => ({
-      bgOpacity: 100,
-      bgColor: '#141414',
-      textScale: 'medium',
-      set: (patch) => set(patch),
+      tasks: DEFAULT_LOOK,
+      weather: DEFAULT_LOOK,
+      setLook: (id, patch) => set((st) => ({ [id]: { ...st[id], ...patch } }) as Partial<WidgetSettingsState>),
     }),
-    { name: 'widget-settings-v1', storage: createJSONStorage(() => AsyncStorage) },
+    {
+      name: 'widget-settings-v1',
+      version: 1,
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (st) => ({ tasks: st.tasks, weather: st.weather }),
+      // v0 = jeden wspólny wygląd → ten sam dla obu widgetów.
+      migrate: (old: any, version) => {
+        if (version < 1 && old && typeof old === 'object') {
+          const look: WidgetLook = {
+            bgOpacity: typeof old.bgOpacity === 'number' ? old.bgOpacity : DEFAULT_LOOK.bgOpacity,
+            bgColor: typeof old.bgColor === 'string' ? old.bgColor : DEFAULT_LOOK.bgColor,
+            textScale: old.textScale ?? DEFAULT_LOOK.textScale,
+          };
+          return { tasks: look, weather: look };
+        }
+        return old;
+      },
+    },
   ),
 );

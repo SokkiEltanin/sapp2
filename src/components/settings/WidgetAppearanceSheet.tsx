@@ -5,7 +5,9 @@ import { Minus, Plus } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
-import { useWidgetSettingsStore, WIDGET_BG_COLORS, type WidgetTextScale } from '@/store/widgetSettingsStore';
+import { useWidgetSettingsStore, WIDGET_BG_COLORS, type WidgetTextScale, type WidgetId, type WidgetLook } from '@/store/widgetSettingsStore';
+import { useWeatherStore } from '@/store/weatherStore';
+import { buildWeatherWidgetSnapshot } from '@/utils/widgetWeather';
 import { useCalendarStore } from '@/store/calendarStore';
 import { applyWidgetAppearance } from '@/services/widgetSync';
 import { buildWidgetSnapshot } from '@/utils/widgetTasks';
@@ -15,6 +17,8 @@ import { haptic } from '@/utils/haptics';
 // w ustawieniach tego widgetu?"). Podgląd na żywo na "tapecie" (gradient), te same
 // wiersze co prawdziwy widget (buildWidgetSnapshot), każda zmiana od razu leci do
 // widgetu na pulpicie (applyWidgetAppearance → natywne SharedPreferences).
+// 2026-11-14: osobno Zadania i Pogoda (user: "rozdzielić ustawienia widgetów"),
+// podgląd w kolorach jak na pulpicie (jaśniejsze szarości, odstęp 16 dp od krawędzi).
 const OPACITY_STEPS = [100, 75, 50, 25, 0];
 const SCALES: { key: WidgetTextScale; label: string; mult: number }[] = [
   { key: 'small', label: 'Mały', mult: 0.85 },
@@ -22,9 +26,9 @@ const SCALES: { key: WidgetTextScale; label: string; mult: number }[] = [
   { key: 'large', label: 'Duży', mult: 1.2 },
 ];
 const SAMPLE = [
-  { id: 'a', title: 'Zapłacić za internet', sub: 'Zaległe · wt.', color: '#EF4444', overdue: true },
+  { id: 'a', title: 'Zapłacić za internet', sub: 'wt.', color: '#F87171', overdue: true },
   { id: 'b', title: 'Zakupy na weekend', sub: 'Dziś · 18:00', color: '#F2F2F2', overdue: false },
-  { id: 'c', title: 'Wymiana oleju', sub: '20 lis', color: '#6E6E6E', overdue: false },
+  { id: 'c', title: 'Wymiana oleju', sub: '20 lis', color: '#B5B5B5', overdue: false },
 ];
 
 function hexA(hex: string, opacityPct: number): string {
@@ -32,25 +36,28 @@ function hexA(hex: string, opacityPct: number): string {
   return `${hex}${a}`;
 }
 
-export default function WidgetAppearanceSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+export default function WidgetAppearanceSheet({ visible, onClose, widget }: { visible: boolean; onClose: () => void; widget: WidgetId }) {
   const s = makeS();
-  const { bgOpacity, bgColor, textScale, set } = useWidgetSettingsStore();
+  const look = useWidgetSettingsStore((st) => st[widget]);
+  const { bgOpacity, bgColor, textScale } = look;
   const tasks = useCalendarStore((st) => st.tasks);
+  const wx = useWeatherStore((st) => st.data);
+  const loc = useWeatherStore((st) => st.location);
   const snap = useMemo(() => buildWidgetSnapshot(tasks), [tasks]);
+  const wsnap = useMemo(() => (wx && loc ? buildWeatherWidgetSnapshot(wx, loc.lat, loc.lon) : null), [wx, loc]);
   const rows = snap.rows.length ? snap.rows.slice(0, 4) : SAMPLE;
   const mult = SCALES.find((x) => x.key === textScale)?.mult ?? 1;
 
-  const update = (patch: Partial<{ bgOpacity: number; bgColor: string; textScale: WidgetTextScale }>) => {
+  const update = (patch: Partial<WidgetLook>) => {
     haptic.tap();
-    set(patch);
-    const next = { bgOpacity, bgColor, textScale, ...patch };
-    applyWidgetAppearance(next.bgOpacity, next.bgColor, next.textScale);
+    useWidgetSettingsStore.getState().setLook(widget, patch);
+    applyWidgetAppearance(widget, { ...look, ...patch });
   };
   const step = (d: number) => update({ bgOpacity: Math.max(0, Math.min(100, Math.round((bgOpacity + d) / 5) * 5)) });
 
   return (
     <AppBottomSheet visible={visible} onClose={onClose}>
-      <Text style={s.title}>Widgety: Zadania i Pogoda</Text>
+      <Text style={s.title}>Widget {widget === 'tasks' ? 'Zadania' : 'Pogoda'}</Text>
       <Text style={s.hint}>Dodasz go z listy widgetów na pulpicie. Zmiany widać od razu.</Text>
 
       {/* Podgląd na "tapecie" */}
@@ -66,15 +73,42 @@ export default function WidgetAppearanceSheet({ visible, onClose }: { visible: b
           <Rect x="0" y="0" width="100%" height="100%" fill="url(#wall)" />
         </Svg>
         <View style={[s.widget, { backgroundColor: hexA(bgColor, bgOpacity), borderColor: bgOpacity > 0 ? `rgba(255,255,255,${0.13 * bgOpacity / 100})` : 'transparent' }]}>
-          <Text style={[s.wHeader, { fontSize: 10 * mult }]}>{snap.rows.length ? snap.header : 'ZADANIA · 3 · 1 ZALEGŁE'}</Text>
-          {rows.map((r) => (
-            <View key={r.id} style={s.wRow}>
-              <View style={s.wCheck} />
-              <View style={[s.wDot, { backgroundColor: r.color }]} />
-              <Text style={[s.wTitle, { fontSize: 13 * mult }]} numberOfLines={1}>{r.title}</Text>
-              <Text style={[s.wSub, { fontSize: 10 * mult }, r.overdue && { color: '#EF4444' }]} numberOfLines={1}>{r.sub}</Text>
-            </View>
-          ))}
+          {widget === 'tasks' ? (
+            <>
+              <Text style={[s.wHeader, { fontSize: 10 * mult }]}>{snap.rows.length ? snap.header : 'ZADANIA · 3 · 1 ZALEGŁE'}</Text>
+              {rows.map((r) => (
+                <View key={r.id} style={s.wRow}>
+                  <View style={s.wCheck} />
+                  <View style={[s.wDot, { backgroundColor: r.color }]} />
+                  <Text style={[s.wTitle, { fontSize: 13 * mult }]} numberOfLines={1}>{r.title}</Text>
+                  <Text style={[s.wSub, { fontSize: 10 * mult }, r.overdue && { color: '#F87171' }]} numberOfLines={1}>{r.sub}</Text>
+                </View>
+              ))}
+            </>
+          ) : (
+            <>
+              <Text style={[s.wHeader, { fontSize: 10 * mult }]}>{(wsnap?.place ?? 'POGODA').toUpperCase()}</Text>
+              <View style={s.wxTop}>
+                <View style={[s.wxIcon, { backgroundColor: wsnap?.color ?? '#FBBF24' }]} />
+                <Text style={[s.wxTemp, { fontSize: 38 * mult }]}>{wsnap?.temp ?? '7°'}</Text>
+                <View style={s.wxSide}>
+                  <Text style={[s.wxLabel, { fontSize: 13 * mult }]} numberOfLines={1}>{wsnap?.label ?? 'Częściowe zachmurzenie'}</Text>
+                  <Text style={[s.wxHilo, { fontSize: 12 * mult }]}>{wsnap ? `${wsnap.hi} / ${wsnap.lo}` : '9° / 2°'}</Text>
+                </View>
+              </View>
+              <Text style={[s.wxLine, { fontSize: 12 * mult }, wsnap?.rain && { color: '#6C9EFF' }]} numberOfLines={1}>{wsnap?.line ?? 'Bez opadów do jutra'}</Text>
+              <View style={s.wxHours}>
+                {(wsnap?.hours ?? [{ t: '15', temp: '8°', pop: '', color: '#F5C451', icon: '' }, { t: '18', temp: '6°', pop: '20%', color: '#60A5FA', icon: '' }, { t: '21', temp: '4°', pop: '', color: '#A5B4FC', icon: '' }]).map((h) => (
+                  <View key={h.t} style={s.wxHour}>
+                    <Text style={[s.wxHt, { fontSize: 10 * mult }]}>{h.t}</Text>
+                    <View style={[s.wxDot, { backgroundColor: h.color }]} />
+                    <Text style={[s.wxHtemp, { fontSize: 12 * mult }]}>{h.temp}</Text>
+                    <Text style={[s.wxHpop, { fontSize: 9.5 * mult }]}>{h.pop || ' '}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
         </View>
       </View>
 
@@ -122,13 +156,26 @@ const makeS = themedStyles((c) => StyleSheet.create({
   title: { fontSize: 17, fontFamily: 'Inter_900Black', color: c.text.primary },
   hint: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 2 },
   preview: { marginTop: spacing[3], borderRadius: radius.lg, overflow: 'hidden', padding: spacing[4], minHeight: 170, justifyContent: 'center' },
-  widget: { borderRadius: 22, borderWidth: 1, padding: 12 },
-  wHeader: { fontFamily: 'Inter_700Bold', color: '#6E6E6E', letterSpacing: 0.8, paddingBottom: 4 },
+  widget: { borderRadius: 22, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14 },
+  wHeader: { fontFamily: 'Inter_700Bold', color: '#A3A3A3', letterSpacing: 0.8, paddingBottom: 4 },
   wRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
-  wCheck: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: '#6E6E6E', marginRight: 8 },
+  wCheck: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: '#8A8A8A', marginRight: 8 },
   wDot: { width: 6, height: 6, borderRadius: 3, marginRight: 8 },
   wTitle: { flex: 1, fontFamily: 'Inter_500Medium', color: '#F2F2F2' },
-  wSub: { fontFamily: 'Inter_500Medium', color: '#6E6E6E', marginLeft: 6 },
+  wSub: { fontFamily: 'Inter_500Medium', color: '#A3A3A3', marginLeft: 6 },
+  wxTop: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  wxIcon: { width: 30, height: 30, borderRadius: 15 },
+  wxTemp: { fontFamily: 'Inter_800ExtraBold', color: '#F2F2F2', marginLeft: 8 },
+  wxSide: { flex: 1, marginLeft: 10 },
+  wxLabel: { fontFamily: 'Inter_700Bold', color: '#D6D6D6' },
+  wxHilo: { fontFamily: 'Inter_500Medium', color: '#A7ADBD' },
+  wxLine: { fontFamily: 'Inter_700Bold', color: '#A7ADBD' },
+  wxHours: { flexDirection: 'row', marginTop: 8 },
+  wxHour: { flex: 1, alignItems: 'center' },
+  wxHt: { fontFamily: 'Inter_500Medium', color: '#A3A3A3' },
+  wxDot: { width: 12, height: 12, borderRadius: 6, marginTop: 3 },
+  wxHtemp: { fontFamily: 'Inter_800ExtraBold', color: '#F2F2F2', marginTop: 2 },
+  wxHpop: { fontFamily: 'Inter_500Medium', color: '#6C9EFF' },
   label: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: spacing[4] },
   opRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginTop: spacing[2] },
   stepBtn: { width: 40, height: 36, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.elevated },

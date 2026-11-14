@@ -185,8 +185,27 @@ ${iconCases}
       else -> "#A3A3A3"
     }
 
+
+    // Czytelność na ciemnym tle (2026-11-14) — ta sama formuła co src/utils/readableColor.ts.
+    private fun lin(c: Int): Double { val s = c / 255.0; return if (s <= 0.03928) s / 12.92 else Math.pow((s + 0.055) / 1.055, 2.4) }
+    private fun lum(c: Int): Double = 0.2126 * lin(Color.red(c)) + 0.7152 * lin(Color.green(c)) + 0.0722 * lin(Color.blue(c))
+    fun readable(hex: String): Int {
+      val c = try { Color.parseColor(hex) } catch (e: Exception) { return Color.parseColor("#D6D6D6") }
+      if (lum(c) >= 0.3) return c
+      var t = 0.05
+      while (t <= 1.0001) {
+        val m = Color.rgb(
+          (Color.red(c) + (255 - Color.red(c)) * t).toInt(),
+          (Color.green(c) + (255 - Color.green(c)) * t).toInt(),
+          (Color.blue(c) + (255 - Color.blue(c)) * t).toInt())
+        if (lum(m) >= 0.3) return m
+        t += 0.05
+      }
+      return Color.WHITE
+    }
+
     private fun tint(v: RemoteViews, id: Int, hex: String) {
-      try { v.setInt(id, "setColorFilter", Color.parseColor(hex)) } catch (e: Exception) {}
+      try { v.setInt(id, "setColorFilter", readable(hex)) } catch (e: Exception) {}
     }
 
     private fun labelFor(code: Int, isDay: Boolean): String = when {
@@ -326,20 +345,21 @@ ${iconCases}
     private fun buildViews(context: Context, snap: JSONObject, showHours: Boolean): RemoteViews {
       val v = RemoteViews(context.packageName, R.layout.weather_widget)
       val p = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-      val opacity = p.getInt("bg_opacity", 100).coerceIn(0, 100)
+      // Własny wygląd Pogody (2026-11-14, "wx_*"); brak → wspólny z Zadań (stare ustawienia).
+      val opacity = p.getInt("wx_bg_opacity", p.getInt("bg_opacity", 100)).coerceIn(0, 100)
       if (opacity <= 0) {
         v.setViewVisibility(R.id.wx_bg_image, View.GONE)
       } else {
         v.setViewVisibility(R.id.wx_bg_image, View.VISIBLE)
         try {
-          val rgb = Color.parseColor(p.getString("bg_color", "#141414") ?: "#141414") and 0x00FFFFFF
+          val rgb = Color.parseColor(p.getString("wx_bg_color", null) ?: p.getString("bg_color", "#141414") ?: "#141414") and 0x00FFFFFF
           val argb = ((opacity * 255 / 100).coerceIn(0, 255) shl 24) or rgb
           v.setImageViewBitmap(R.id.wx_bg_image, bgBitmap(context, argb))
         } catch (e: Exception) {
           v.setViewVisibility(R.id.wx_bg_image, View.GONE)
         }
       }
-      val mult = when (p.getString("text_scale", "medium")) { "small" -> 0.85f; "large" -> 1.2f; else -> 1f }
+      val mult = when (p.getString("wx_text_scale", null) ?: p.getString("text_scale", "medium")) { "small" -> 0.85f; "large" -> 1.2f; else -> 1f }
       v.setTextViewTextSize(R.id.wx_temp, TypedValue.COMPLEX_UNIT_SP, 38f * mult)
       v.setTextViewTextSize(R.id.wx_label, TypedValue.COMPLEX_UNIT_SP, 13f * mult)
       v.setTextViewTextSize(R.id.wx_hilo, TypedValue.COMPLEX_UNIT_SP, 12f * mult)
@@ -409,6 +429,17 @@ class ${MODULE_CLASS}(reactContext: ReactApplicationContext) : ReactContextBaseJ
   fun requestUpdate() {
     ${PROVIDER_CLASS}.updateAll(reactApplicationContext)
   }
+
+  // Osobny wygląd Pogody (2026-11-14) — klucze "wx_*" w tych samych SharedPreferences.
+  @ReactMethod
+  fun setAppearance(opacityPct: Double, color: String, textScale: String) {
+    reactApplicationContext.getSharedPreferences("TasksWidgetPrefs", android.content.Context.MODE_PRIVATE).edit()
+      .putInt("wx_bg_opacity", opacityPct.toInt())
+      .putString("wx_bg_color", color)
+      .putString("wx_text_scale", textScale)
+      .apply()
+    ${PROVIDER_CLASS}.updateAll(reactApplicationContext)
+  }
 }
 `;
 }
@@ -444,7 +475,7 @@ function hourColXml(i) {
                     android:id="@+id/wx_ht${i}"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="#6E6E6E"
+                    android:textColor="#A3A3A3"
                     android:textSize="10sp" />
                 <ImageView
                     android:id="@+id/wx_hicon${i}"
@@ -488,7 +519,10 @@ function layoutXml() {
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="14dp">
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -502,7 +536,7 @@ function layoutXml() {
                 android:maxLines="1"
                 android:ellipsize="end"
                 android:text="POGODA"
-                android:textColor="#6E6E6E"
+                android:textColor="#A3A3A3"
                 android:textSize="10sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.08" />
@@ -510,7 +544,7 @@ function layoutXml() {
                 android:id="@+id/wx_updated"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#6E6E6E"
+                android:textColor="#A3A3A3"
                 android:textSize="10sp" />
         </LinearLayout>
 

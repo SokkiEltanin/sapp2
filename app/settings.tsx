@@ -41,7 +41,7 @@ import Toggle from '@/components/design/Toggle';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import WidgetAppearanceSheet from '@/components/settings/WidgetAppearanceSheet';
 import CategoriesSheet from '@/components/settings/CategoriesSheet';
-import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
+import { useWidgetSettingsStore, type WidgetLook, type WidgetId } from '@/store/widgetSettingsStore';
 import { useSyncStatus } from '@/services/cloudSync';
 import {
   uploadBackup, fetchBackupMeta, restoreBackup, getLastBackupAt, isAutoBackupEnabled, setAutoBackupEnabled,
@@ -103,7 +103,7 @@ function buildSections(
   hapticsEnabled: boolean,
   health: { connected: boolean; lastSyncedAt: string | null },
   backup: { auto: boolean; lastAt: string | null; busy: boolean; error: string | null; fileDir: string | null; fileLastAt: string | null },
-  widget: { opacity: number; textScale: string },
+  widget: { tasks: WidgetLook; weather: WidgetLook },
   sync: string,
   update: string,
   errors: string,
@@ -230,10 +230,12 @@ function buildSections(
   },
   // Widget pulpitu "Zadania" (2026-11-13, user: "ma ustawienia przezroczystości?").
   {
-    id: 'widget', title: 'Widget na pulpit', icon: LayoutGrid, group: 'main',
-    summary: `Zadania i Pogoda · tło ${widget.opacity === 0 ? 'przezroczyste' : `${widget.opacity}%`} · tekst ${widget.textScale === 'small' ? 'mały' : widget.textScale === 'large' ? 'duży' : 'średni'}`,
+    id: 'widget', title: 'Widgety na pulpit', icon: LayoutGrid, group: 'main',
+    summary: `Zadania: ${lookLabel(widget.tasks)} · Pogoda: ${lookLabel(widget.weather)}`,
+    // Osobno (2026-11-14, user: "rozdzielić ustawienia widgetów").
     items: [
-      { kind: 'action', key: 'widget-appearance', label: 'Wygląd widgetów', description: 'Zadania i Pogoda: przezroczystość, kolor tła, wielkość tekstu', icon: LayoutGrid },
+      { kind: 'action', key: 'widget-tasks', label: 'Widget Zadania', description: `tło ${lookLabel(widget.tasks)} · tekst ${scaleLabel(widget.tasks.textScale)}`, icon: LayoutGrid },
+      { kind: 'action', key: 'widget-weather', label: 'Widget Pogoda', description: `tło ${lookLabel(widget.weather)} · tekst ${scaleLabel(widget.weather.textScale)}`, icon: LayoutGrid },
     ],
   },
   {
@@ -286,6 +288,9 @@ function backupErrorText(e: any): string {
   if (msg.toLowerCase().includes('permission')) return 'brak uprawnień do zapisu w Firestore (reguły bazy)';
   return msg;
 }
+
+const lookLabel = (l: WidgetLook) => (l.bgOpacity === 0 ? 'przezroczyste' : `${l.bgOpacity}%`);
+const scaleLabel = (t: string) => (t === 'small' ? 'mały' : t === 'large' ? 'duży' : 'średni');
 
 function describeSummary(meta: { summary: BackupSummary }): string {
   const x = meta.summary;
@@ -346,9 +351,9 @@ export default function SettingsScreen() {
   const syncLabel = syncState === 'ok'
     ? `działa${syncLastAt ? ` · ${new Date(syncLastAt).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}` : ''}`
     : syncState === 'connecting' ? 'łączę…' : syncState === 'error' ? `błąd: ${(syncError ?? '').slice(0, 40)}` : 'wyłączona';
-  const widgetOpacity = useWidgetSettingsStore((st) => st.bgOpacity);
-  const widgetTextScale = useWidgetSettingsStore((st) => st.textScale);
-  const [widgetOpen, setWidgetOpen] = useState(false);
+  const widgetTasks = useWidgetSettingsStore((st) => st.tasks);
+  const widgetWeather = useWidgetSettingsStore((st) => st.weather);
+  const [widgetOpen, setWidgetOpen] = useState<WidgetId | null>(null);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const rulesCount = useCategoryRulesStore((st) => st.rules.length);
@@ -375,13 +380,13 @@ export default function SettingsScreen() {
       hapticsEnabled,
       { connected: healthConnected, lastSyncedAt: healthLastSyncedAt },
       { auto: backupAuto, lastAt: backupLastAt, busy: backupBusy, error: backupError, fileDir: fileInfo.dir, fileLastAt: fileInfo.lastAt },
-      { opacity: widgetOpacity, textScale: widgetTextScale },
+      { tasks: widgetTasks, weather: widgetWeather },
       syncLabel,
       updateLabel,
       errorsLabel,
       rulesCount,
     ),
-    [rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetOpacity, widgetTextScale, syncLabel],
+    [rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, syncLabel],
   );
 
   const backupNow = async () => {
@@ -964,7 +969,8 @@ export default function SettingsScreen() {
     'file-export': () => fileExport(false),
     'file-folder': () => fileExport(true),
     'file-import': fileImport,
-    'widget-appearance': leave(() => setWidgetOpen(true)),
+    'widget-tasks': leave(() => setWidgetOpen('tasks')),
+    'widget-weather': leave(() => setWidgetOpen('weather')),
     categories: leave(() => setCategoriesOpen(true)),
     'category-rules': leave(() => setRulesOpen(true)),
     'update-check': updateCheck,
@@ -1186,7 +1192,7 @@ export default function SettingsScreen() {
           </View>
         )}
       </AppBottomSheet>
-      <WidgetAppearanceSheet visible={widgetOpen} onClose={() => setWidgetOpen(false)} />
+      <WidgetAppearanceSheet visible={!!widgetOpen} widget={widgetOpen ?? 'tasks'} onClose={() => setWidgetOpen(null)} />
       <CategoriesSheet visible={categoriesOpen} onClose={() => setCategoriesOpen(false)} />
       <CategoryRulesSheet visible={rulesOpen} onClose={() => setRulesOpen(false)} />
       <ErrorLogSheet visible={errorsOpen} onClose={() => setErrorsOpen(false)} header={`sapp2 ${BUILD_INFO.version} · build ${BUILD_INFO.buildNumber} · ${BUILD_INFO.commit} · ${runningUpdateLabel()}`} />

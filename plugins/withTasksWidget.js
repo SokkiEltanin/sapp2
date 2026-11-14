@@ -108,6 +108,25 @@ class ${PROVIDER_CLASS} : AppWidgetProvider() {
       }
     }
 
+
+    // Czytelność na ciemnym tle (2026-11-14) — ta sama formuła co src/utils/readableColor.ts.
+    private fun lin(c: Int): Double { val s = c / 255.0; return if (s <= 0.03928) s / 12.92 else Math.pow((s + 0.055) / 1.055, 2.4) }
+    private fun lum(c: Int): Double = 0.2126 * lin(Color.red(c)) + 0.7152 * lin(Color.green(c)) + 0.0722 * lin(Color.blue(c))
+    fun readable(hex: String): Int {
+      val c = try { Color.parseColor(hex) } catch (e: Exception) { return Color.parseColor("#D6D6D6") }
+      if (lum(c) >= 0.3) return c
+      var t = 0.05
+      while (t <= 1.0001) {
+        val m = Color.rgb(
+          (Color.red(c) + (255 - Color.red(c)) * t).toInt(),
+          (Color.green(c) + (255 - Color.green(c)) * t).toInt(),
+          (Color.blue(c) + (255 - Color.blue(c)) * t).toInt())
+        if (lum(m) >= 0.3) return m
+        t += 0.05
+      }
+      return Color.WHITE
+    }
+
     fun updateAll(context: Context) {
       try {
         val mgr = AppWidgetManager.getInstance(context)
@@ -161,9 +180,9 @@ class ${PROVIDER_CLASS} : AppWidgetProvider() {
         views.setTextViewText(TITLE_IDS[i], row.optString("title"))
         views.setTextViewText(SUB_IDS[i], row.optString("sub"))
         val overdue = row.optBoolean("overdue", false)
-        views.setTextColor(SUB_IDS[i], if (overdue) Color.parseColor("#EF4444") else Color.parseColor("#6E6E6E"))
+        views.setTextColor(SUB_IDS[i], if (overdue) Color.parseColor("#F87171") else Color.parseColor("#A3A3A3"))
         try {
-          views.setInt(DOT_IDS[i], "setColorFilter", Color.parseColor(row.optString("color", "#6E6E6E")))
+          views.setInt(DOT_IDS[i], "setColorFilter", readable(row.optString("color", "#A3A3A3")))
         } catch (e: Exception) {}
         // requestCode stały PER SLOT + FLAG_UPDATE_CURRENT: przy każdym odmalowaniu
         // Android podmienia extras (nowe task_id) zamiast mnożyć PendingIntenty.
@@ -312,7 +331,7 @@ function widgetRowXml(i) {
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
                 android:maxLines="1"
-                android:textColor="#6E6E6E"
+                android:textColor="#A3A3A3"
                 android:textSize="10sp" />
         </LinearLayout>
 `;
@@ -336,14 +355,17 @@ function widgetLayoutXml() {
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="12dp">
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp">
 
     <TextView
         android:id="@+id/widget_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="ZADANIA"
-        android:textColor="#6E6E6E"
+        android:textColor="#A3A3A3"
         android:textSize="10sp"
         android:textStyle="bold"
         android:letterSpacing="0.08"
@@ -372,7 +394,7 @@ const drawables = {
 `,
   widget_check_ring: `<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <stroke android:width="1.5dp" android:color="#6E6E6E" />
+    <stroke android:width="1.5dp" android:color="#8A8A8A" />
 </shape>
 `,
 };

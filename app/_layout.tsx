@@ -207,7 +207,8 @@ export default function RootLayout() {
       drainWidgetToggleQueue().finally(flush);
       // Odtwórz wygląd (np. po przywróceniu kopii na nowym telefonie).
       const w = useWidgetSettingsStore.getState();
-      applyWidgetAppearance(w.bgOpacity, w.bgColor, w.textScale);
+      applyWidgetAppearance('tasks', w.tasks);
+      applyWidgetAppearance('weather', w.weather);
     }, 1200);
     const sub = AppState.addEventListener('change', (state) => { if (state === 'active') drainWidgetToggleQueue(); });
     // Widget "Pogoda": nowy odczyt w appce → snapshot dla pulpitu.

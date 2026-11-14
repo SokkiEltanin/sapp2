@@ -1,3 +1,4 @@
+import { readableOnDark } from './readableColor';
 import { weatherCodeInfo, rainSummary, fmtTemp, weatherColor, type WeatherData } from './weather';
 
 // Snapshot pod natywny widget "Pogoda" (2026-11-13, plugins/withWeatherWidget.js).
@@ -29,14 +30,14 @@ export function buildWeatherWidgetSnapshot(w: WeatherData, lat: number, lon: num
     hours.push({
       t: h.time.slice(11, 16),
       icon: widgetIconName(weatherCodeInfo(h.code, isDayAt(h.time)).icon),
-      color: weatherColor(h.code, isDayAt(h.time)),
+      color: readableOnDark(weatherColor(h.code, isDayAt(h.time))),
       temp: fmtTemp(h.temp),
       pop: h.pop >= 20 ? `${h.pop}%` : '',
     });
   }
   return {
     place: w.place, lat, lon, fetchedAt: w.fetchedAt,
-    temp: fmtTemp(w.current.temp), label: info.label, icon: widgetIconName(info.icon), color: weatherColor(w.current.code, w.current.isDay),
+    temp: fmtTemp(w.current.temp), label: info.label, icon: widgetIconName(info.icon), color: readableOnDark(weatherColor(w.current.code, w.current.isDay)),
     hi: today ? fmtTemp(today.max) : '', lo: today ? fmtTemp(today.min) : '',
     line, rain: !!line && !line.startsWith('bez'), hours,
   };

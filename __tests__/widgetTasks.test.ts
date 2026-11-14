@@ -20,7 +20,7 @@ describe('buildWidgetSnapshot', () => {
   });
   test('etykiety i kolory', () => {
     const snap = buildWidgetSnapshot([t({ id: 'over', deadline: '2026-11-10' }), t({ id: 'today', deadline: '2026-11-13T18:00:00' })], now);
-    expect(snap.rows[0]).toMatchObject({ overdue: true, color: '#EF4444' });
+    expect(snap.rows[0]).toMatchObject({ overdue: true, color: '#F87171' });
     expect(snap.rows[0].sub).not.toMatch(/Zaległe/);
     expect(snap.rows[1]).toMatchObject({ sub: 'Dziś · 18:00', overdue: false, color: '#F2F2F2' });
   });
