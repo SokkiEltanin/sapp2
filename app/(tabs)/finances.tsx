@@ -1,3 +1,4 @@
+import { incomeByCategory } from '@/utils/incomeCategory';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
@@ -225,10 +226,11 @@ export default function FinancesScreen() {
   const catVersion = useCategoriesVersion();
   const varCats = useMemo(() => variableByCategory(expenses, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`), [expenses, now, catVersion]);
   const fixedCats = useMemo(() => fixedByCategory(expenses, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`), [expenses, now, catVersion]);
-  const [catTab, setCatTab] = useState<'food' | 'fixed' | 'variable'>('food');
+  const incomeCats = useMemo(() => incomeByCategory(expenses, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`), [expenses, now]);
+  const [catTab, setCatTab] = useState<'food' | 'fixed' | 'variable' | 'income'>('food');
   const [trendOpen, setTrendOpen] = useState(false);
   const foodCats = wydatkiData.food.categories;
-  const catBars = catTab === 'food' ? foodCats : catTab === 'fixed' ? fixedCats : varCats;
+  const catBars = catTab === 'food' ? foodCats : catTab === 'fixed' ? fixedCats : catTab === 'income' ? incomeCats : varCats;
 
   return (
     <Screen
@@ -302,9 +304,9 @@ export default function FinancesScreen() {
       <Row>
         <Tile span={4}>
           <View style={s.catHead}>
-            {(['food', 'fixed', 'variable'] as const).map((k) => (
+            {(['food', 'fixed', 'variable', 'income'] as const).map((k) => (
               <TouchableOpacity key={k} onPress={() => { haptic.tap(); setCatTab(k); }} hitSlop={6} style={[s.catTab, catTab === k && s.catTabOn]}>
-                <Text style={[s.catTabLabel, catTab === k && s.catTabLabelOn]}>{k === 'food' ? 'Jedzenie' : k === 'fixed' ? 'Stałe' : 'Zmienne'}</Text>
+                <Text style={[s.catTabLabel, catTab === k && s.catTabLabelOn]}>{k === 'food' ? 'Jedzenie' : k === 'fixed' ? 'Stałe' : k === 'income' ? 'Wpływy' : 'Zmienne'}</Text>
               </TouchableOpacity>
             ))}
             <Text style={s.catTotal}>{catBars.reduce((a2, c) => a2 + c.amount, 0)} PLN</Text>
@@ -315,7 +317,7 @@ export default function FinancesScreen() {
           {catBars.length === 0 ? (
             <Text style={[T.small, s.emptyInline]}>Brak w tym miesiącu</Text>
           ) : (
-            <TouchableOpacity onPress={() => { setWydatkiTab(catTab); setWydatkiOpen(true); }} activeOpacity={0.7} style={s.barSpace}>
+            <TouchableOpacity onPress={() => { if (catTab === 'income') setTrendOpen(true); else { setWydatkiTab(catTab); setWydatkiOpen(true); } }} activeOpacity={0.7} style={s.barSpace}>
               <StackBar parts={catBars.map((c) => ({ label: c.label, value: c.amount, color: c.color }))} height={10} legendMax={3} />
             </TouchableOpacity>
           )}

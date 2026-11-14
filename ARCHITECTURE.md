@@ -1637,6 +1637,13 @@ Ustawienia → Finanse → Reguły kategorii (`components/settings/CategoryRules
 skrót "Zawsze tak dla „sklep”" pod wyborem kategorii w `AddExpenseModal`.
 Odmiana liczebników: `utils/plural.ts`.
 
+## KATEGORIE PRZYCHODÓW (2026-11-14)
+
+`Expense.incomeCategory` (pensja/zwrot/sprzedaz/prezent/odsetki/inne), `utils/incomeCategory.ts`
+(`incomeCategoryOf` — ręczny wybór, inaczej zgadywanie z tagów/opisu; `incomeByCategory`).
+Formularz: chipy "Auto + kategorie" przy Przychodzie. Finanse: zakładka "Wpływy" w kaflu
+Kategorie (stuknięcie → trend). Trend: koszyk `income` + `inc:<tag>`. CSV: kolumna Kategorie.
+
 ## WIDGET NOTATKA (2026-11-14)
 
 `plugins/withNoteWidget.js` (NoteWidgetProvider/Module/Package, layout `note_widget`,

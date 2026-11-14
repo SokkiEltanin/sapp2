@@ -1,3 +1,4 @@
+import { incomeCategoryOf, INCOME_META } from './incomeCategory';
 import type { Expense } from '@/types/finances';
 import { fvSplitOf } from './fixedVariable';
 import { variableSplitOf, EXPENSE_CATEGORY_META, UNCATEGORIZED } from './expenseCategory';
@@ -21,7 +22,7 @@ function bucket(e: Expense): string {
 }
 
 function categories(e: Expense): string {
-  if (e.type === 'income') return '';
+  if (e.type === 'income') return INCOME_META[incomeCategoryOf(e)]?.label ?? '';
   const tags = [...variableSplitOf(e).keys()].filter((t) => t !== UNCATEGORIZED);
   return tags.map((t) => EXPENSE_CATEGORY_META[t]?.label ?? t).join(', ');
 }

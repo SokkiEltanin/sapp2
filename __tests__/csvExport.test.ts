@@ -11,7 +11,7 @@ describe('eksport CSV', () => {
     expect(csv.charCodeAt(0)).toBe(0xfeff);
     const lines = csv.slice(1).trim().split('\r\n');
     expect(lines[0]).toBe('Data;Typ;Sklep / opis;Kwota;Koszyk;Kategorie;Notatka;Płatność;Tagi;Pozycje');
-    expect(lines[1]).toBe('2026-11-02;przychód;Wypłata;5000,00;przychód;;;;;');
+    expect(lines[1]).toBe('2026-11-02;przychód;Wypłata;5000,00;przychód;Wypłata;;;;');
     expect(lines[2]).toContain('2026-11-05;wydatek;Lidl;-31,50;');
     expect(lines[2]).toContain('karta');
     expect(lines[2]).toContain('Ser 8,99 (−3,99)');

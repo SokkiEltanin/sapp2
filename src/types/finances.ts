@@ -94,6 +94,9 @@ export interface Expense {
   // Patrz `utils/expenseCategory.ts`. Nie wpływa na `fvSplitOf`/kubły Stałe/
   // Zmienne/Jedzenie — czysto etykieta do rozbicia w zakładce Zmienne.
   expenseCategory?: string;
+  // Kategoria PRZYCHODU (2026-11-14, utils/incomeCategory.ts): pensja / zwrot /
+  // sprzedaz / prezent / odsetki / inne; brak = zgadywana z tagów i opisu.
+  incomeCategory?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,3 +1,4 @@
+import { incomeCategoryOf } from './incomeCategory';
 import type { Expense } from '@/types/finances';
 import { fvSplitOf } from './fixedVariable';
 import { variableSplitOf } from './expenseCategory';
@@ -7,7 +8,7 @@ import { isFoodItem, foodSubcat } from './food';
 // Trend 12 miesięcy (2026-11-14) — ile szło na koszyk/kategorię miesiąc po miesiącu.
 // JEDEN przebieg po wydatkach liczy wszystkie serie naraz (klucze jak zakresy
 // budżetów + podkategorie jedzenia i stałych). Te same kubły co "Podział" i budżety.
-// Klucze: all | food | variable | fixed | cat:<tag> | food:<subcat> | fixed:<tag>.
+// Klucze: all | food | variable | fixed | income | cat:<tag> | food:<subcat> | fixed:<tag> | inc:<tag>.
 export const MONTHS_SHORT = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
 
 export function lastMonthKeys(n: number, now: Date): string[] {
@@ -30,9 +31,14 @@ export function trendSeries(expenses: Expense[], n = 12, now: Date = new Date())
     arr[i] += v;
   };
   for (const e of expenses) {
-    if (e.type !== 'expense') continue;
     const i = idx.get((e.date ?? '').slice(0, 7));
     if (i == null) continue;
+    // Przychody (2026-11-14): koszyk 'income' + `inc:<kategoria>`; przelewy własne pominięte.
+    if (e.type === 'income') {
+      if (e.fvOverride !== 'transfer') { add('income', i, e.amount); add(`inc:${incomeCategoryOf(e)}`, i, e.amount); }
+      continue;
+    }
+    if (e.type !== 'expense') continue;
     const s = fvSplitOf(e);
     add('all', i, s.fixed + s.food + s.variable);
     add('food', i, s.food);

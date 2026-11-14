@@ -1,3 +1,4 @@
+import { INCOME_META } from '@/utils/incomeCategory';
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors } from '@/theme/colors';
@@ -15,15 +16,16 @@ import { haptic } from '@/utils/haptics';
 // Trend 12 miesięcy (2026-11-14, z listy "czego brakuje": "ile szło na paliwo albo
 // jedzenie miesiąc po miesiącu"). Koszyk → podkategorie, słupki z kreską średniej,
 // stuknięcie słupka pokazuje kwotę. Logika: utils/trend.ts.
-type Bucket = 'all' | 'food' | 'fixed' | 'variable';
-const BUCKETS: [Bucket, string][] = [['all', 'Wszystko'], ['food', 'Jedzenie'], ['fixed', 'Stałe'], ['variable', 'Zmienne']];
-const PREFIX: Record<Bucket, string> = { all: '', food: 'food:', fixed: 'fixed:', variable: 'cat:' };
+type Bucket = 'all' | 'food' | 'fixed' | 'variable' | 'income';
+const BUCKETS: [Bucket, string][] = [['all', 'Wydatki'], ['food', 'Jedzenie'], ['fixed', 'Stałe'], ['variable', 'Zmienne'], ['income', 'Wpływy']];
+const PREFIX: Record<Bucket, string> = { all: '', food: 'food:', fixed: 'fixed:', variable: 'cat:', income: 'inc:' };
 const zl = (n: number) => `${Math.round(n).toLocaleString('pl-PL')} zł`;
 const CHART_H = 120;
 
 function metaOf(key: string): { label: string; color: string } {
   const [p, tag] = [key.slice(0, key.indexOf(':')), key.slice(key.indexOf(':') + 1)];
   if (p === 'food') return tag === 'inne' ? { label: 'Inne jedzenie', color: '#8A8A8A' } : FOOD_SUBCAT_META[tag] ?? { label: tag, color: '#8A8A8A' };
+  if (p === 'inc') return INCOME_META[tag] ?? { label: tag, color: '#8A8A8A' };
   if (p === 'fixed') return tag === FIXED_OTHER ? { label: 'Inne stałe', color: '#5A5A5A' } : FIXED_CAT_META[tag] ?? { label: tag, color: '#8A8A8A' };
   return tag === UNCATEGORIZED ? { label: 'Bez kategorii', color: '#5A5A5A' } : EXPENSE_CATEGORY_META[tag] ?? { label: tag, color: '#8A8A8A' };
 }

@@ -1,3 +1,4 @@
+import { INCOME_CATS, INCOME_META, incomeCategoryOf } from '@/utils/incomeCategory';
 import { receiptSavings, applyReceiptDiscount, parseDiscountInput } from '@/utils/receiptDiscount';
 import { plural } from '@/utils/plural';
 import { useEffect, useMemo, useState } from 'react';
@@ -159,6 +160,7 @@ export default function AddExpenseModal({
   const [catOpen, setCatOpen] = useState(false);
   const [expenseCategory, setExpenseCategory] = useState<string | undefined>(undefined);
   const [ruleSaved, setRuleSaved] = useState<string | null>(null);
+  const [incomeCategory, setIncomeCategory] = useState<string | undefined>(undefined);
   const ruleMatch = storeMatchOf({ storeName, note });
   // Ostrzeżenie o możliwym duplikacie (2026-11-11, user: "jak dodałem z
   // opóźnieniem paragon to mi nie złapało że to ta sama suma i dzień") —
@@ -186,7 +188,7 @@ export default function AddExpenseModal({
     setType('expense'); setPasteText(''); setUsedPaste(false); setItems([]); setParsedTotal(0);
     setStoreName(''); setNote(''); setAmountInput(''); setDate(todayISO()); setPaymentMethod('card');
     setPayer('me'); setPaidOpen(false); setPasteBoxOpen(false); setFvOpen(false);
-    setFvChoice('auto'); setCatOpen(false); setExpenseCategory(undefined);
+    setFvChoice('auto'); setCatOpen(false); setExpenseCategory(undefined); setIncomeCategory(undefined);
     setTags([]); setTagInput(''); setClipboardSuggestion(null); setDuplicateOf(null);
   };
 
@@ -208,6 +210,7 @@ export default function AddExpenseModal({
     setPayer(editingExpense.payer ?? 'me');
     setFvChoice(editingExpense.fvOverride ?? 'auto');
     setExpenseCategory(editingExpense.expenseCategory);
+    setIncomeCategory(editingExpense.incomeCategory);
     setTags(editingExpense.tags ?? []);
     setUsedPaste(editingExpense.source === 'receipt');
   }, [visible, editingExpense]);
@@ -404,6 +407,7 @@ export default function AddExpenseModal({
       receiptItems: type === 'expense' && items.length > 0 ? items : undefined,
       fvOverride: type === 'expense' && fvChoice !== 'auto' ? fvChoice : null,
       expenseCategory: type === 'expense' ? expenseCategory : undefined,
+      incomeCategory: type === 'income' ? incomeCategory : undefined,
       paymentMethod: type === 'expense' ? paymentMethod : undefined,
       payer: type === 'expense' && payer !== 'me' ? payer : undefined,
       // Zapis = rozwiązanie oczekującego przeliczenia waluty (2026-11-09) —
@@ -689,6 +693,25 @@ export default function AddExpenseModal({
               style={s.amountInput}
             />
             <Text style={s.currencyLg}>zł</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Kategoria przychodu (2026-11-14) — brak wyboru = zgadywana z opisu/tagów. */}
+      {type === 'income' && (
+        <View style={s.section}>
+          <Text style={s.label}>
+            Kategoria: {INCOME_META[incomeCategory ?? '']?.label ?? `auto (${INCOME_META[incomeCategoryOf({ type: 'income', tags, note, storeName })].label})`}
+          </Text>
+          <View style={[s.chips, { marginTop: spacing[2] }]}>
+            <TouchableOpacity style={[s.chip, !incomeCategory && s.chipActive]} onPress={() => setIncomeCategory(undefined)} activeOpacity={0.7}>
+              <Text style={[s.chipLabel, !incomeCategory && s.chipLabelActive]}>Auto</Text>
+            </TouchableOpacity>
+            {INCOME_CATS.map((c) => (
+              <TouchableOpacity key={c.tag} style={[s.chip, incomeCategory === c.tag && { backgroundColor: c.color, borderColor: c.color }]} onPress={() => setIncomeCategory(c.tag)} activeOpacity={0.7}>
+                <Text style={[s.chipLabel, incomeCategory === c.tag && s.chipLabelActive]}>{c.label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
       )}

@@ -41,3 +41,14 @@ describe('trend 12 miesięcy', () => {
     expect(trendStats([0, 0, 50]).delta).toBeNull();
   });
 });
+
+describe('trend przychodów', () => {
+  it('koszyk income i kategorie, bez przelewów własnych', () => {
+    const { trendSeries } = require('@/utils/trend');
+    const I = (x: any) => ({ id: Math.random().toString(), type: 'income', amount: 100, date: '2026-11-05', note: '', tags: [], source: 'manual', createdAt: '', updatedAt: '', ...x });
+    const { series } = trendSeries([I({ tags: ['wypłata'], amount: 5000 }), I({ note: 'zwrot', amount: 40 }), I({ amount: 7, fvOverride: 'transfer' })], 12, new Date(2026, 10, 14));
+    expect(series.get('income')![11]).toBe(5040);
+    expect(series.get('inc:pensja')![11]).toBe(5000);
+    expect(series.get('all')).toBeUndefined();
+  });
+});
