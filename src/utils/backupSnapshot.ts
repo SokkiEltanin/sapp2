@@ -65,3 +65,36 @@ export function isBackupDue(lastAtIso: string | null, now: Date, everyHours: num
   if (Number.isNaN(last)) return true;
   return now.getTime() - last >= everyHours * 3600_000;
 }
+
+// ── Kopia do pliku (2026-11-14) ─────────────────────────────────────────────
+// Ten sam format co kopia w chmurze: { app, version, createdAt, entries }.
+export const LOCAL_BACKUP_EVERY_DAYS = 7;
+export const LOCAL_BACKUP_KEEP = 4;
+const FILE_RE = /^sapp2-kopia-(\d{4}-\d{2}-\d{2})(?:-(\d{4}))?\.json$/;
+
+export function backupFileName(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `sapp2-kopia-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.json`;
+}
+
+export function buildBackupFile(entries: Record<string, string>, now: Date): string {
+  return JSON.stringify({ app: 'sapp2', version: 1, createdAt: now.toISOString(), entries });
+}
+
+/** Odczyt pliku kopii (z eksportu albo z chmury). Rzuca czytelny błąd zamiast zgadywać. */
+export function parseBackupFile(text: string): { createdAt: string | null; entries: Record<string, string> } {
+  let j: any;
+  try { j = JSON.parse(text); } catch { throw new Error('To nie jest plik kopii sapp2 (zły JSON).'); }
+  const e = j?.entries;
+  if (!e || typeof e !== 'object' || Array.isArray(e)) throw new Error('To nie jest plik kopii sapp2 (brak danych).');
+  const entries: Record<string, string> = {};
+  for (const [k, v] of Object.entries(e)) if (typeof v === 'string' && shouldBackupKey(k)) entries[k] = v;
+  if (Object.keys(entries).length === 0) throw new Error('Plik kopii jest pusty.');
+  return { createdAt: typeof j.createdAt === 'string' ? j.createdAt : null, entries };
+}
+
+/** Nazwy starych automatycznych kopii do usunięcia (zostaje `keep` najnowszych). */
+export function filesToPrune(names: string[], keep: number = LOCAL_BACKUP_KEEP): string[] {
+  const ours = names.filter((n) => FILE_RE.test(n)).sort().reverse();
+  return ours.slice(keep);
+}

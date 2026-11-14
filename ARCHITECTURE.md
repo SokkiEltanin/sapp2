@@ -1625,6 +1625,15 @@ telefonie, auto-roll po realnym upływie czasu.
   `error-log-v1`, max 100 wpisów, powtórki łączone (×N). Nowe ciche `catch` w tle →
   `logError` zamiast `() => {}`.
 
+## KOPIA DO PLIKU (2026-11-14)
+
+`services/localBackup.ts` (SAF: `requestDirectoryPermissionsAsync`, folder w
+`cloud_backup_local_dir`; web = pobranie), format i walidacja w `utils/backupSnapshot.ts`
+(`buildBackupFile`/`parseBackupFile`/`filesToPrune`, ten sam `entries` co chmura).
+Automat co 7 dni w `hooks/useAutoBackup.ts` (bez logowania). Zastosowanie kopii —
+wspólne `applyEntries` w `services/cloudBackup.ts` (nowy persistowany store → dopisz
+do listy rehydrate tam!). UI: Ustawienia → Dane.
+
 ## KATEGORIE (Zmienne + edycja) [PE] (2026-11-14)
 
 User: "dodać kategorie do ZMIENNYCH (elektronika, części); w paragonie najpierw

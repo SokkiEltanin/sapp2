@@ -67,6 +67,10 @@ Authentication → Settings → Authorized domains → `sokkieltanin.github.io`.
   zmiana wygrywa). Usunięcie elementu z listy = znacznik `_deleted` w chmurze.
 - Kopia w chmurze: `services/cloudBackup.ts` — cały AsyncStorage (bez `sync-*` i sesji).
 - Przywracanie: Ustawienia → Dane → „Przywróć z kopii”.
+- Kopia do pliku (bez konta/internetu): Ustawienia → Dane → „Kopia do pliku” — wybór
+  folderu (np. Download), potem co 7 dni sama, zostają 4 ostatnie
+  (`services/localBackup.ts`). „Wczytaj kopię z pliku” pokazuje zawartość przed zapisem.
+  Przed każdym przywróceniem bieżące dane idą do `sapp2-przed-przywroceniem.json`.
 
 ## 6. Jak dodać…
 

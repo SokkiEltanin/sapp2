@@ -1,3 +1,7 @@
+import { exportBackupFile, pickBackupFile, getLocalBackupInfo, folderLabel, type PickedBackup } from '@/services/localBackup';
+import { applyEntries } from '@/services/cloudBackup';
+import type { BackupSummary } from '@/utils/backupSnapshot';
+import { logError } from '@/services/errorLog';
 import { useErrorLog } from '@/services/errorLog';
 import { entryTime } from '@/utils/errorLog';
 import ErrorLogSheet from '@/components/settings/ErrorLogSheet';
@@ -29,7 +33,7 @@ import { todayISO } from '@/utils/date';
 import { useBankQueue } from '@/store/bankQueueStore';
 import { useHealthStore } from '@/store/healthStore';
 import { isHealthConnectAvailable, ensureHealthConnect, openHealthConnectSettings, readHealthDay } from '@/services/healthConnectService';
-import { isHapticsEnabled, setHapticsEnabled } from '@/utils/haptics';
+import { isHapticsEnabled, setHapticsEnabled, haptic } from '@/utils/haptics';
 import Toggle from '@/components/design/Toggle';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import WidgetAppearanceSheet from '@/components/settings/WidgetAppearanceSheet';
@@ -95,7 +99,7 @@ function buildSections(
   bank: { enabled: boolean; autoAll: boolean; pending: number },
   hapticsEnabled: boolean,
   health: { connected: boolean; lastSyncedAt: string | null },
-  backup: { auto: boolean; lastAt: string | null; busy: boolean; error: string | null },
+  backup: { auto: boolean; lastAt: string | null; busy: boolean; error: string | null; fileDir: string | null; fileLastAt: string | null },
   widget: { opacity: number; textScale: string },
   sync: string,
   update: string,
@@ -181,6 +185,16 @@ function buildSections(
       },
       { kind: 'action', tier: 'sub', key: 'backup-now', label: 'Zrób kopię teraz', description: backup.busy ? 'trwa…' : backup.error ? `nie udało się: ${backup.error}` : 'wszystkie dane appki na Twoje konto (Firestore)', icon: CloudUpload },
       { kind: 'action', tier: 'sub', key: 'backup-restore', label: 'Przywróć z kopii', description: 'np. po zmianie telefonu — najpierw pokaże, co jest w kopii', icon: CloudDownload },
+      // Kopia do pliku (2026-11-14) — bez konta i internetu; co tydzień sama do folderu.
+      {
+        kind: 'action', key: 'file-export', label: 'Kopia do pliku',
+        description: Platform.OS === 'web' ? 'pobierz wszystkie dane jako plik JSON'
+          : backup.fileDir ? `${folderLabel(backup.fileDir)} · co tydzień sama, 4 ostatnie${backup.fileLastAt ? ` · ostatnia ${fmtBackupDate(backup.fileLastAt)}` : ''}`
+          : 'wybierz folder (np. Download) — potem co tydzień automatycznie',
+        icon: Download,
+      },
+      ...(backup.fileDir && Platform.OS !== 'web' ? [{ kind: 'action' as const, tier: 'sub' as const, key: 'file-folder', label: 'Zmień folder kopii', description: 'zapisz kopię teraz w innym folderze', icon: Download }] : []),
+      { kind: 'action', tier: 'sub', key: 'file-import', label: 'Wczytaj kopię z pliku', description: 'plik sapp2-kopia-….json — najpierw pokaże, co w nim jest', icon: CloudDownload },
       // Synchronizacja na żywo między urządzeniami (2026-11-13, services/cloudSync.ts).
       { kind: 'value', key: 'sync-status', label: 'Synchronizacja urządzeń', description: 'zadania, kalendarz, humor, wydatki, opłaty, wymiany, pojazdy, praca, sen i kroki — telefon i komputer', icon: CloudUpload, value: sync },
     ],
@@ -268,7 +282,7 @@ function backupErrorText(e: any): string {
   return msg;
 }
 
-function describeSummary(meta: BackupMeta): string {
+function describeSummary(meta: { summary: BackupSummary }): string {
   const x = meta.summary;
   return `${x.expenses} wydatków, ${x.mood} wpisów humoru, ${x.tasks} zadań, ${x.subscriptions} stałych opłat, ${x.vehicles} pojazdów`;
 }
@@ -314,7 +328,10 @@ export default function SettingsScreen() {
   const [restoreMeta, setRestoreMeta] = useState<BackupMeta | null>(null);
   const [restoring, setRestoring] = useState(false);
   const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [fileInfo, setFileInfo] = useState<{ dir: string | null; lastAt: string | null }>({ dir: null, lastAt: null });
+  const [filePick, setFilePick] = useState<PickedBackup | null>(null);
   useEffect(() => {
+    getLocalBackupInfo().then(setFileInfo).catch(() => {});
     isAutoBackupEnabled().then(setBackupAuto).catch(() => {});
     getLastBackupAt().then(setBackupLastAt).catch(() => {});
   }, []);
@@ -350,13 +367,13 @@ export default function SettingsScreen() {
       { enabled: bankEnabled, autoAll: bankAutoAll, pending: bankPending },
       hapticsEnabled,
       { connected: healthConnected, lastSyncedAt: healthLastSyncedAt },
-      { auto: backupAuto, lastAt: backupLastAt, busy: backupBusy, error: backupError },
+      { auto: backupAuto, lastAt: backupLastAt, busy: backupBusy, error: backupError, fileDir: fileInfo.dir, fileLastAt: fileInfo.lastAt },
       { opacity: widgetOpacity, textScale: widgetTextScale },
       syncLabel,
       updateLabel,
       errorsLabel,
     ),
-    [updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, widgetOpacity, widgetTextScale, syncLabel],
+    [updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetOpacity, widgetTextScale, syncLabel],
   );
 
   const backupNow = async () => {
@@ -386,7 +403,42 @@ export default function SettingsScreen() {
       append(`Błąd: ${String(e?.message ?? e)}`);
     }
   };
+  const fileExport = async (chooseFolder: boolean) => {
+    try {
+      const r = await exportBackupFile(chooseFolder);
+      if (!r) return;
+      haptic.success();
+      append(`Kopia zapisana: ${r.where}/${r.name} — ${describeSummary(r)}.`);
+      getLocalBackupInfo().then(setFileInfo).catch(() => {});
+    } catch (e: any) {
+      logError('kopia do pliku', e);
+      append(`Nie udało się zapisać kopii: ${String(e?.message ?? e)}`);
+    }
+  };
+  const fileImport = async () => {
+    try {
+      const picked = await pickBackupFile();
+      if (!picked) return;
+      setRestoreError(null);
+      setFilePick(picked);
+    } catch (e: any) {
+      append(`Nie udało się wczytać pliku: ${String(e?.message ?? e)}`);
+    }
+  };
   const confirmRestore = async () => {
+    if (filePick) {
+      setRestoring(true);
+      try {
+        await applyEntries(filePick.entries);
+        append(`Wczytano kopię ${filePick.name}: ${describeSummary(filePick)}. Poprzednie dane zapisane w pliku sapp2-przed-przywroceniem.json.`);
+        setFilePick(null);
+      } catch (e: any) {
+        setRestoreError(String(e?.message ?? e));
+      } finally {
+        setRestoring(false);
+      }
+      return;
+    }
     setRestoring(true);
     try {
       const meta = await restoreBackup();
@@ -901,6 +953,9 @@ export default function SettingsScreen() {
     'backup-auto': toggleBackupAuto,
     'backup-now': backupNow,
     'backup-restore': openRestore,
+    'file-export': () => fileExport(false),
+    'file-folder': () => fileExport(true),
+    'file-import': fileImport,
     'widget-appearance': leave(() => setWidgetOpen(true)),
     categories: leave(() => setCategoriesOpen(true)),
     'update-check': updateCheck,
@@ -1102,15 +1157,17 @@ export default function SettingsScreen() {
 
       {/* Potwierdzenie przywrócenia (2026-11-11) — nadpisuje dane na telefonie,
           więc user MUSI zobaczyć z kiedy jest kopia i co w niej jest. */}
-      <AppBottomSheet visible={!!restoreMeta} onClose={() => { if (!restoring) setRestoreMeta(null); }} scrollable={false}>
-        {restoreMeta && (
+      <AppBottomSheet visible={!!restoreMeta || !!filePick} onClose={() => { if (!restoring) { setRestoreMeta(null); setFilePick(null); } }} scrollable={false}>
+        {(restoreMeta || filePick) && (
           <View style={s.restoreBody}>
-            <Text style={s.restoreTitle}>Przywrócić kopię?</Text>
-            <Text style={s.restoreText}>Kopia z {fmtBackupDate(restoreMeta.createdAt)}: {describeSummary(restoreMeta)}.</Text>
+            <Text style={s.restoreTitle}>{filePick ? 'Wczytać kopię z pliku?' : 'Przywrócić kopię?'}</Text>
+            <Text style={s.restoreText}>{filePick
+              ? `${filePick.name}${filePick.createdAt ? ` (${fmtBackupDate(filePick.createdAt)})` : ''}: ${describeSummary(filePick)}.`
+              : `Kopia z ${fmtBackupDate(restoreMeta!.createdAt)}: ${describeSummary(restoreMeta!)}.`}</Text>
             <Text style={s.restoreText}>Zastąpi dane na tym telefonie. Obecne dane zostaną zapisane w pliku sapp2-przed-przywroceniem.json, na wszelki wypadek.</Text>
             {restoreError && <Text style={s.restoreError}>Nie udało się: {restoreError}</Text>}
             <View style={s.restoreActions}>
-              <TouchableOpacity style={s.restoreCancel} onPress={() => setRestoreMeta(null)} disabled={restoring} activeOpacity={0.7}>
+              <TouchableOpacity style={s.restoreCancel} onPress={() => { setRestoreMeta(null); setFilePick(null); }} disabled={restoring} activeOpacity={0.7}>
                 <Text style={s.restoreCancelLabel}>Anuluj</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[s.restoreConfirm, restoring && { opacity: 0.5 }]} onPress={confirmRestore} disabled={restoring} activeOpacity={0.7}>

@@ -41,3 +41,30 @@ describe('isBackupDue', () => {
     expect(isBackupDue('2026-11-11T05:00:00Z', now, 6)).toBe(true);
   });
 });
+
+describe('kopia do pliku', () => {
+  const { backupFileName, buildBackupFile, parseBackupFile, filesToPrune } = require('@/utils/backupSnapshot');
+
+  it('nazwa pliku sortuje się po dacie', () => {
+    expect(backupFileName(new Date(2026, 10, 4, 9, 5))).toBe('sapp2-kopia-2026-11-04-0905.json');
+  });
+
+  it('zapis → odczyt, bez kluczy per urządzenie', () => {
+    const txt = buildBackupFile({ 'expenses-store-v1': '{"state":{"expenses":[1,2]}}', 'cloud_backup_local_dir': 'x' }, new Date('2026-11-14T10:00:00Z'));
+    const r = parseBackupFile(txt);
+    expect(r.createdAt).toBe('2026-11-14T10:00:00.000Z');
+    expect(Object.keys(r.entries)).toEqual(['expenses-store-v1']);
+  });
+
+  it('zły plik = czytelny błąd', () => {
+    expect(() => parseBackupFile('nie json')).toThrow('zły JSON');
+    expect(() => parseBackupFile('{"a":1}')).toThrow('brak danych');
+    expect(() => parseBackupFile('{"entries":{}}')).toThrow('pusty');
+  });
+
+  it('zostają 4 najnowsze, cudze pliki nietknięte', () => {
+    const names = ['sapp2-kopia-2026-10-01-1200.json', 'sapp2-kopia-2026-10-08-1200.json', 'notatki.txt',
+      'sapp2-kopia-2026-10-15-1200.json', 'sapp2-kopia-2026-10-22-1200.json', 'sapp2-kopia-2026-10-29-1200.json'];
+    expect(filesToPrune(names)).toEqual(['sapp2-kopia-2026-10-01-1200.json']);
+  });
+});

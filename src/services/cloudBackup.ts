@@ -22,6 +22,8 @@ import { useBalanceStore } from '@/store/balanceStore';
 import { useBudgetsStore } from '@/store/budgetsStore';
 import { useNotesStore } from '@/store/notesStore';
 import { useCategoriesStore } from '@/store/categoriesStore';
+import { useDayPlanStore } from '@/store/dayPlanStore';
+import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
 
 // Kopia zapasowa w chmurze (2026-11-11) — patrz utils/backupSnapshot.ts po
 // "dlaczego". Firestore, ta sama ścieżka per-user co calendarService
@@ -43,7 +45,7 @@ export interface BackupMeta {
   summary: BackupSummary;
 }
 
-async function collectEntries(): Promise<Record<string, string>> {
+export async function collectEntries(): Promise<Record<string, string>> {
   const keys = (await AsyncStorage.getAllKeys()).filter(shouldBackupKey);
   const pairs = await AsyncStorage.multiGet(keys);
   const out: Record<string, string> = {};
@@ -130,15 +132,23 @@ export async function restoreBackup(): Promise<BackupMeta> {
   const parsed = JSON.parse(parts.join('')) as { version: number; entries: Record<string, string> };
   if (!parsed?.entries || typeof parsed.entries !== 'object') throw new Error('Nieprawidłowa kopia — nic nie zmieniono.');
 
-  const current = await collectEntries();
-  await FileSystem.writeAsStringAsync(PRE_RESTORE_FILE, JSON.stringify({ version: 1, entries: current })).catch(() => {});
+  await applyEntries(parsed.entries);
+  return meta;
+}
 
-  const pairs = Object.entries(parsed.entries).filter(([k]) => shouldBackupKey(k));
+// Wspólne dla chmury i pliku: zapis bieżących danych "na wszelki wypadek",
+// nadpisanie kluczy z kopii (reszta nietknięta), przeładowanie store'ów.
+export async function applyEntries(entries: Record<string, string>): Promise<void> {
+  const current = await collectEntries();
+  if (FileSystem.documentDirectory) {
+    await FileSystem.writeAsStringAsync(PRE_RESTORE_FILE, JSON.stringify({ version: 1, entries: current })).catch(() => {});
+  }
+  const pairs = Object.entries(entries).filter(([k]) => shouldBackupKey(k));
   await AsyncStorage.multiSet(pairs);
   await Promise.all([
     useExpensesStore, useMoodStore, useCalendarStore, useHabitsStore, useHealthStore,
     useBankQueue, useCountdownStore, useSubscriptionsStore, useVehiclesStore, useWorkStore,
     useReplacementsStore, useBalanceStore, useBudgetsStore, useNotesStore, useCategoriesStore,
+    useDayPlanStore, useWidgetSettingsStore,
   ].map((store) => store.persist.rehydrate()));
-  return meta;
 }
