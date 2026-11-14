@@ -1637,6 +1637,18 @@ Ustawienia → Finanse → Reguły kategorii (`components/settings/CategoryRules
 skrót "Zawsze tak dla „sklep”" pod wyborem kategorii w `AddExpenseModal`.
 Odmiana liczebników: `utils/plural.ts`.
 
+## LINKI Z WIDGETÓW I COFANIE (2026-11-14)
+
+User: "wchodzę z widgetu na pogodę i cofam — szary ekran". Przyczyny: (1) brak
+`ThemeProvider` → react-navigation malował puste/przejściowe ekrany jasnoszarym
+DefaultTheme; (2) `sapp2://weather` → pusty ekran-przekierowanie zostawał w historii.
+Teraz: `app/+native-intent.tsx` przepisuje linki ZANIM router nawiguje
+(`utils/deepLink.ts`: weather → `/?weather=1`, tasks/finances/notes/daily → zakładki,
+reszta bez zmian), `ThemeProvider` z DarkTheme (tło #000) w `app/_layout.tsx`,
+`unstable_settings.initialRouteName = '(tabs)'` (wejście prosto na /note ma zakładki pod
+spodem). `app/weather.tsx` zostaje jako zapas (router.replace, czarne tło). Nowy link
+z widgetu = wpis w `MAP` w utils/deepLink.ts.
+
 ## KATEGORIE PRZYCHODÓW (2026-11-14)
 
 `Expense.incomeCategory` (pensja/zwrot/sprzedaz/prezent/odsetki/inne), `utils/incomeCategory.ts`

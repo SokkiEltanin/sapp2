@@ -2,6 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useCalendarStore } from '@/store/calendarStore';
 import { syncTasksWidget, syncWeatherWidget, syncNoteWidget, applyWidgetAppearance } from '@/services/widgetSync';
 import { useNotesStore } from '@/store/notesStore';
+import { ThemeProvider, DarkTheme } from '@react-navigation/native';
+
+const NAV_THEME = { ...DarkTheme, colors: { ...DarkTheme.colors, background: colors.bg.primary, card: colors.bg.primary } };
+
+// Wejście z widgetu/powiadomienia prosto na ekran (np. /note) — pod spodem zawsze
+// zakładki, więc "cofnij" wraca do appki zamiast ją zamykać / pokazywać pusty ekran.
+export const unstable_settings = { initialRouteName: '(tabs)' };
 import { syncWear } from '@/services/wearSync';
 import { useWeatherStore } from '@/store/weatherStore';
 import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
@@ -277,7 +284,11 @@ export default function RootLayout() {
             na szerokim oknie wyśrodkowana kolumna zamiast rozciągniętych kafli. */}
         <View style={Platform.OS === 'web' ? { flex: 1, backgroundColor: '#050505' } : { flex: 1 }}>
           <View style={Platform.OS === 'web' ? { flex: 1, width: '100%', maxWidth: WEB_MAX_W, alignSelf: 'center' } : { flex: 1 }}>
-            <Stack key={dimensionKey} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg.primary } }} />
+            {/* Ciemny motyw nawigacji (2026-11-14, user: "przy cofaniu szary ekran") — bez
+                niego react-navigation maluje puste/przejściowe ekrany jasnoszarym tłem. */}
+            <ThemeProvider value={NAV_THEME}>
+              <Stack key={dimensionKey} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg.primary } }} />
+            </ThemeProvider>
           </View>
         </View>
         <UpdateBanner />
