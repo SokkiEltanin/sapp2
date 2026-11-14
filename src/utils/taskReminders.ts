@@ -9,6 +9,15 @@ import { deadlineHasTime, parseDeadline } from './taskDeadline';
 export const TASK_REMINDER_PREFIX = 'task_';
 /** id przycisku "Zrobione" w powiadomieniu. */
 export const TASK_DONE_ACTION = 'task_done';
+/** id przycisku "Za godzinę" — przesuwa przypomnienie, appka się nie otwiera. */
+export const TASK_SNOOZE_ACTION = 'task_snooze';
+
+/** Pola przypomnienia przesuniętego o `minutes` od `now` (czas lokalny). */
+export function snoozeFields(now: Date, minutes = 60): { reminderDate: string; reminderTime: string } {
+  const d = new Date(now.getTime() + minutes * 60000);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return { reminderDate: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`, reminderTime: `${p(d.getHours())}:${p(d.getMinutes())}` };
+}
 const HORIZON_DAYS = 60;
 const MAX = 40; // Android ma limit alarmów na appkę — najbliższe wystarczą, reszta przy kolejnym otwarciu.
 

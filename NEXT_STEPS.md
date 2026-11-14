@@ -76,7 +76,8 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
   Wymianach, zaznacza dziś, pasek „Cofnij”.
 - **[sprawdź] Przypomnienia o zadaniach (2026-11-14)**: zadanie z „Dokładny termin” +
   godzina → powiadomienie o tej godzinie; „Zrobione” odhacza (pasek „Cofnij”), stuknięcie
-  otwiera zadanie. Tylko zadania z godziną (same daty — bez powiadomień).
+  otwiera zadanie. Tylko zadania z godziną (same daty — bez powiadomień). „Za godzinę”
+  — powiadomienie znika i wraca za 60 min, appka się nie otwiera (też gdy zamknięta).
 - **[sprawdź] Widget "Pogoda"**: dodaj z listy widgetów (przytrzymaj pulpit →
   Widgety → sapp2 → Pogoda). Otwórz raz Dashboard, żeby dostał lokalizację;
   potem ma się sam odświeżać co ~30 min (godzina w prawym górnym rogu widgetu).

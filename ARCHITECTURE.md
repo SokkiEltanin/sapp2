@@ -1928,6 +1928,11 @@ szczoteczek końcówek". Rzeczy zużywające się co N dni/tyg./mies.
   → `services/taskReminders.ts` (kanał `task-reminders-v1`, id `task_<id>`) ←
   `hooks/useTaskReminderSync.ts`. Przycisk „Zrobione” (`TASK_DONE_ACTION`) → status
   done + „Cofnij”; tap → `/tasks?task=`. Hint w `AddTaskCard` przy dokładnym terminie.
+  „Za godzinę” (`TASK_SNOOZE_ACTION`, bez otwierania appki) → `reminderDate/Time` +60 min.
+- **Akcje powiadomień w tle**: `index.js` (własny `main`, potem `expo-router/entry`)
+  rejestruje `services/notifeeBackground.ts` przy ładowaniu paczki — notifee przy
+  zamkniętej appce uruchamia sam JS bez ekranów. Nowa akcja „bez otwierania appki” =
+  gałąź w `handleBackgroundAction` (store'y trzeba `persist.rehydrate()`).
 - **Dom + pojazdy razem** (2026-11-13, user: "muszą się pokazywać zwykłe rzeczy,
   ale też te z samochodu — olej za tydzień"): `allReplaceRows(items, vehicles)` —
   serwis pojazdów z interwałem (najnowszy wpis per pozycja, `carMaintItems`) na tej

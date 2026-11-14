@@ -6,6 +6,7 @@ import { TASK_DONE_ACTION } from '@/utils/taskReminders';
 import { useCalendarStore } from '@/store/calendarStore';
 import { todayISO } from '@/utils/date';
 import { offerUndo } from '@/services/undo';
+import { handleBackgroundAction } from '@/services/notifeeBackground';
 
 // Łapie launch/wznowienie appki przez pełnoekranowy alert notifee
 // (`fullScreenAction`) i przekierowuje na dedykowany ekran alarmu
@@ -87,14 +88,20 @@ export function useNotifeeAlertLaunch() {
         if (initial && !(await action(initial.pressAction?.id, initial.notification))) route(initial.notification.data, true);
 
         unsubscribeForeground = notifee.onForegroundEvent(({ type, detail }) => {
-          if (type === EventType.ACTION_PRESS) { action(detail.pressAction?.id, detail.notification); return; }
+          if (type === EventType.ACTION_PRESS) {
+            handleBackgroundAction(detail).then((done) => { if (!done) action(detail.pressAction?.id, detail.notification); });
+            return;
+          }
           if (type === EventType.PRESS || type === EventType.DELIVERED) {
             route(detail.notification?.data, type === EventType.PRESS);
           }
         });
 
         notifee.onBackgroundEvent(async ({ type, detail }) => {
-          if (type === EventType.ACTION_PRESS) { await action(detail.pressAction?.id, detail.notification); return; }
+          if (type === EventType.ACTION_PRESS) {
+            if (!(await handleBackgroundAction(detail))) await action(detail.pressAction?.id, detail.notification);
+            return;
+          }
           if (type === EventType.PRESS) {
             route(detail.notification?.data, true);
           }

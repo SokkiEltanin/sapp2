@@ -1,4 +1,4 @@
-import { planTaskReminders, TASK_REMINDER_PREFIX } from '../src/utils/taskReminders';
+import { planTaskReminders, snoozeFields, TASK_REMINDER_PREFIX } from '../src/utils/taskReminders';
 import type { Task } from '../src/types/calendar';
 
 const now = new Date('2026-11-14T12:00:00');
@@ -33,5 +33,17 @@ describe('planTaskReminders', () => {
     const plan = planTaskReminders(many, now);
     expect(plan).toHaveLength(40);
     expect(plan.every((p, i) => i === 0 || plan[i - 1].fireAt <= p.fireAt)).toBe(true);
+  });
+});
+
+describe('snoozeFields', () => {
+  it('przesuwa o godzinę, także przez północ', () => {
+    expect(snoozeFields(new Date('2026-11-14T12:05:00'))).toEqual({ reminderDate: '2026-11-14', reminderTime: '13:05' });
+    expect(snoozeFields(new Date('2026-11-14T23:30:00'))).toEqual({ reminderDate: '2026-11-15', reminderTime: '00:30' });
+  });
+  it('zadanie przesunięte "Za godzinę" dostaje nowe przypomnienie', () => {
+    const now = new Date('2026-11-14T18:31:00');
+    const [p] = planTaskReminders([task({ deadline: '2026-11-14T18:30:00', ...snoozeFields(now) })], now);
+    expect(p.fireAt).toBe(new Date('2026-11-14T19:31:00').getTime());
   });
 });

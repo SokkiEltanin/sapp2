@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import type { Task } from '@/types/calendar';
-import { planTaskReminders, TASK_REMINDER_PREFIX, TASK_DONE_ACTION } from '@/utils/taskReminders';
+import { planTaskReminders, snoozeFields, TASK_REMINDER_PREFIX, TASK_DONE_ACTION, TASK_SNOOZE_ACTION } from '@/utils/taskReminders';
+import { useCalendarStore } from '@/store/calendarStore';
 
 // Przypomnienia o zadaniach z godziną (2026-11-14) — plan z utils/taskReminders.ts →
 // natywne triggery notifee (ten sam mechanizm co services/replaceReminders.ts).
@@ -38,10 +39,31 @@ async function doSync(tasks: Task[]): Promise<void> {
         android: {
           channelId: CHANNEL_ID,
           pressAction: { id: 'default', launchActivity: 'default' },
-          actions: [{ title: 'Zrobione', pressAction: { id: TASK_DONE_ACTION, launchActivity: 'default' } }],
+          actions: [
+            { title: 'Zrobione', pressAction: { id: TASK_DONE_ACTION, launchActivity: 'default' } },
+            // Bez launchActivity — obsługa w tle (snoozeTaskReminder), appka się nie otwiera.
+            { title: 'Za godzinę', pressAction: { id: TASK_SNOOZE_ACTION } },
+          ],
         },
       },
       { type: TriggerType.TIMESTAMP, timestamp: p.fireAt, alarmManager: { allowWhileIdle: true } },
     );
   }
+}
+
+/**
+ * "Za godzinę" (2026-11-14): przypomnienie wraca za 60 min. Działa też w tle i przy
+ * zamkniętej appce (rejestracja w index.js → services/notifeeBackground.ts).
+ */
+export async function snoozeTaskReminder(taskId: string, notificationId?: string): Promise<void> {
+  const st = useCalendarStore;
+  if (!st.persist.hasHydrated()) await st.persist.rehydrate();
+  const task = st.getState().tasks.find((t) => t.id === taskId);
+  try {
+    const notifee = (await import('@notifee/react-native')).default;
+    if (notificationId) await notifee.cancelDisplayedNotification(notificationId);
+  } catch {}
+  if (!task || task.status === 'done') return;
+  st.getState().updateTask(taskId, { ...snoozeFields(new Date()), updatedAt: new Date().toISOString() });
+  await syncTaskReminders(st.getState().tasks);
 }
