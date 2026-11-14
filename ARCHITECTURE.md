@@ -1651,6 +1651,11 @@ Odmiana liczebników: `utils/plural.ts`.
   (TextInput z dziećmi <Text>; web: zwykłe pole), przybornik na dole (adjustResize =
   nad klawiaturą): B/I/U, wielkość (S/M/L/XL), kolor (paleta + #hex), zakreślacz,
   wyczyść. Podgląd: `NotePreview` (`richStyle.runTextStyle`, skala 0.75).
+- **Pędzel S-Pen**: `NoteStroke.w` (mnożnik grubości na punkt). `DrawingCanvas`
+  (`tool.brush`): nacisk z `stylusData.pressure` (gesture-handler, rysik na Androidzie),
+  palcem z szybkości (`utils/notes.ts` brushFactor + smoothFactor), rysowanie jako
+  wypełniony kontur (`brushOutline`). Pasek: Pióro/Pędzel + odczyt nacisku na żywo
+  (`onPressure`, test rysika).
 
 ## ZNIŻKI NA PARAGONIE (2026-11-14)
 

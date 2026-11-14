@@ -72,3 +72,24 @@ describe('katalogi notatek', () => {
     expect(after.notes.find((x: any) => x.id === n.id).folderId).toBeNull();
   });
 });
+
+describe('pędzel S-Pen', () => {
+  const { brushFactor, smoothFactor, brushOutline } = require('@/utils/notes');
+  it('grubość z nacisku rysika albo szybkości palca', () => {
+    expect(brushFactor(0, 0)).toBe(0.2);
+    expect(brushFactor(1, 0)).toBe(1.6);
+    expect(brushFactor(0.5, 9999)).toBe(0.9);
+    expect(brushFactor(null, 0)).toBe(1.3);
+    expect(brushFactor(undefined, 5000)).toBe(0.35);
+    expect(smoothFactor(undefined, 1)).toBe(1);
+    expect(smoothFactor(0.2, 1)).toBe(0.48);
+  });
+  it('kontur: zamknięta ścieżka, kropka dla jednego punktu', () => {
+    const d = brushOutline([0.1, 0.1, 0.2, 0.15, 0.3, 0.1], [0.5, 1, 1.5], 360, 6);
+    expect(d.startsWith('M')).toBe(true);
+    expect(d.endsWith('Z')).toBe(true);
+    expect(d).toContain(' A');
+    expect(brushOutline([0.5, 0.5], [1], 100, 4)).toMatch(/^M.* a.*Z$/);
+    expect(brushOutline([], [], 100, 4)).toBe('');
+  });
+});

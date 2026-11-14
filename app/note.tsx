@@ -1,16 +1,16 @@
 import { removeWithUndo } from '@/services/undo';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Pin, PinOff, Trash2, Check, X, Plus, Undo2, Eraser, Pencil, Folder } from 'lucide-react-native';
+import { ChevronLeft, Pin, PinOff, Trash2, Check, X, Plus, Undo2, Eraser, Pencil, Folder, Brush, PenLine } from 'lucide-react-native';
 import FolderSheet, { type FolderSheetMode } from '@/components/notes/FolderSheet';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { useNotesStore, genNoteId } from '@/store/notesStore';
 import type { Note, NoteItem, NoteStroke } from '@/types/notes';
 import { isEmptyNote } from '@/utils/notes';
-import DrawingCanvas, { type DrawTool } from '@/components/notes/DrawingCanvas';
+import DrawingCanvas, { type DrawTool, type PressureInfo } from '@/components/notes/DrawingCanvas';
 import RichTextEditor from '@/components/notes/RichTextEditor';
 import { hasFormatting, type TextRun } from '@/utils/richText';
 import { haptic } from '@/utils/haptics';
@@ -37,6 +37,14 @@ export default function NoteScreen() {
   const [runs, setRuns] = useState<TextRun[] | undefined>(note?.runs);
   const [items, setItems] = useState<NoteItem[]>(note?.items ?? []);
   const [tool, setTool] = useState<DrawTool>({ color: PEN_COLORS[0], width: PEN_WIDTHS[1], eraser: false });
+  const [pressure, setPressureState] = useState<PressureInfo | null>(null);
+  // Ostatni odczyt zostaje 2 s po podniesieniu rysika (żeby dało się go przeczytać).
+  const pressureTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const setPressure = useCallback((p: PressureInfo | null) => {
+    if (pressureTimer.current) clearTimeout(pressureTimer.current);
+    if (p) setPressureState(p);
+    else pressureTimer.current = setTimeout(() => setPressureState(null), 2000);
+  }, []);
   const [confirmDel, setConfirmDel] = useState(false);
   const [focusId, setFocusId] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -166,7 +174,25 @@ export default function NoteScreen() {
               onChange={strokesChange}
               tool={tool}
               onRatio={(r) => { if (!note.canvasRatio || Math.abs(note.canvasRatio - r) > 0.05) update(note.id, { canvasRatio: Math.round(r * 100) / 100 }); }}
+              onPressure={setPressure}
             />
+          </View>
+          {/* Pióro / pędzel (S-Pen: grubość z nacisku) + odczyt nacisku na żywo (test rysika). */}
+          <View style={s.modeRow}>
+            {([[false, 'Pióro'], [true, 'Pędzel']] as const).map(([b, label]) => {
+              const on = !tool.eraser && !!tool.brush === b;
+              return (
+                <TouchableOpacity key={label} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, brush: b, eraser: false })); }} style={[s.modeBtn, on && s.toolOn]} accessibilityLabel={label}>
+                  {b ? <Brush size={14} color={on ? colors.bg.primary : colors.text.primary} /> : <PenLine size={14} color={on ? colors.bg.primary : colors.text.primary} />}
+                  <Text style={[s.modeLabel, on && { color: colors.bg.primary }]}>{label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+            <Text style={s.pressure} numberOfLines={1}>
+              {pressure
+                ? (pressure.stylus ? `Nacisk rysika ${Math.round((pressure.pressure ?? 0) * 100)}% · ×${pressure.factor.toFixed(2).replace('.', ',')}` : `Palec · grubość z szybkości ×${pressure.factor.toFixed(2).replace('.', ',')}`)
+                : tool.brush ? 'Rysuj S-Penem — mocniej = grubiej' : ''}
+            </Text>
           </View>
           <View style={s.toolbar}>
             {PEN_COLORS.map((c) => (
@@ -217,6 +243,10 @@ const makeS = themedStyles((c) => StyleSheet.create({
   clearDoneLabel: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.muted, textDecorationLine: 'underline' },
 
   canvasBox: { flex: 1, marginHorizontal: spacing[3], borderRadius: radius.lg, backgroundColor: c.bg.card, overflow: 'hidden' },
+  modeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing[3], paddingTop: spacing[2] },
+  modeBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing[3], height: 32, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
+  modeLabel: { fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
+  pressure: { flex: 1, textAlign: 'right', fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing[3], paddingVertical: spacing[3], flexWrap: 'wrap' },
   swatch: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: 'transparent' },
   swatchOn: { borderColor: c.text.bright, transform: [{ scale: 1.12 }] },

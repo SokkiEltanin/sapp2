@@ -9,7 +9,9 @@ export interface NoteItem { id: string; text: string; done: boolean }
 
 // Punkty w jednostkach SZEROKOŚCI płótna (x i y / szerokość) — rysunek wygląda tak
 // samo na telefonie i komputerze. `p` = płaska lista [x0, y0, x1, y1, …].
-export interface NoteStroke { color: string; width: number; p: number[] }
+// `w` (pędzel, 2026-11-14): grubość w każdym punkcie jako mnożnik `width` (0.2–1.6,
+// z nacisku rysika S-Pen albo szybkości palca); brak = zwykłe pióro o stałej grubości.
+export interface NoteStroke { color: string; width: number; p: number[]; w?: number[] }
 
 // Katalogi notatek (2026-11-14, user: "w notatkach dodaj katalogi, edycje").
 export interface NoteFolder { id: string; name: string; color: string; createdAt: string; updatedAt: string }

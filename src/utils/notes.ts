@@ -91,3 +91,52 @@ export function strokesHit(strokes: NoteStroke[], x: number, y: number, r = 0.03
   });
   return out;
 }
+
+// ── Pędzel (2026-11-14, S-Pen: grubość z nacisku) ───────────────────────────
+/** Mnożnik grubości: rysik → z nacisku (0..1), palec → z szybkości (wolniej = grubiej). */
+export function brushFactor(pressure: number | null | undefined, speed: number): number {
+  if (pressure != null && pressure >= 0) return Math.round(Math.min(1.6, 0.2 + pressure * 1.4) * 100) / 100;
+  return Math.round(Math.min(1.3, Math.max(0.35, 1.3 - speed / 2200)) * 100) / 100;
+}
+
+/** Wygładzenie (EMA), żeby grubość nie skakała między punktami. */
+export const smoothFactor = (prev: number | undefined, next: number, k = 0.35) =>
+  (prev == null ? next : Math.round((prev + (next - prev) * k) * 100) / 100);
+
+/**
+ * Kontur kreski o zmiennej grubości (wypełniona ścieżka SVG): lewa krawędź, okrągła
+ * końcówka, prawa krawędź wstecz, okrągły początek. `p` w jednostkach płótna,
+ * `w` = mnożniki na punkt, `base` = grubość bazowa w px przy skali 1.
+ */
+export function brushOutline(p: number[], w: number[], scale: number, base: number): string {
+  const n = p.length / 2;
+  if (n === 0) return '';
+  const r = (i: number) => Math.max(0.4, (base * (w[i] ?? w[w.length - 1] ?? 1)) / 2);
+  const P = (i: number) => [p[2 * i] * scale, p[2 * i + 1] * scale];
+  const f = (v: number) => v.toFixed(1);
+  if (n === 1) {
+    const [x, y] = P(0), rr = r(0);
+    return `M${f(x - rr)} ${f(y)} a${f(rr)} ${f(rr)} 0 1 0 ${f(2 * rr)} 0 a${f(rr)} ${f(rr)} 0 1 0 ${f(-2 * rr)} 0Z`;
+  }
+  const L: number[][] = [], R: number[][] = [];
+  for (let i = 0; i < n; i++) {
+    const [ax, ay] = P(Math.max(0, i - 1)), [bx, by] = P(Math.min(n - 1, i + 1));
+    let tx = bx - ax, ty = by - ay;
+    const len = Math.hypot(tx, ty) || 1;
+    tx /= len; ty /= len;
+    const [x, y] = P(i), rr = r(i);
+    L.push([x - ty * rr, y + tx * rr]);
+    R.push([x + ty * rr, y - tx * rr]);
+  }
+  const smooth = (pts: number[][], start: boolean) => {
+    let d = start ? `M${f(pts[0][0])} ${f(pts[0][1])}` : ` L${f(pts[0][0])} ${f(pts[0][1])}`;
+    for (let i = 1; i < pts.length - 1; i++) {
+      d += ` Q${f(pts[i][0])} ${f(pts[i][1])} ${f((pts[i][0] + pts[i + 1][0]) / 2)} ${f((pts[i][1] + pts[i + 1][1]) / 2)}`;
+    }
+    const last = pts[pts.length - 1];
+    return `${d} L${f(last[0])} ${f(last[1])}`;
+  };
+  const re = r(n - 1), rs = r(0);
+  const Rr = R.slice().reverse();
+  return `${smooth(L, true)} A${f(re)} ${f(re)} 0 0 1 ${f(Rr[0][0])} ${f(Rr[0][1])}${smooth(Rr, false).replace(/^ L[^Q]*?(?= Q| L|$)/, '')} A${f(rs)} ${f(rs)} 0 0 1 ${f(L[0][0])} ${f(L[0][1])}Z`;
+}
