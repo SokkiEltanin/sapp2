@@ -13,6 +13,8 @@ import WydatkiModal from '@/components/dashboard/WydatkiModal';
 import BudgetSheet, { BudgetBar, budgetLine, levelColor } from '@/components/budgets/BudgetSheet';
 import { useBudgetsStore } from '@/store/budgetsStore';
 import { budgetStatuses, scopeLabel } from '@/utils/budgets';
+import { variableByCategory } from '@/utils/expenseCategory';
+import { useCategoriesVersion } from '@/store/categoriesStore';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useExpensesStore } from '@/store/expensesStore';
 import { useShareReceiptStore } from '@/store/shareReceiptStore';
@@ -207,7 +209,12 @@ export default function FinancesScreen() {
   const budgets = useBudgetsStore((st) => st.budgets);
   const budgetStats = useMemo(() => budgetStatuses(budgets, expenses, now), [budgets, expenses, now]);
   const [budgetOpen, setBudgetOpen] = useState(false);
+  // Zakładka popupu Wydatki: "Podział" → Stałe, kafel Zmienne · kategorie → Zmienne.
+  const [wydatkiTab, setWydatkiTab] = useState<'fixed' | 'variable' | 'food'>('fixed');
 
+  const catVersion = useCategoriesVersion();
+  const varCats = useMemo(() => variableByCategory(expenses, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`), [expenses, now, catVersion]);
+  const varTotal = varCats.reduce((a, c) => a + c.amount, 0);
   const foodCats = wydatkiData.food.categories;
   const foodTotal = parseZl(wydatkiData.food.total);
 
@@ -252,7 +259,7 @@ export default function FinancesScreen() {
       </Row>
 
       <Row>
-        <Tile span={4} onPress={() => setWydatkiOpen(true)}>
+        <Tile span={4} onPress={() => { setWydatkiTab('fixed'); setWydatkiOpen(true); }}>
           <Cap l="Podział" r={`${splitTotal} PLN`} />
           <View style={s.barSpace}>
             <StackBar parts={split} height={10} />
@@ -284,8 +291,23 @@ export default function FinancesScreen() {
           {foodCats.length === 0 ? (
             <Text style={[T.small, s.emptyInline]}>Brak jedzenia w tym miesiącu</Text>
           ) : (
-            <TouchableOpacity onPress={() => setWydatkiOpen(true)} activeOpacity={0.7} style={s.barSpace}>
+            <TouchableOpacity onPress={() => { setWydatkiTab('food'); setWydatkiOpen(true); }} activeOpacity={0.7} style={s.barSpace}>
               <StackBar parts={foodCats.map((c) => ({ label: c.label, value: c.amount, color: c.color }))} height={10} legendMax={3} />
+            </TouchableOpacity>
+          )}
+        </Tile>
+      </Row>
+
+      {/* Zmienne · kategorie (2026-11-14, user: "żeby było też dodatkowo pod spodem") —
+          ten sam wzorzec co Jedzenie wyżej; pozycje paragonu + reszta wydatku. */}
+      <Row>
+        <Tile span={4}>
+          <Cap l="Zmienne · kategorie" r={`${varTotal} PLN`} />
+          {varCats.length === 0 ? (
+            <Text style={[T.small, s.emptyInline]}>Brak zmiennych w tym miesiącu</Text>
+          ) : (
+            <TouchableOpacity onPress={() => { setWydatkiTab('variable'); setWydatkiOpen(true); }} activeOpacity={0.7} style={s.barSpace}>
+              <StackBar parts={varCats.map((c) => ({ label: c.label, value: c.amount, color: c.color }))} height={10} legendMax={3} />
             </TouchableOpacity>
           )}
         </Tile>
@@ -425,7 +447,7 @@ export default function FinancesScreen() {
         <WydatkiModal
           visible={wydatkiOpen}
           onClose={() => setWydatkiOpen(false)}
-          initialTab="fixed"
+          initialTab={wydatkiTab}
           expenses={expenses}
           today={now}
           onEditExpense={(e) => setEditingExpense(e)}

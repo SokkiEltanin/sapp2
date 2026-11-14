@@ -1,6 +1,6 @@
 import type { Expense } from '@/types/finances';
 import { fvSplitOf } from './fixedVariable';
-import { EXPENSE_CATEGORY_META } from './expenseCategory';
+import { EXPENSE_CATEGORY_META, variableSplitOf } from './expenseCategory';
 
 // Szukanie i filtry transakcji (2026-11-14, user: "szukanie lepsze i filtrowanie po
 // rodzaju — wydatek czy przychód, cena od do, data"). Czyste — testy
@@ -31,7 +31,7 @@ function inBucket(e: Expense, b: TxBucket): boolean {
   if (b === 'food') return s.food > 0;
   if (b === 'fixed') return s.fixed > 0;
   if (b === 'variable') return s.variable > 0;
-  return e.expenseCategory === b.slice(4);
+  return variableSplitOf(e).has(b.slice(4));
 }
 
 // Zapytanie: słowa (wszystkie muszą pasować, bez polskich znaków) w sklepie, notatce,

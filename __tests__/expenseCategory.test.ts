@@ -15,7 +15,7 @@ const e = (o: Partial<Expense>): Expense => ({
 describe('expenseCategory — EXPENSE_CATEGORIES / EXPENSE_CATEGORY_META', () => {
   test('zawiera Rozrywkę/Transport/Zdrowie/Ubrania/Dom, każdą z etykietą i kolorem', () => {
     const tags = EXPENSE_CATEGORIES.map((s) => s.tag);
-    expect(tags).toEqual(['rozrywka', 'transport', 'zdrowie', 'ubrania', 'dom']);
+    expect(tags).toEqual(expect.arrayContaining(['rozrywka', 'transport', 'zdrowie', 'ubrania', 'dom', 'elektronika', 'części']));
     for (const tag of tags) {
       expect(EXPENSE_CATEGORY_META[tag]).toEqual({ label: expect.any(String), color: expect.any(String) });
     }
@@ -78,5 +78,21 @@ describe('expenseCategory — expenseCategoryByCategory', () => {
 
   test('pusta lista wejściowa → pusty wynik', () => {
     expect(expenseCategoryByCategory([])).toEqual([]);
+  });
+});
+
+import { variableSplitOf, variableByCategory, UNCATEGORIZED } from '@/utils/expenseCategory';
+describe('Zmienne po kategoriach (pozycje + reszta wydatku)', () => {
+  const ex = (o: any) => ({ id: 'x', type: 'expense', amount: 100, date: '2026-11-10', note: '', tags: [], source: 'manual', createdAt: '', updatedAt: '', ...o });
+  test('pozycje paragonu z kategorią + reszta pod kategorią wydatku albo bez kategorii', () => {
+    const e = ex({ amount: 100, expenseCategory: 'dom', receiptItems: [
+      { name: 'Kabel USB', price: 30, quantity: 1, unitPrice: 30, nonFoodCategory: 'elektronika' },
+      { name: 'Chleb', price: 10, quantity: 1, unitPrice: 10, foodSubcat: 'pieczywo' },
+      { name: 'Coś', price: 60, quantity: 1, unitPrice: 60 },
+    ] });
+    expect(Object.fromEntries(variableSplitOf(e as any))).toEqual({ elektronika: 30, dom: 60 });
+    const bars = variableByCategory([e, ex({ id: 'y', amount: 20, fvOverride: 'variable' })] as any);
+    expect(bars.map((b) => [b.tag, b.amount])).toEqual([['dom', 60], ['elektronika', 30], [UNCATEGORIZED, 20]]);
+    expect(bars[2].label).toBe('Bez kategorii');
   });
 });

@@ -9,8 +9,8 @@ import FoodCategoryItemsModal from './FoodCategoryItemsModal';
 import FixedBreakdownCard from './FixedBreakdownCard';
 import VariableBreakdownCard from './VariableBreakdownCard';
 import { bucketTransactions } from '@/utils/fixedVariable';
-import { nonFoodByCategory } from '@/utils/nonFood';
-import { expenseCategoryByCategory } from '@/utils/expenseCategory';
+import { variableByCategory } from '@/utils/expenseCategory';
+import { useCategoriesVersion } from '@/store/categoriesStore';
 import { computeWydatkiData, monthKeyOf } from '@/utils/wydatkiData';
 import { haptic } from '@/utils/haptics';
 import type { Expense } from '@/types/finances';
@@ -92,10 +92,12 @@ export default function WydatkiModal({
   // Higiena/Chemia itp. (2026-11-10) — ten sam kształt co Jedzenie's `categories`,
   // więc `selectedCategory`/`FoodCategoryItemsModal` POD SPODEM są reużyte 1:1,
   // bez osobnego stanu/drugiego drill-down modala.
-  const nonFoodCats = useMemo(() => nonFoodByCategory(expenses, monthKey), [expenses, monthKey]);
+  // 2026-11-14: jedna lista kategorii Zmiennych (pozycje paragonu + reszta wydatku).
+  const catVersion = useCategoriesVersion();
+  const nonFoodCats = useMemo(() => variableByCategory(expenses, monthKey), [expenses, monthKey, catVersion]);
   // Rozrywka/Transport/itp. (2026-11-10) — kategoria CAŁEGO wydatku, ten sam
   // reużyty drill-down co Higiena/Chemia wyżej.
-  const expenseCats = useMemo(() => expenseCategoryByCategory(expenses, monthKey), [expenses, monthKey]);
+  const expenseCats: typeof nonFoodCats = [];
 
   // Bubbluje do ekranu-wołającego (Dashboard/Finanse) — oba już mają
   // `editingExpense`/`AddExpenseModal` dla "Ostatnie transakcje", to ten sam

@@ -21,6 +21,7 @@ import { useReplacementsStore } from '@/store/replacementsStore';
 import { useBalanceStore } from '@/store/balanceStore';
 import { useBudgetsStore } from '@/store/budgetsStore';
 import { useNotesStore } from '@/store/notesStore';
+import { useCategoriesStore } from '@/store/categoriesStore';
 
 // Kopia zapasowa w chmurze (2026-11-11) — patrz utils/backupSnapshot.ts po
 // "dlaczego". Firestore, ta sama ścieżka per-user co calendarService
@@ -137,7 +138,7 @@ export async function restoreBackup(): Promise<BackupMeta> {
   await Promise.all([
     useExpensesStore, useMoodStore, useCalendarStore, useHabitsStore, useHealthStore,
     useBankQueue, useCountdownStore, useSubscriptionsStore, useVehiclesStore, useWorkStore,
-    useReplacementsStore, useBalanceStore, useBudgetsStore, useNotesStore,
+    useReplacementsStore, useBalanceStore, useBudgetsStore, useNotesStore, useCategoriesStore,
   ].map((store) => store.persist.rehydrate()));
   return meta;
 }

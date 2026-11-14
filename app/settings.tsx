@@ -10,6 +10,7 @@ import {
   LogIn, LogOut, User as UserIcon, Database, CalendarDays, AlertTriangle, Rocket,
   BatteryWarning, AlarmClock, Landmark, Zap, Vibrate, ShieldCheck, History, Watch, Download,
   CloudUpload, CloudDownload, LayoutGrid,
+  Tags,
 } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -28,6 +29,7 @@ import { isHapticsEnabled, setHapticsEnabled } from '@/utils/haptics';
 import Toggle from '@/components/design/Toggle';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import WidgetAppearanceSheet from '@/components/settings/WidgetAppearanceSheet';
+import CategoriesSheet from '@/components/settings/CategoriesSheet';
 import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
 import { useSyncStatus } from '@/services/cloudSync';
 import {
@@ -134,6 +136,8 @@ function buildSections(
     summary: !bank.enabled ? 'powiadomienia z banku wyłączone · import z sapp'
       : bank.pending > 0 ? `${bank.pending} płatności z banku do zatwierdzenia` : 'powiadomienia z banku włączone',
     items: [
+      // Kategorie (2026-11-14): nazwy, kolory, nowe, usuwanie z przeniesieniem użyć.
+      { kind: 'action', key: 'categories', label: 'Kategorie wydatków', description: 'jedzenie i zmienne: nazwy, kolory, nowe, usuwanie', icon: Tags },
       {
         kind: 'switch', key: 'bank-enabled', label: 'Powiadomienia z banku',
         description: 'łap płatności kartą/przelewy z Pekao i PKO automatycznie',
@@ -314,6 +318,7 @@ export default function SettingsScreen() {
   const widgetOpacity = useWidgetSettingsStore((st) => st.bgOpacity);
   const widgetTextScale = useWidgetSettingsStore((st) => st.textScale);
   const [widgetOpen, setWidgetOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const sections = useMemo(
     () => buildSections(
       user?.email ?? null,
@@ -870,6 +875,7 @@ export default function SettingsScreen() {
     'backup-now': backupNow,
     'backup-restore': openRestore,
     'widget-appearance': leave(() => setWidgetOpen(true)),
+    categories: leave(() => setCategoriesOpen(true)),
     'health-diag': leave(() => router.push('/health-debug' as any)),
   };
 
@@ -1086,6 +1092,7 @@ export default function SettingsScreen() {
         )}
       </AppBottomSheet>
       <WidgetAppearanceSheet visible={widgetOpen} onClose={() => setWidgetOpen(false)} />
+      <CategoriesSheet visible={categoriesOpen} onClose={() => setCategoriesOpen(false)} />
     </SafeAreaView>
   );
 }

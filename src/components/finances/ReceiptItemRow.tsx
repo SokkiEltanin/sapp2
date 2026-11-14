@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { Square, CheckSquare, Trash2, Tag as TagIcon, TriangleAlert } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import type { ReceiptItem } from '@/types/finances';
 import { FOOD_SUBCATS, FOOD_SUBCAT_META } from '@/utils/food';
 import { NON_FOOD_SUBCATS, NON_FOOD_SUBCAT_META } from '@/utils/nonFood';
+import { useCategoriesVersion } from '@/store/categoriesStore';
 import { suggestSimilarName, priceFor, priceAnomaly, type PriceMemory } from '@/utils/productMemory';
 import { haptic } from '@/utils/haptics';
 import NumberInput from '@/components/design/NumberInput';
@@ -49,6 +50,8 @@ export default function ReceiptItemRow({
 }) {
   const s = makeS();
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  const [pickerGroup, setPickerGroup] = useState<'food' | 'var'>(item.nonFoodCategory ? 'var' : 'food');
+  useCategoriesVersion(); // nazwy/kolory kategorii z Ustawień
   const [discountInput, setDiscountInput] = useState<string | null>(null);
   const [nameSuggestion, setNameSuggestion] = useState<string | null>(null);
 
@@ -176,38 +179,45 @@ export default function ReceiptItemRow({
         )}
       </View>
 
+      {/* Wybór kategorii w dwóch krokach (2026-11-14, user: "najpierw czy jedzenie czy
+          nie, a potem dopiero kategoria — teraz trzeba scrollować i ucina"):
+          przełącznik grupy + siatka kategorii tej grupy (zawija się, bez scrolla). */}
       {tagPickerOpen && item.kind !== 'deposit' && (
-        <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={s.pickerScroll}>
-          <TouchableOpacity
-            style={[s.pickerChip, !item.foodSubcat && !item.nonFoodCategory && s.pickerChipActive]}
-            onPress={() => { haptic.tap(); onChange({ foodSubcat: undefined, nonFoodCategory: undefined }); setTagPickerOpen(false); }}
-          >
-            <Text style={s.pickerChipLabel}>Brak</Text>
-          </TouchableOpacity>
-          {FOOD_SUBCATS.map((sc) => (
+        <View style={s.picker}>
+          <View style={s.groupSeg}>
+            {([['food', 'Jedzenie'], ['var', 'Nie jedzenie']] as const).map(([g, label]) => (
+              <TouchableOpacity key={g} style={[s.groupItem, pickerGroup === g && s.groupOn]} onPress={() => { haptic.tap(); setPickerGroup(g); }} activeOpacity={0.8}>
+                <Text style={[s.groupLabel, pickerGroup === g && s.groupLabelOn]}>{label}</Text>
+              </TouchableOpacity>
+            ))}
             <TouchableOpacity
-              key={sc.tag}
-              style={[s.pickerChip, item.foodSubcat === sc.tag && { backgroundColor: sc.color }]}
-              onPress={() => { haptic.tap(); onChange({ foodSubcat: sc.tag, nonFoodCategory: undefined }); setTagPickerOpen(false); }}
+              style={[s.groupItem, !item.foodSubcat && !item.nonFoodCategory && s.groupOn]}
+              onPress={() => { haptic.tap(); onChange({ foodSubcat: undefined, nonFoodCategory: undefined }); setTagPickerOpen(false); }}
+              activeOpacity={0.8}
             >
-              <Text style={[s.pickerChipLabel, item.foodSubcat === sc.tag && s.pickerChipLabelActive]}>{sc.label}</Text>
+              <Text style={[s.groupLabel, !item.foodSubcat && !item.nonFoodCategory && s.groupLabelOn]}>Brak</Text>
             </TouchableOpacity>
-          ))}
-          {/* Nie-jedzeniowe (2026-11-10) — WZAJEMNIE WYKLUCZAJĄCE z jedzeniowymi
-              wyżej (jeden picker, ale pozycja ma jedno albo drugie, nigdy oba —
-              patrz utils/nonFood.ts). Pionowy separator, żeby nie wyglądało jak
-              jedna płaska lista bez znaczenia grupowania. */}
-          <View style={s.pickerDivider} />
-          {NON_FOOD_SUBCATS.map((sc) => (
-            <TouchableOpacity
-              key={sc.tag}
-              style={[s.pickerChip, item.nonFoodCategory === sc.tag && { backgroundColor: sc.color }]}
-              onPress={() => { haptic.tap(); onChange({ nonFoodCategory: sc.tag, foodSubcat: undefined }); setTagPickerOpen(false); }}
-            >
-              <Text style={[s.pickerChipLabel, item.nonFoodCategory === sc.tag && s.pickerChipLabelActive]}>{sc.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+          </View>
+          <View style={s.chipWrap}>
+            {(pickerGroup === 'food' ? FOOD_SUBCATS : NON_FOOD_SUBCATS).map((sc) => {
+              const on = pickerGroup === 'food' ? item.foodSubcat === sc.tag : item.nonFoodCategory === sc.tag;
+              return (
+                <TouchableOpacity
+                  key={sc.tag}
+                  style={[s.pickerChip, on && { backgroundColor: sc.color }]}
+                  onPress={() => {
+                    haptic.tap();
+                    onChange(pickerGroup === 'food' ? { foodSubcat: sc.tag, nonFoodCategory: undefined } : { nonFoodCategory: sc.tag, foodSubcat: undefined });
+                    setTagPickerOpen(false);
+                  }}
+                >
+                  <View style={[s.chipDot, { backgroundColor: on ? colors.bg.primary : sc.color }]} />
+                  <Text style={[s.pickerChipLabel, on && s.pickerChipLabelActive]}>{sc.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
       )}
     </View>
   );
@@ -257,13 +267,18 @@ const makeS = themedStyles((c) => StyleSheet.create({
     fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.primary,
     backgroundColor: c.bg.card, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 3, minWidth: 48,
   },
-  pickerScroll: { marginTop: 2, paddingLeft: spacing[5] },
+  picker: { marginTop: 4, gap: 6 },
+  groupSeg: { flexDirection: 'row', borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, overflow: 'hidden' },
+  groupItem: { flex: 1, alignItems: 'center', paddingVertical: 7 },
+  groupOn: { backgroundColor: c.text.bright },
+  groupLabel: { fontSize: 11.5, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary },
+  groupLabelOn: { color: c.bg.primary },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
+  chipDot: { width: 6, height: 6, borderRadius: 3 },
   pickerChip: {
-    backgroundColor: c.bg.card, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 5,
-    marginRight: spacing[1],
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: c.bg.card, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 6,
   },
-  pickerChipActive: { backgroundColor: c.text.bright },
   pickerChipLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   pickerChipLabelActive: { color: c.bg.primary },
-  pickerDivider: { width: 1, backgroundColor: c.border.default, marginRight: spacing[1] },
 }));

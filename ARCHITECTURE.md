@@ -1609,6 +1609,30 @@ powodu co `subscriptionAuto.ts` wyżej.
 rundy). **DO POTWIERDZENIA NA URZĄDZENIU**: realny dodaj/edytuj/usuń na
 telefonie, auto-roll po realnym upływie czasu.
 
+## KATEGORIE (Zmienne + edycja) [PE] (2026-11-14)
+
+User: "dodać kategorie do ZMIENNYCH (elektronika, części); w paragonie najpierw
+jedzenie czy nie, potem kategoria (teraz scroll i ucina); w ustawieniach edytować
+nazwy/usuwać/dodawać — czy nie będzie kolizji danych".
+- **Jedna lista kategorii Zmiennych** (`utils/nonFood.ts`'s `NON_FOOD_SUBCATS`;
+  `utils/expenseCategory.ts`'s `EXPENSE_CATEGORIES` = alias): ta sama dla pozycji
+  paragonu (`nonFoodCategory`) i całego wydatku (`expenseCategory`). Stare tagi
+  zostają, nowe: elektronika, części, hobby, prezenty, zwierzęta.
+- `variableSplitOf(e)` / `variableByCategory` (expenseCategory.ts): pozycje z
+  kategorią + reszta wkładu do Zmiennych pod `expenseCategory` albo "Bez kategorii"
+  (`UNCATEGORIZED`). Używane: kafel Finansów "Zmienne · kategorie", zakładka Zmienne
+  w WydatkiModal (jedna sekcja "Kategorie"), budżety `cat:`, filtr transakcji.
+- **Wybór w paragonie** (`ReceiptItemRow.tsx`): Jedzenie / Nie jedzenie / Brak, pod
+  spodem zawijana siatka kategorii grupy (bez poziomego scrolla). Produkty i
+  formularz wydatku też w siatce.
+- **Edycja** (`utils/categoryRegistry.ts`, `store/categoriesStore.ts`
+  `categories-v1`, UI `components/settings/CategoriesSheet.tsx`, Ustawienia →
+  Finanse → "Kategorie wydatków"): dane trzymają TAG → zmiana nazwy/koloru bez
+  kolizji; usunięcie użytej kategorii = wybór, dokąd przenieść (`reassignCategory`,
+  updatedAt → synchronizacja), domyślna ukrywana (do przywrócenia), własna usuwana.
+  `applyCategoryPrefs` modyfikuje listy/słowniki z food.ts/nonFood.ts W MIEJSCU;
+  ekrany z listami subskrybują `useCategoriesVersion()`. Synchronizowane w `prefs`.
+
 ## NOTATKI [PE] (2026-11-14)
 
 User: "notatka... z opcjami LISTY albo rysunku (mam rysik S-PEN)" — i zamiast listy

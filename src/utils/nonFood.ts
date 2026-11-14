@@ -13,9 +13,27 @@ import type { FoodCategoryBar, FoodCategoryItem } from './foodStats';
 // Zmienne (`VariableBreakdownCard.tsx`), ten sam wzorzec co Jedzenie ma dla
 // `foodSubcat` (`foodByCategory`/`FoodCategoryItemsModal` — reużyte 1:1, stąd
 // identyczny kształt `FoodCategoryBar`/`FoodCategoryItem`).
+//
+// 2026-11-14 (user: "dodać kategorie do ZMIENNYCH np. elektronika, części"):
+// JEDNA lista kategorii Zmiennych — ta sama dla pozycji paragonu
+// (`nonFoodCategory`) i dla całego wydatku (`expenseCategory`,
+// utils/expenseCategory.ts to alias tej listy). Tagi starych list zostają
+// (rozrywka/transport/zdrowie/ubrania/dom z wydatków, higiena/chemia z pozycji),
+// więc istniejące dane się nie zmieniają. Nazwy/kolory/ukrycie/nowe — edytowalne
+// w Ustawieniach (store/categoriesStore.ts → utils/categoryRegistry.ts).
 export const NON_FOOD_SUBCATS: { tag: string; label: string; color: string }[] = [
+  { tag: 'rozrywka', label: 'Rozrywka', color: '#F472B6' },
+  { tag: 'transport', label: 'Transport', color: '#60A5FA' },
+  { tag: 'zdrowie', label: 'Zdrowie', color: '#4ADE80' },
+  { tag: 'ubrania', label: 'Ubrania', color: '#C084FC' },
+  { tag: 'dom', label: 'Dom', color: '#FBBF24' },
   { tag: 'higiena', label: 'Higiena', color: '#5EEAD4' },
   { tag: 'chemia', label: 'Chemia', color: '#93C5FD' },
+  { tag: 'elektronika', label: 'Elektronika', color: '#22D3EE' },
+  { tag: 'części', label: 'Części i motoryzacja', color: '#F97316' },
+  { tag: 'hobby', label: 'Hobby', color: '#A3E635' },
+  { tag: 'prezenty', label: 'Prezenty', color: '#FB7185' },
+  { tag: 'zwierzęta', label: 'Zwierzęta', color: '#D6A15E' },
 ];
 export const NON_FOOD_SUBCAT_META: Record<string, { label: string; color: string }> = Object.fromEntries(
   NON_FOOD_SUBCATS.map((s) => [s.tag, { label: s.label, color: s.color }]),

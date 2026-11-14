@@ -14,7 +14,8 @@ import {
   loadPriceMemory, savePriceMemory, saveFoodSubcatMemory, type PriceMemory,
 } from '@/utils/productMemory';
 import { saveMerchant } from '@/utils/merchantMemory';
-import { EXPENSE_CATEGORIES } from '@/utils/expenseCategory';
+import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_META } from '@/utils/expenseCategory';
+import { useCategoriesVersion } from '@/store/categoriesStore';
 import { findReceiptTarget, isConfidentReceiptMatch, mergeReceiptInto } from '@/utils/duplicateExpense';
 import { buildProductCatalog } from '@/utils/productCatalog';
 import { haptic } from '@/utils/haptics';
@@ -106,6 +107,7 @@ export default function AddExpenseModal({
   const expenses = useExpensesStore((st) => st.expenses);
   const addExpense = useExpensesStore((st) => st.addExpense);
   const updateExpense = useExpensesStore((st) => st.updateExpense);
+  useCategoriesVersion(); // nazwy/kolory kategorii z Ustawień
   const deleteExpense = useExpensesStore((st) => st.deleteExpense);
 
   // Pamięć produktowa (Faza 2.1, dotąd nieużywana — zamykany gap z Faza 2.2, user:
@@ -690,7 +692,7 @@ export default function AddExpenseModal({
               "Inne kategorie" w popupie Wydatki. */}
           <TouchableOpacity style={s.paidSummaryRow} onPress={() => setCatOpen((v) => !v)} activeOpacity={0.7}>
             <Text style={s.label}>
-              Kategoria: {EXPENSE_CATEGORIES.find((o) => o.tag === expenseCategory)?.label ?? 'Brak'}
+              Kategoria: {(expenseCategory && EXPENSE_CATEGORY_META[expenseCategory]?.label) || 'Brak'}
             </Text>
             {catOpen ? <ChevronUp size={14} color={colors.text.muted} /> : <ChevronDown size={14} color={colors.text.muted} />}
           </TouchableOpacity>

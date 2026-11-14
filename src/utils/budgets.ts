@@ -1,7 +1,7 @@
 import type { Budget, BudgetScope } from '@/types/budgets';
 import type { Expense } from '@/types/finances';
 import { fvSplitOf } from './fixedVariable';
-import { EXPENSE_CATEGORY_META } from './expenseCategory';
+import { EXPENSE_CATEGORY_META, variableSplitOf } from './expenseCategory';
 
 // Logika budżetów (2026-11-13) — czyste funkcje, testy __tests__/budgets.test.ts.
 
@@ -25,7 +25,8 @@ export function amountInScope(e: Expense, scope: BudgetScope): number {
   if (scope === 'food') return s.food;
   if (scope === 'variable') return s.variable;
   if (scope === 'fixed') return s.fixed;
-  return e.expenseCategory === scope.slice(4) ? s.variable : 0;
+  // Kategoria = pozycje paragonu z tą kategorią + reszta wydatku z nią (2026-11-14).
+  return variableSplitOf(e).get(scope.slice(4)) ?? 0;
 }
 
 export function spentInMonth(expenses: Expense[], scope: BudgetScope, monthKey: string): number {

@@ -8,6 +8,7 @@ import { useDeferredMemo } from '@/hooks/useDeferredMemo';
 import { buildProductCatalog, findDuplicateCandidates, type ProductCatalogEntry } from '@/utils/productCatalog';
 import { loadNameAliases, saveNameAliases, saveFoodSubcatMemory, loadWeightMemory, saveWeightMemory, parseWeightFromName, weightFor, type WeightMemory } from '@/utils/productMemory';
 import { productStats, topProductsByKg, fmtKg } from '@/utils/productStats';
+import { useCategoriesVersion } from '@/store/categoriesStore';
 import NumberInput from '@/components/design/NumberInput';
 import { FOOD_SUBCATS, FOOD_SUBCAT_META } from '@/utils/food';
 import { haptic } from '@/utils/haptics';
@@ -34,6 +35,7 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
   const [editName, setEditName] = useState('');
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);
+  useCategoriesVersion(); // nazwy/kolory kategorii z Ustawień
   // Waga produktów (2026-11-14): pamięć wag sztuk + statystyki ilości.
   const [weights, setWeights] = useState<WeightMemory>({});
   const [unitGrams, setUnitGrams] = useState<number | undefined>(undefined);
@@ -240,7 +242,7 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
                   </View>
 
                   <Text style={[s.editLabel, s.editLabelGap]}>Kategoria jedzenia</Text>
-                  <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false}>
+                  <View style={s.pickerWrap}>
                     <TouchableOpacity
                       style={[s.pickerChip, !entry.foodSubcat && s.pickerChipActive]}
                       onPress={() => setSubcat(entry, undefined)}
@@ -256,7 +258,7 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
                         <Text style={[s.pickerChipLabel, entry.foodSubcat === sc.tag && s.pickerChipLabelActive]}>{sc.label}</Text>
                       </TouchableOpacity>
                     ))}
-                  </ScrollView>
+                  </View>
 
                   {(() => {
                     const fromName = entry.rawNames.map((n) => parseWeightFromName(n)).find((v) => v != null);
@@ -353,8 +355,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   editSaveBtn: { paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius.sm, backgroundColor: c.text.bright, justifyContent: 'center' },
   editSaveLabel: { fontSize: 11.5, fontFamily: 'Inter_900Black', color: c.bg.primary },
   pickerChip: {
-    backgroundColor: c.bg.elevated, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 5,
-    marginRight: spacing[1],
+    backgroundColor: c.bg.elevated, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 6,
   },
   pickerChipActive: { backgroundColor: c.text.bright },
   pickerChipLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
@@ -379,4 +380,5 @@ const makeS = themedStyles((c) => StyleSheet.create({
   statHint: { fontSize: 10.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[2] },
   moreBtn: { alignItems: 'center', paddingVertical: spacing[3], borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, marginTop: spacing[2] },
   moreLabel: { fontSize: 12.5, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary },
+  pickerWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
 }));

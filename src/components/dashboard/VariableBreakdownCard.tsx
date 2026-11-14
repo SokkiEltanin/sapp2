@@ -88,7 +88,7 @@ export default function VariableBreakdownCard({
 
       {nonFoodCategories.length > 0 && (
         <>
-          <Text style={s.hint}>Higiena i chemia</Text>
+          <Text style={s.hint}>Kategorie</Text>
           <View style={s.items}>
             {nonFoodCategories.map((c) => (
               <TouchableOpacity key={c.label} style={s.categoryRow} onPress={() => { haptic.tap(); onSelectCategory(c); }} activeOpacity={0.7}>

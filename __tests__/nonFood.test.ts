@@ -16,7 +16,7 @@ const item = (o: Partial<ReceiptItem>): ReceiptItem => ({
 describe('nonFood — NON_FOOD_SUBCATS / NON_FOOD_SUBCAT_META', () => {
   test('zawiera Higienę i Chemię, każdą z etykietą i kolorem', () => {
     const tags = NON_FOOD_SUBCATS.map((s) => s.tag);
-    expect(tags).toEqual(['higiena', 'chemia']);
+    expect(tags).toEqual(expect.arrayContaining(['higiena', 'chemia']));
     expect(NON_FOOD_SUBCAT_META.higiena).toEqual({ label: 'Higiena', color: expect.any(String) });
     expect(NON_FOOD_SUBCAT_META.chemia).toEqual({ label: 'Chemia', color: expect.any(String) });
   });

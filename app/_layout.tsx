@@ -27,6 +27,8 @@ import { useNotifeeAlertLaunch } from '@/hooks/useNotifeeAlertLaunch';
 import { useBillReminderSync } from '@/hooks/useBillReminderSync';
 import { useReplaceReminderSync } from '@/hooks/useReplaceReminderSync';
 import { startBudgetAlerts } from '@/services/budgetAlerts';
+// Kategorie z Ustawień (nazwy/kolory/ukryte/nowe) — import = zastosowanie przy starcie.
+import '@/store/categoriesStore';
 import { useAutoBackup } from '@/hooks/useAutoBackup';
 import { useCloudSync } from '@/hooks/useCloudSync';
 import { useShareReceiptLaunch } from '@/hooks/useShareReceiptLaunch';
