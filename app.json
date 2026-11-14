@@ -74,6 +74,7 @@
       "./plugins/withTasksWidget.js",
       "./plugins/withWeatherWidget.js",
       "./plugins/withNoteWidget.js",
+      "./plugins/withWearSync.js",
       [
         "expo-build-properties",
         {

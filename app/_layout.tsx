@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useCalendarStore } from '@/store/calendarStore';
 import { syncTasksWidget, syncWeatherWidget, syncNoteWidget, applyWidgetAppearance } from '@/services/widgetSync';
 import { useNotesStore } from '@/store/notesStore';
+import { syncWear } from '@/services/wearSync';
 import { useWeatherStore } from '@/store/weatherStore';
 import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
 import { drainWidgetToggleQueue } from '@/services/widgetToggleDrain';
@@ -230,7 +231,13 @@ export default function RootLayout() {
       if (nt) clearTimeout(nt);
       nt = setTimeout(() => { syncNoteWidget(useNotesStore.getState().notes.find((n) => n.pinned)).catch((e) => logError('widget notatki', e)); }, 800);
     });
-    return () => { unsub(); unsubWx(); unsubNote(); sub.remove(); clearTimeout(start); clearTimeout(wxStart); if (t) clearTimeout(t); if (nt) clearTimeout(nt); };
+    // Zegarek (Wear OS): zadania + wydatki → snapshot (services/wearSync.ts), co najwyżej co 2 s.
+    let wt: ReturnType<typeof setTimeout> | null = null;
+    const pushWear = () => { if (wt) clearTimeout(wt); wt = setTimeout(() => syncWear(useCalendarStore.getState().tasks, useExpensesStore.getState().expenses), 2000); };
+    const unsubWearT = useCalendarStore.subscribe((st, prev) => { if (st.tasks !== prev.tasks) pushWear(); });
+    const unsubWearE = useExpensesStore.subscribe((st, prev) => { if (st.expenses !== prev.expenses) pushWear(); });
+    const wearStart = setTimeout(pushWear, 3000);
+    return () => { unsubWearT(); unsubWearE(); clearTimeout(wearStart); if (wt) clearTimeout(wt); unsub(); unsubWx(); unsubNote(); sub.remove(); clearTimeout(start); clearTimeout(wxStart); if (t) clearTimeout(t); if (nt) clearTimeout(nt); };
   }, []);
 
   // W przeciwieństwie do fontów, TEGO jednego czekania appka nie może "ignorować" —

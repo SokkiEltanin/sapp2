@@ -1,0 +1,53 @@
+name: Build Wear OS
+
+# Aplikacja na zegarek (katalog wear/, 2026-11-14). Buduje się tylko przy zmianach w
+# wear/ albo ręcznie (Actions → Build Wear OS → Run workflow). Wynik: GitHub Releases
+# "Wear #N" jako PRERELEASE — żeby sprawdzanie aktualizacji telefonu (ostatni release
+# build-N) i job `decide` w build.yml go nie widziały. Instalacja: MAINTENANCE.md §8.
+on:
+  push:
+    branches: [main]
+    paths: ['wear/**', '.github/workflows/wear.yml']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Klucz podpisu (ten sam co telefon — wymagany przez Wear Data Layer)
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/sapp2.keystore"
+      - name: Build APK
+        working-directory: wear
+        env:
+          WEAR_KEYSTORE: ${{ runner.temp }}/sapp2.keystore
+          WEAR_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          WEAR_VERSION_CODE: ${{ github.run_number }}
+        run: gradle :app:assembleRelease --no-daemon --stacktrace
+      - name: Nazwa pliku
+        run: cp wear/app/build/outputs/apk/release/app-release.apk "sapp2-wear-${{ github.run_number }}.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sapp2-wear-${{ github.run_number }}
+          path: sapp2-wear-*.apk
+          retention-days: 30
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: wear-${{ github.run_number }}
+          name: "Wear #${{ github.run_number }} (zegarek)"
+          prerelease: true
+          body: |
+            Aplikacja Sapp2 na zegarek Wear OS. Instalacja: MAINTENANCE.md, sekcja "Zegarek".
+            Commit: ${{ github.sha }}
+          files: sapp2-wear-*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

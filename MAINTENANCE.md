@@ -102,3 +102,23 @@ CI sam to rozpozna.
    (CLAUDE.md zasada 5).
 4. Appka nie startuje po OTA → expo-updates sam wraca do poprzedniej paczki; zrób
    `git revert` złego commita i push.
+
+## 8. Zegarek (Wear OS)
+
+Osobna mała aplikacja w `wear/` (Kotlin, bez React Native). Telefon wysyła jej dane przez
+Wear Data Layer (`plugins/withWearSync.js`, treść `src/utils/wearSnapshot.ts`): wydatki dziś
+i w miesiącu, zadania do zrobienia (stuknięcie = odhacz, telefon odhaczy przy otwarciu
+appki), ostatnie transakcje. Bezel przewija.
+
+- **Build:** `.github/workflows/wear.yml` (zmiana w `wear/` albo ręcznie: Actions → Build
+  Wear OS → Run workflow) → Releases „Wear #N (zegarek)” (prerelease), plik `sapp2-wear-N.apk`.
+- **Warunek:** ten sam `applicationId` (`com.sokki.sapp2`) i ten sam klucz podpisu co telefon
+  — inaczej telefon i zegarek się „nie widzą”. Telefon musi mieć APK z `withWearSync`.
+- **Instalacja na Galaxy Watch** (jednorazowo włącz na zegarku: Ustawienia → Informacje o
+  zegarku → Oprogramowanie → 7× „Wersja oprogramowania” = tryb programisty; potem Opcje
+  programisty → Debugowanie ADB + Debugowanie przez Wi-Fi, zegarek i telefon/komputer w tej
+  samej sieci Wi-Fi):
+  - z telefonu: aplikacja typu „Wear Installer” / „Easy Fire Tools” — wpisz adres IP zegarka
+    z Opcji programisty, wskaż pobrany `sapp2-wear-N.apk`;
+  - albo z komputera: `adb connect IP:PORT` → `adb install sapp2-wear-N.apk`.
+- Aktualizacja = zainstalowanie nowszego pliku tak samo (dane zostają).
