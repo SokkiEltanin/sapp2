@@ -17,8 +17,13 @@ const ColCtx = createContext(0);
 // Wersja na komputer (PWA, 2026-11-13): appka żyje w wyśrodkowanej kolumnie
 // (app/_layout.tsx), więc siatka kafli liczy się z jej szerokości, nie z okna.
 export const WEB_MAX_W = 560;
+// Układ kolumn na komputerze (2026-11-14, src/ui/DesktopTabs.tsx): każda kolumna
+// podaje swoją szerokość, żeby siatka kafli liczyła się z kolumny, nie z okna.
+export const AppWidthContext = createContext<number | null>(null);
 export function useAppWidth(): number {
   const { width } = useWindowDimensions();
+  const column = useContext(AppWidthContext);
+  if (column != null) return column;
   return Platform.OS === 'web' ? Math.min(width, WEB_MAX_W) : width;
 }
 const HotCtx = createContext(false);

@@ -13,8 +13,9 @@ import { syncWear } from '@/services/wearSync';
 import { useWeatherStore } from '@/store/weatherStore';
 import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
 import { drainWidgetToggleQueue } from '@/services/widgetToggleDrain';
-import { View, Text, TouchableOpacity, ActivityIndicator, AppState, Dimensions, Image, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, AppState, Dimensions, Image, Platform, useWindowDimensions } from 'react-native';
 import { WEB_MAX_W } from '@/ui/layout';
+import { desktopLayout } from '@/utils/desktopColumns';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -154,6 +155,8 @@ export default function RootLayout() {
   const { user, initializing } = useAuthUser();
   useAuthGate(user, initializing);
   const dimensionKey = useRemountOnDimensionChange();
+  const { width: winW } = useWindowDimensions();
+  const desk = Platform.OS === 'web' && desktopLayout(winW) != null;
   // Deep-link z pełnoekranowego alertu notifee na dedykowany ekran alarmu (patrz
   // app/alert-test.tsx) — patrz komentarz w src/hooks/useNotifeeAlertLaunch.ts.
   useNotifeeAlertLaunch();
@@ -287,11 +290,21 @@ export default function RootLayout() {
         {/* Wersja na komputer (PWA, 2026-11-13): appka projektowana pod telefon —
             na szerokim oknie wyśrodkowana kolumna zamiast rozciągniętych kafli. */}
         <View style={Platform.OS === 'web' ? { flex: 1, backgroundColor: '#050505' } : { flex: 1 }}>
-          <View style={Platform.OS === 'web' ? { flex: 1, width: '100%', maxWidth: WEB_MAX_W, alignSelf: 'center' } : { flex: 1 }}>
+          <View style={Platform.OS === 'web' ? { flex: 1, width: '100%', maxWidth: desk ? undefined : WEB_MAX_W, alignSelf: 'center' } : { flex: 1 }}>
             {/* Ciemny motyw nawigacji (2026-11-14, user: "przy cofaniu szary ekran") — bez
                 niego react-navigation maluje puste/przejściowe ekrany jasnoszarym tłem. */}
             <ThemeProvider value={NAV_THEME}>
-              <Stack key={dimensionKey} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg.primary } }} />
+              <Stack
+                key={dimensionKey}
+                screenOptions={({ route }) => ({
+                  headerShown: false,
+                  // Komputer w układzie kolumn: zakładki na całą szerokość, pozostałe
+                  // ekrany (ustawienia, notatki…) jako wyśrodkowana kolumna jak dotąd.
+                  contentStyle: desk && route.name !== '(tabs)'
+                    ? { backgroundColor: colors.bg.primary, width: '100%', maxWidth: WEB_MAX_W, alignSelf: 'center' }
+                    : { backgroundColor: colors.bg.primary },
+                })}
+              />
             </ThemeProvider>
           </View>
         </View>

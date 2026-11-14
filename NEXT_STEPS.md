@@ -88,6 +88,10 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
   [sprawdź] logowanie + dane z telefonu po synchronizacji; domena w Firebase
   Authorized domains już dodana przez usera. Reguły Firestore opublikowane i
   sprawdzone z zewnątrz (PERMISSION_DENIED na zapis/odczyt/zapytanie).
+- **[sprawdź] Komputer — kolumny (2026-11-14)**: szerokie okno = Dashboard / Finanse /
+  Zadania / Daily obok siebie, pasek po lewej (Ustawienia, zakładki, Notatki, Szukaj).
+  Do decyzji po teście: czy pozostałe ekrany (Ustawienia, Notatki) jako panel boczny
+  zamiast pełnego ekranu; skróty klawiszowe.
 - **Kalendarz Google na komputerze (2026-11-14)**: telefon wysyła okno −45..+180 dni
   (`utils/gcalMirror.ts`, dokument `sync_docs/gcal`), komputer tylko czyta.
   [sprawdź] po nowej wersji na telefonie: otwórz appkę na telefonie (pobierze

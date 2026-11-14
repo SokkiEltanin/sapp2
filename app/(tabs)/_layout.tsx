@@ -1,6 +1,9 @@
 import { Tabs, router } from 'expo-router';
 import { NavBar } from '@/ui/NavBar';
 import { colors } from '@/theme/colors';
+import { Platform, useWindowDimensions } from 'react-native';
+import { DesktopTabs } from '@/ui/DesktopTabs';
+import { desktopLayout } from '@/utils/desktopColumns';
 
 // Faza 3.9 (design/rn kit) — dolny pasek podmieniony na NavBar z kitu (1:1 z makietą:
 // kwadrat ustawień osobno + grupa 4 ikon), Tabs bez pagera/swipe (`animation: 'none'`,
@@ -8,6 +11,10 @@ import { colors } from '@/theme/colors';
 // aktywnej trasy z `usePathname()` jak stary TabBar.tsx robił — expo-router/
 // `@react-navigation` dają to przez `state` w `BottomTabBarProps`.
 export default function TabsLayout() {
+  // Komputer, szerokie okno → zakładki jako kolumny obok siebie (src/ui/DesktopTabs.tsx).
+  const { width } = useWindowDimensions();
+  const desk = Platform.OS === 'web' ? desktopLayout(width) : null;
+  if (desk) return <DesktopTabs layout={desk} />;
   return (
     <Tabs
       tabBar={(p) => <NavBar {...p} onSettingsPress={() => router.push('/settings' as any)} />}

@@ -1509,6 +1509,18 @@ appka w wyśrodkowanej kolumnie `WEB_MAX_W` (ui/layout.tsx's `useAppWidth`, root
 app/_layout.tsx, AppBottomSheet maxWidth). Natywne rzeczy (bank, Health Connect,
 widget, powiadomienia) na web = ciche no-op; dane z nich przychodzą synchronizacją.
 UWAGA dev: z baseUrl serwer deweloperski dalej działa pod `localhost:8099/<trasa>`.
+**Układ kolumn na komputerze** (2026-11-14): okno ≥ 1000 px → `app/(tabs)/_layout.tsx`
+renderuje `src/ui/DesktopTabs.tsx` zamiast dolnych Tabs: nawigator `expo-router/ui`
+(TabList = pasek po lewej z TabTriggerami jako BEZPOŚREDNIMI dziećmi, TabSlot.renderFn
+renderuje WSZYSTKIE zakładki naraz, każdą w kolumnie). Liczba/szerokość kolumn +
+które widać: `utils/desktopColumns.ts` (testy; 1920 → 4, 1366 → 3, 1100 → 2; ostatnia
+kolumna = wybrana z paska). Każda kolumna daje `AppWidthContext` (siatka kafli liczy się
+z kolumny). Pozostałe ekrany (ustawienia, notatki…) — `contentStyle` z `WEB_MAX_W` w
+Stacku (app/_layout.tsx). Pułapki: style elementu w `TabTrigger asChild` muszą być
+`StyleSheet.flatten` (webowy Slot); po zmianach w node_modules — `--clear`, inaczej
+serwer dev potrafi serwować stary moduł i rzucać mylące błędy.
+**Kalendarz Google na komputerze**: kopia z telefonu (`utils/gcalMirror.ts`, docBinding
+`gcal` w cloudSync — `readOnly` na web, `keepWhenEmpty`).
 
 ## SUBSKRYPCJE / "Stałe opłaty" [PE]
 
