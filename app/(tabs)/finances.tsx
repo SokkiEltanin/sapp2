@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Plus, Package, Car, ChevronRight, RefreshCw, TrendingUp } from 'lucide-react-native';
 import TrendSheet from '@/components/finances/TrendSheet';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -92,6 +92,14 @@ export default function FinancesScreen() {
   const expenses = useExpensesStore((st) => st.expenses);
   const [addOpen, setAddOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  // Wynik wyszukiwania (app/search.tsx) → otwórz ten wydatek do podglądu/edycji.
+  const { expense: expenseParam } = useLocalSearchParams<{ expense?: string }>();
+  useEffect(() => {
+    if (!expenseParam) return;
+    const e = useExpensesStore.getState().expenses.find((x) => x.id === expenseParam);
+    if (e) setEditingExpense(e);
+    router.setParams({ expense: undefined } as any);
+  }, [expenseParam]);
   const [productsOpen, setProductsOpen] = useState(false);
   const [transactionsOpen, setTransactionsOpen] = useState(false);
   const [wydatkiOpen, setWydatkiOpen] = useState(false);

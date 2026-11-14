@@ -1637,6 +1637,15 @@ Ustawienia → Finanse → Reguły kategorii (`components/settings/CategoryRules
 skrót "Zawsze tak dla „sklep”" pod wyborem kategorii w `AddExpenseModal`.
 Odmiana liczebników: `utils/plural.ts`.
 
+## SZUKAJ W CAŁEJ APPCE (2026-11-14)
+
+Lupa w dolnym pasku (`ui/NavBar.tsx`, akcja — obrys, nie zakładka) → `app/search.tsx`.
+Logika `utils/globalSearch.ts` (transakcje: sklep/opis/tagi/pozycje paragonu i kwota
+"12,50"; notatki; zadania; stałe opłaty; wymiany; pojazdy — bez polskich znaków, wszystkie
+słowa). Wynik otwiera: wydatek → Finanse z parametrem `expense` (edycja), zadanie →
+Zadania z `task`, notatka → edytor, reszta → ich ekrany. Nowy rodzaj danych = pole w
+`SearchData` + grupa w `GROUPS` + `openHit`.
+
 ## NOTATKI — KATALOGI I FORMATOWANIE (2026-11-14)
 
 - **Katalogi**: `NoteFolder` (types/notes.ts), `notesStore.folders` + addFolder/

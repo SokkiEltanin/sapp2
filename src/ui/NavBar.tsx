@@ -2,7 +2,8 @@ import React from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Settings, LayoutGrid, Activity, CreditCard, CalendarDays, LucideIcon } from 'lucide-react-native';
+import { Settings, LayoutGrid, Activity, CreditCard, CalendarDays, Search, LucideIcon } from 'lucide-react-native';
+import { router } from 'expo-router';
 import { haptic } from '@/utils/haptics';
 import { C, R } from './theme';
 
@@ -53,6 +54,10 @@ export function NavBar({ state, navigation, onSettingsPress }: BottomTabBarProps
             </Pressable>
           );
         })}
+        {/* Szukaj w całej appce (2026-11-14) — akcja, nie zakładka: obrys zamiast tła. */}
+        <Pressable onPress={() => { haptic.tap(); router.push('/search' as any); }} style={st.search} accessibilityLabel="Szukaj w appce">
+          <Search size={18} strokeWidth={2.2} color={C.mut} />
+        </Pressable>
       </View>
     </View>
   );
@@ -64,4 +69,5 @@ const st = StyleSheet.create({
   group: { flex: 1, height: 62, flexDirection: 'row', gap: 4, padding: 5, borderRadius: R.tile, backgroundColor: C.tile },
   btn: { flex: 1, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   on: { backgroundColor: C.txt },
+  search: { width: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.line },
 });

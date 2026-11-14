@@ -1,3 +1,4 @@
+import { router, useLocalSearchParams } from 'expo-router';
 import { removeWithUndo } from '@/services/undo';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
@@ -69,6 +70,14 @@ export default function TasksScreen() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  // Wynik wyszukiwania w całej appce → edycja tego zadania.
+  const { task: taskParam } = useLocalSearchParams<{ task?: string }>();
+  useEffect(() => {
+    if (!taskParam) return;
+    const t = useCalendarStore.getState().tasks.find((x) => x.id === taskParam);
+    if (t) setEditingTask(t);
+    router.setParams({ task: undefined } as any);
+  }, [taskParam]);
   const [detailDate, setDetailDate] = useState<string | null>(null);
   const [segment, setSegment] = useState<'wszystkie' | 'teraz' | 'bezterminowe'>('wszystkie');
   const titleRef = useRef<TextInput>(null);
