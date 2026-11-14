@@ -1637,6 +1637,12 @@ Ustawienia → Finanse → Reguły kategorii (`components/settings/CategoryRules
 skrót "Zawsze tak dla „sklep”" pod wyborem kategorii w `AddExpenseModal`.
 Odmiana liczebników: `utils/plural.ts`.
 
+## SZUKANIE ZADAŃ (2026-11-14)
+
+`utils/taskFilter.ts` (tekst bez polskich znaków, status do zrobienia/zrobione/wszystkie,
+termin zaległe/dziś/7 dni/bez, tag), arkusz `components/tasks/TaskSearchSheet.tsx`
+(lupa obok "+" w Zadaniach). Jedyne miejsce z ukończonymi zadaniami — przywracanie.
+
 ## TREND 12 MIESIĘCY (2026-11-14)
 
 `utils/trend.ts` (`trendSeries` — jeden przebieg, klucze all/food/variable/fixed +

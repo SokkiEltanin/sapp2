@@ -2,7 +2,8 @@ import { removeWithUndo } from '@/services/undo';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
 import { View, Text, StyleSheet, TouchableOpacity, type TextInput } from 'react-native';
-import { Plus } from 'lucide-react-native';
+import { Plus, Search } from 'lucide-react-native';
+import TaskSearchSheet from '@/components/tasks/TaskSearchSheet';
 import { spacing, radius, themedStyles } from '@/theme';
 import { colors } from '@/theme/colors';
 import { Screen, Row, Tile, FitList } from '@/ui/layout';
@@ -67,6 +68,7 @@ export default function TasksScreen() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [detailDate, setDetailDate] = useState<string | null>(null);
   const [segment, setSegment] = useState<'wszystkie' | 'teraz' | 'bezterminowe'>('wszystkie');
   const titleRef = useRef<TextInput>(null);
@@ -215,12 +217,20 @@ export default function TasksScreen() {
               activeKey={segment}
               onChange={(k) => setSegment(k as typeof segment)}
             />
+            <TouchableOpacity style={s.searchBtn} onPress={() => { haptic.tap(); setSearchOpen(true); }} activeOpacity={0.8} accessibilityLabel="Szukaj zadań">
+              <Search size={16} color={C.txt} />
+            </TouchableOpacity>
             <TouchableOpacity style={s.addBtn} onPress={() => { haptic.tap(); setComposerOpen(true); }} activeOpacity={0.8}>
               <Plus size={18} color={C.bg} />
             </TouchableOpacity>
           </View>
         </Tile>
       </Row>
+
+      <LazyMount visible={searchOpen}>
+        <TaskSearchSheet visible={searchOpen} onClose={() => setSearchOpen(false)} knownTags={knownTags}
+          onEdit={(t) => { setSearchOpen(false); setEditingTask(t); }} />
+      </LazyMount>
 
       <AppBottomSheet visible={composerOpen || !!editingTask} onClose={closeComposer} initialFocusRef={titleRef}>
         <AddTaskCard
@@ -285,6 +295,10 @@ const makeS = themedStyles((c) => StyleSheet.create({
   },
   undoText: { flex: 1, fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.secondary },
   undoBtn: { fontSize: 12.5, fontFamily: 'Inter_900Black', color: c.text.bright },
+  searchBtn: {
+    width: 48, height: 48, borderRadius: R.btn, borderWidth: 1, borderColor: C.line,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
   addBtn: {
     width: 48, height: 48, borderRadius: R.btn, backgroundColor: C.hi,
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
