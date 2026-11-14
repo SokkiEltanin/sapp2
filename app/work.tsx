@@ -1,8 +1,9 @@
+import { employerShortName, nextEmployerName } from '@/utils/employerName';
 import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChevronLeft, Plus, ChevronDown, ChevronUp, CheckCircle2, EyeOff, Eye, BadgeCheck, Pencil, Check } from 'lucide-react-native';
+import { ChevronLeft, Plus, ChevronDown, ChevronUp, CheckCircle2, EyeOff, Eye, Pencil, Check } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import Segmented from '@/components/design/Segmented';
@@ -50,7 +51,7 @@ export default function WorkScreen() {
 
   const handleAddEmployer = () => {
     haptic.tap();
-    const emp = addEmployer({ name: 'Nowy pracodawca', monthlySalary: 5000, hoursPerMonth: 168, workMode: 'calendar' });
+    const emp = addEmployer({ name: nextEmployerName(employers.map((x) => x.name)), monthlySalary: 5000, hoursPerMonth: 168, workMode: 'calendar' });
     setViewingId(emp.id);
     setEditOpen(true);
   };
@@ -103,8 +104,9 @@ export default function WorkScreen() {
               onPress={() => { haptic.tap(); setViewingId(e.id); }}
               activeOpacity={0.8}
             >
-              {e.id === activeEmployerId && <BadgeCheck size={12} color={e.id === viewingId ? colors.bg.primary : colors.accent.green} />}
-              <Text style={[s.empChipLabel, e.id === viewingId && s.empChipLabelOn]} numberOfLines={1}>{e.name}</Text>
+              <Text style={[s.empChipLabel, e.id === viewingId && s.empChipLabelOn]} numberOfLines={1}>{employerShortName(e.name)}</Text>
+              {/* Aktywny = kropka PO nazwie (ikona tylko z jednej strony robiła pigułkę krzywą). */}
+              {e.id === activeEmployerId && <View style={[s.empDot, e.id === viewingId && s.empDotOn]} />}
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -314,13 +316,16 @@ const makeS = themedStyles((c) => StyleSheet.create({
   title: { flex: 1, textAlign: 'center', fontSize: 17, fontFamily: 'Inter_900Black', color: c.text.primary },
 
   empRow: { paddingHorizontal: spacing[4], gap: spacing[2], paddingBottom: spacing[2] },
+  // Stała wysokość + tekst bez dopełnienia fontu (Android) = równe pigułki (2026-11-14).
   empChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing[3], paddingVertical: 7,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 32, paddingHorizontal: 14, maxWidth: 200,
     borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default, backgroundColor: c.bg.elevated,
   },
   empChipOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
   empChipHidden: { opacity: 0.5 },
-  empChipLabel: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.secondary },
+  empChipLabel: { flexShrink: 1, fontSize: 12, lineHeight: 15, fontFamily: 'Inter_700Bold', color: c.text.secondary, includeFontPadding: false, textAlignVertical: 'center' },
+  empDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.accent.green },
+  empDotOn: { backgroundColor: c.bg.primary },
   empChipLabelOn: { color: c.bg.primary },
 
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing[4], paddingHorizontal: spacing[6] },
