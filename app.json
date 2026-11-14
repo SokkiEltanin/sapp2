@@ -73,6 +73,7 @@
       "./plugins/withReceiptShareIntent.js",
       "./plugins/withTasksWidget.js",
       "./plugins/withWeatherWidget.js",
+      "./plugins/withNoteWidget.js",
       [
         "expo-build-properties",
         {

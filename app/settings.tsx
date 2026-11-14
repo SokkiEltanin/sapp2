@@ -108,7 +108,7 @@ function buildSections(
   hapticsEnabled: boolean,
   health: { connected: boolean; lastSyncedAt: string | null },
   backup: { auto: boolean; lastAt: string | null; busy: boolean; error: string | null; fileDir: string | null; fileLastAt: string | null },
-  widget: { tasks: WidgetLook; weather: WidgetLook },
+  widget: { tasks: WidgetLook; weather: WidgetLook; note: WidgetLook },
   sync: string,
   update: string,
   errors: string,
@@ -238,11 +238,12 @@ function buildSections(
   // Widget pulpitu "Zadania" (2026-11-13, user: "ma ustawienia przezroczystości?").
   {
     id: 'widget', title: 'Widgety na pulpit', icon: LayoutGrid, group: 'main',
-    summary: `Zadania: ${lookLabel(widget.tasks)} · Pogoda: ${lookLabel(widget.weather)}`,
+    summary: `Zadania, Pogoda, Notatka · tło ${lookLabel(widget.tasks)}`,
     // Osobno (2026-11-14, user: "rozdzielić ustawienia widgetów").
     items: [
       { kind: 'action', key: 'widget-tasks', label: 'Widget Zadania', description: `tło ${lookLabel(widget.tasks)} · tekst ${scaleLabel(widget.tasks.textScale)}`, icon: LayoutGrid },
       { kind: 'action', key: 'widget-weather', label: 'Widget Pogoda', description: `tło ${lookLabel(widget.weather)} · tekst ${scaleLabel(widget.weather.textScale)}`, icon: LayoutGrid },
+      { kind: 'action', key: 'widget-note', label: 'Widget Notatka', description: `przypięta notatka · tło ${lookLabel(widget.note)} · tekst ${scaleLabel(widget.note.textScale)}`, icon: LayoutGrid },
     ],
   },
   {
@@ -365,6 +366,7 @@ export default function SettingsScreen() {
     : syncState === 'connecting' ? 'łączę…' : syncState === 'error' ? `błąd: ${(syncError ?? '').slice(0, 40)}` : 'wyłączona';
   const widgetTasks = useWidgetSettingsStore((st) => st.tasks);
   const widgetWeather = useWidgetSettingsStore((st) => st.weather);
+  const widgetNote = useWidgetSettingsStore((st) => st.note);
   const [widgetOpen, setWidgetOpen] = useState<WidgetId | null>(null);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -407,7 +409,7 @@ export default function SettingsScreen() {
       hapticsEnabled,
       { connected: healthConnected, lastSyncedAt: healthLastSyncedAt },
       { auto: backupAuto, lastAt: backupLastAt, busy: backupBusy, error: backupError, fileDir: fileInfo.dir, fileLastAt: fileInfo.lastAt },
-      { tasks: widgetTasks, weather: widgetWeather },
+      { tasks: widgetTasks, weather: widgetWeather, note: widgetNote },
       syncLabel,
       updateLabel,
       errorsLabel,
@@ -415,7 +417,7 @@ export default function SettingsScreen() {
       healthText,
       thresholdsText,
     ),
-    [healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, syncLabel],
+    [healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, widgetNote, syncLabel],
   );
 
   const backupNow = async () => {
@@ -1000,6 +1002,7 @@ export default function SettingsScreen() {
     'file-import': fileImport,
     'widget-tasks': leave(() => setWidgetOpen('tasks')),
     'widget-weather': leave(() => setWidgetOpen('weather')),
+    'widget-note': leave(() => setWidgetOpen('note')),
     categories: leave(() => setCategoriesOpen(true)),
     'category-rules': leave(() => setRulesOpen(true)),
     'update-check': updateCheck,

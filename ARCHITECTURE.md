@@ -1637,6 +1637,15 @@ Ustawienia → Finanse → Reguły kategorii (`components/settings/CategoryRules
 skrót "Zawsze tak dla „sklep”" pod wyborem kategorii w `AddExpenseModal`.
 Odmiana liczebników: `utils/plural.ts`.
 
+## WIDGET NOTATKA (2026-11-14)
+
+`plugins/withNoteWidget.js` (NoteWidgetProvider/Module/Package, layout `note_widget`,
+8 slotów listy), snapshot `utils/widgetNote.ts` (przypięta notatka: tekst albo lista —
+nieodhaczone pierwsze, "x/y"), `services/widgetSync.ts` `syncNoteWidget` (subskrypcja
+`notesStore` w `app/_layout.tsx`, 800 ms). Stuknięcie → `sapp2://note?id=…`. Wygląd:
+`widgetSettingsStore.note` → `NoteWidget.setAppearance` (klucze `note_*`, fallback `bg_*`),
+Ustawienia → Widgety → Widget Notatka. Formatowanie tekstu w widgecie pominięte.
+
 ## UKŁAD DASHBOARDU (2026-11-14)
 
 Rzędy Dashboardu = sekcje (`utils/dashboardLayout.ts` `DashSection`: top, factWeather,

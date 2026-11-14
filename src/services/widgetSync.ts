@@ -1,3 +1,5 @@
+import type { Note } from '@/types/notes';
+import { buildNoteWidgetSnapshot } from '@/utils/widgetNote';
 import { NativeModules, Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { Task } from '@/types/calendar';
@@ -38,11 +40,25 @@ export async function syncWeatherWidget(data: WeatherData, lat: number, lon: num
   } catch { /* dodatek — nigdy nie blokuje appki */ }
 }
 
+// Widget "Notatka" (2026-11-14): przypięta notatka → snapshot → NoteWidget.requestUpdate().
+const NOTE_FILE = `${FileSystem.documentDirectory ?? ''}widget_note.json`;
+let lastNote = '';
+export async function syncNoteWidget(note: Note | null | undefined): Promise<void> {
+  if (Platform.OS !== 'android' || !FileSystem.documentDirectory) return;
+  const json = JSON.stringify(buildNoteWidgetSnapshot(note));
+  if (json === lastNote) return;
+  lastNote = json;
+  try {
+    await FileSystem.writeAsStringAsync(NOTE_FILE, json);
+    NativeModules.NoteWidget?.requestUpdate?.();
+  } catch { /* dodatek — nigdy nie blokuje appki */ }
+}
+
 // Wygląd (Ustawienia → Widget): natywny zapis do SharedPreferences + przemalowanie.
 // Osobno dla każdego widgetu (2026-11-14). Stary APK bez WeatherWidget.setAppearance
 // — pogoda zostaje przy wspólnym wyglądzie z Zadań, nic się nie wywraca.
-export function applyWidgetAppearance(id: 'tasks' | 'weather', look: { bgOpacity: number; bgColor: string; textScale: string }): void {
+export function applyWidgetAppearance(id: 'tasks' | 'weather' | 'note', look: { bgOpacity: number; bgColor: string; textScale: string }): void {
   if (Platform.OS !== 'android') return;
-  const mod = id === 'tasks' ? NativeModules.TasksWidget : NativeModules.WeatherWidget;
+  const mod = id === 'tasks' ? NativeModules.TasksWidget : id === 'weather' ? NativeModules.WeatherWidget : NativeModules.NoteWidget;
   try { mod?.setAppearance?.(look.bgOpacity, look.bgColor, look.textScale); } catch { /* stary APK */ }
 }

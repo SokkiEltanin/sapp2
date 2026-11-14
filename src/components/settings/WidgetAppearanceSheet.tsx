@@ -1,3 +1,5 @@
+import { useNotesStore } from '@/store/notesStore';
+import { buildNoteWidgetSnapshot } from '@/utils/widgetNote';
 import { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
@@ -44,6 +46,8 @@ export default function WidgetAppearanceSheet({ visible, onClose, widget }: { vi
   const wx = useWeatherStore((st) => st.data);
   const loc = useWeatherStore((st) => st.location);
   const snap = useMemo(() => buildWidgetSnapshot(tasks), [tasks]);
+  const pinned = useNotesStore((st) => st.notes.find((n) => n.pinned));
+  const nsnap = useMemo(() => buildNoteWidgetSnapshot(pinned), [pinned]);
   const wsnap = useMemo(() => (wx && loc ? buildWeatherWidgetSnapshot(wx, loc.lat, loc.lon) : null), [wx, loc]);
   const rows = snap.rows.length ? snap.rows.slice(0, 4) : SAMPLE;
   const mult = SCALES.find((x) => x.key === textScale)?.mult ?? 1;
@@ -57,7 +61,7 @@ export default function WidgetAppearanceSheet({ visible, onClose, widget }: { vi
 
   return (
     <AppBottomSheet visible={visible} onClose={onClose}>
-      <Text style={s.title}>Widget {widget === 'tasks' ? 'Zadania' : 'Pogoda'}</Text>
+      <Text style={s.title}>Widget {widget === 'tasks' ? 'Zadania' : widget === 'weather' ? 'Pogoda' : 'Notatka'}</Text>
       <Text style={s.hint}>Dodasz go z listy widgetów na pulpicie. Zmiany widać od razu.</Text>
 
       {/* Podgląd na "tapecie" */}
@@ -73,7 +77,18 @@ export default function WidgetAppearanceSheet({ visible, onClose, widget }: { vi
           <Rect x="0" y="0" width="100%" height="100%" fill="url(#wall)" />
         </Svg>
         <View style={[s.widget, { backgroundColor: hexA(bgColor, bgOpacity), borderColor: bgOpacity > 0 ? `rgba(255,255,255,${0.13 * bgOpacity / 100})` : 'transparent' }]}>
-          {widget === 'tasks' ? (
+          {widget === 'note' ? (
+            <>
+              <Text style={[s.wHeader, { fontSize: 10 * mult }]}>{nsnap.title}</Text>
+              {nsnap.text ? <Text style={[s.wTitle, { fontSize: 13 * mult, flex: 0 }]} numberOfLines={5}>{nsnap.text}</Text> : null}
+              {nsnap.rows.slice(0, 5).map((r, i) => (
+                <View key={i} style={s.wRow}>
+                  <View style={[s.nBox, r.done && s.nBoxDone]} />
+                  <Text style={[s.wTitle, { fontSize: 13 * mult }, r.done && { color: '#8A8A8A' }]} numberOfLines={1}>{r.text}</Text>
+                </View>
+              ))}
+            </>
+          ) : widget === 'tasks' ? (
             <>
               <Text style={[s.wHeader, { fontSize: 10 * mult }]}>{snap.rows.length ? snap.header : 'ZADANIA · 3 · 1 ZALEGŁE'}</Text>
               {rows.map((r) => (
@@ -163,6 +178,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
   wDot: { width: 6, height: 6, borderRadius: 3, marginRight: 8 },
   wTitle: { flex: 1, fontFamily: 'Inter_500Medium', color: '#F2F2F2' },
   wSub: { fontFamily: 'Inter_500Medium', color: '#A3A3A3', marginLeft: 6 },
+  nBox: { width: 14, height: 14, borderRadius: 4, borderWidth: 1.5, borderColor: '#8A8A8A', marginRight: 8 },
+  nBoxDone: { backgroundColor: '#22C55E', borderColor: '#22C55E' },
   wxTop: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   wxIcon: { width: 30, height: 30, borderRadius: 15 },
   wxTemp: { fontFamily: 'Inter_800ExtraBold', color: '#F2F2F2', marginLeft: 8 },

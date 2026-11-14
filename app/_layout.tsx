@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCalendarStore } from '@/store/calendarStore';
-import { syncTasksWidget, syncWeatherWidget, applyWidgetAppearance } from '@/services/widgetSync';
+import { syncTasksWidget, syncWeatherWidget, syncNoteWidget, applyWidgetAppearance } from '@/services/widgetSync';
+import { useNotesStore } from '@/store/notesStore';
 import { useWeatherStore } from '@/store/weatherStore';
 import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
 import { drainWidgetToggleQueue } from '@/services/widgetToggleDrain';
@@ -211,6 +212,8 @@ export default function RootLayout() {
       const w = useWidgetSettingsStore.getState();
       applyWidgetAppearance('tasks', w.tasks);
       applyWidgetAppearance('weather', w.weather);
+      applyWidgetAppearance('note', w.note);
+      syncNoteWidget(useNotesStore.getState().notes.find((n) => n.pinned)).catch((e) => logError('widget notatki', e));
     }, 1200);
     const sub = AppState.addEventListener('change', (state) => { if (state === 'active') drainWidgetToggleQueue(); });
     // Widget "Pogoda": nowy odczyt w appce → snapshot dla pulpitu.
@@ -220,7 +223,14 @@ export default function RootLayout() {
     };
     const unsubWx = useWeatherStore.subscribe((st, prev) => { if (st.data !== prev.data) pushWeather(); });
     const wxStart = setTimeout(pushWeather, 1500);
-    return () => { unsub(); unsubWx(); sub.remove(); clearTimeout(start); clearTimeout(wxStart); if (t) clearTimeout(t); };
+    // Widget "Notatka": zmiana notatek → przypięta do widgetu (z opóźnieniem, pisanie).
+    let nt: ReturnType<typeof setTimeout> | null = null;
+    const unsubNote = useNotesStore.subscribe((st, prev) => {
+      if (st.notes === prev.notes) return;
+      if (nt) clearTimeout(nt);
+      nt = setTimeout(() => { syncNoteWidget(useNotesStore.getState().notes.find((n) => n.pinned)).catch((e) => logError('widget notatki', e)); }, 800);
+    });
+    return () => { unsub(); unsubWx(); unsubNote(); sub.remove(); clearTimeout(start); clearTimeout(wxStart); if (t) clearTimeout(t); if (nt) clearTimeout(nt); };
   }, []);
 
   // W przeciwieństwie do fontów, TEGO jednego czekania appka nie może "ignorować" —
