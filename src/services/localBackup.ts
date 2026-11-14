@@ -38,9 +38,37 @@ async function pickDir(): Promise<string | null> {
   return r.directoryUri;
 }
 
-async function writeTo(dir: string, name: string, json: string): Promise<void> {
-  const uri = await SAF.createFileAsync(dir, name.replace(/\.json$/, ''), 'application/json');
-  await SAF.writeAsStringAsync(uri, json);
+async function writeTo(dir: string, name: string, content: string, mime = 'application/json'): Promise<void> {
+  const uri = await SAF.createFileAsync(dir, name.replace(/\.[a-z0-9]+$/i, ''), mime);
+  await SAF.writeAsStringAsync(uri, content);
+}
+
+/**
+ * Zapis dowolnego pliku tekstowego (np. CSV z Transakcji) — web: pobranie; telefon:
+ * folder kopii (Ustawienia → Dane) albo wybór folderu przy pierwszym razie.
+ * Zwraca, gdzie zapisano, albo null, gdy user anulował wybór folderu.
+ */
+export async function saveTextFile(name: string, content: string, mime: string): Promise<string | null> {
+  if (Platform.OS === 'web') {
+    const blob = new Blob([content], { type: `${mime};charset=utf-8` });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    return 'Pobrane';
+  }
+  let dir = await AsyncStorage.getItem(DIR_KEY);
+  if (!dir) dir = await pickDir();
+  if (!dir) return null;
+  try {
+    await writeTo(dir, name, content, mime);
+  } catch {
+    dir = await pickDir();
+    if (!dir) return null;
+    await writeTo(dir, name, content, mime);
+  }
+  return folderLabel(dir);
 }
 
 /**

@@ -1637,6 +1637,13 @@ Ustawienia → Finanse → Reguły kategorii (`components/settings/CategoryRules
 skrót "Zawsze tak dla „sklep”" pod wyborem kategorii w `AddExpenseModal`.
 Odmiana liczebników: `utils/plural.ts`.
 
+## EKSPORT CSV (2026-11-14)
+
+Transakcje (po filtrach) → przycisk "CSV" w nagłówku `TransactionsModal`. Format
+`utils/csvExport.ts` (średnik, przecinek dziesiętny, BOM, koszyk, kategorie, płatność,
+pozycje ze zniżkami). Zapis `services/localBackup.ts` `saveTextFile` (folder kopii albo
+wybór folderu; web = pobranie).
+
 ## SZUKAJ W CAŁEJ APPCE (2026-11-14)
 
 Lupa w dolnym pasku (`ui/NavBar.tsx`, akcja — obrys, nie zakładka) → `app/search.tsx`.

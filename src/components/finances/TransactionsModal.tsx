@@ -1,6 +1,9 @@
+import { saveTextFile } from '@/services/localBackup';
+import { transactionsCsv, csvFileName } from '@/utils/csvExport';
+import { logError } from '@/services/errorLog';
 import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, ScrollView } from 'react-native';
-import { X, Search, SlidersHorizontal } from 'lucide-react-native';
+import { X, Search, SlidersHorizontal, FileDown } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import type { Expense } from '@/types/finances';
@@ -51,6 +54,23 @@ export default function TransactionsModal({
 
   const hits = useMemo(() => filterTransactions(expenses, f), [expenses, f]);
   const sum = useMemo(() => summarize(hits), [hits]);
+  const [exporting, setExporting] = useState(false);
+  const [exported, setExported] = useState<string | null>(null);
+  const exportCsv = async () => {
+    if (!hits.length || exporting) return;
+    haptic.tap();
+    setExporting(true);
+    try {
+      const where = await saveTextFile(csvFileName(new Date()), transactionsCsv(hits.map((h) => h.e)), 'text/csv');
+      if (where) { haptic.success(); setExported('zapisano'); setTimeout(() => setExported(null), 2500); }
+    } catch (e) {
+      logError('eksport CSV', e);
+      setExported('błąd');
+      setTimeout(() => setExported(null), 2500);
+    } finally {
+      setExporting(false);
+    }
+  };
   const nActive = activeFilterCount(f);
   const narrowed = nActive > 0 || f.query.trim().length > 0;
 
@@ -66,6 +86,11 @@ export default function TransactionsModal({
     <>
       <View style={s.header}>
         <Text style={s.title}>Transakcje</Text>
+        {/* Eksport tego, co widać po filtrach (2026-11-14) — CSV pod polskiego Excela. */}
+        <TouchableOpacity onPress={exportCsv} hitSlop={8} style={s.csvBtn} disabled={!hits.length || exporting} accessibilityLabel="Eksport do CSV">
+          <FileDown size={15} color={hits.length ? colors.text.secondary : colors.text.muted} />
+          <Text style={[s.csvLabel, !hits.length && { color: colors.text.muted }]}>{exporting ? '…' : exported ?? 'CSV'}</Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={() => { haptic.tap(); onClose(); }} hitSlop={8} style={s.closeBtn}>
           <X size={18} color={colors.text.secondary} />
         </TouchableOpacity>
@@ -198,6 +223,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
     paddingBottom: spacing[3],
   },
   title: { fontSize: 20, fontFamily: 'Inter_900Black', color: c.text.primary },
+  csvBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto', marginRight: spacing[3], paddingHorizontal: spacing[2], paddingVertical: 5, borderRadius: radius.sm, borderWidth: 1, borderColor: c.border.default },
+  csvLabel: { fontSize: 11.5, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary },
   closeBtn: {
     width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
     backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default,
