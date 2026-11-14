@@ -62,3 +62,16 @@ Zero potrzeby zakładania projektu EAS żeby mieć działający APK z GitHuba.
 - **Wymagane GitHub Secrets** (Settings → Secrets and variables → Actions):
   `KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `EXPO_PUBLIC_FIREBASE_API_KEY`
   (wartość: ta sama co w `.env` lokalnie — patrz wyżej, user ją ma).
+
+## Reguły Firestore (bezpieczeństwo danych)
+
+Treść: [`firestore.rules`](./firestore.rules) — wklejona w Firebase Console → Firestore
+Database → Rules → Publish. Każdy widzi tylko `users/{swoje uid}/…`. Sprawdzenie z
+zewnątrz (bez logowania) — zapis MUSI zwrócić `PERMISSION_DENIED`:
+
+```bash
+curl -s -X PATCH "https://firestore.googleapis.com/v1/projects/sapp2-a2354/databases/(default)/documents/probe/x" \
+  -H 'Content-Type: application/json' -d '{"fields":{"a":{"stringValue":"x"}}}'
+```
+
+2026-11-14: baza była w trybie testowym (otwarta dla wszystkich) — wykryte tym testem.

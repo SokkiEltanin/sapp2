@@ -1,0 +1,15 @@
+// Reguły bezpieczeństwa Firestore (2026-11-14) — wklejone w Firebase Console →
+// Firestore Database → Rules (ten plik to tylko kopia; Console jest źródłem prawdy).
+// Każdy zalogowany widzi i zmienia WYŁĄCZNIE swoje dane: users/{swoje uid}/...
+// Wszystko inne zablokowane. `_test/ping` — test połączenia w Ustawieniach → Diagnostyka.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    match /_test/{id} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
