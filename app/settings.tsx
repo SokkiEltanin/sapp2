@@ -1,3 +1,6 @@
+import { useErrorLog } from '@/services/errorLog';
+import { entryTime } from '@/utils/errorLog';
+import ErrorLogSheet from '@/components/settings/ErrorLogSheet';
 import { useAppUpdateStore, checkForAppUpdate, applyOtaUpdate, runningUpdateLabel } from '@/services/appUpdate';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
@@ -96,6 +99,7 @@ function buildSections(
   widget: { opacity: number; textScale: string },
   sync: string,
   update: string,
+  errors: string,
 ): SettingsSection[] {
   return [
   {
@@ -233,6 +237,7 @@ function buildSections(
       { kind: 'value', key: 'info-commit', label: 'Commit', description: 'hash commita z którego zbudowano', icon: Copy, value: BUILD_INFO.commit },
       { kind: 'value', key: 'info-ota', label: 'Paczka JS', description: 'wbudowana w APK czy z aktualizacji OTA', icon: Info, value: runningUpdateLabel() },
       { kind: 'action', key: 'update-check', label: 'Sprawdź aktualizacje', description: update, icon: Download },
+      { kind: 'action', key: 'error-log', label: 'Dziennik błędów', description: errors, icon: AlertTriangle },
       { kind: 'action', tier: 'sub', key: 'google', label: 'Zaloguj przez Google (test)', description: 'sprawdź czy Google Sign-In działa', icon: LogIn },
       { kind: 'action', tier: 'sub', key: 'firestore', label: 'Firestore (test)', description: 'zapis/odczyt testowego dokumentu', icon: Database },
       { kind: 'action', tier: 'sub', key: 'calendar', label: 'Kalendarz Google (test)', description: 'odczyt nadchodzących wydarzeń', icon: CalendarDays },
@@ -324,6 +329,10 @@ export default function SettingsScreen() {
   const [widgetOpen, setWidgetOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const upd = useAppUpdateStore();
+  const errEntries = useErrorLog((x) => x.entries);
+  const [errorsOpen, setErrorsOpen] = useState(false);
+  const errorsLabel = errEntries.length === 0 ? 'pusto — nic się nie wywaliło'
+    : `${errEntries.length} ${errEntries.length === 1 ? 'wpis' : 'wpisów'} · ostatni ${entryTime(errEntries[0].t)} — do skopiowania`;
   const updateLabel = upd.checking ? 'sprawdzam…'
     : upd.otaReady ? 'aktualizacja pobrana — stuknij, żeby uruchomić ponownie'
     : upd.apk ? `nowy APK #${upd.apk.build} — stuknij, żeby pobrać`
@@ -345,8 +354,9 @@ export default function SettingsScreen() {
       { opacity: widgetOpacity, textScale: widgetTextScale },
       syncLabel,
       updateLabel,
+      errorsLabel,
     ),
-    [updateLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, widgetOpacity, widgetTextScale, syncLabel],
+    [updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, widgetOpacity, widgetTextScale, syncLabel],
   );
 
   const backupNow = async () => {
@@ -894,6 +904,7 @@ export default function SettingsScreen() {
     'widget-appearance': leave(() => setWidgetOpen(true)),
     categories: leave(() => setCategoriesOpen(true)),
     'update-check': updateCheck,
+    'error-log': leave(() => setErrorsOpen(true)),
     'health-diag': leave(() => router.push('/health-debug' as any)),
   };
 
@@ -1111,6 +1122,7 @@ export default function SettingsScreen() {
       </AppBottomSheet>
       <WidgetAppearanceSheet visible={widgetOpen} onClose={() => setWidgetOpen(false)} />
       <CategoriesSheet visible={categoriesOpen} onClose={() => setCategoriesOpen(false)} />
+      <ErrorLogSheet visible={errorsOpen} onClose={() => setErrorsOpen(false)} header={`sapp2 ${BUILD_INFO.version} · build ${BUILD_INFO.buildNumber} · ${BUILD_INFO.commit} · ${runningUpdateLabel()}`} />
     </SafeAreaView>
   );
 }

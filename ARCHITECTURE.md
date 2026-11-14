@@ -1609,6 +1609,22 @@ powodu co `subscriptionAuto.ts` wyżej.
 rundy). **DO POTWIERDZENIA NA URZĄDZENIU**: realny dodaj/edytuj/usuń na
 telefonie, auto-roll po realnym upływie czasu.
 
+## AKTUALIZACJE I DZIENNIK BŁĘDÓW (2026-11-14)
+
+- **OTA**: `expo-updates`, `runtimeVersion: fingerprint`, kanał `production`. CI
+  (`build.yml` job `decide`) wybiera OTA albo APK — szczegóły MAINTENANCE.md §3.
+  `services/appUpdate.ts` (OTA + GitHub Releases `build-N` vs `EXPO_PUBLIC_BUILD_NUMBER`,
+  co 30 min / przy powrocie do appki), `components/UpdateBanner.tsx` (pasek na górze,
+  w `app/_layout.tsx`), Ustawienia → Diagnostyka: "Paczka JS", "Sprawdź aktualizacje".
+  Czysta logika: `utils/appVersion.ts`.
+- **Dziennik błędów**: `services/errorLog.ts` (`installErrorLog()` na górze
+  `app/_layout.tsx`; globalny handler, obietnice, console.error poza dev, błędy
+  synchronizacji, `logError(gdzie, e)` z zadań w tle), `export function ErrorBoundary`
+  w `app/_layout.tsx` (crash ekranu → komunikat + "Spróbuj ponownie"), arkusz
+  `components/settings/ErrorLogSheet.tsx` (kopiuj/wyczyść). AsyncStorage
+  `error-log-v1`, max 100 wpisów, powtórki łączone (×N). Nowe ciche `catch` w tle →
+  `logError` zamiast `() => {}`.
+
 ## KATEGORIE (Zmienne + edycja) [PE] (2026-11-14)
 
 User: "dodać kategorie do ZMIENNYCH (elektronika, części); w paragonie najpierw

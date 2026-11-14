@@ -4,7 +4,7 @@ import { syncTasksWidget, syncWeatherWidget, applyWidgetAppearance } from '@/ser
 import { useWeatherStore } from '@/store/weatherStore';
 import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
 import { drainWidgetToggleQueue } from '@/services/widgetToggleDrain';
-import { View, ActivityIndicator, AppState, Dimensions, Image, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, AppState, Dimensions, Image, Platform } from 'react-native';
 import { WEB_MAX_W } from '@/ui/layout';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -36,6 +36,12 @@ import { loadHapticsEnabled } from '@/utils/haptics';
 import { drainBankNotifications } from '@/services/bankNotificationDrain';
 import { useExpensesStore } from '@/store/expensesStore';
 import { startAppUpdateChecks } from '@/services/appUpdate';
+import { installErrorLog, logError } from '@/services/errorLog';
+import { useSyncStatus } from '@/services/cloudSync';
+import type { ErrorBoundaryProps } from 'expo-router';
+
+// Dziennik błędów od pierwszej linii — łapie też to, co wywali się przy starcie.
+installErrorLog();
 import { UpdateBanner } from '@/components/UpdateBanner';
 
 // ŚWIADOMIE bez importu @react-native-google-signin/google-signin tutaj — to natywny
@@ -44,9 +50,22 @@ import { UpdateBanner } from '@/components/UpdateBanner';
 // Google importowane jest DYNAMICZNIE, w środku app/login.tsx i app/settings.tsx (test
 // Diagnostyki) — więc podgląd zakładek działa w Expo Go, a ekrany logowania/testu po
 // prostu grzecznie informują że trzeba dev-clienta, zamiast crashować całą appkę.
-// `ErrorBoundary` (łapanie crashy renderu zamiast pustego ekranu produkcyjnego expo-router)
-// dorzucimy jak będzie coś realnego do łapania — na pustych zakładkach-zaślepkach nic nie
-// ma prawa crashnąć, więc to na razie pominięte świadomie, nie zapomniane.
+
+// Crash renderu (2026-11-14) — zamiast pustego ekranu: komunikat + "Spróbuj ponownie",
+// błąd ląduje w dzienniku (Ustawienia → Diagnostyka → Dziennik błędów).
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  useEffect(() => { logError('ekran', error); }, [error]);
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.bg.primary, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 14 }}>
+      <Text style={{ color: colors.text.primary, fontSize: 18, fontFamily: 'Inter_900Black' }}>Coś się wywaliło</Text>
+      <Text style={{ color: colors.text.muted, fontSize: 13, textAlign: 'center' }} numberOfLines={4}>{error.message}</Text>
+      <Text style={{ color: colors.text.muted, fontSize: 11, textAlign: 'center' }}>Zapisane w Ustawienia → Diagnostyka → Dziennik błędów. Dane są bezpieczne.</Text>
+      <TouchableOpacity onPress={retry} style={{ backgroundColor: colors.text.primary, borderRadius: 16, paddingHorizontal: 22, paddingVertical: 12 }}>
+        <Text style={{ color: colors.bg.primary, fontFamily: 'Inter_800ExtraBold' }}>Spróbuj ponownie</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 // Bramka logowania (2026-10-28, user: "wymagaj logowania Google od razu") — appka NIE
 // ma anonimowej sesji/fallbacku jak sapp (src/services/firebase.ts tam): bez
@@ -151,6 +170,10 @@ export default function RootLayout() {
 
   // Aktualizacje: OTA (sam JS) + nowy APK z GitHub Releases — src/services/appUpdate.ts.
   useEffect(() => startAppUpdateChecks(), []);
+  // Błędy synchronizacji do dziennika (tylko zmiana treści błędu, nie każde ponowienie).
+  useEffect(() => useSyncStatus.subscribe((st, prev) => {
+    if (st.state === 'error' && st.error && st.error !== prev.error) logError('synchronizacja', st.error);
+  }), []);
 
   // Osusza powiadomienia z banku przechwycone przez natywny nasłuch
   // (plugins/withBankNotificationListener.js) podczas gdy appka była zamknięta/w tle —
@@ -162,7 +185,7 @@ export default function RootLayout() {
   useEffect(() => {
     const drainThenAuto = () => drainBankNotifications()
       .then(() => { if (useExpensesStore.getState().expenses.length > 0) return import('@/services/bankAutoProcess').then((m) => m.processAutoBankQueue()); })
-      .catch(() => {});
+      .catch((e) => logError('powiadomienia z banku', e));
     const t = setTimeout(drainThenAuto, 1500);
     const sub = AppState.addEventListener('change', (state) => { if (state === 'active') drainThenAuto(); });
     return () => { clearTimeout(t); sub.remove(); };
@@ -173,7 +196,7 @@ export default function RootLayout() {
   // Na web/starym APK oba to ciche no-opy (services/widgetSync.ts).
   useEffect(() => {
     let t: ReturnType<typeof setTimeout> | null = null;
-    const flush = () => syncTasksWidget(useCalendarStore.getState().tasks).catch(() => {});
+    const flush = () => syncTasksWidget(useCalendarStore.getState().tasks).catch((e) => logError('widget zadań', e));
     const unsub = useCalendarStore.subscribe((st, prev) => {
       if (st.tasks === prev.tasks) return;
       if (t) clearTimeout(t);
@@ -189,7 +212,7 @@ export default function RootLayout() {
     // Widget "Pogoda": nowy odczyt w appce → snapshot dla pulpitu.
     const pushWeather = () => {
       const { data, location } = useWeatherStore.getState();
-      if (data && location) syncWeatherWidget(data, location.lat, location.lon).catch(() => {});
+      if (data && location) syncWeatherWidget(data, location.lat, location.lon).catch((e) => logError('widget pogody', e));
     };
     const unsubWx = useWeatherStore.subscribe((st, prev) => { if (st.data !== prev.data) pushWeather(); });
     const wxStart = setTimeout(pushWeather, 1500);
