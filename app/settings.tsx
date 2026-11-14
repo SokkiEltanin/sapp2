@@ -1,3 +1,4 @@
+import DashboardLayoutSheet from '@/components/settings/DashboardLayoutSheet';
 import AppHealthSheet from '@/components/settings/AppHealthSheet';
 import ThresholdsSheet from '@/components/settings/ThresholdsSheet';
 import { appHealth, healthSummary } from '@/utils/appHealth';
@@ -251,6 +252,7 @@ function buildSections(
       { kind: 'switch', key: 'haptics-enabled', label: 'Wibracje', description: 'delikatne kliknięcie przy tapach w appce', icon: Vibrate, value: hapticsEnabled },
       // Progi (2026-11-14) — liczby wcześniej zaszyte w kodzie.
       { kind: 'action', key: 'thresholds', label: 'Progi i przypomnienia', description: thresholds, icon: Clock },
+      { kind: 'action', key: 'dash-layout', label: 'Układ Dashboardu', description: 'kolejność rzędów i ukrywanie', icon: LayoutGrid },
     ],
   },
   // "Diagnostyka" + stara "Info" złączone w jedną sekcję (2026-11-02) — build-info
@@ -371,6 +373,7 @@ export default function SettingsScreen() {
   const errEntries = useErrorLog((x) => x.entries);
   const [healthOpen, setHealthOpen] = useState(false);
   const [thresholdsOpen, setThresholdsOpen] = useState(false);
+  const [layoutOpen, setLayoutOpen] = useState(false);
   const th = useThresholdsStore((st) => st.t);
   const thresholdsText = `paliwo od ${th.fuelMin} zł · budżet ${th.budgetWarnPct}% · przypomnienia ${th.reminderHour}:00`;
   const healthRows = useMemo(() => appHealth({
@@ -1002,6 +1005,7 @@ export default function SettingsScreen() {
     'update-check': updateCheck,
     'app-health': leave(() => setHealthOpen(true)),
     thresholds: leave(() => setThresholdsOpen(true)),
+    'dash-layout': leave(() => setLayoutOpen(true)),
     'error-log': leave(() => setErrorsOpen(true)),
     'health-diag': leave(() => router.push('/health-debug' as any)),
   };
@@ -1225,6 +1229,7 @@ export default function SettingsScreen() {
       <CategoryRulesSheet visible={rulesOpen} onClose={() => setRulesOpen(false)} />
       <AppHealthSheet visible={healthOpen} onClose={() => setHealthOpen(false)} rows={healthRows} />
       <ThresholdsSheet visible={thresholdsOpen} onClose={() => setThresholdsOpen(false)} />
+      <DashboardLayoutSheet visible={layoutOpen} onClose={() => setLayoutOpen(false)} />
       <ErrorLogSheet visible={errorsOpen} onClose={() => setErrorsOpen(false)} header={`sapp2 ${BUILD_INFO.version} · build ${BUILD_INFO.buildNumber} · ${BUILD_INFO.commit} · ${runningUpdateLabel()}`} />
     </SafeAreaView>
   );

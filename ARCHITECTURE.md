@@ -1637,6 +1637,15 @@ Ustawienia → Finanse → Reguły kategorii (`components/settings/CategoryRules
 skrót "Zawsze tak dla „sklep”" pod wyborem kategorii w `AddExpenseModal`.
 Odmiana liczebników: `utils/plural.ts`.
 
+## UKŁAD DASHBOARDU (2026-11-14)
+
+Rzędy Dashboardu = sekcje (`utils/dashboardLayout.ts` `DashSection`: top, factWeather,
+food, note, upcoming), w `ui/DashboardScreen.tsx` obiekt `sections` renderowany w
+kolejności `visibleSections(order, hidden)`. Store `store/dashboardLayoutStore.ts`
+(`dashboard-layout-v1`, per urządzenie, w kopii). UI: Ustawienia → Ogólne → Układ
+Dashboardu (`components/settings/DashboardLayoutSheet.tsx`). **Nowy rząd** = id w
+`DASH_SECTIONS` + wpis w `sections` (normalizeOrder dopisze go userom na końcu).
+
 ## EKSPORT CSV (2026-11-14)
 
 Transakcje (po filtrach) → przycisk "CSV" w nagłówku `TransactionsModal`. Format
