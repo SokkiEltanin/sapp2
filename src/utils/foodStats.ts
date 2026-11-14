@@ -1,5 +1,5 @@
 import type { Expense } from '@/types/finances';
-import { fvSplitOf, fixedVariableMonths } from './fixedVariable';
+import { fvSplitOf, fixedVariableMonths, labelFor } from './fixedVariable';
 import { FOOD_SUBCAT_META } from './food';
 
 // Dashboard, rząd 4 (2026-11-01, user: "czemu na dashboardzie nie ma widgetu... z
@@ -100,13 +100,27 @@ export function foodByCategory(expenses: Expense[], monthFilterKey?: string): Fo
   for (const e of expenses) {
     if (e.type !== 'expense') continue;
     if (monthFilterKey && monthKeyOf(e.date) !== monthFilterKey) continue;
-    for (const it of e.receiptItems ?? []) {
-      if (it.excluded || it.kind === 'deposit' || !it.foodSubcat) continue;
-      sums.set(it.foodSubcat, (sums.get(it.foodSubcat) ?? 0) + it.price);
-      const list = items.get(it.foodSubcat) ?? [];
-      list.push({ expenseId: e.id, date: e.date, storeName: e.storeName, name: it.name, price: it.price, quantity: it.quantity });
-      items.set(it.foodSubcat, list);
+    // Spójnie z "Podziałem"/budżetami/trendem (2026-11-14, bug: wydatek "Rozlicz jako:
+    // Jedzenie" bez pozycji paragonu znikał z Podziału — nie liczył się nigdzie):
+    // kwota jedzenia = fvSplitOf(e).food; pozycje rozdzielają ją na kategorie, reszta
+    // (cały wydatek oznaczony jako jedzenie) → "Inne jedzenie". Wydatek przeniesiony do
+    // Stałych/przelew nie liczy już swoich pozycji jako jedzenia.
+    const foodAmt = fvSplitOf(e).food;
+    if (foodAmt <= 0) continue;
+    const food = (e.receiptItems ?? []).filter((it) => !it.excluded && it.kind !== 'deposit' && !!it.foodSubcat);
+    const itemsSum = food.reduce((a, it) => a + (it.price ?? 0), 0);
+    const k = itemsSum > foodAmt ? foodAmt / itemsSum : 1;
+    const put = (tag: string, price: number, row: FoodCategoryItem) => {
+      sums.set(tag, (sums.get(tag) ?? 0) + price);
+      const list = items.get(tag) ?? [];
+      list.push(row);
+      items.set(tag, list);
+    };
+    for (const it of food) {
+      put(it.foodSubcat!, it.price * k, { expenseId: e.id, date: e.date, storeName: e.storeName, name: it.name, price: it.price, quantity: it.quantity });
     }
+    const rest = foodAmt - itemsSum * k;
+    if (rest >= 0.5) put('inne', rest, { expenseId: e.id, date: e.date, storeName: e.storeName, name: labelFor(e), price: Math.round(rest * 100) / 100, quantity: 1 });
   }
   return [...sums.entries()]
     .map(([tag, amount]) => ({

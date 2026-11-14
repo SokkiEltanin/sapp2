@@ -1637,6 +1637,16 @@ Ustawienia → Finanse → Reguły kategorii (`components/settings/CategoryRules
 skrót "Zawsze tak dla „sklep”" pod wyborem kategorii w `AddExpenseModal`.
 Odmiana liczebników: `utils/plural.ts`.
 
+## TREND 12 MIESIĘCY (2026-11-14)
+
+`utils/trend.ts` (`trendSeries` — jeden przebieg, klucze all/food/variable/fixed +
+`cat:`/`food:`/`fixed:` podkategorie; `trendStats` — średnia pełnych miesięcy bez
+bieżącego, % vs średnia, maks.), arkusz `components/finances/TrendSheet.tsx` (koszyk →
+podkategorie, słupki z kreską średniej, stuknięcie = kwota), wejście: ikonka trendu w
+kaflu "Kategorie" w Finansach (startuje na aktywnej zakładce). Liczone tylko przy
+otwartym arkuszu. `foodByCategory` liczy teraz z `fvSplitOf(e).food` (reszta → "Inne
+jedzenie") — wcześniej "Rozlicz jako: Jedzenie" bez pozycji znikało z Podziału.
+
 ## COFNIJ (2026-11-14)
 
 `services/undo.ts` (`offerUndo(label, fn)`, `removeWithUndo(store, key, item, label)` —

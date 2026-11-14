@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { router } from 'expo-router';
-import { Plus, Package, Car, ChevronRight, RefreshCw } from 'lucide-react-native';
+import { Plus, Package, Car, ChevronRight, RefreshCw, TrendingUp } from 'lucide-react-native';
+import TrendSheet from '@/components/finances/TrendSheet';
 import { spacing, radius, themedStyles } from '@/theme';
 import { Screen, Row, Tile, Cap, FitList, Item, Price, StackBar } from '@/ui/layout';
 import { C, T, S } from '@/ui/theme';
@@ -217,6 +218,7 @@ export default function FinancesScreen() {
   const varCats = useMemo(() => variableByCategory(expenses, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`), [expenses, now, catVersion]);
   const fixedCats = useMemo(() => fixedByCategory(expenses, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`), [expenses, now, catVersion]);
   const [catTab, setCatTab] = useState<'food' | 'fixed' | 'variable'>('food');
+  const [trendOpen, setTrendOpen] = useState(false);
   const foodCats = wydatkiData.food.categories;
   const catBars = catTab === 'food' ? foodCats : catTab === 'fixed' ? fixedCats : varCats;
 
@@ -298,6 +300,9 @@ export default function FinancesScreen() {
               </TouchableOpacity>
             ))}
             <Text style={s.catTotal}>{catBars.reduce((a2, c) => a2 + c.amount, 0)} PLN</Text>
+            <TouchableOpacity onPress={() => { haptic.tap(); setTrendOpen(true); }} hitSlop={8} style={s.trendBtn} accessibilityLabel="Trend 12 miesięcy">
+              <TrendingUp size={15} color={C.mut} />
+            </TouchableOpacity>
           </View>
           {catBars.length === 0 ? (
             <Text style={[T.small, s.emptyInline]}>Brak w tym miesiącu</Text>
@@ -425,6 +430,9 @@ export default function FinancesScreen() {
           onInitialPasteTextConsumed={() => useShareReceiptStore.getState().clear()}
         />
       </LazyMount>
+      <LazyMount visible={trendOpen}>
+        <TrendSheet visible={trendOpen} onClose={() => setTrendOpen(false)} initial={catTab} />
+      </LazyMount>
       <LazyMount visible={budgetOpen}>
         <BudgetSheet visible={budgetOpen} onClose={() => setBudgetOpen(false)} />
       </LazyMount>
@@ -542,4 +550,5 @@ const makeS = themedStyles((c) => StyleSheet.create({
   catTabLabel: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: C.mut },
   catTabLabelOn: { color: C.bg },
   catTotal: { marginLeft: 'auto', fontSize: 10, fontFamily: 'Inter_700Bold', color: C.mut },
+  trendBtn: { marginLeft: 8, padding: 2 },
 }));
