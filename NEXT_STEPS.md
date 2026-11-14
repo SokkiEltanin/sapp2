@@ -90,8 +90,8 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
   sprawdzone z zewnątrz (PERMISSION_DENIED na zapis/odczyt/zapytanie).
 - **[sprawdź] Komputer — kolumny (2026-11-14)**: szerokie okno = Dashboard / Finanse /
   Zadania / Daily obok siebie, pasek po lewej (Ustawienia, zakładki, Notatki, Szukaj).
-  Do decyzji po teście: czy pozostałe ekrany (Ustawienia, Notatki) jako panel boczny
-  zamiast pełnego ekranu; skróty klawiszowe.
+  Ustawienia/Notatki/Szukaj itd. = panel z prawej (klik obok zamyka), skróty
+  klawiszowe (przycisk „Skróty” na dole paska).
 - **Kalendarz Google na komputerze (2026-11-14)**: telefon wysyła okno −45..+180 dni
   (`utils/gcalMirror.ts`, dokument `sync_docs/gcal`), komputer tylko czyta.
   [sprawdź] po nowej wersji na telefonie: otwórz appkę na telefonie (pobierze

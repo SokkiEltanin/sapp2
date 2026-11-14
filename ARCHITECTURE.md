@@ -1515,8 +1515,12 @@ renderuje `src/ui/DesktopTabs.tsx` zamiast dolnych Tabs: nawigator `expo-router/
 renderuje WSZYSTKIE zakładki naraz, każdą w kolumnie). Liczba/szerokość kolumn +
 które widać: `utils/desktopColumns.ts` (testy; 1920 → 4, 1366 → 3, 1100 → 2; ostatnia
 kolumna = wybrana z paska). Każda kolumna daje `AppWidthContext` (siatka kafli liczy się
-z kolumny). Pozostałe ekrany (ustawienia, notatki…) — `contentStyle` z `WEB_MAX_W` w
-Stacku (app/_layout.tsx). Pułapki: style elementu w `TabTrigger asChild` muszą być
+z kolumny). Pozostałe ekrany (ustawienia, notatki…) = **panel z prawej**: Stack
+`presentation: 'transparentModal'` + `DESK_PANEL_STYLE` (app/_layout.tsx; wyjątki
+`FULL_SCREEN_ROUTES`), kolumny widać pod spodem; `ui/DesktopPanelBackdrop.tsx`
+przyciemnia je i kliknięcie zamyka panel (`isDesktopPanelPath`). **Skróty**:
+`utils/desktopShortcuts.ts` (1–4, / i Ctrl+K, N, przecinek, Esc; nic podczas pisania)
+← `hooks/useDesktopShortcuts.ts`; ściąga pod przyciskiem „Skróty” na pasku. Pułapki: style elementu w `TabTrigger asChild` muszą być
 `StyleSheet.flatten` (webowy Slot); po zmianach w node_modules — `--clear`, inaczej
 serwer dev potrafi serwować stary moduł i rzucać mylące błędy.
 **Kalendarz Google na komputerze**: kopia z telefonu (`utils/gcalMirror.ts`, docBinding

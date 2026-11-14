@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Pressable, StyleSheet, Text } from 'react-native';
 import { Tabs, TabList, TabTrigger, TabSlot } from 'expo-router/ui';
 import { router, usePathname } from 'expo-router';
-import { Settings, LayoutGrid, Activity, CreditCard, CalendarDays, Search, StickyNote, type LucideIcon } from 'lucide-react-native';
+import { Settings, LayoutGrid, Activity, CreditCard, CalendarDays, Search, StickyNote, Keyboard, type LucideIcon } from 'lucide-react-native';
+import { SHORTCUT_HELP } from '@/utils/desktopShortcuts';
 import { AppWidthContext } from './layout';
 import { C, R } from './theme';
 import { DESKTOP_GAP, DESKTOP_RAIL_W, visibleTabs, tabFromPath, type DesktopLayout, type DesktopTab } from '@/utils/desktopColumns';
@@ -24,6 +25,7 @@ export function DesktopTabs({ layout }: { layout: DesktopLayout }) {
   const pathname = usePathname();
   const focused = tabFromPath(pathname) ?? 'index';
   const shown = visibleTabs(layout.cols, focused);
+  const [help, setHelp] = useState(false);
 
   return (
     <Tabs style={st.root}>
@@ -48,7 +50,20 @@ export function DesktopTabs({ layout }: { layout: DesktopLayout }) {
         })}
         <RailButton Icon={StickyNote} label="Notatki" onPress={() => router.push('/notes' as any)} />
         <RailButton Icon={Search} label="Szukaj" onPress={() => router.push('/search' as any)} />
+        <View style={{ flex: 1 }} />
+        <RailButton Icon={Keyboard} label="Skróty" onPress={() => setHelp((h) => !h)} />
       </TabList>
+      {help && (
+        <Pressable style={st.help} onPress={() => setHelp(false)} accessibilityLabel="Zamknij skróty">
+          <Text style={st.helpTitle}>Skróty klawiszowe</Text>
+          {SHORTCUT_HELP.map(([k, v]) => (
+            <View key={k} style={st.helpRow}>
+              <Text style={st.helpKey}>{k}</Text>
+              <Text style={st.helpVal}>{v}</Text>
+            </View>
+          ))}
+        </Pressable>
+      )}
       <TabSlot
         detachInactiveScreens={false}
         style={st.cols}
@@ -88,4 +103,9 @@ const st = StyleSheet.create({
   btnLabel: { fontSize: 9, fontFamily: 'Inter_700Bold', color: C.mut },
   cols: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: DESKTOP_GAP, paddingRight: DESKTOP_RAIL_W / 2 },
   col: { height: '100%', backgroundColor: C.bg, overflow: 'hidden' },
+  help: { position: 'absolute', left: DESKTOP_RAIL_W + 8, bottom: 12, zIndex: 10, width: 300, padding: 14, gap: 8, borderRadius: R.tile, backgroundColor: C.tile, borderWidth: 1, borderColor: '#2a2a2a' },
+  helpTitle: { fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: C.txt, marginBottom: 2 },
+  helpRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  helpKey: { minWidth: 92, fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: '#000', backgroundColor: C.txt, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3, textAlign: 'center' },
+  helpVal: { flex: 1, fontSize: 11.5, fontFamily: 'Inter_600SemiBold', color: C.mut },
 });

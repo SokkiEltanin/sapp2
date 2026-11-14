@@ -16,6 +16,8 @@ import { drainWidgetToggleQueue } from '@/services/widgetToggleDrain';
 import { View, Text, TouchableOpacity, ActivityIndicator, AppState, Dimensions, Image, Platform, useWindowDimensions } from 'react-native';
 import { WEB_MAX_W } from '@/ui/layout';
 import { desktopLayout } from '@/utils/desktopColumns';
+import { DesktopPanelBackdrop } from '@/ui/DesktopPanelBackdrop';
+import { useDesktopShortcuts } from '@/hooks/useDesktopShortcuts';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -136,6 +138,14 @@ function useAuthGate(user: User | null, initializing: boolean) {
   }, [user, initializing, segments, router]);
 }
 
+// Ekrany, które na komputerze zostają pełnoekranowe (reszta = panel z prawej).
+const FULL_SCREEN_ROUTES = new Set(['(tabs)', 'login', 'alert-test', '+not-found', 'index']);
+const DESK_PANEL_STYLE = {
+  backgroundColor: colors.bg.primary, width: WEB_MAX_W, maxWidth: '100%' as const, height: '100%' as const,
+  marginLeft: 'auto' as const, borderLeftWidth: 1, borderLeftColor: '#262626',
+  boxShadow: '-24px 0 48px rgba(0,0,0,0.6)',
+};
+
 export default function RootLayout() {
   // Nieblokujące (ten sam wzorzec co w sapp): appka renderuje się natychmiast, komponenty
   // używające fontów Inter dostają je kilka klatek później, zamiast trzymać cały start
@@ -157,6 +167,7 @@ export default function RootLayout() {
   const dimensionKey = useRemountOnDimensionChange();
   const { width: winW } = useWindowDimensions();
   const desk = Platform.OS === 'web' && desktopLayout(winW) != null;
+  useDesktopShortcuts(Platform.OS === 'web');
   // Deep-link z pełnoekranowego alertu notifee na dedykowany ekran alarmu (patrz
   // app/alert-test.tsx) — patrz komentarz w src/hooks/useNotifeeAlertLaunch.ts.
   useNotifeeAlertLaunch();
@@ -296,16 +307,20 @@ export default function RootLayout() {
             <ThemeProvider value={NAV_THEME}>
               <Stack
                 key={dimensionKey}
-                screenOptions={({ route }) => ({
-                  headerShown: false,
-                  // Komputer w układzie kolumn: zakładki na całą szerokość, pozostałe
-                  // ekrany (ustawienia, notatki…) jako wyśrodkowana kolumna jak dotąd.
-                  contentStyle: desk && route.name !== '(tabs)'
-                    ? { backgroundColor: colors.bg.primary, width: '100%', maxWidth: WEB_MAX_W, alignSelf: 'center' }
-                    : { backgroundColor: colors.bg.primary },
-                })}
+                screenOptions={({ route }) => {
+                  // Komputer w układzie kolumn (2026-11-14): zakładki na całą szerokość,
+                  // pozostałe ekrany (ustawienia, notatki…) jako panel z prawej — kolumny
+                  // zostają widoczne pod spodem (transparentModal nie chowa poprzedniego ekranu).
+                  const panel = desk && !FULL_SCREEN_ROUTES.has(route.name);
+                  return {
+                    headerShown: false,
+                    ...(panel ? { presentation: 'transparentModal' as const, animation: 'slide_from_right' as const } : null),
+                    contentStyle: panel ? DESK_PANEL_STYLE : { backgroundColor: colors.bg.primary },
+                  };
+                }}
               />
             </ThemeProvider>
+            {desk ? <DesktopPanelBackdrop /> : null}
           </View>
         </View>
         <UpdateBanner />

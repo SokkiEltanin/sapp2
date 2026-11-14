@@ -38,3 +38,13 @@ export function tabFromPath(pathname: string): DesktopTab | null {
   if (seg === '') return 'index';
   return (DESKTOP_ORDER as readonly string[]).includes(seg) ? (seg as DesktopTab) : null;
 }
+
+// Ekrany pełnoekranowe także na komputerze; reszta spoza zakładek = panel z prawej.
+const FULL_PATHS = new Set(['login', 'alert-test']);
+
+/** Czy ścieżka to ekran pokazywany na komputerze jako panel z prawej (nie zakładka). */
+export function isDesktopPanelPath(pathname: string): boolean {
+  if (tabFromPath(pathname)) return false;
+  const seg = pathname.replace(/^\/+/, '').split(/[/?#]/)[0];
+  return !!seg && !FULL_PATHS.has(seg) && !seg.startsWith('+');
+}

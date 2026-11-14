@@ -1,4 +1,4 @@
-import { desktopLayout, visibleTabs, tabFromPath, DESKTOP_COL_MAX } from '../src/utils/desktopColumns';
+import { desktopLayout, visibleTabs, tabFromPath, isDesktopPanelPath, DESKTOP_COL_MAX } from '../src/utils/desktopColumns';
 
 describe('desktopLayout', () => {
   it('wąskie okno = układ telefonu', () => { expect(desktopLayout(800)).toBeNull(); });
@@ -29,5 +29,15 @@ describe('tabFromPath', () => {
     expect(tabFromPath('/finances')).toBe('finances');
     expect(tabFromPath('/tasks?task=1')).toBe('tasks');
     expect(tabFromPath('/settings')).toBeNull();
+  });
+});
+
+describe('isDesktopPanelPath', () => {
+  it('panel dla ekranów spoza zakładek', () => {
+    expect(isDesktopPanelPath('/settings')).toBe(true);
+    expect(isDesktopPanelPath('/note')).toBe(true);
+    expect(isDesktopPanelPath('/')).toBe(false);
+    expect(isDesktopPanelPath('/tasks')).toBe(false);
+    expect(isDesktopPanelPath('/login')).toBe(false);
   });
 });
