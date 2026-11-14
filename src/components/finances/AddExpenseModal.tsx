@@ -1,3 +1,5 @@
+import { receiptSavings, applyReceiptDiscount, parseDiscountInput } from '@/utils/receiptDiscount';
+import { plural } from '@/utils/plural';
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -308,6 +310,14 @@ export default function AddExpenseModal({
   const updateItem = (idx: number, patch: Partial<ReceiptItem>) =>
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   const removeItem = (idx: number) => setItems((prev) => prev.filter((_, i) => i !== idx));
+  const savings = useMemo(() => receiptSavings(items), [items]);
+  const [receiptDisc, setReceiptDisc] = useState<string | null>(null);
+  const submitReceiptDisc = () => {
+    const base = items.reduce((a, it) => a + (!it.excluded && it.kind !== 'deposit' ? it.price : 0), 0);
+    const n = parseDiscountInput(receiptDisc ?? '', base);
+    if (n && n > 0) setItems((prev) => applyReceiptDiscount(prev, n));
+    setReceiptDisc(null);
+  };
 
   const addTag = () => {
     const t = tagInput.trim();
@@ -623,6 +633,32 @@ export default function AddExpenseModal({
               <Text style={s.sumValue}>{includedSum.toFixed(2)} zł</Text>
             </View>
           )}
+          {/* Zniżki (2026-11-14, user: "zniżek nie widać ile wynoszą i jak się dodaje"):
+              suma oszczędności + rabat na cały paragon (rozkładany na pozycje). */}
+          {items.length > 0 && (
+            <View style={s.savingsRow}>
+              {savings.amount > 0
+                ? <Text style={s.savingsText}>Zniżki: −{savings.amount.toFixed(2).replace('.', ',')} zł · {savings.count} {plural(savings.count, 'pozycja', 'pozycje', 'pozycji')}</Text>
+                : <Text style={s.savingsNone}>Bez zniżek — dodasz przy pozycji („Zniżka”) albo na cały paragon</Text>}
+              {receiptDisc === null ? (
+                <TouchableOpacity onPress={() => setReceiptDisc('')} hitSlop={6} accessibilityLabel="Rabat na cały paragon">
+                  <Text style={s.savingsBtn}>+ rabat na paragon</Text>
+                </TouchableOpacity>
+              ) : (
+                <TextInput
+                  value={receiptDisc}
+                  onChangeText={setReceiptDisc}
+                  placeholder="zł albo %"
+                  placeholderTextColor={colors.text.muted}
+                  keyboardType="numbers-and-punctuation"
+                  autoFocus
+                  style={s.savingsInput}
+                  onSubmitEditing={submitReceiptDisc}
+                  onBlur={submitReceiptDisc}
+                />
+              )}
+            </View>
+          )}
           {mismatch && (
             <Text style={s.mismatchText}>
               Na paragonie: {parsedTotal.toFixed(2)} zł — różnica {Math.abs(includedSum - parsedTotal).toFixed(2)} zł, sprawdź pozycje
@@ -927,6 +963,11 @@ const makeS = themedStyles((c) => StyleSheet.create({
     borderTopWidth: 1, borderTopColor: c.border.subtle, marginTop: spacing[1],
   },
   sumLabel: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.secondary },
+  savingsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2], marginTop: spacing[1], flexWrap: 'wrap' },
+  savingsText: { flexShrink: 1, fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.accent.green },
+  savingsNone: { flexShrink: 1, fontSize: 11, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
+  savingsBtn: { fontSize: 11.5, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary, textDecorationLine: 'underline' },
+  savingsInput: { minWidth: 90, fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.primary, backgroundColor: c.bg.card, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 4 },
   sumValue: { fontSize: 13, fontFamily: 'Inter_900Black', color: c.text.bright },
   mismatchText: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.accent.red, marginTop: spacing[1] },
 

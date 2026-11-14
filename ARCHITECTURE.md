@@ -1637,6 +1637,16 @@ Ustawienia → Finanse → Reguły kategorii (`components/settings/CategoryRules
 skrót "Zawsze tak dla „sklep”" pod wyborem kategorii w `AddExpenseModal`.
 Odmiana liczebników: `utils/plural.ts`.
 
+## ZNIŻKI NA PARAGONIE (2026-11-14)
+
+`ReceiptItem.price` = cena PO rabacie, `discount` = ile odjęto (przed = price + discount).
+`utils/receiptDiscount.ts`: `parseDiscountInput` (kwota albo "20%"), `setItemDiscount`
+(ZASTĘPUJE, 0 = usuń), `applyReceiptDiscount` (rabat na cały paragon proporcjonalnie,
+bez kaucji/wykluczonych), `receiptSavings`. UI: `ReceiptItemRow` — zielony chip
+"−x zł · ~~przed~~ · promocja" (stuknij = zmień), "Zniżka" gdy brak; zmiana ilości/
+ceny jedn. zachowuje zniżkę. `AddExpenseModal` — "Zniżki: −x zł · n pozycji" i
+"+ rabat na paragon".
+
 ## PROGI I STAN APPKI (2026-11-14)
 
 - **Progi** (`utils/thresholds.ts` — obiekt `THRESHOLDS` modyfikowany w miejscu,

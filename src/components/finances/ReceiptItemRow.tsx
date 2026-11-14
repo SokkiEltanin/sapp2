@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
-import { Square, CheckSquare, Trash2, Tag as TagIcon, TriangleAlert } from 'lucide-react-native';
+import { Square, CheckSquare, Trash2, Tag as TagIcon, TriangleAlert, Percent } from 'lucide-react-native';
+import { parseDiscountInput, setItemDiscount, grossPrice } from '@/utils/receiptDiscount';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import type { ReceiptItem } from '@/types/finances';
@@ -79,16 +80,22 @@ export default function ReceiptItemRow({
     if (field === 'price') { onChange({ price: round(v, 2) }); return; }
     const quantity = round(field === 'quantity' ? v : item.quantity, 3);
     const unitPrice = round(field === 'unitPrice' ? v : item.unitPrice, 2);
-    onChange({ quantity, unitPrice, price: round(quantity * unitPrice, 2) });
+    // Zniżka zostaje przy zmianie ilości/ceny jednostkowej (cena = ilość × jedn. − zniżka).
+    const disc = Math.min(item.discount ?? 0, quantity * unitPrice);
+    onChange({ quantity, unitPrice, price: round(quantity * unitPrice - disc, 2), ...(item.discount ? { discount: round(disc, 2) } : {}) });
   };
 
+  // Zniżka (2026-11-14): kwota albo procent ("20%") od ceny PRZED rabatem; wpis
+  // ZASTĘPUJE zniżkę pozycji (nie dokłada), 0 albo pusto przy edycji = usuń.
   const submitDiscount = () => {
-    const n = parseFloat((discountInput ?? '').replace(',', '.'));
-    if (!isNaN(n) && n > 0) {
-      onChange({ discount: Math.round(((item.discount ?? 0) + n) * 100) / 100, price: Math.max(0, Math.round((item.price - n) * 100) / 100) });
+    const n = parseDiscountInput(discountInput ?? '', grossPrice(item));
+    if (n != null) {
+      const next = setItemDiscount(item, n);
+      onChange({ ...next, discount: next.discount, promotion: next.promotion });
     }
     setDiscountInput(null);
   };
+  const hasDiscount = (item.discount ?? 0) > 0;
 
   return (
     <View style={[s.row, item.kind === 'deposit' && s.rowDeposit, !included && s.rowExcluded]}>
@@ -155,26 +162,36 @@ export default function ReceiptItemRow({
             <Text style={[s.tagChipLabel, meta && { color: meta.color }]}>{meta?.label ?? 'Nie-jedzenie'}</Text>
           </TouchableOpacity>
         )}
-        {item.promotion && <Text style={s.promoBadge}>{item.promotion}</Text>}
         {discountInput === null ? (
-          item.kind !== 'deposit' && (
-            <TouchableOpacity onPress={() => setDiscountInput('')}>
-              <Text style={s.addDiscountLabel}>+ zniżka</Text>
+          item.kind !== 'deposit' && (hasDiscount ? (
+            <TouchableOpacity style={s.discChip} onPress={() => setDiscountInput(String(item.discount).replace('.', ','))} activeOpacity={0.7} accessibilityLabel="Zmień zniżkę">
+              <Percent size={10} color={colors.accent.green} />
+              <Text style={s.discChipLabel}>−{item.discount!.toFixed(2).replace('.', ',')} zł</Text>
+              <Text style={s.discWas}>{grossPrice(item).toFixed(2).replace('.', ',')}</Text>
+              {item.promotion ? <Text style={s.discPromo} numberOfLines={1}>{item.promotion}</Text> : null}
             </TouchableOpacity>
-          )
+          ) : (
+            <TouchableOpacity style={s.addDiscChip} onPress={() => setDiscountInput('')} activeOpacity={0.7} accessibilityLabel="Dodaj zniżkę">
+              <Percent size={10} color={colors.text.secondary} />
+              <Text style={s.addDiscountLabel}>Zniżka</Text>
+              {item.promotion ? <Text style={s.discPromo} numberOfLines={1}>{item.promotion}</Text> : null}
+            </TouchableOpacity>
+          ))
         ) : (
           <View style={s.discountRow}>
             <TextInput
               value={discountInput}
               onChangeText={setDiscountInput}
-              keyboardType="decimal-pad"
-              placeholder="zł"
+              keyboardType="numbers-and-punctuation"
+              placeholder="zł albo %"
               placeholderTextColor={colors.text.muted}
               style={s.discountInput}
               autoFocus
+              selectTextOnFocus
               onSubmitEditing={submitDiscount}
               onBlur={submitDiscount}
             />
+            <Text style={s.discHint}>np. 3,99 albo 20% · 0 = usuń</Text>
           </View>
         )}
       </View>
@@ -260,9 +277,20 @@ const makeS = themedStyles((c) => StyleSheet.create({
     backgroundColor: c.bg.card, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 3,
   },
   tagChipLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
-  promoBadge: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.accent.green },
-  addDiscountLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted },
-  discountRow: { flexDirection: 'row', alignItems: 'center' },
+  discChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, maxWidth: '100%',
+    backgroundColor: c.accent.green + '1F', borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 3,
+  },
+  discChipLabel: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: c.accent.green },
+  discWas: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, textDecorationLine: 'line-through' },
+  discPromo: { flexShrink: 1, fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.accent.green },
+  addDiscChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    borderWidth: 1, borderColor: c.border.default, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 2,
+  },
+  addDiscountLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.secondary },
+  discountRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  discHint: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
   discountInput: {
     fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.primary,
     backgroundColor: c.bg.card, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 3, minWidth: 48,
