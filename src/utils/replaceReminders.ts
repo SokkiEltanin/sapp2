@@ -9,6 +9,8 @@ import { replaceDue } from './replacements';
 // jedno "po terminie" następnego dnia o 9:00, potem cisza do kolejnej wymiany.
 export const REPLACE_REMINDER_PREFIX = 'repl_';
 export const REPLACE_REMINDER_HOUR = 9;
+/** id przycisku "Wymienione" w powiadomieniu. */
+export const REPLACED_ACTION = 'replaced';
 
 export interface PlannedReplaceReminder { id: string; itemId: string; fireAt: number; title: string; body: string }
 

@@ -64,15 +64,16 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
   ma sam (ostatnie wydatki, zadania na dziś, ewentualnie humor); sen ma natywnie.
   ZBUDOWANE 2026-11-14 (`wear/`, Releases "Wear #N"). [sprawdź na Galaxy Watch]:
   instalacja (MAINTENANCE §8), czy dane przychodzą po otwarciu Sapp2 na telefonie
-  (telefon musi mieć APK ≥ #216 z withWearSync), odhaczenie zadania na zegarku →
+  (telefon musi mieć APK ≥ #217 z withWearSync), odhaczenie zadania na zegarku →
   odhaczone po otwarciu appki na telefonie, kafelek (przytrzymaj tarczę → Kafelki →
   Sapp2), po północy "—" / "brak danych z dziś" zamiast wczorajszej kwoty.
 - **[sprawdź] Cofanie po wejściu z widgetu** (pogoda, zadania, notatka): bez szarego
   ekranu, strzałka wraca na Dashboard gdy nie ma historii (`services/nav.ts goBack`).
 - **[sprawdź] Wymiany** (Finanse → Wymiany): dodaj filtr/końcówki z szablonu,
   ✓ = wymienione dziś, przypomnienie o 9:00. Paragon z „Dafi”/„Oral-B” itp. →
-  karta „wymienione?”. Pomysły na potem: sync między urządzeniami (jak zadania),
-  przycisk „Wymienione” wprost w powiadomieniu.
+  karta „wymienione?”. Sync między urządzeniami — jest (`sync_replacements`).
+  Przycisk „Wymienione” w powiadomieniu (2026-11-14) — [sprawdź]: otwiera appkę na
+  Wymianach, zaznacza dziś, pasek „Cofnij”.
 - **[sprawdź] Widget "Pogoda"**: dodaj z listy widgetów (przytrzymaj pulpit →
   Widgety → sapp2 → Pogoda). Otwórz raz Dashboard, żeby dostał lokalizację;
   potem ma się sam odświeżać co ~30 min (godzina w prawym górnym rogu widgetu).

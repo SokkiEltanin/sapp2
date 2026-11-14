@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import type { ReplaceItem } from '@/types/replacements';
-import { planReplaceReminders, REPLACE_REMINDER_PREFIX } from '@/utils/replaceReminders';
+import { planReplaceReminders, REPLACE_REMINDER_PREFIX, REPLACED_ACTION } from '@/utils/replaceReminders';
 
 // Przypomnienia o wymianach (2026-11-13) — plan z utils/replaceReminders.ts →
 // natywne triggery notifee (ten sam mechanizm co services/billReminders.ts).
@@ -33,8 +33,14 @@ async function doSync(items: ReplaceItem[]): Promise<void> {
     await notifee.createTriggerNotification(
       {
         id: p.id, title: p.title, body: p.body,
-        data: { route: 'replacements' },
-        android: { channelId: CHANNEL_ID, pressAction: { id: 'default', launchActivity: 'default' } },
+        data: { route: 'replacements', itemId: p.itemId },
+        android: {
+          channelId: CHANNEL_ID,
+          pressAction: { id: 'default', launchActivity: 'default' },
+          // "Wymienione" wprost z powiadomienia (2026-11-14) — otwiera appkę (pewne:
+          // store już wczytany) i zaznacza wymianę dziś; obsługa: hooks/useNotifeeAlertLaunch.ts.
+          actions: [{ title: 'Wymienione', pressAction: { id: REPLACED_ACTION, launchActivity: 'default' } }],
+        },
       },
       { type: TriggerType.TIMESTAMP, timestamp: p.fireAt, alarmManager: { allowWhileIdle: true } },
     );

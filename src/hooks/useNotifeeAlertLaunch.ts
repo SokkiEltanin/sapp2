@@ -1,5 +1,9 @@
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
+import { useReplacementsStore } from '@/store/replacementsStore';
+import { REPLACED_ACTION } from '@/utils/replaceReminders';
+import { todayISO } from '@/utils/date';
+import { offerUndo } from '@/services/undo';
 
 // Łapie launch/wznowienie appki przez pełnoekranowy alert notifee
 // (`fullScreenAction`) i przekierowuje na dedykowany ekran alarmu
@@ -47,16 +51,34 @@ export function useNotifeeAlertLaunch() {
           else if (data.route === 'finances' && pressed) router.push('/finances' as any);
         };
 
+        // Przycisk "Wymienione" w przypomnieniu o wymianie (2026-11-14): zaznacz dziś,
+        // zdejmij powiadomienie, pokaż listę z "Cofnij".
+        const action = async (actionId: string | undefined, n: { id?: string; data?: Record<string, string | object | number> } | undefined) => {
+          if (actionId !== REPLACED_ACTION || typeof n?.data?.itemId !== 'string') return false;
+          const itemId = n.data.itemId;
+          const st = useReplacementsStore;
+          if (!st.persist.hasHydrated()) await st.persist.rehydrate();
+          const item = st.getState().items.find((x) => x.id === itemId);
+          if (n.id) notifee.cancelNotification(n.id).catch(() => {});
+          router.push('/replacements' as any);
+          if (!item || item.lastDate === todayISO()) return true; // już zaznaczone (np. drugie zdarzenie)
+          st.getState().replaced(itemId, todayISO());
+          offerUndo(`Wymienione: ${item.name}`, () => st.getState().undo(itemId));
+          return true;
+        };
+
         const initial = await notifee.getInitialNotification();
-        if (initial) route(initial.notification.data, true);
+        if (initial && !(await action(initial.pressAction?.id, initial.notification))) route(initial.notification.data, true);
 
         unsubscribeForeground = notifee.onForegroundEvent(({ type, detail }) => {
+          if (type === EventType.ACTION_PRESS) { action(detail.pressAction?.id, detail.notification); return; }
           if (type === EventType.PRESS || type === EventType.DELIVERED) {
             route(detail.notification?.data, type === EventType.PRESS);
           }
         });
 
         notifee.onBackgroundEvent(async ({ type, detail }) => {
+          if (type === EventType.ACTION_PRESS) { await action(detail.pressAction?.id, detail.notification); return; }
           if (type === EventType.PRESS) {
             route(detail.notification?.data, true);
           }
