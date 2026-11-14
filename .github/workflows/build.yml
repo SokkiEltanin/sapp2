@@ -11,6 +11,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Kolejny push anuluje trwający build — liczy się tylko najnowszy (decide porównuje z
+# ostatnim UKOŃCZONYM release, więc anulowany APK zrobi następny run).
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   decide:
     name: APK czy OTA
