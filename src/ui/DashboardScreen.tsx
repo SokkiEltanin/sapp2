@@ -1,6 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Globe, ListTodo, CalendarClock, Wrench, MapPin } from 'lucide-react-native';
+import { Globe, ListTodo, CalendarClock, Wrench, MapPin, StickyNote } from 'lucide-react-native';
+import NotePreview from '@/components/notes/NotePreview';
+import { noteTitle } from '@/utils/notes';
+import type { Note } from '@/types/notes';
 import * as LucideIcons from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C, T, F } from './theme';
@@ -20,7 +23,11 @@ export type DashData = {
   weather: { temp: string; feels: string; label: string; icon: string; tone: string; place: string; rain: string; aqi?: { value: number; color: string } } | null;
   weatherHint: string;
   foodMonths: { label: string; value: number }[];
-  transactions: { id: string; name: string; amount: number; fx?: { amount: number; currency: string } }[];
+  // Przypięta notatka (2026-11-14, user: listy wydatków tu "nie chcę" → notatka:
+  // tekst / lista z odhaczaniem / rysunek S-Pen). `null` = brak przypiętej.
+  note: Note | null;
+  notesCount: number;
+  onNoteToggle: (noteId: string, itemId: string) => void;
   // "Bezpieczne wydatki" ZASTĄPIONE "Odliczaniem" (2026-11-09, user: "ten
   // kafelek po prawej finansów ostatnich na dashboardzie, ten PLN per dzień"
   // — DOKŁADNIE ten kafel, nie Finanse's "Najbliższa opłata" jak pierwotnie
@@ -179,17 +186,18 @@ export function DashboardScreen(d: DashData) {
       </Row>
 
       <Row flex={1}>
-        <Tile span={3}>
-          <FitList
-            data={d.transactions}
-            emptyText="Brak transakcji – zaimportuj wyciąg"
-            renderItem={(t) => (
-              <Item onPress={() => d.onOpen('tx', t.id)}>
-                <Price amount={t.amount} fx={t.fx} />
-                <Text style={[T.row, { flex: 1 }]} numberOfLines={1}>{t.name}</Text>
-              </Item>
-            )}
-          />
+        <Tile span={3} onPress={() => d.onOpen(d.note ? 'note' : 'noteNew', d.note?.id)} style={{ overflow: 'hidden' }}>
+          <Cap l={d.note ? noteTitle(d.note) : 'Notatka'} r={d.notesCount > 0 ? `wszystkie ${d.notesCount}` : undefined} onR={() => d.onOpen('notes')} />
+          {d.note ? (
+            <View style={{ flex: 1, marginTop: 6 }}>
+              <NotePreview note={d.note} maxLines={7} compact onToggle={(itemId) => d.onNoteToggle(d.note!.id, itemId)} />
+            </View>
+          ) : (
+            <View style={st.noteEmpty}>
+              <StickyNote size={18} color={C.dim} />
+              <Text style={[T.small, { textAlign: 'center' }]}>Stuknij, żeby napisać.{'\n'}Pinezka w notatce przypina ją tutaj.</Text>
+            </View>
+          )}
         </Tile>
         <Tile onPress={() => d.onOpen('countdown')} center style={{ justifyContent: 'center', paddingHorizontal: 8 }}>
           <Text style={[T.num, { fontSize: 22 }, !d.countdown && { color: C.dim }]} adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.6}>
@@ -263,4 +271,5 @@ const st = StyleSheet.create({
   nextNum: { color: '#000', paddingRight: 34 },
   nextWhen: { color: 'rgba(0,0,0,.55)' },
   nextTitle: { fontFamily: F.xb, fontSize: 12.5, lineHeight: 15, letterSpacing: 0.2, color: '#000' },
+  noteEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
 });

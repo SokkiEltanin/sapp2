@@ -1609,6 +1609,25 @@ powodu co `subscriptionAuto.ts` wyżej.
 rundy). **DO POTWIERDZENIA NA URZĄDZENIU**: realny dodaj/edytuj/usuń na
 telefonie, auto-roll po realnym upływie czasu.
 
+## NOTATKI [PE] (2026-11-14)
+
+User: "notatka... z opcjami LISTY albo rysunku (mam rysik S-PEN)" — i zamiast listy
+wydatków na Dashboardzie. Model `src/types/notes.ts` (`kind` text/list/drawing,
+`items`, `strokes` = punkty w jednostkach szerokości płótna, `pinned` najwyżej
+jedna). Store `src/store/notesStore.ts` (`notes-v1`). Pomocniki
+`src/utils/notes.ts` (tytuł, szukanie, upraszczanie punktów `addPoint`,
+`strokePath` z wygładzaniem, gumka `strokesHit`; testy `__tests__/notes.test.ts`).
+- `app/notes.tsx` — lista (nowa: Tekst/Lista/Rysunek, szukanie, odhaczanie z
+  podglądu); `app/note.tsx` — edytor pełnoekranowy (zapis z opóźnieniem 400 ms,
+  pusta notatka znika przy wyjściu, pinezka, usuń 2× tap).
+- `components/notes/DrawingCanvas.tsx` — rysowanie (Gesture.Pan, gotowe kreski
+  w memo `StrokesLayer`, bieżąca odświeżana max raz na klatkę); kolory, 3 grubości,
+  gumka (całe kreski), cofnij. Bez nacisku pióra (natywny moduł — później).
+- `components/notes/NotePreview.tsx` — podgląd (kafel Dashboardu, karta listy).
+- Dashboard: duży kafel = przypięta notatka (`onOpen('note'|'noteNew'|'notes')`),
+  pozycje listy odhaczane z kafla. Lista wydatków z Dashboardu USUNIĘTA.
+- Synchronizacja `sync_notes`, kopia zapasowa — rehydrate.
+
 ## KOLORY POGODY (2026-11-14)
 
 User: "lekkie info wizualne — biały śnieg, ciemny niebieski ulewa, jasny niebieski

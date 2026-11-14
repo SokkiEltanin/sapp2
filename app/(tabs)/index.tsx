@@ -23,10 +23,12 @@ import { useCountdownStore } from '@/store/countdownStore';
 import { countdownParts, formatCountdown } from '@/utils/countdown';
 import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import { upcomingPayments } from '@/utils/recurringBills';
-import { pendingFxOf, type PendingFx } from '@/utils/fx';
+import type { PendingFx } from '@/utils/fx';
 import { useVehiclesStore } from '@/store/vehiclesStore';
 import { allReplaceRows, rowName } from '@/utils/replacements';
 import { useReplacementsStore } from '@/store/replacementsStore';
+import { useNotesStore } from '@/store/notesStore';
+import { openNote, openNewNote } from '@/services/notesNav';
 import type { CalendarEvent } from '@/types/calendar';
 import type { Expense } from '@/types/finances';
 import { haptic } from '@/utils/haptics';
@@ -199,11 +201,6 @@ export default function Dashboard() {
     return { text: formatCountdown(countdownParts(countdownEventStart(selectedCountdownEvent))), eventTitle: selectedCountdownEvent.title };
   }, [selectedCountdownEvent, countdownTick]);
 
-  const recentExpenses = useMemo(
-    () => [...expenses].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
-    [expenses],
-  );
-
   // "Najbliższe eventy" — wcześniej "Najbliższe 48h" z twardym limitem 48h (user:
   // "zamieniamy na najbliższe eventy po prostu i tyle bez ograniczenia bo jak nic
   // nie będzie to będzie pusto") — BEZ limitu czasowego, wszystkie przyszłe
@@ -272,6 +269,9 @@ export default function Dashboard() {
 
   // "Najbliższa wymiana" (2026-11-13): serwis pojazdów + wymiany domowe (filtry,
   // końcówki szczoteczki…) — wygrywa bliższy termin.
+  // Przypięta notatka zamiast listy wydatków (2026-11-14).
+  const pinnedNote = useNotesStore((st) => st.notes.find((n) => n.pinned) ?? null);
+  const notesCount = useNotesStore((st) => st.notes.length);
   const replaceItems = useReplacementsStore((st) => st.items);
   const nextMaintenance = useMemo(() => {
     const [r] = allReplaceRows(replaceItems, vehicles, now);
@@ -286,12 +286,9 @@ export default function Dashboard() {
     weatherHint,
     foodMonths: foodMonths.map((m) => ({ label: m.label, value: m.value })),
     nextMaintenance,
-    transactions: recentExpenses.map((e) => ({
-      id: e.id,
-      name: e.note || e.storeName || (e.type === 'income' ? 'Przychód' : 'Płatność'),
-      amount: e.type === 'income' ? e.amount : -e.amount,
-      fx: pendingFxOf(e),
-    })),
+    note: pinnedNote,
+    notesCount: notesCount,
+    onNoteToggle: (noteId, itemId) => { haptic.tap(); useNotesStore.getState().toggleItem(noteId, itemId); },
     countdown,
     upcoming: upcomingTimeline.map((x) => ({
       id: x.key,
@@ -306,10 +303,9 @@ export default function Dashboard() {
     onOpen: (what, id) => {
       if (what === 'fact') setFactIndex((i) => ((i ?? 0) + 1) % FACTS.length);
       else if (what === 'foodMonth') { setWydatkiTab('food'); setWydatkiOpen(true); }
-      else if (what === 'tx') {
-        const expense = expenses.find((e) => e.id === id);
-        if (expense) setEditingExpense(expense);
-      }
+      else if (what === 'note' && id) openNote(id);
+      else if (what === 'noteNew') openNewNote('text', true);
+      else if (what === 'notes') router.push('/notes' as any);
       else if (what === 'countdown') setCountdownPickerOpen(true);
       else if (what === 'next' && upcomingEvent) setNextOpen(true);
       else if (what === 'bill') router.push('/subscriptions');
