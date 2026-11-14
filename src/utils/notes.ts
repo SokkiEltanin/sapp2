@@ -1,4 +1,4 @@
-import type { Note, NoteStroke } from '@/types/notes';
+import type { Note, NoteStroke, NoteFolder } from '@/types/notes';
 
 // Czyste pomocniki notatek (2026-11-14) — testy __tests__/notes.test.ts.
 
@@ -12,6 +12,26 @@ export function noteTitle(n: Pick<Note, 'title' | 'text' | 'items' | 'kind'>): s
 
 export function isEmptyNote(n: Pick<Note, 'title' | 'text' | 'items' | 'strokes'>): boolean {
   return !n.title.trim() && !n.text.trim() && !n.items.some((i) => i.text.trim()) && n.strokes.length === 0;
+}
+
+// ── Katalogi ─────────────────────────────────────────────────────────────────
+// Filtr listy: 'all' = wszystkie, 'none' = bez katalogu, inaczej id katalogu.
+// Notatka wskazująca na usunięty katalog (np. z innego urządzenia) = bez katalogu.
+export type FolderFilter = 'all' | 'none' | string;
+export function inFolder(notes: Note[], folders: NoteFolder[], f: FolderFilter): Note[] {
+  if (f === 'all') return notes;
+  const known = new Set(folders.map((x) => x.id));
+  if (f === 'none') return notes.filter((n) => !n.folderId || !known.has(n.folderId));
+  return notes.filter((n) => n.folderId === f);
+}
+export function folderCounts(notes: Note[], folders: NoteFolder[]): Record<string, number> {
+  const out: Record<string, number> = { all: notes.length, none: 0 };
+  for (const f of folders) out[f.id] = 0;
+  for (const n of notes) {
+    if (n.folderId && n.folderId in out && n.folderId !== 'all' && n.folderId !== 'none') out[n.folderId]++;
+    else out.none++;
+  }
+  return out;
 }
 
 // Kolejność: przypięta, potem ostatnio zmieniane.

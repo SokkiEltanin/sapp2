@@ -48,3 +48,27 @@ test('store: przypięta najwyżej jedna, odhaczanie pozycji', () => {
   useNotesStore.getState().toggleItem(b.id, 'i1');
   expect(useNotesStore.getState().notes.find((n) => n.id === b.id)!.items[0].done).toBe(true);
 });
+
+describe('katalogi notatek', () => {
+  const { inFolder, folderCounts } = require('@/utils/notes');
+  const N = (id: string, folderId?: string | null) => ({ id, folderId, kind: 'text', title: id, text: '', items: [], strokes: [], pinned: false, createdAt: '', updatedAt: '' });
+  const folders = [{ id: 'f1', name: 'Praca', color: '#fff', createdAt: '', updatedAt: '' }];
+  const notes = [N('a', 'f1'), N('b'), N('c', 'usuniety')];
+  it('filtr i liczniki; nieznany katalog = bez katalogu', () => {
+    expect(inFolder(notes, folders, 'f1').map((n: any) => n.id)).toEqual(['a']);
+    expect(inFolder(notes, folders, 'none').map((n: any) => n.id)).toEqual(['b', 'c']);
+    expect(inFolder(notes, folders, 'all')).toHaveLength(3);
+    expect(folderCounts(notes, folders)).toEqual({ all: 3, none: 2, f1: 1 });
+  });
+  it('usunięcie katalogu przenosi notatki do "bez katalogu"', () => {
+    const { useNotesStore } = require('@/store/notesStore');
+    const st = useNotesStore.getState();
+    const f = st.addFolder('  Dom ', '#fff');
+    expect(f.name).toBe('Dom');
+    const n = st.create('text', false, f.id);
+    useNotesStore.getState().removeFolder(f.id);
+    const after = useNotesStore.getState();
+    expect(after.folders.find((x: any) => x.id === f.id)).toBeUndefined();
+    expect(after.notes.find((x: any) => x.id === n.id).folderId).toBeNull();
+  });
+});

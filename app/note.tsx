@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Pin, PinOff, Trash2, Check, X, Plus, Undo2, Eraser, Pencil } from 'lucide-react-native';
+import { ChevronLeft, Pin, PinOff, Trash2, Check, X, Plus, Undo2, Eraser, Pencil, Folder } from 'lucide-react-native';
+import FolderSheet, { type FolderSheetMode } from '@/components/notes/FolderSheet';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { useNotesStore, genNoteId } from '@/store/notesStore';
@@ -26,6 +27,8 @@ export default function NoteScreen() {
   const update = useNotesStore((st) => st.update);
   const remove = useNotesStore((st) => st.remove);
   const setPinned = useNotesStore((st) => st.setPinned);
+  const folders = useNotesStore((st) => st.folders);
+  const [folderSheet, setFolderSheet] = useState<FolderSheetMode | null>(null);
 
   const [title, setTitle] = useState(note?.title ?? '');
   const [text, setText] = useState(note?.text ?? '');
@@ -86,6 +89,11 @@ export default function NoteScreen() {
           placeholderTextColor={colors.text.muted}
           style={s.titleInput}
         />
+        {/* Katalog (2026-11-14) — kolor ikony = kolor katalogu, szara = bez katalogu. */}
+        <TouchableOpacity onPress={() => { haptic.tap(); flush(); setFolderSheet({ kind: 'pick', noteId: note.id, current: note.folderId ?? null }); }} style={s.headBtn} hitSlop={8}
+          accessibilityLabel={`Katalog: ${folders.find((f) => f.id === note.folderId)?.name ?? 'brak'}`}>
+          <Folder size={18} color={folders.find((f) => f.id === note.folderId)?.color ?? colors.text.muted} />
+        </TouchableOpacity>
         <TouchableOpacity onPress={() => { haptic.tap(); setPinned(note.id, !note.pinned); }} style={s.headBtn} hitSlop={8} accessibilityLabel={note.pinned ? 'Odepnij z Dashboardu' : 'Przypnij na Dashboard'}>
           {note.pinned ? <Pin size={18} color={colors.accent.orange} /> : <PinOff size={18} color={colors.text.muted} />}
         </TouchableOpacity>
@@ -184,6 +192,7 @@ export default function NoteScreen() {
           {tool.eraser && <Text style={s.hint}><Pencil size={10} color={colors.text.muted} /> Gumka usuwa całe kreski, których dotkniesz.</Text>}
         </>
       )}
+      <FolderSheet mode={folderSheet} onClose={() => setFolderSheet(null)} />
     </SafeAreaView>
   );
 }

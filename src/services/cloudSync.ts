@@ -85,6 +85,7 @@ const bindings: Binding<any>[] = [
   listBinding('sync_employers', S(useWorkStore), 'employers'),
   listBinding('sync_budgets', S(useBudgetsStore), 'budgets'),
   listBinding('sync_notes', S(useNotesStore), 'notes'),
+  listBinding('sync_note_folders', S(useNotesStore), 'folders'),
   listBinding('sync_rules', S(useCategoryRulesStore), 'rules'),
 ];
 

@@ -9,6 +9,9 @@ export interface NoteItem { id: string; text: string; done: boolean }
 // samo na telefonie i komputerze. `p` = płaska lista [x0, y0, x1, y1, …].
 export interface NoteStroke { color: string; width: number; p: number[] }
 
+// Katalogi notatek (2026-11-14, user: "w notatkach dodaj katalogi, edycje").
+export interface NoteFolder { id: string; name: string; color: string; createdAt: string; updatedAt: string }
+
 export interface Note {
   id: string;
   kind: NoteKind;
@@ -18,6 +21,7 @@ export interface Note {
   strokes: NoteStroke[]; // rysunek
   canvasRatio?: number;  // wysokość / szerokość płótna (rysunek)
   pinned: boolean;     // na Dashboardzie (najwyżej jedna)
+  folderId?: string | null; // katalog (NoteFolder.id); brak = "Bez katalogu"
   createdAt: string;
   updatedAt: string;
 }
