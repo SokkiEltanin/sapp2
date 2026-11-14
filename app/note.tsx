@@ -11,6 +11,8 @@ import { useNotesStore, genNoteId } from '@/store/notesStore';
 import type { Note, NoteItem, NoteStroke } from '@/types/notes';
 import { isEmptyNote } from '@/utils/notes';
 import DrawingCanvas, { type DrawTool } from '@/components/notes/DrawingCanvas';
+import RichTextEditor from '@/components/notes/RichTextEditor';
+import { hasFormatting, type TextRun } from '@/utils/richText';
 import { haptic } from '@/utils/haptics';
 
 // Edytor notatki (2026-11-14). Pełny ekran (rysowanie potrzebuje miejsca).
@@ -32,6 +34,7 @@ export default function NoteScreen() {
 
   const [title, setTitle] = useState(note?.title ?? '');
   const [text, setText] = useState(note?.text ?? '');
+  const [runs, setRuns] = useState<TextRun[] | undefined>(note?.runs);
   const [items, setItems] = useState<NoteItem[]>(note?.items ?? []);
   const [tool, setTool] = useState<DrawTool>({ color: PEN_COLORS[0], width: PEN_WIDTHS[1], eraser: false });
   const [confirmDel, setConfirmDel] = useState(false);
@@ -107,14 +110,10 @@ export default function NoteScreen() {
 
       {note.kind === 'text' && (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <TextInput
-            value={text}
-            onChangeText={(t) => { setText(t); save({ text: t }); }}
-            placeholder="Pisz…"
-            placeholderTextColor={colors.text.muted}
-            style={s.body}
-            multiline
-            textAlignVertical="top"
+          <RichTextEditor
+            text={text}
+            runs={runs}
+            onChange={(t, r) => { setText(t); setRuns(r); save({ text: t, runs: hasFormatting(r) ? r : undefined }); }}
             autoFocus={!note.text}
           />
         </KeyboardAvoidingView>

@@ -1,6 +1,8 @@
 // Notatki (2026-11-14, user: "notatka brzmi spoko... z opcjami LISTY albo rysunku,
 // bo mam rysik S-PEN"). Jedna przypięta notatka zastępuje na Dashboardzie listę
 // wydatków. Rysunek = kreski (punkty), nie obrazek — lekkie i synchronizowane.
+import type { TextRun } from '@/utils/richText';
+
 export type NoteKind = 'text' | 'list' | 'drawing';
 
 export interface NoteItem { id: string; text: string; done: boolean }
@@ -17,6 +19,7 @@ export interface Note {
   kind: NoteKind;
   title: string;
   text: string;        // treść (tekst) / opis
+  runs?: TextRun[];    // formatowanie treści (utils/richText.ts) — brak = zwykły tekst
   items: NoteItem[];   // lista
   strokes: NoteStroke[]; // rysunek
   canvasRatio?: number;  // wysokość / szerokość płótna (rysunek)

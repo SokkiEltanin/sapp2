@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, Pressable, type LayoutChangeEvent } from 'react
 import { Check } from 'lucide-react-native';
 import type { Note } from '@/types/notes';
 import { StrokesLayer } from './DrawingCanvas';
+import { runTextStyle } from './richStyle';
+import { segments, hasFormatting } from '@/utils/richText';
 import { C, F } from '@/ui/theme';
 
 // Podgląd notatki (2026-11-14): kafel Dashboardu i karta w liście notatek.
@@ -41,7 +43,14 @@ export default function NotePreview({ note, maxLines = 6, onToggle, compact }: {
       </View>
     );
   }
-  return <Text style={styles.text} numberOfLines={maxLines}>{note.text.trim() || 'Pusta notatka'}</Text>;
+  if (!note.text.trim()) return <Text style={styles.text}>Pusta notatka</Text>;
+  // Formatowanie (2026-11-14) — te same odcinki co w edytorze, mniejsze rozmiary.
+  if (!hasFormatting(note.runs)) return <Text style={styles.text} numberOfLines={maxLines}>{note.text.trim()}</Text>;
+  return (
+    <Text style={styles.text} numberOfLines={maxLines}>
+      {segments(note.text, note.runs).map((g, i) => <Text key={i} style={runTextStyle(g.st, 0.75)}>{g.t}</Text>)}
+    </Text>
+  );
 }
 
 const styles = StyleSheet.create({

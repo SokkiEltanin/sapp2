@@ -1637,6 +1637,21 @@ Ustawienia → Finanse → Reguły kategorii (`components/settings/CategoryRules
 skrót "Zawsze tak dla „sklep”" pod wyborem kategorii w `AddExpenseModal`.
 Odmiana liczebników: `utils/plural.ts`.
 
+## NOTATKI — KATALOGI I FORMATOWANIE (2026-11-14)
+
+- **Katalogi**: `NoteFolder` (types/notes.ts), `notesStore.folders` + addFolder/
+  updateFolder/removeFolder (notatki → "Bez katalogu")/moveNote, sync
+  `sync_note_folders`. `utils/notes.ts` `inFolder`/`folderCounts` (nieznany katalog =
+  bez katalogu). UI: pasek katalogów w `app/notes.tsx`, `components/notes/FolderSheet.tsx`
+  (nowy/edycja/wybór), ikona katalogu w nagłówku `app/note.tsx`.
+- **Formatowanie**: `Note.runs` (odcinki stylu nad zwykłym `text`; brak = bez
+  formatowania), logika `utils/richText.ts` (applyStyle, onTextEdit — diff
+  prefiks/sufiks, styl pisania z kursora albo "na zapas" z paska, fitRuns gdy tekst
+  zmienił się gdzie indziej). Edytor `components/notes/RichTextEditor.tsx`
+  (TextInput z dziećmi <Text>; web: zwykłe pole), przybornik na dole (adjustResize =
+  nad klawiaturą): B/I/U, wielkość (S/M/L/XL), kolor (paleta + #hex), zakreślacz,
+  wyczyść. Podgląd: `NotePreview` (`richStyle.runTextStyle`, skala 0.75).
+
 ## ZNIŻKI NA PARAGONIE (2026-11-14)
 
 `ReceiptItem.price` = cena PO rabacie, `discount` = ile odjęto (przed = price + discount).
