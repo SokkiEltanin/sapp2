@@ -1,3 +1,4 @@
+import { sortSubscriptions, monthlyCost, SUB_SORTS, type SubSort } from '@/utils/subscriptionSort';
 import { removeWithUndo } from '@/services/undo';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
@@ -229,13 +230,12 @@ export default function SubscriptionsScreen() {
     setFormOpen(false);
   };
 
-  const active = useMemo(() => subscriptions.filter((s) => s.active).sort((a, b) => a.nextBillingDate.localeCompare(b.nextBillingDate)), [subscriptions]);
+  // Sortowanie (2026-11-14): termin / koszt miesięczny / nazwa.
+  const [sortMode, setSortMode] = useState<SubSort>('date');
+  const active = useMemo(() => sortSubscriptions(subscriptions.filter((s) => s.active), sortMode), [subscriptions, sortMode]);
   const inactive = useMemo(() => subscriptions.filter((s) => !s.active), [subscriptions]);
 
-  const monthlyTotal = useMemo(() => active.reduce((sum, sub) => {
-    const factor = sub.billingCycle === 'weekly' ? 4.33 : sub.billingCycle === 'quarterly' ? 1 / 3 : sub.billingCycle === 'yearly' ? 1 / 12 : 1;
-    return sum + sub.amount * factor;
-  }, 0) + detected.reduce((sum, b) => sum + b.lastAmount, 0), [active, detected]);
+  const monthlyTotal = useMemo(() => active.reduce((sum, sub) => sum + monthlyCost(sub), 0) + detected.reduce((sum, b) => sum + b.lastAmount, 0), [active, detected]);
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -255,6 +255,7 @@ export default function SubscriptionsScreen() {
             <View style={s.summaryItem}>
               <Text style={s.summaryVal}>{monthlyTotal.toFixed(2)} zł</Text>
               <Text style={s.summaryLabel}>miesięcznie</Text>
+              <Text style={s.summarySub}>≈ {Math.round(monthlyTotal * 12).toLocaleString('pl-PL')} zł rocznie</Text>
               {pendingFxCount > 0 && <Text style={s.fxSummary}>+ {pendingFxCount} w obcej walucie</Text>}
             </View>
             <View style={s.summaryDivider} />
@@ -280,7 +281,16 @@ export default function SubscriptionsScreen() {
 
         {active.length > 0 && (
           <View style={s.section}>
-            <Text style={s.sectionTitle}>AKTYWNE</Text>
+            <View style={s.sortRow}>
+              <Text style={s.sectionTitle}>AKTYWNE</Text>
+              <View style={s.sortChips}>
+                {SUB_SORTS.map(([k, label]) => (
+                  <TouchableOpacity key={k} style={[s.sortChip, sortMode === k && s.sortChipOn]} onPress={() => { haptic.tap(); setSortMode(k); }}>
+                    <Text style={[s.sortLabel, sortMode === k && s.sortLabelOn]}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
             {active.map((sub) => (
               <SubRow key={sub.id} sub={sub} s={s} onEdit={openEdit} onDelete={deleteSubscription} onToggle={(id) => updateSubscription(id, { active: false })} />
             ))}
@@ -573,4 +583,10 @@ const makeS = themedStyles((c) => StyleSheet.create({
   daysBadgeLabel: { fontSize: 10, fontFamily: 'Inter_900Black' },
   actionBtns: { flexDirection: 'row', gap: spacing[1] },
   iconBtn: { width: 28, height: 28, borderRadius: radius.sm, backgroundColor: c.bg.elevated, alignItems: 'center', justifyContent: 'center' },
+  sortRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2], flexWrap: 'wrap' },
+  sortChips: { flexDirection: 'row', gap: 4 },
+  sortChip: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999 },
+  sortChipOn: { backgroundColor: c.text.bright },
+  sortLabel: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: c.text.muted },
+  sortLabelOn: { color: c.bg.primary },
 }));
