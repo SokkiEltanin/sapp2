@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Expense } from '@/types/finances';
+import { useCategoryRulesStore } from './categoryRulesStore';
+import { applyCategoryRules } from '@/utils/categoryRules';
 
 // Finanse — Faza 2.1 (2026-10-31), ten sam wzorzec co `calendarStore.ts`:
 // offline-first, AsyncStorage-persystowany, Firestore sync jako OSOBNA, ręczna
@@ -19,6 +21,11 @@ interface ExpensesState {
   setLoading: (loading: boolean) => void;
 }
 
+function withRules(e: Expense): Expense {
+  const rules = useCategoryRulesStore.getState().rules;
+  return (rules.length && applyCategoryRules(e, rules)) || e;
+}
+
 export const useExpensesStore = create<ExpensesState>()(
   persist(
     (set) => ({
@@ -26,7 +33,9 @@ export const useExpensesStore = create<ExpensesState>()(
       isLoading: false,
 
       setExpenses: (expenses) => set({ expenses }),
-      addExpense: (expense) => set((state) => ({ expenses: [...state.expenses, expense] })),
+      // Reguły kategoryzacji użytkownika (2026-11-14) uzupełniają puste kategorie przy
+      // KAŻDYM dodaniu (bank, paragon, ręcznie, import) — utils/categoryRules.ts.
+      addExpense: (expense) => set((state) => ({ expenses: [...state.expenses, withRules(expense)] })),
       // 2026-11-09, bug fix — import z sapp (dataImportFromSapp.ts) wołał `addExpense`
       // W PĘTLI, po jednym na wydatek: każde wywołanie kopiowało CAŁĄ rosnącą tablicę
       // (`[...state.expenses, expense]`) I wyzwalało osobny zapis `persist` do
@@ -35,7 +44,7 @@ export const useExpensesStore = create<ExpensesState>()(
       // dysk W JEDNEJ SYNCHRONICZNEJ PĘTLI, bez oddania sterowania JS threadowi —
       // user: "dane sie nie zaczynały złapało cała apke". `addExpenses` dodaje
       // WSZYSTKIE naraz, JEDNYM `set()` → JEDNYM zapisem persist.
-      addExpenses: (expenses) => set((state) => ({ expenses: [...state.expenses, ...expenses] })),
+      addExpenses: (expenses) => set((state) => ({ expenses: [...state.expenses, ...expenses.map(withRules)] })),
       updateExpense: (id, updates) =>
         set((state) => ({
           // updatedAt — synchronizacja (wygrywa nowsza zmiana) musi wiedzieć, kiedy.

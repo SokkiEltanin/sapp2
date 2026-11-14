@@ -1,3 +1,6 @@
+import { plural, nWydatkow } from '@/utils/plural';
+import CategoryRulesSheet from '@/components/settings/CategoryRulesSheet';
+import { useCategoryRulesStore } from '@/store/categoryRulesStore';
 import { exportBackupFile, pickBackupFile, getLocalBackupInfo, folderLabel, type PickedBackup } from '@/services/localBackup';
 import { applyEntries } from '@/services/cloudBackup';
 import type { BackupSummary } from '@/utils/backupSnapshot';
@@ -104,6 +107,7 @@ function buildSections(
   sync: string,
   update: string,
   errors: string,
+  rulesCount: number,
 ): SettingsSection[] {
   return [
   {
@@ -148,6 +152,7 @@ function buildSections(
     items: [
       // Kategorie (2026-11-14): nazwy, kolory, nowe, usuwanie z przeniesieniem użyć.
       { kind: 'action', key: 'categories', label: 'Kategorie wydatków', description: 'jedzenie, stałe i zmienne: nazwy, kolory, nowe, usuwanie', icon: Tags },
+      { kind: 'action', tier: 'sub', key: 'category-rules', label: 'Reguły kategorii', description: rulesCount ? `${rulesCount} ${plural(rulesCount, 'reguła', 'reguły', 'reguł')} · sklep albo pozycja zawiera… → kategoria` : 'np. „apteka” → Zdrowie i leki, „kabel” → Elektronika', icon: Tags },
       {
         kind: 'switch', key: 'bank-enabled', label: 'Powiadomienia z banku',
         description: 'łap płatności kartą/przelewy z Pekao i PKO automatycznie',
@@ -284,7 +289,7 @@ function backupErrorText(e: any): string {
 
 function describeSummary(meta: { summary: BackupSummary }): string {
   const x = meta.summary;
-  return `${x.expenses} wydatków, ${x.mood} wpisów humoru, ${x.tasks} zadań, ${x.subscriptions} stałych opłat, ${x.vehicles} pojazdów`;
+  return `${nWydatkow(x.expenses)}, ${x.mood} ${plural(x.mood, 'wpis', 'wpisy', 'wpisów')} humoru, ${x.tasks} ${plural(x.tasks, 'zadanie', 'zadania', 'zadań')}, ${x.subscriptions} ${plural(x.subscriptions, 'stała opłata', 'stałe opłaty', 'stałych opłat')}, ${x.vehicles} ${plural(x.vehicles, 'pojazd', 'pojazdy', 'pojazdów')}`;
 }
 
 export default function SettingsScreen() {
@@ -345,11 +350,13 @@ export default function SettingsScreen() {
   const widgetTextScale = useWidgetSettingsStore((st) => st.textScale);
   const [widgetOpen, setWidgetOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const rulesCount = useCategoryRulesStore((st) => st.rules.length);
   const upd = useAppUpdateStore();
   const errEntries = useErrorLog((x) => x.entries);
   const [errorsOpen, setErrorsOpen] = useState(false);
   const errorsLabel = errEntries.length === 0 ? 'pusto — nic się nie wywaliło'
-    : `${errEntries.length} ${errEntries.length === 1 ? 'wpis' : 'wpisów'} · ostatni ${entryTime(errEntries[0].t)} — do skopiowania`;
+    : `${errEntries.length} ${plural(errEntries.length, 'wpis', 'wpisy', 'wpisów')} · ostatni ${entryTime(errEntries[0].t)} — do skopiowania`;
   const updateLabel = upd.checking ? 'sprawdzam…'
     : upd.otaReady ? 'aktualizacja pobrana — stuknij, żeby uruchomić ponownie'
     : upd.apk ? `nowy APK #${upd.apk.build} — stuknij, żeby pobrać`
@@ -372,8 +379,9 @@ export default function SettingsScreen() {
       syncLabel,
       updateLabel,
       errorsLabel,
+      rulesCount,
     ),
-    [updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetOpacity, widgetTextScale, syncLabel],
+    [rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetOpacity, widgetTextScale, syncLabel],
   );
 
   const backupNow = async () => {
@@ -958,6 +966,7 @@ export default function SettingsScreen() {
     'file-import': fileImport,
     'widget-appearance': leave(() => setWidgetOpen(true)),
     categories: leave(() => setCategoriesOpen(true)),
+    'category-rules': leave(() => setRulesOpen(true)),
     'update-check': updateCheck,
     'error-log': leave(() => setErrorsOpen(true)),
     'health-diag': leave(() => router.push('/health-debug' as any)),
@@ -1179,6 +1188,7 @@ export default function SettingsScreen() {
       </AppBottomSheet>
       <WidgetAppearanceSheet visible={widgetOpen} onClose={() => setWidgetOpen(false)} />
       <CategoriesSheet visible={categoriesOpen} onClose={() => setCategoriesOpen(false)} />
+      <CategoryRulesSheet visible={rulesOpen} onClose={() => setRulesOpen(false)} />
       <ErrorLogSheet visible={errorsOpen} onClose={() => setErrorsOpen(false)} header={`sapp2 ${BUILD_INFO.version} · build ${BUILD_INFO.buildNumber} · ${BUILD_INFO.commit} · ${runningUpdateLabel()}`} />
     </SafeAreaView>
   );

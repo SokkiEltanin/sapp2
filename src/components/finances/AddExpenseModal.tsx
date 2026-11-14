@@ -15,6 +15,8 @@ import {
 } from '@/utils/productMemory';
 import { saveMerchant } from '@/utils/merchantMemory';
 import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_META } from '@/utils/expenseCategory';
+import { storeMatchOf } from '@/utils/categoryRules';
+import { useCategoryRulesStore } from '@/store/categoryRulesStore';
 import { useCategoriesVersion } from '@/store/categoriesStore';
 import { findReceiptTarget, isConfidentReceiptMatch, mergeReceiptInto } from '@/utils/duplicateExpense';
 import { buildProductCatalog } from '@/utils/productCatalog';
@@ -153,6 +155,8 @@ export default function AddExpenseModal({
   // zmieniane pole nie zasługuje na stałe miejsce.
   const [catOpen, setCatOpen] = useState(false);
   const [expenseCategory, setExpenseCategory] = useState<string | undefined>(undefined);
+  const [ruleSaved, setRuleSaved] = useState<string | null>(null);
+  const ruleMatch = storeMatchOf({ storeName, note });
   // Ostrzeżenie o możliwym duplikacie (2026-11-11, user: "jak dodałem z
   // opóźnieniem paragon to mi nie złapało że to ta sama suma i dzień") —
   // pierwszy tap "Zapisz" na NOWYM wydatku tylko WYKRYWA i blokuje zapis,
@@ -717,6 +721,22 @@ export default function AddExpenseModal({
               ))}
             </View>
           )}
+          {/* Reguła jednym tapem (2026-11-14): następne wydatki z tego sklepu dostaną
+              tę kategorię same (utils/categoryRules.ts, Ustawienia → Reguły kategorii). */}
+          {catOpen && expenseCategory && ruleMatch.length >= 2 && (
+            <TouchableOpacity
+              style={[s.chip, s.ruleChip, ruleSaved === `${ruleMatch}|${expenseCategory}` && s.chipActive]}
+              onPress={() => {
+                useCategoryRulesStore.getState().add({ field: 'store', match: ruleMatch, kind: 'var', tag: expenseCategory });
+                setRuleSaved(`${ruleMatch}|${expenseCategory}`);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.chipLabel, ruleSaved === `${ruleMatch}|${expenseCategory}` && s.chipLabelActive]}>
+                {ruleSaved === `${ruleMatch}|${expenseCategory}` ? `Zapamiętane: „${ruleMatch}” → ${EXPENSE_CATEGORY_META[expenseCategory]?.label ?? expenseCategory}` : `Zawsze tak dla „${ruleMatch}”`}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -876,6 +896,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   chipActive: { backgroundColor: c.text.bright, borderColor: c.text.bright },
   chipLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   chipLabelActive: { color: c.bg.primary },
+  ruleChip: { marginTop: spacing[2], alignSelf: 'flex-start', borderStyle: 'dashed' },
   dateBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: spacing[2], paddingVertical: 6, borderRadius: radius.full,

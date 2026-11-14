@@ -1625,6 +1625,18 @@ telefonie, auto-roll po realnym upływie czasu.
   `error-log-v1`, max 100 wpisów, powtórki łączone (×N). Nowe ciche `catch` w tle →
   `logError` zamiast `() => {}`.
 
+## REGUŁY KATEGORII (2026-11-14)
+
+"Sklep/opis albo pozycja paragonu zawiera X → kategoria Y". `types/categoryRules.ts`,
+`store/categoryRulesStore.ts` (`category-rules-v1`, sync `sync_rules`, w kopii),
+logika `utils/categoryRules.ts` (bez polskich znaków/wielkości liter, dłuższy fragment
+pierwszy; TYLKO puste pola — ręczny wybór wygrywa; przychody pomijane). Stosowane w
+`expensesStore.addExpense/addExpenses` (każda ścieżka: bank, paragon, ręcznie, import)
++ przy dodaniu reguły na całej historii (`applyRulesToAll`, updatedAt → sync). UI:
+Ustawienia → Finanse → Reguły kategorii (`components/settings/CategoryRulesSheet.tsx`),
+skrót "Zawsze tak dla „sklep”" pod wyborem kategorii w `AddExpenseModal`.
+Odmiana liczebników: `utils/plural.ts`.
+
 ## KOPIA DO PLIKU (2026-11-14)
 
 `services/localBackup.ts` (SAF: `requestDirectoryPermissionsAsync`, folder w

@@ -86,7 +86,7 @@ w `__tests__/x.test.ts`.
 **Kafel na Dashboardzie** — pole w typie `DashData` + kafel w `src/ui/DashboardScreen.tsx`
 (komponent nie wie, skąd dane), wartości liczy i podaje `app/(tabs)/index.tsx`.
 
-**Kategoria wydatków** — bez kodu: Ustawienia → Finanse → Kategorie wydatków.
+**Kategoria wydatków** — bez kodu: Ustawienia → Finanse → Kategorie wydatków (i Reguły kategorii: „sklep zawiera X → Y”).
 Domyślne listy: `utils/food.ts`, `utils/nonFood.ts`, `utils/fixedCategory.ts`.
 
 **Uprawnienie Androida / widget / moduł natywny** — `app.json` + `plugins/*.js`
