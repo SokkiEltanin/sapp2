@@ -109,6 +109,8 @@ Osobna mała aplikacja w `wear/` (Kotlin, bez React Native). Telefon wysyła jej
 Wear Data Layer (`plugins/withWearSync.js`, treść `src/utils/wearSnapshot.ts`): wydatki dziś
 i w miesiącu, zadania do zrobienia (stuknięcie = odhacz, telefon odhaczy przy otwarciu
 appki), ostatnie transakcje. Bezel przewija.
+Kafelek (przesunięcie tarczy): wydatki dziś / w miesiącu + zadania — dodaj go długim
+przytrzymaniem tarczy → Kafelki → Sapp2. Dane przychodzą w tle (DataListenerService).
 
 - **Build:** `.github/workflows/wear.yml` (zmiana w `wear/` albo ręcznie: Actions → Build
   Wear OS → Run workflow) → Releases „Wear #N (zegarek)” (prerelease), plik `sapp2-wear-N.apk`.

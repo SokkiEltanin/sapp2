@@ -12,6 +12,26 @@
         <!-- Działa razem z telefonem (dane przychodzą z aplikacji Sapp2 na telefonie). -->
         <meta-data android:name="com.google.android.wearable.standalone" android:value="false" />
 
+        <!-- Kafelek: wydatki dziś / w miesiącu + zadania (dane z ostatniego snapshotu). -->
+        <service
+            android:name=".SappTileService"
+            android:label="Sapp2"
+            android:exported="true"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+            <meta-data android:name="androidx.wear.tiles.PREVIEW" android:resource="@drawable/ic_launcher" />
+        </service>
+
+        <!-- Dane z telefonu w tle (bez otwierania appki) → zapis + odświeżenie kafelka. -->
+        <service android:name=".DataListenerService" android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data android:scheme="wear" android:host="*" android:pathPrefix="/sapp2" />
+            </intent-filter>
+        </service>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

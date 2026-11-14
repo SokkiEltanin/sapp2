@@ -33,7 +33,7 @@ import kotlin.math.roundToInt
 class MainActivity : Activity(), DataClient.OnDataChangedListener {
     private lateinit var scroll: ScrollView
     private lateinit var list: LinearLayout
-    private val prefs by lazy { getSharedPreferences("sapp2_wear", MODE_PRIVATE) }
+    private val prefs by lazy { getSharedPreferences(Snapshot.PREFS, MODE_PRIVATE) }
     private val doneLocal = mutableSetOf<String>()
     private val pl = Locale("pl", "PL")
 
@@ -57,7 +57,7 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener {
             } else false
         }
         setContentView(scroll)
-        render(prefs.getString("snap", null))
+        render(prefs.getString(Snapshot.KEY, null))
     }
 
     override fun onResume() {
@@ -97,13 +97,14 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener {
     }
 
     private fun save(json: String) {
-        prefs.edit().putString("snap", json).apply()
+        prefs.edit().putString(Snapshot.KEY, json).apply()
         render(json)
+        try { androidx.wear.tiles.TileService.getUpdater(this).requestUpdate(SappTileService::class.java) } catch (e: Exception) {}
     }
 
     private fun toggle(taskId: String) {
         doneLocal.add(taskId)
-        render(prefs.getString("snap", null))
+        render(prefs.getString(Snapshot.KEY, null))
         Wearable.getNodeClient(this).connectedNodes.addOnSuccessListener { nodes ->
             for (n in nodes) Wearable.getMessageClient(this).sendMessage(n.id, "/sapp2/toggle", taskId.toByteArray(Charsets.UTF_8))
         }
