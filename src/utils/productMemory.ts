@@ -16,7 +16,6 @@ const FOOD_SUBCAT_KEY = 'product_foodsubcat_memory';
 const NAME_KEY = 'product_name_aliases';
 const WEIGHT_KEY = 'product_weight_memory';
 const PRICE_KEY = 'product_price_memory';
-const LINE_KEY = 'receipt_line_memory';
 const MAX_ENTRIES = 500;
 
 function normalize(name: string): string {
@@ -375,43 +374,4 @@ export function priceAnomaly(unitPrice: number, stat: PriceStat | undefined): Pr
   const typical = Math.round(stat.mean * 100) / 100;
   if (unitPrice > stat.max * 2.5 && unitPrice - stat.max >= 5) return { kind: 'high', typical };
   return null;
-}
-
-// ─── Pamięć decyzji per-linia (czy to w ogóle produkt?) ────────────────────────
-// Gdy podejrzana linia się pojawi, UI pyta; werdykt usera pamiętany PER SKLEP, żeby
-// następnym razem ten sam śmieciowy wiersz był obsłużony automatycznie.
-
-export type LineVerdict = 'ignore' | 'product';
-type LineMemory = Record<string, Record<string, LineVerdict>>; // sklep → znormName → werdykt
-
-function storeSlug(store?: string): string {
-  return (store ?? 'generic').toLowerCase().trim() || 'generic';
-}
-
-export async function loadLineMemory(): Promise<LineMemory> {
-  try { const raw = await AsyncStorage.getItem(LINE_KEY); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
-}
-
-export function lineVerdict(mem: LineMemory, store: string | undefined, name: string): LineVerdict | undefined {
-  const byStore = mem[storeSlug(store)];
-  if (!byStore) return undefined;
-  const key = normalizeProductName(name);
-  if (byStore[key]) return byStore[key];
-  return findFuzzyMatch(key, byStore);
-}
-
-export async function saveLineVerdicts(store: string | undefined, verdicts: { name: string; verdict: LineVerdict }[]): Promise<void> {
-  if (verdicts.length === 0) return;
-  try {
-    const mem = await loadLineMemory();
-    const slug = storeSlug(store);
-    const byStore = mem[slug] ?? {};
-    for (const v of verdicts) {
-      const key = normalizeProductName(v.name);
-      if (key) byStore[key] = v.verdict;
-    }
-    const entries = Object.entries(byStore);
-    mem[slug] = entries.length > MAX_ENTRIES ? Object.fromEntries(entries.slice(-MAX_ENTRIES)) : byStore;
-    await AsyncStorage.setItem(LINE_KEY, JSON.stringify(mem));
-  } catch {}
 }

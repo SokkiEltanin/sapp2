@@ -86,7 +86,9 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 - **Nieużywane podsystemy — ROZSTRZYGNIĘTE 2026-11-14**: pamięć wag PODPIĘTA
   (statystyki ilości w Produktach, patrz ARCHITECTURE "Ilości produktów"); własne
   imię w przelewach USUNIĘTE (user: "jak robię sam odznaczę, stworzę szablon").
-  Zostaje nieużywane: werdykty linii paragonu (`lineVerdict`) — do decyzji.
+  Werdykty linii paragonu (`lineVerdict`) USUNIĘTE 2026-11-14 (user: nieznany
+  paragon szybciej wpisać ręcznie; znane sklepy mają własne parsery —
+  receiptParser.ts: Kaufland, Biedronka, Lidl, ogólny).
 - **Poprawione 2026-11-13**: Dashboard "Najbliższe eventy" — termin zadania bez
   godziny był liczony od północy (dzisiejszy znikał, reszta "śr. 00:00").
 - **Do sprawdzenia na urządzeniu (2026-11-12)**: paragon z Lidla dodany po
