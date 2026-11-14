@@ -329,13 +329,15 @@ export default function AddExpenseModal({
   // stackuje się na wierzchu i PODPINA ten wydatek, nie tworzy drugiego.
   const vehicles = useVehiclesStore((st) => st.vehicles);
   const [fuelSheetFor, setFuelSheetFor] = useState<Vehicle | null>(null);
+  // Aktualna wersja z store'a — "nie paliwo" chowa baner od razu.
+  const liveEditing = useExpensesStore((st) => (editingExpense ? st.expenses.find((x) => x.id === editingExpense.id) : undefined));
   const fuelVehicle = useMemo(() => {
-    if (!editingExpense || editingExpense.type !== 'expense' || !looksLikeFuel(editingExpense)) return null;
+    if (!editingExpense || editingExpense.type !== 'expense' || !looksLikeFuel(liveEditing ?? editingExpense)) return null;
     const mainId = mainCarId(vehicles);
     return vehicles.find((v) => vehicleHasFuel(v.kind)
       && expenseMatchesVehicle(editingExpense, v, mainId)
       && !v.fuelLog.some((f) => f.expenseId === editingExpense.id)) ?? null;
-  }, [editingExpense, vehicles]);
+  }, [editingExpense, liveEditing, vehicles]);
 
   const handleSave = (mode?: 'merge' | 'separate') => {
     if (!canSave) return;
@@ -481,6 +483,9 @@ export default function AddExpenseModal({
         <TouchableOpacity style={s.fuelLink} onPress={() => { haptic.tap(); setFuelSheetFor(fuelVehicle); }} activeOpacity={0.8}>
           <Fuel size={14} color={colors.accent.orange} />
           <Text style={s.fuelLinkText} numberOfLines={1}>Tankowanie {fuelVehicle.name} — uzupełnij litry i przebieg</Text>
+          <TouchableOpacity onPress={() => { haptic.tap(); updateExpense(editingExpense.id, { notFuel: true }); }} hitSlop={8} style={s.notFuelBtn} accessibilityLabel="To nie paliwo">
+            <Text style={s.notFuelLabel}>nie paliwo</Text>
+          </TouchableOpacity>
         </TouchableOpacity>
       )}
       <View style={s.typeRow}>
@@ -974,4 +979,6 @@ const makeS = themedStyles((c) => StyleSheet.create({
     backgroundColor: c.text.bright, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 6,
   },
   clipboardAcceptLabel: { fontSize: 11.5, fontFamily: 'Inter_900Black', color: c.bg.primary },
+  notFuelBtn: { marginLeft: 'auto', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm, borderWidth: 1, borderColor: c.accent.orange + '55' },
+  notFuelLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.accent.orange },
 }));

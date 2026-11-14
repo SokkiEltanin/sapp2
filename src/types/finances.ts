@@ -54,6 +54,9 @@ export interface Expense {
   storeName?: string;
   tags: string[];
   receiptItems?: ReceiptItem[];
+  // "To nie paliwo" (2026-11-14, user: "pójdę na stację kupić batonika, a każe mi
+  // wpisać ile paliwa zatankowałem") — zakup na stacji, który NIE jest tankowaniem.
+  notFuel?: boolean;
   source: ExpenseSource;
   // Obecność `subscriptionId` = ZAWSZE Stałe, niezależnie od słownika rachunków
   // (utils/recurringBills.ts) — podpinane gdy ekran Subskrypcje (później) powstanie.

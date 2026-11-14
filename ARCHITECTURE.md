@@ -1609,6 +1609,25 @@ powodu co `subscriptionAuto.ts` wyżej.
 rundy). **DO POTWIERDZENIA NA URZĄDZENIU**: realny dodaj/edytuj/usuń na
 telefonie, auto-roll po realnym upływie czasu.
 
+## SZUKANIE I FILTRY TRANSAKCJI [PE] (2026-11-14)
+
+User: "szukanie lepsze i filtrowanie po rodzaju — wydatek czy przychód, cena od
+do, i data". `src/utils/txFilter.ts` (testy `__tests__/txFilter.test.ts`):
+`filterTransactions` — słowa (wszystkie, bez polskich znaków) w sklepie/notatce/
+tagach/kategorii i POZYCJACH PARAGONU (zwraca `match` = nazwa pozycji), liczba =
+kwota; typ, kwota od–do, data od–do, rodzaj (`food`/`fixed`/`variable` z
+`fvSplitOf` albo `cat:<tag>`). `summarize`, `datePreset` (ten/poprzedni miesiąc,
+30 dni, ten rok). UI: `components/finances/TransactionsModal.tsx` (Finanse →
+"wszystkie"): szukajka, Wszystkie/Wydatki/Przychody, zwinięte "Filtry",
+podsumowanie wyników + "wyczyść".
+
+**Paliwo vs zakupy na stacji** (ten sam dzień, user: "pójdę na stacji kupić tylko
+batonika, a każe mi wpisać ile paliwa"): `vehicleMatch.ts`'s `looksLikeFuel` —
+`Expense.notFuel` ("nie paliwo" w Pojazdy → Do uzupełnienia i w banerze
+AddExpenseModal) wygrywa zawsze; paragon z pozycjami → paliwo tylko gdy pozycja
+paliwowa (`isFuelItemName`: PB95, ON, LPG, Verva…); sama nazwa stacji < 30 zł
+(`FUEL_MIN_AMOUNT`) → nie paliwo. Wpływa też na koszty paliwa w statystykach pojazdu.
+
 ## ILOŚCI PRODUKTÓW (waga) [PE] (2026-11-14)
 
 User: "zapisywać wagę produktu... ile sera jemy, ile czego kupujemy — tylko boję

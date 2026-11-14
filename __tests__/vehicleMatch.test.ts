@@ -26,14 +26,14 @@ describe('vehicleMatch — looksLikeFuel', () => {
     expect(looksLikeFuel(e({ tags: ['Paliwo'] }))).toBe(true);
   });
   test('rozpoznaje stację paliw po nazwie sklepu/notatce', () => {
-    expect(looksLikeFuel(e({ storeName: 'Orlen Rzeszów' }))).toBe(true);
+    expect(looksLikeFuel(e({ storeName: 'Orlen Rzeszów', amount: 200 }))).toBe(true);
     expect(looksLikeFuel(e({ note: 'tankowanie przed trasą' }))).toBe(true);
   });
   test('zwykły wydatek transportowy (np. bilet MPK) to NIE paliwo', () => {
     expect(looksLikeFuel(e({ storeName: 'MPK Rzeszów', note: 'bilet miesięczny' }))).toBe(false);
   });
   test('"bp" jako CAŁE słowo trafia, ale nie jako fragment innego słowa', () => {
-    expect(looksLikeFuel(e({ storeName: 'BP Stacja' }))).toBe(true);
+    expect(looksLikeFuel(e({ storeName: 'BP Stacja', amount: 200 }))).toBe(true);
     expect(looksLikeFuel(e({ storeName: 'Sklep' }))).toBe(false);
   });
 });
@@ -55,7 +55,7 @@ describe('vehicleMatch — expenseMatchesVehicle', () => {
   test('paliwo pasuje TYLKO do wyznaczonego głównego samochodu, nie do innych aut', () => {
     const mainCar = v({ id: 'main', kind: 'car', tag: '' });
     const otherCar = v({ id: 'other', kind: 'car', tag: '' });
-    const fuelExp = e({ storeName: 'Orlen' });
+    const fuelExp = e({ storeName: 'Orlen', amount: 200 });
     expect(expenseMatchesVehicle(fuelExp, mainCar, 'main')).toBe(true);
     expect(expenseMatchesVehicle(fuelExp, otherCar, 'main')).toBe(false);
   });
@@ -266,5 +266,23 @@ describe('vehicleMatch — avgFuelConsumption', () => {
       ],
     });
     expect(avgFuelConsumption(car, 'lpg')).toBeCloseTo(9); // 100km, 9l LPG
+  });
+});
+
+// 2026-11-14 — batonik na stacji to nie tankowanie.
+describe('vehicleMatch — looksLikeFuel: zakupy na stacji', () => {
+  const st = (o: any) => ({ tags: [], note: '', storeName: 'ORLEN Stacja nr 123', ...o });
+  test('sama stacja: od 30 zł paliwo, poniżej nie', () => {
+    expect(looksLikeFuel(st({ amount: 250 }))).toBe(true);
+    expect(looksLikeFuel(st({ amount: 6.99 }))).toBe(false);
+  });
+  test('paragon z pozycjami decyduje', () => {
+    expect(looksLikeFuel(st({ amount: 45, receiptItems: [{ name: 'Hot dog' }, { name: 'Kawa duża' }] }))).toBe(false);
+    expect(looksLikeFuel(st({ amount: 45, receiptItems: [{ name: 'PB95 DYSTR 3' }] }))).toBe(true);
+    expect(looksLikeFuel(st({ amount: 200, receiptItems: [{ name: 'ON EFECTA' }, { name: 'Baton' }] }))).toBe(true);
+  });
+  test('"To nie paliwo" zawsze wygrywa; słowo "tankowanie" zawsze paliwo', () => {
+    expect(looksLikeFuel(st({ amount: 250, notFuel: true }))).toBe(false);
+    expect(looksLikeFuel({ tags: [], note: 'tankowanie', storeName: '', amount: 20 } as any)).toBe(true);
   });
 });

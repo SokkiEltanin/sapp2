@@ -51,6 +51,7 @@ export default function VehiclesScreen() {
   const deleteVehicle = useVehiclesStore((st) => st.deleteVehicle);
   const setMainCar = useVehiclesStore((st) => st.setMainCar);
   const addMaintenance = useVehiclesStore((st) => st.addMaintenance);
+  const updateExpense = useExpensesStore((st) => st.updateExpense);
   const deleteMaintenance = useVehiclesStore((st) => st.deleteMaintenance);
   const addOdometerReading = useVehiclesStore((st) => st.addOdometerReading);
   const expenses = useExpensesStore((st) => st.expenses);
@@ -205,6 +206,9 @@ export default function VehiclesScreen() {
                     <Text style={s.logSub}>{ddmm(e.date)} · brak litrów i przebiegu</Text>
                   </View>
                   <Text style={s.fillLink}>Uzupełnij</Text>
+                  <TouchableOpacity onPress={() => { haptic.tap(); updateExpense(e.id, { notFuel: true }); }} hitSlop={8} style={s.notFuelBtn} accessibilityLabel="To nie paliwo">
+                    <Text style={s.notFuelLabel}>nie paliwo</Text>
+                  </TouchableOpacity>
                 </TouchableOpacity>
               ))}
             </View>
@@ -468,4 +472,6 @@ const makeS = themedStyles((c) => StyleSheet.create({
   logSub: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 2 },
   consBadge: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary, backgroundColor: c.bg.elevated, borderRadius: radius.sm, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden' },
   fillLink: { fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.accent.orange },
+  notFuelBtn: { marginLeft: spacing[2], paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.sm, borderWidth: 1, borderColor: c.border.default },
+  notFuelLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
 }));

@@ -20,11 +20,27 @@ export interface CostPerKm {
 
 // Co "wygląda jak paliwo" (tag albo tekst notatki/sklepu) — "bp" jako CAŁE słowo,
 // nie fragment innego.
+// 2026-11-14 (user: "pójdę na stacji kupić tylko batonika, a każe mi wpisać ile
+// paliwa zatankowałem"): sama NAZWA STACJI już nie wystarcza zawsze —
+//   • `notFuel` (user: "To nie paliwo") → nigdy,
+//   • paragon z pozycjami → paliwo tylko gdy któraś pozycja to paliwo,
+//   • sama stacja (bez słów o paliwie) przy kwocie < FUEL_MIN_AMOUNT → nie paliwo.
 const FUEL_TAGS = ['paliwo', 'tankowanie', 'benzyna', 'diesel', 'lpg', 'olej napędowy'];
-export function looksLikeFuel(e: Pick<Expense, 'tags' | 'note' | 'storeName'>): boolean {
+export const FUEL_MIN_AMOUNT = 30;
+const FUEL_WORDS = /paliw|tankow|benzyn|diesel|\blpg\b|olej\s+nap/;
+const STATIONS = /orlen|\bbp\b|shell|circle\s*k|\bmoya\b|amic|lotos/;
+const FUEL_ITEM = /\bpb\s?9[58]\b|\bpb\b|\bon\b|diesel|benzyn|\blpg\b|verva|efecta|v-?power|eurosuper|super\s?9[58]|olej\s+nap|paliw|\be(95|98)\b|adblue/i;
+export const isFuelItemName = (name: string) => FUEL_ITEM.test(name);
+export function looksLikeFuel(
+  e: Pick<Expense, 'tags' | 'note' | 'storeName'> & Partial<Pick<Expense, 'amount' | 'receiptItems' | 'notFuel'>>,
+): boolean {
+  if (e.notFuel) return false;
   if ((e.tags ?? []).some((t) => FUEL_TAGS.includes(t.toLowerCase()))) return true;
+  if (e.receiptItems && e.receiptItems.length > 0) return e.receiptItems.some((it) => isFuelItemName(it.name));
   const txt = `${e.note ?? ''} ${e.storeName ?? ''}`.toLowerCase();
-  return /paliw|tankow|benzyn|diesel|\blpg\b|orlen|\bbp\b|shell|circle\s*k|\bmoya\b|amic|lotos/.test(txt);
+  if (FUEL_WORDS.test(txt)) return true;
+  if (!STATIONS.test(txt)) return false;
+  return e.amount == null || e.amount >= FUEL_MIN_AMOUNT;
 }
 
 // Czy wydatek pasuje do pojazdu? Bez `vehicleId` (sapp2 nie dotyka schematu
