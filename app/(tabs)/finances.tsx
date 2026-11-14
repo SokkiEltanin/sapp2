@@ -237,19 +237,16 @@ export default function FinancesScreen() {
           </View>
         </Tile>
         <View style={s.sideCol}>
-          <Tile span={1} center style={s.sideBtn} onPress={() => setProductsOpen(true)}>
-            <Package size={14} color={C.txt} />
-            <Text style={s.sideBtnLabel} numberOfLines={1}>Produkty</Text>
+          <Tile span={1} center style={s.sideBtn} onPress={() => setProductsOpen(true)} accessibilityLabel="Produkty">
+            <Package size={19} color={C.txt} />
           </Tile>
-          <Tile span={1} center style={s.sideBtn} onPress={() => router.push('/vehicles')}>
-            <Car size={14} color={C.txt} />
-            <Text style={s.sideBtnLabel} numberOfLines={1}>Pojazdy</Text>
+          <Tile span={1} center style={s.sideBtn} onPress={() => router.push('/vehicles')} accessibilityLabel="Pojazdy">
+            <Car size={19} color={C.txt} />
           </Tile>
           {/* Wymiany domowe (2026-11-13): filtry, końcówki szczoteczki… — zakupy z
               paragonów podpowiadają wymianę, stąd przy Finansach (jak Pojazdy). */}
-          <Tile span={1} center style={s.sideBtn} onPress={() => router.push('/replacements' as any)}>
-            <RefreshCw size={14} color={C.txt} />
-            <Text style={s.sideBtnLabel} numberOfLines={1}>Wymiany</Text>
+          <Tile span={1} center style={s.sideBtn} onPress={() => router.push('/replacements' as any)} accessibilityLabel="Wymiany">
+            <RefreshCw size={19} color={C.txt} />
           </Tile>
         </View>
       </Row>
@@ -484,7 +481,6 @@ const makeS = themedStyles((c) => StyleSheet.create({
   budgetOf: { fontSize: 11, fontFamily: 'Inter_700Bold', color: C.mut },
   budgetLine: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: C.mut },
   sideBtn: { flex: 1, padding: 4, gap: 2 },
-  sideBtnLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: C.txt },
   emptyInline: { textAlign: 'center', marginTop: spacing[3] },
 
   workEmpty: { marginTop: spacing[3] },

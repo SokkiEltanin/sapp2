@@ -65,9 +65,10 @@ type TileProps = {
   center?: boolean;
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
+  accessibilityLabel?: string; // kafel z samą ikoną (np. Finanse → Produkty)
 };
 
-export function Tile({ span = 1, onPress, hot, center, style, children }: TileProps) {
+export function Tile({ span = 1, onPress, hot, center, style, children, accessibilityLabel }: TileProps) {
   const col = useContext(ColCtx);
   const width = span * col + (span - 1) * S.gap;
   const look = (pressed: boolean): StyleProp<ViewStyle> => [
@@ -81,7 +82,7 @@ export function Tile({ span = 1, onPress, hot, center, style, children }: TilePr
   const inner = <HotCtx.Provider value={!!hot}>{children}</HotCtx.Provider>;
   if (!onPress) return <View style={look(false)}>{inner}</View>;
   return (
-    <Pressable onPress={() => { haptic.tap(); onPress(); }} style={({ pressed }) => look(pressed)}>
+    <Pressable onPress={() => { haptic.tap(); onPress(); }} style={({ pressed }) => look(pressed)} accessibilityRole="button" accessibilityLabel={accessibilityLabel}>
       {inner}
     </Pressable>
   );

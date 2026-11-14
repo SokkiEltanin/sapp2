@@ -1609,6 +1609,18 @@ powodu co `subscriptionAuto.ts` wyżej.
 rundy). **DO POTWIERDZENIA NA URZĄDZENIU**: realny dodaj/edytuj/usuń na
 telefonie, auto-roll po realnym upływie czasu.
 
+## KOLORY POGODY (2026-11-14)
+
+User: "lekkie info wizualne — biały śnieg, ciemny niebieski ulewa, jasny niebieski
+deszcz, żółte słoneczko; nie rozumiem paska w 7 dni". `utils/weather.ts`:
+`weatherToneKey`/`WEATHER_TONES`/`weatherColor` (kod WMO → kolor + słowo) i
+`tempColor` (−10° niebieski → 30° pomarańczowy). Użyte w: `WeatherSheet` (karta
+"teraz" z gradientem `expo-linear-gradient`, kolorowe ikony 24 h i 7 dni, "7 dni" z
+nagłówkami kolumn opady/noc/temperatura/dzień, słowem pogody pod dniem i paskiem
+w kolorach temperatury), kafel pogody na Dashboardzie (gradient + ikona), widget
+(snapshot `color` + Kotlinowy `colorFor`, `setColorFilter` na ikonach).
+Finanse: kafelki Produkty/Pojazdy/Wymiany tylko z ikoną (`Tile.accessibilityLabel`).
+
 ## SZUKANIE I FILTRY TRANSAKCJI [PE] (2026-11-14)
 
 User: "szukanie lepsze i filtrowanie po rodzaju — wydatek czy przychód, cena od

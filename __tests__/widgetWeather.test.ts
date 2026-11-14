@@ -29,3 +29,10 @@ describe('widget pogody', () => {
     expect(s.lat).toBe(50.06);
   });
 });
+
+test('kolor ikony w snapshocie = kolor pogody w appce', () => {
+  const { weatherColor } = require('@/utils/weather');
+  const s = buildWeatherWidgetSnapshot(w, 50.06, 19.94);
+  expect(s.color).toBe(weatherColor(w.current.code, w.current.isDay));
+  expect(s.hours[0].color).toMatch(/^#[0-9A-F]{6}$/i);
+});

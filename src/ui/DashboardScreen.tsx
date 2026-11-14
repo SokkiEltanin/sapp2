@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Globe, ListTodo, CalendarClock, Wrench, MapPin } from 'lucide-react-native';
 import * as LucideIcons from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { C, T, F } from './theme';
 import { Screen, Row, Tile, Cap, FitList, Item, Tag, Price, Bars, StackBar, splitTag } from './layout';
 import { countdownParts, formatCountdown } from '@/utils/countdown';
@@ -16,7 +17,7 @@ export type DashData = {
   fact: string;
   // Pogoda ZAMIAST snu (2026-11-13, user: "sen na dashboardzie jest spoko, ale
   // on jest zaraz w zakładce obok") — `null` + `weatherHint` = stan pusty.
-  weather: { temp: string; feels: string; label: string; icon: string; place: string; rain: string; aqi?: { value: number; color: string } } | null;
+  weather: { temp: string; feels: string; label: string; icon: string; tone: string; place: string; rain: string; aqi?: { value: number; color: string } } | null;
   weatherHint: string;
   foodMonths: { label: string; value: number }[];
   transactions: { id: string; name: string; amount: number; fx?: { amount: number; currency: string } }[];
@@ -129,10 +130,18 @@ export function DashboardScreen(d: DashData) {
           <Globe size={12} color={C.dim} style={st.icoL} />
           <Text style={[T.body, { textAlign: 'center' }]} numberOfLines={3}>{d.fact}</Text>
         </Tile>
-        <Tile span={2} onPress={() => d.onOpen('weather')} style={{ justifyContent: 'space-between' }}>
+        <Tile span={2} onPress={() => d.onOpen('weather')} style={{ justifyContent: 'space-between', overflow: 'hidden' }}>
           {d.weather ? (
             <>
-              <WeatherIcon name={d.weather.icon} />
+              {/* Lekki akcent w kolorze pogody (2026-11-14) — bez animacji. */}
+              <LinearGradient
+                colors={[d.weather.tone + '33', 'transparent']}
+                start={{ x: 1, y: 0 }}
+                end={{ x: 0.2, y: 0.9 }}
+                style={StyleSheet.absoluteFill}
+                pointerEvents="none"
+              />
+              <WeatherIcon name={d.weather.icon} color={d.weather.tone} />
               <View>
                 <Text style={T.num} numberOfLines={1}>{d.weather.temp}</Text>
                 <Text style={T.unit} numberOfLines={1}>odcz. {d.weather.feels} · {d.weather.label}</Text>
@@ -231,9 +240,9 @@ export function DashboardScreen(d: DashData) {
 }
 
 // Ikona warunków (nazwa z utils/weather.ts's weatherCodeInfo → komponent lucide).
-function WeatherIcon({ name }: { name: string }) {
+function WeatherIcon({ name, color = C.txt }: { name: string; color?: string }) {
   const Icon = (LucideIcons as any)[name] ?? LucideIcons.Cloud;
-  return <Icon size={14} color={C.txt} style={st.icoR} />;
+  return <Icon size={16} color={color} style={st.icoR} />;
 }
 
 const st = StyleSheet.create({

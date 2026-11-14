@@ -171,6 +171,24 @@ ${iconCases}
       else -> "wx_cloud"
     }
 
+    // Port utils/weather.ts's weatherToneKey/WEATHER_TONES — kolor ikony (2026-11-14).
+    private fun colorFor(code: Int, isDay: Boolean): String = when {
+      code == 0 || code == 1 -> if (isDay) "#FBBF24" else "#C7D2FE"
+      code == 2 -> if (isDay) "#F5C451" else "#A5B4FC"
+      code == 45 || code == 48 -> "#94A3B8"
+      code == 56 || code == 57 || code == 66 || code == 67 -> "#67E8F9"
+      code in 51..55 -> "#7DD3FC"
+      code == 65 || code == 82 -> "#2563EB"
+      code == 61 || code == 63 || code == 80 || code == 81 -> "#60A5FA"
+      code in 71..77 || code == 85 || code == 86 -> "#F8FAFC"
+      code >= 95 -> "#A78BFA"
+      else -> "#A3A3A3"
+    }
+
+    private fun tint(v: RemoteViews, id: Int, hex: String) {
+      try { v.setInt(id, "setColorFilter", Color.parseColor(hex)) } catch (e: Exception) {}
+    }
+
     private fun labelFor(code: Int, isDay: Boolean): String = when {
       code == 0 -> if (isDay) "Słonecznie" else "Bezchmurnie"
       code == 1 -> if (isDay) "Przeważnie słonecznie" else "Przeważnie bezchmurnie"
@@ -256,6 +274,7 @@ ${iconCases}
         hours.put(JSONObject()
           .put("t", hm(i))
           .put("icon", iconFor(codes?.optInt(i, 3) ?: 3, (days?.optInt(i, 1) ?: 1) == 1))
+          .put("color", colorFor(codes?.optInt(i, 3) ?: 3, (days?.optInt(i, 1) ?: 1) == 1))
           .put("temp", fmtTemp(temps?.optDouble(i, 0.0) ?: 0.0))
           .put("pop", if (pop >= 20) "\$pop%" else ""))
       }
@@ -268,6 +287,7 @@ ${iconCases}
         .put("temp", fmtTemp(cur.optDouble("temperature_2m", 0.0)))
         .put("label", labelFor(code, isDay))
         .put("icon", iconFor(code, isDay))
+        .put("color", colorFor(code, isDay))
         .put("hi", fmtTemp(hi)).put("lo", fmtTemp(lo))
         .put("line", line).put("rain", rain)
         .put("hours", hours)
@@ -353,6 +373,7 @@ ${iconCases}
       v.setTextViewText(R.id.wx_line, snap.optString("line"))
       v.setTextColor(R.id.wx_line, Color.parseColor(if (snap.optBoolean("rain", false)) "#6C9EFF" else "#A7ADBD"))
       v.setImageViewResource(R.id.wx_icon, iconRes(snap.optString("icon")))
+      tint(v, R.id.wx_icon, snap.optString("color", "#D6D6D6"))
 
       val hours = snap.optJSONArray("hours") ?: JSONArray()
       v.setViewVisibility(R.id.wx_hours, if (showHours && hours.length() > 0) View.VISIBLE else View.GONE)
@@ -364,6 +385,7 @@ ${iconCases}
         v.setTextViewText(TEMP_IDS[i], h.optString("temp"))
         v.setTextViewText(POP_IDS[i], h.optString("pop"))
         v.setImageViewResource(ICON_IDS[i], iconRes(h.optString("icon")))
+        tint(v, ICON_IDS[i], h.optString("color", "#A7ADBD"))
       }
       return v
     }

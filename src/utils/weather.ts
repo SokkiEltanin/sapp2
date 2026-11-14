@@ -92,6 +92,57 @@ export function weatherCodeInfo(code: number, isDay = true): { label: string; ic
   return { label: 'Pochmurno', icon: 'Cloud' };
 }
 
+// Kolor pogody (2026-11-14, user: "lekkie info wizualne — biały śnieg, ciemny
+// niebieski ulewa, jasny niebieski deszcz, żółte słoneczko"). Ikony, gradient
+// karty "teraz", kafel Dashboardu i ikona widgetu biorą kolor stąd.
+export type WeatherToneKey = 'sun' | 'night' | 'partly' | 'partlyNight' | 'cloud' | 'fog' | 'drizzle' | 'rain' | 'heavy' | 'freezing' | 'snow' | 'storm';
+export const WEATHER_TONES: Record<WeatherToneKey, { color: string; label: string }> = {
+  sun:         { color: '#FBBF24', label: 'słońce' },
+  night:       { color: '#C7D2FE', label: 'bezchmurna noc' },
+  partly:      { color: '#F5C451', label: 'trochę chmur' },
+  partlyNight: { color: '#A5B4FC', label: 'trochę chmur nocą' },
+  cloud:       { color: '#A3A3A3', label: 'pochmurno' },
+  fog:         { color: '#94A3B8', label: 'mgła' },
+  drizzle:     { color: '#7DD3FC', label: 'mżawka' },
+  rain:        { color: '#60A5FA', label: 'deszcz' },
+  heavy:       { color: '#2563EB', label: 'ulewa' },
+  freezing:    { color: '#67E8F9', label: 'marznące opady' },
+  snow:        { color: '#F8FAFC', label: 'śnieg' },
+  storm:       { color: '#A78BFA', label: 'burza' },
+};
+
+export function weatherToneKey(code: number, isDay = true): WeatherToneKey {
+  if (code === 0 || code === 1) return isDay ? 'sun' : 'night';
+  if (code === 2) return isDay ? 'partly' : 'partlyNight';
+  if (code === 45 || code === 48) return 'fog';
+  if (code === 56 || code === 57 || code === 66 || code === 67) return 'freezing';
+  if (code >= 51 && code <= 55) return 'drizzle';
+  if (code === 65 || code === 82) return 'heavy';
+  if (code === 61 || code === 63 || code === 80 || code === 81) return 'rain';
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'snow';
+  if (code >= 95) return 'storm';
+  return 'cloud';
+}
+export const weatherColor = (code: number, isDay = true) => WEATHER_TONES[weatherToneKey(code, isDay)].color;
+
+// Kolor temperatury (pasek "7 dni"): ≤ −10° niebieski → 10° zielonkawy → ≥ 30° pomarańcz/czerwień.
+const TEMP_STOPS: [number, [number, number, number]][] = [
+  [-10, [96, 165, 250]], [0, [125, 211, 252]], [10, [134, 239, 172]], [20, [251, 191, 36]], [30, [249, 115, 22]],
+];
+export function tempColor(t: number): string {
+  if (t <= TEMP_STOPS[0][0]) return rgb(TEMP_STOPS[0][1]);
+  for (let i = 1; i < TEMP_STOPS.length; i++) {
+    const [t1, c1] = TEMP_STOPS[i];
+    const [t0, c0] = TEMP_STOPS[i - 1];
+    if (t <= t1) {
+      const k = (t - t0) / (t1 - t0);
+      return rgb([0, 1, 2].map((j) => Math.round(c0[j] + (c1[j] - c0[j]) * k)) as [number, number, number]);
+    }
+  }
+  return rgb(TEMP_STOPS[TEMP_STOPS.length - 1][1]);
+}
+const rgb = (c: [number, number, number]) => `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+
 // Europejski indeks jakości powietrza (EAQI, 0–100+).
 export function aqiInfo(aqi: number): { label: string; color: string } {
   if (aqi <= 20) return { label: 'bardzo dobre', color: '#22C55E' };

@@ -69,3 +69,24 @@ describe('weatherTip', () => {
     expect(weatherTip(w)).toMatch(/powietrze/);
   });
 });
+
+import { weatherToneKey, weatherColor, tempColor, WEATHER_TONES } from '@/utils/weather';
+describe('kolory pogody', () => {
+  test('rodzaje', () => {
+    expect(weatherToneKey(0, true)).toBe('sun');
+    expect(weatherToneKey(0, false)).toBe('night');
+    expect(weatherToneKey(61)).toBe('rain');
+    expect(weatherToneKey(65)).toBe('heavy');
+    expect(weatherToneKey(53)).toBe('drizzle');
+    expect(weatherToneKey(73)).toBe('snow');
+    expect(weatherToneKey(95)).toBe('storm');
+    expect(weatherToneKey(66)).toBe('freezing');
+    expect(weatherToneKey(3)).toBe('cloud');
+    expect(weatherColor(71)).toBe(WEATHER_TONES.snow.color);
+  });
+  test('temperatura → kolor (zimno niebieski, ciepło pomarańcz)', () => {
+    expect(tempColor(-20)).toBe('#60a5fa');
+    expect(tempColor(30)).toBe('#f97316');
+    expect(tempColor(5)).toMatch(/^#[0-9a-f]{6}$/);
+  });
+});

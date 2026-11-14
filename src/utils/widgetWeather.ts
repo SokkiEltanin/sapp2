@@ -1,12 +1,12 @@
-import { weatherCodeInfo, rainSummary, fmtTemp, type WeatherData } from './weather';
+import { weatherCodeInfo, rainSummary, fmtTemp, weatherColor, type WeatherData } from './weather';
 
 // Snapshot pod natywny widget "Pogoda" (2026-11-13, plugins/withWeatherWidget.js).
 // Czyste (zero RN). TEN SAM format zapisuje Kotlin przy samodzielnym odświeżeniu
 // (WeatherWidgetProvider.fromForecast) — zmiana pola = zmiana w obu miejscach.
-export interface WeatherWidgetHour { t: string; icon: string; temp: string; pop: string }
+export interface WeatherWidgetHour { t: string; icon: string; temp: string; pop: string; color: string }
 export interface WeatherWidgetSnapshot {
   place: string; lat: number; lon: number; fetchedAt: number;
-  temp: string; label: string; icon: string; hi: string; lo: string;
+  temp: string; label: string; icon: string; color: string; hi: string; lo: string;
   line: string; rain: boolean; hours: WeatherWidgetHour[];
 }
 
@@ -29,13 +29,14 @@ export function buildWeatherWidgetSnapshot(w: WeatherData, lat: number, lon: num
     hours.push({
       t: h.time.slice(11, 16),
       icon: widgetIconName(weatherCodeInfo(h.code, isDayAt(h.time)).icon),
+      color: weatherColor(h.code, isDayAt(h.time)),
       temp: fmtTemp(h.temp),
       pop: h.pop >= 20 ? `${h.pop}%` : '',
     });
   }
   return {
     place: w.place, lat, lon, fetchedAt: w.fetchedAt,
-    temp: fmtTemp(w.current.temp), label: info.label, icon: widgetIconName(info.icon),
+    temp: fmtTemp(w.current.temp), label: info.label, icon: widgetIconName(info.icon), color: weatherColor(w.current.code, w.current.isDay),
     hi: today ? fmtTemp(today.max) : '', lo: today ? fmtTemp(today.min) : '',
     line, rain: !!line && !line.startsWith('bez'), hours,
   };

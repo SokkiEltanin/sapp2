@@ -13,7 +13,7 @@ import { useCalendarStore } from '@/store/calendarStore';
 import { useExpensesStore } from '@/store/expensesStore';
 import { useWeather } from '@/hooks/useWeather';
 import { useWeatherStore } from '@/store/weatherStore';
-import { weatherCodeInfo, rainSummary, aqiInfo, fmtTemp } from '@/utils/weather';
+import { weatherCodeInfo, rainSummary, aqiInfo, fmtTemp, weatherColor } from '@/utils/weather';
 import WeatherSheet from '@/components/weather/WeatherSheet';
 import { useGoogleCalendarSync } from '@/hooks/useGoogleCalendarSync';
 import { todayISO } from '@/utils/date';
@@ -263,7 +263,7 @@ export default function Dashboard() {
     if (!wx) return null;
     const info = weatherCodeInfo(wx.current.code, wx.current.isDay);
     return {
-      temp: fmtTemp(wx.current.temp), feels: fmtTemp(wx.current.feels), label: info.label, icon: info.icon,
+      temp: fmtTemp(wx.current.temp), feels: fmtTemp(wx.current.feels), label: info.label, icon: info.icon, tone: weatherColor(wx.current.code, wx.current.isDay),
       place: wx.place, rain: rainSummary(wx.hourly),
       aqi: wx.air ? { value: wx.air.aqi, color: aqiInfo(wx.air.aqi).color } : undefined,
     };
