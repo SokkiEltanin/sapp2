@@ -1,3 +1,4 @@
+import { removeWithUndo } from '@/services/undo';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -94,7 +95,10 @@ export default function SubscriptionsScreen() {
   const subscriptions = useSubscriptionsStore((st) => st.subscriptions);
   const addSubscription = useSubscriptionsStore((st) => st.addSubscription);
   const updateSubscription = useSubscriptionsStore((st) => st.updateSubscription);
-  const deleteSubscription = useSubscriptionsStore((st) => st.deleteSubscription);
+  const deleteSubscription = (id: string) => {
+    const sub = useSubscriptionsStore.getState().subscriptions.find((x) => x.id === id);
+    if (sub) removeWithUndo(useSubscriptionsStore, 'subscriptions', sub, `Usunięto: ${sub.name}`);
+  };
   const dismissedBills = useSubscriptionsStore((st) => st.dismissedBills);
   const dismissBill = useSubscriptionsStore((st) => st.dismissBill);
   const restoreBill = useSubscriptionsStore((st) => st.restoreBill);

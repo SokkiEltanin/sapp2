@@ -1637,6 +1637,14 @@ Ustawienia → Finanse → Reguły kategorii (`components/settings/CategoryRules
 skrót "Zawsze tak dla „sklep”" pod wyborem kategorii w `AddExpenseModal`.
 Odmiana liczebników: `utils/plural.ts`.
 
+## COFNIJ (2026-11-14)
+
+`services/undo.ts` (`offerUndo(label, fn)`, `removeWithUndo(store, key, item, label)` —
+przywraca to samo id z nowszym `updatedAt`, liczbowym albo ISO), pasek
+`components/UndoToast.tsx` w `app/_layout.tsx` (6 s). Podpięte: wydatek
+(AddExpenseModal), zadanie, notatka, wymiana, pojazd, stała opłata, reguła kategorii.
+Nowe usuwanie → `removeWithUndo` zamiast gołego filtra.
+
 ## KOPIA DO PLIKU (2026-11-14)
 
 `services/localBackup.ts` (SAF: `requestDirectoryPermissionsAsync`, folder w

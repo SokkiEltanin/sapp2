@@ -17,6 +17,7 @@ import { saveMerchant } from '@/utils/merchantMemory';
 import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_META } from '@/utils/expenseCategory';
 import { storeMatchOf } from '@/utils/categoryRules';
 import { useCategoryRulesStore } from '@/store/categoryRulesStore';
+import { offerUndo } from '@/services/undo';
 import { useCategoriesVersion } from '@/store/categoriesStore';
 import { findReceiptTarget, isConfidentReceiptMatch, mergeReceiptInto } from '@/utils/duplicateExpense';
 import { buildProductCatalog } from '@/utils/productCatalog';
@@ -212,7 +213,17 @@ export default function AddExpenseModal({
   const handleClose = () => { reset(); onClose(); };
 
   const handleDelete = () => {
-    if (editingExpense) deleteExpense(editingExpense.id);
+    if (editingExpense) {
+      const gone = editingExpense;
+      deleteExpense(gone.id);
+      // "Cofnij" (2026-11-14) — przywraca ten sam wydatek (to samo id, nowszy
+      // updatedAt → synchronizacja odtworzy go też na komputerze).
+      offerUndo(`Usunięto: ${gone.storeName || gone.note || `${gone.amount} zł`}`, () => {
+        const st = useExpensesStore.getState();
+        if (st.expenses.some((e) => e.id === gone.id)) return;
+        useExpensesStore.setState({ expenses: [...st.expenses, { ...gone, updatedAt: new Date().toISOString() }] });
+      });
+    }
     handleClose();
   };
 
@@ -434,7 +445,7 @@ export default function AddExpenseModal({
       </Text>
       <View style={s.headerActions}>
         {editingExpense && (
-          <TouchableOpacity onPress={handleDelete} hitSlop={8} style={s.closeBtn}>
+          <TouchableOpacity onPress={handleDelete} hitSlop={8} style={s.closeBtn} accessibilityLabel="Usuń wydatek">
             <Trash2 size={16} color={colors.accent.red} />
           </TouchableOpacity>
         )}

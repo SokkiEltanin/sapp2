@@ -1,3 +1,4 @@
+import { removeWithUndo } from '@/services/undo';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
 import { View, Text, StyleSheet, TouchableOpacity, type TextInput } from 'react-native';
@@ -248,7 +249,7 @@ export default function TasksScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={s.confirmDelete}
-                onPress={() => { haptic.warn(); deleteTask(deletingTask.id); setDeletingTask(null); }}
+                onPress={() => { haptic.warn(); removeWithUndo(useCalendarStore, 'tasks', deletingTask, `Usunięto zadanie: ${deletingTask.title}`); setDeletingTask(null); }}
                 activeOpacity={0.7}
               >
                 <Text style={s.confirmDeleteLabel}>Usuń</Text>

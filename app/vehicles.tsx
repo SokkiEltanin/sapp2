@@ -1,3 +1,4 @@
+import { removeWithUndo } from '@/services/undo';
 import { useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -381,7 +382,7 @@ export default function VehiclesScreen() {
                   haptic.medium();
                   const next = vehicles.find((v) => v.id !== viewing.id)?.id ?? null;
                   setEditOpen(false);
-                  deleteVehicle(viewing.id);
+                  removeWithUndo(useVehiclesStore, 'vehicles', viewing, `Usunięto pojazd: ${viewing.name}`);
                   setViewingId(next);
                 }}
                 activeOpacity={0.8}

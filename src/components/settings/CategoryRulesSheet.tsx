@@ -1,3 +1,4 @@
+import { removeWithUndo } from '@/services/undo';
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { Plus, Trash2, ArrowRight } from 'lucide-react-native';
@@ -98,7 +99,7 @@ export default function CategoryRulesSheet({ visible, onClose }: { visible: bool
               <ArrowRight size={13} color={colors.text.muted} />
               <View style={[s.dot, { backgroundColor: c.color }]} />
               <Text style={s.target} numberOfLines={1}>{c.label}</Text>
-              <TouchableOpacity style={s.del} hitSlop={8} accessibilityLabel="Usuń regułę" onPress={() => { haptic.tap(); useCategoryRulesStore.getState().remove(r.id); }}>
+              <TouchableOpacity style={s.del} hitSlop={8} accessibilityLabel="Usuń regułę" onPress={() => { haptic.tap(); removeWithUndo(useCategoryRulesStore, 'rules', r, `Usunięto regułę „${r.match}”`); }}>
                 <Trash2 size={14} color={colors.text.muted} />
               </TouchableOpacity>
             </View>

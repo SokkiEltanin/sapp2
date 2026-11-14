@@ -1,3 +1,4 @@
+import { removeWithUndo } from '@/services/undo';
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -89,7 +90,7 @@ export default function NoteScreen() {
           {note.pinned ? <Pin size={18} color={colors.accent.orange} /> : <PinOff size={18} color={colors.text.muted} />}
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => { haptic.tap(); if (!confirmDel) { setConfirmDel(true); return; } remove(note.id); router.back(); }}
+          onPress={() => { haptic.tap(); if (!confirmDel) { setConfirmDel(true); return; } removeWithUndo(useNotesStore, 'notes', note, `Usunięto notatkę${note.title ? `: ${note.title}` : ''}`); router.back(); }}
           style={[s.headBtn, confirmDel && s.delOn]} hitSlop={8} accessibilityLabel="Usuń notatkę"
         >
           <Trash2 size={17} color={confirmDel ? colors.bg.primary : colors.text.muted} />

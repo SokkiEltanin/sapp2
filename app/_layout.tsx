@@ -43,6 +43,7 @@ import type { ErrorBoundaryProps } from 'expo-router';
 // Dziennik błędów od pierwszej linii — łapie też to, co wywali się przy starcie.
 installErrorLog();
 import { UpdateBanner } from '@/components/UpdateBanner';
+import { UndoToast } from '@/components/UndoToast';
 
 // ŚWIADOMIE bez importu @react-native-google-signin/google-signin tutaj — to natywny
 // moduł, Expo Go go nie ma, a import na poziomie modułu (nie wołanie funkcji) wywaliłby
@@ -260,6 +261,7 @@ export default function RootLayout() {
           </View>
         </View>
         <UpdateBanner />
+        <UndoToast />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

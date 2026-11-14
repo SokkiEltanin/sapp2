@@ -1,3 +1,4 @@
+import { removeWithUndo } from '@/services/undo';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform } from 'react-native';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
@@ -137,7 +138,7 @@ export default function ReplaceSheet({ visible, onClose, editing, presetKey }: {
         <TouchableOpacity style={[s.delBtn, confirmDel && s.delBtnOn]} onPress={() => {
           haptic.tap();
           if (!confirmDel) { setConfirmDel(true); return; }
-          remove(editing.id); onClose();
+          removeWithUndo(useReplacementsStore, 'items', editing, `Usunięto: ${editing.name}`); onClose();
         }} activeOpacity={0.8}>
           <Trash2 size={15} color={confirmDel ? colors.bg.primary : colors.accent.red} />
           {confirmDel && <Text style={s.delLabel}>Usuń</Text>}
