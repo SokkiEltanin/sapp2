@@ -41,6 +41,15 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-14 — do sprawdzenia na telefonie / do zrobienia przez usera:**
+- [ ] **Dodać sekret `EXPO_TOKEN`** w repo sapp2 (MAINTENANCE.md §3) — bez niego każdy
+  push = pełny APK zamiast OTA. Potem zainstalować pierwszy APK z expo-updates (≥ #189).
+- [ ] Banner "Nowy APK · Pobierz" po kolejnym natywnym buildzie; "Aktualizacja gotowa" po OTA.
+- [ ] Ustawienia → Dane → Kopia do pliku: wybór folderu, plik w Download, wczytanie.
+- [ ] Dziennik błędów: czy coś się pojawia przy normalnym użyciu (sync, widgety).
+- Dalej z planu: reguły kategoryzacji użytkownika → status zdrowia appki → ustawienia
+  zaawansowane (progi) → układ Dashboardu → widget notatki → poprawki z testów.
+
 - **[sprawdź na telefonie, 2026-11-13] Wydajność**: wejście w Finanse bez
   przycinki (sheety montują się dopiero przy otwarciu, ukryte zakładki zamrożone).
   Jeśli nadal laguje — zgłoś który ekran/akcja, zmierzę konkretnie.
