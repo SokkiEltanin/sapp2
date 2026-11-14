@@ -7,6 +7,8 @@ zostanie przesądzone — to jedyne miejsce, które się o tym pamięta między 
 co prowadzi dokąd). Czytaj przed dodaniem nowego ekranu/przejścia, aktualizuj przy
 każdej decyzji o strukturze.
 
+**[`MAINTENANCE.md`](./MAINTENANCE.md)** = build, aktualizacje OTA/APK, sekrety, „jak dodać X” dla następcy.
+
 **[`NEXT_STEPS.md`](./NEXT_STEPS.md) = aktualna lista "co dalej"** — zdecydowane,
 jeszcze niezbudowane rzeczy, pomysły do rozważenia, otwarte pytania. Aktualizuj po
 skończeniu/odkryciu czegoś nowego.

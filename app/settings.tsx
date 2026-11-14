@@ -1,3 +1,4 @@
+import { useAppUpdateStore, checkForAppUpdate, applyOtaUpdate, runningUpdateLabel } from '@/services/appUpdate';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, BackHandler, Platform, Linking } from 'react-native';
@@ -94,6 +95,7 @@ function buildSections(
   backup: { auto: boolean; lastAt: string | null; busy: boolean; error: string | null },
   widget: { opacity: number; textScale: string },
   sync: string,
+  update: string,
 ): SettingsSection[] {
   return [
   {
@@ -137,7 +139,7 @@ function buildSections(
       : bank.pending > 0 ? `${bank.pending} płatności z banku do zatwierdzenia` : 'powiadomienia z banku włączone',
     items: [
       // Kategorie (2026-11-14): nazwy, kolory, nowe, usuwanie z przeniesieniem użyć.
-      { kind: 'action', key: 'categories', label: 'Kategorie wydatków', description: 'jedzenie i zmienne: nazwy, kolory, nowe, usuwanie', icon: Tags },
+      { kind: 'action', key: 'categories', label: 'Kategorie wydatków', description: 'jedzenie, stałe i zmienne: nazwy, kolory, nowe, usuwanie', icon: Tags },
       {
         kind: 'switch', key: 'bank-enabled', label: 'Powiadomienia z banku',
         description: 'łap płatności kartą/przelewy z Pekao i PKO automatycznie',
@@ -229,6 +231,8 @@ function buildSections(
       { kind: 'value', key: 'info-build', label: 'Build', description: 'numer builda CI', icon: Info, value: BUILD_INFO.buildNumber },
       { kind: 'value', key: 'info-date', label: 'Data builda', description: 'kiedy zbudowano ten APK', icon: Clock, value: BUILD_INFO.buildDate },
       { kind: 'value', key: 'info-commit', label: 'Commit', description: 'hash commita z którego zbudowano', icon: Copy, value: BUILD_INFO.commit },
+      { kind: 'value', key: 'info-ota', label: 'Paczka JS', description: 'wbudowana w APK czy z aktualizacji OTA', icon: Info, value: runningUpdateLabel() },
+      { kind: 'action', key: 'update-check', label: 'Sprawdź aktualizacje', description: update, icon: Download },
       { kind: 'action', tier: 'sub', key: 'google', label: 'Zaloguj przez Google (test)', description: 'sprawdź czy Google Sign-In działa', icon: LogIn },
       { kind: 'action', tier: 'sub', key: 'firestore', label: 'Firestore (test)', description: 'zapis/odczyt testowego dokumentu', icon: Database },
       { kind: 'action', tier: 'sub', key: 'calendar', label: 'Kalendarz Google (test)', description: 'odczyt nadchodzących wydarzeń', icon: CalendarDays },
@@ -319,6 +323,18 @@ export default function SettingsScreen() {
   const widgetTextScale = useWidgetSettingsStore((st) => st.textScale);
   const [widgetOpen, setWidgetOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const upd = useAppUpdateStore();
+  const updateLabel = upd.checking ? 'sprawdzam…'
+    : upd.otaReady ? 'aktualizacja pobrana — stuknij, żeby uruchomić ponownie'
+    : upd.apk ? `nowy APK #${upd.apk.build} — stuknij, żeby pobrać`
+    : upd.lastError ? `błąd: ${upd.lastError.slice(0, 60)}`
+    : upd.lastCheck ? `aktualna · sprawdzono ${new Date(upd.lastCheck).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}`
+    : 'OTA (szybka, sam JS) albo nowy APK z GitHuba';
+  const updateCheck = () => {
+    if (upd.otaReady) { applyOtaUpdate(); return; }
+    if (upd.apk) { Linking.openURL(upd.apk.url).catch(() => {}); return; }
+    checkForAppUpdate(true);
+  };
   const sections = useMemo(
     () => buildSections(
       user?.email ?? null,
@@ -328,8 +344,9 @@ export default function SettingsScreen() {
       { auto: backupAuto, lastAt: backupLastAt, busy: backupBusy, error: backupError },
       { opacity: widgetOpacity, textScale: widgetTextScale },
       syncLabel,
+      updateLabel,
     ),
-    [user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, widgetOpacity, widgetTextScale, syncLabel],
+    [updateLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, widgetOpacity, widgetTextScale, syncLabel],
   );
 
   const backupNow = async () => {
@@ -876,6 +893,7 @@ export default function SettingsScreen() {
     'backup-restore': openRestore,
     'widget-appearance': leave(() => setWidgetOpen(true)),
     categories: leave(() => setCategoriesOpen(true)),
+    'update-check': updateCheck,
     'health-diag': leave(() => router.push('/health-debug' as any)),
   };
 

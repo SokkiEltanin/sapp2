@@ -1,17 +1,76 @@
 name: Build APK
 
-# Na razie bez OTA (odłożone, patrz rozmowa w sesji) — każda zmiana i tak wymaga pełnego
-# builda, więc trigger leci na KAŻDY push do main, nie tylko pliki natywne (to zawężenie
-# ma sens dopiero gdy obok istnieje szybsza ścieżka EAS Update, jak w sapp). `workflow_dispatch`
-# zostaje jako ręczny "zrób mi nowy APK teraz" przycisk niezależnie od tego.
+# OTA (2026-11-14, user: "możemy zrobić szybkie update przez tego OTA??"): job `decide`
+# liczy fingerprint natywnej części (expo-updates, ta sama wartość co runtimeVersion w
+# app.json). Jest taki sam jak w ostatnim release (linia "Fingerprint:" w opisie) i OTA
+# jest skonfigurowane (EXPO_TOKEN + updates.url) → tylko `eas update` (~2 min, telefon
+# pobiera sam). Inaczej (zmiana natywna, brak tokena, ręczne uruchomienie) → pełny APK.
+# Konfiguracja raz: MAINTENANCE.md → "OTA".
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
 jobs:
+  decide:
+    name: APK czy OTA
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.mode.outputs.mode }}
+      fp: ${{ steps.mode.outputs.fp }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Fingerprint vs ostatni release
+        id: mode
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          FP=$(npx expo-updates fingerprint:generate --platform android | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).hash))")
+          URL=$(node -p "(require('./app.json').expo.updates||{}).url||''")
+          LAST=$(gh release view --repo "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null | sed -n 's/^Fingerprint: //p' | tr -d '\r' || true)
+          MODE=apk
+          if [ "$EVENT" = "push" ] && [ -n "$EXPO_TOKEN" ] && [ -n "$URL" ] && [ "$FP" = "$LAST" ]; then MODE=ota; fi
+          echo "fingerprint=$FP last=$LAST url=${URL:+set} token=${EXPO_TOKEN:+set} → $MODE"
+          echo "fp=$FP" >> "$GITHUB_OUTPUT"
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+
+  ota:
+    name: OTA (EAS Update)
+    needs: decide
+    if: needs.decide.outputs.mode == 'ota'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Publikuj OTA na kanał production
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          # Commit message przez env — interpolacja ${{ }} w `run:` wkleiłaby tekst
+          # commita prosto do skryptu powłoki.
+          UPDATE_MESSAGE: ${{ github.event.head_commit.message }}
+          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          EXPO_PUBLIC_BUILD_NUMBER: ${{ github.run_number }}
+          EXPO_PUBLIC_BUILD_COMMIT: ${{ github.sha }}
+        run: |
+          export EXPO_PUBLIC_BUILD_DATE="$(date -u +'%Y-%m-%d %H:%M UTC') (OTA)"
+          export EXPO_PUBLIC_BUILD_COMMIT="${EXPO_PUBLIC_BUILD_COMMIT:0:7}"
+          npx eas-cli@latest update --channel production --platform android --message "$(echo "$UPDATE_MESSAGE" | head -1)" --non-interactive
+
   build:
     name: Build Android APK
+    needs: decide
+    if: needs.decide.outputs.mode == 'apk'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -154,6 +213,7 @@ jobs:
             **Build #${{ github.run_number }}**
             Commit: ${{ github.sha }}
             Message: ${{ github.event.head_commit.message }}
+            Fingerprint: ${{ needs.decide.outputs.fp }}
           files: sapp2-build*.apk
           generate_release_notes: false
         env:

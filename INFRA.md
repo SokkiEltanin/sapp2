@@ -41,11 +41,12 @@ w konsolach, jak będziemy scaffoldować właściwy projekt Expo.
 - ŚWIADOMIE pominięte — user zostaje przy parserze tekstu (share-intent SELECT ALL →
   SHARE), nie przy OCR zdjęcia. Zero potrzeby na Google Vision API / jego klucz.
 
-## EAS (OTA — na później)
+## EAS (OTA)
 - Projekt EAS stworzony (`eas init`) na nowym koncie Expo usera.
 - **EAS project id:** `b56c7c9e-2c4a-4bef-8eb2-a76d49710dd6`
-- Nieużywane jeszcze — build APK (niżej) nie wymaga EAS. To tylko przygotowanie
-  pod `eas update` (OTA), jak w sapp's `ci.yml`, kiedy przyjdzie czas.
+- **Używane od 2026-11-14** — `app.json` `updates.url` + `extra.eas.projectId`,
+  publikacja OTA w `build.yml` (job `ota`). Wymaga sekretu repo `EXPO_TOKEN`
+  (MAINTENANCE.md §3).
 
 ## Build APK — GitHub Actions (`.github/workflows/build.yml`)
 

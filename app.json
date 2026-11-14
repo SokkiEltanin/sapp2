@@ -60,6 +60,7 @@
     "plugins": [
       "expo-router",
       "expo-font",
+      "expo-updates",
       "expo-notifications",
       [
         "expo-location",
@@ -96,6 +97,20 @@
     },
     "experiments": {
       "baseUrl": "/sapp2"
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/b56c7c9e-2c4a-4bef-8eb2-a76d49710dd6",
+      "requestHeaders": {
+        "expo-channel-name": "production"
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "b56c7c9e-2c4a-4bef-8eb2-a76d49710dd6"
+      }
     }
   }
 }

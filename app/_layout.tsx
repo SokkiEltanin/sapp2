@@ -35,6 +35,8 @@ import { useShareReceiptLaunch } from '@/hooks/useShareReceiptLaunch';
 import { loadHapticsEnabled } from '@/utils/haptics';
 import { drainBankNotifications } from '@/services/bankNotificationDrain';
 import { useExpensesStore } from '@/store/expensesStore';
+import { startAppUpdateChecks } from '@/services/appUpdate';
+import { UpdateBanner } from '@/components/UpdateBanner';
 
 // ŚWIADOMIE bez importu @react-native-google-signin/google-signin tutaj — to natywny
 // moduł, Expo Go go nie ma, a import na poziomie modułu (nie wołanie funkcji) wywaliłby
@@ -147,6 +149,9 @@ export default function RootLayout() {
   // raz przy starcie tak samo jak własne imię wyżej.
   useEffect(() => { loadHapticsEnabled().catch(() => {}); }, []);
 
+  // Aktualizacje: OTA (sam JS) + nowy APK z GitHub Releases — src/services/appUpdate.ts.
+  useEffect(() => startAppUpdateChecks(), []);
+
   // Osusza powiadomienia z banku przechwycone przez natywny nasłuch
   // (plugins/withBankNotificationListener.js) podczas gdy appka była zamknięta/w tle —
   // przy zimnym starcie + za każdym wejściem na pierwszy plan. Zakolejkowane pozycje są
@@ -231,6 +236,7 @@ export default function RootLayout() {
             <Stack key={dimensionKey} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg.primary } }} />
           </View>
         </View>
+        <UpdateBanner />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
