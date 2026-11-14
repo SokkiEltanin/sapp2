@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { GoogleAuthProvider, signInWithCredential, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
+import { GoogleAuthProvider, browserPopupRedirectResolver, signInWithCredential, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
 import { auth } from '@/firebase';
 
 // Ten sam client ID co test Diagnostyki w app/settings.tsx — jedna stała, żeby obie
@@ -16,7 +16,10 @@ export async function signInWithGoogle() {
   // Wersja na komputer (2026-11-13, PWA): okienko Google z Firebase Auth zamiast
   // natywnego modułu — to samo konto, więc te same dane (synchronizacja).
   if (Platform.OS === 'web') {
-    const cred = await signInWithPopup(auth, new GoogleAuthProvider());
+    // Resolver okienka przeglądarki jawnie (2026-11-14): auth jest tworzony przez
+    // initializeAuth (bez resolvera, wspólnie z Androidem) — bez niego popup rzucał
+    // "auth/argument-error" na komputerze.
+    const cred = await signInWithPopup(auth, new GoogleAuthProvider(), browserPopupRedirectResolver);
     return cred.user;
   }
   const { GoogleSignin } = await import('@react-native-google-signin/google-signin');

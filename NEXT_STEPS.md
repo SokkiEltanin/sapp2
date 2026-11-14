@@ -82,9 +82,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
   Widgety → sapp2 → Pogoda). Otwórz raz Dashboard, żeby dostał lokalizację;
   potem ma się sam odświeżać co ~30 min (godzina w prawym górnym rogu widgetu).
   Do decyzji: widget snu (user: "może i do snu też").
-- **[user, jednorazowo] GitHub Pages**: deploy PWA pada na kroku `deploy-pages`
-  (build OK) → repo Settings → Pages → Source: "GitHub Actions", potem
-  Actions → "Deploy web (PWA)" → Re-run.
+- **GitHub Pages — WŁĄCZONE 2026-11-14**, strona https://sokkieltanin.github.io/sapp2/
+  działa. Logowanie na komputerze rzucało `auth/argument-error` (popup bez
+  `browserPopupRedirectResolver` przy `initializeAuth`) — naprawione w googleAuth.ts.
+  [sprawdź] logowanie + dane z telefonu po synchronizacji; domena w Firebase
+  Authorized domains już dodana przez usera.
 
 - **Daily (2026-11-13)**: sen (hipnogram z Health Connect `stages` — sprawdzić na
   zegarku, czy etapy przychodzą), kroki + BodySheet (waga ręczna), humor z
