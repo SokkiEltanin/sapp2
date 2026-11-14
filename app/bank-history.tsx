@@ -1,3 +1,4 @@
+import { goBack } from '@/services/nav';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { filterBankHistory, BANK_HIST_STATUSES, type BankHistStatus } from '@/utils/bankHistoryFilter';
@@ -72,7 +73,7 @@ export default function BankHistory() {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={8}>
+        <TouchableOpacity onPress={goBack} accessibilityLabel="Wstecz" style={s.backBtn} hitSlop={8}>
           <ChevronLeft size={22} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={s.title}>Historia</Text>

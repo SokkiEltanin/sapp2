@@ -1,3 +1,4 @@
+import { goBack } from '@/services/nav';
 import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -52,7 +53,7 @@ export default function HealthDebug() {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={8}>
+        <TouchableOpacity onPress={goBack} accessibilityLabel="Wstecz" style={s.backBtn} hitSlop={8}>
           <ChevronLeft size={22} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={s.title}>Test Health Connect</Text>

@@ -1,3 +1,4 @@
+import { goBack } from '@/services/nav';
 import { useDeferredValue, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -57,7 +58,7 @@ export default function SearchScreen() {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.headBtn} hitSlop={8}><ChevronLeft size={22} color={colors.text.primary} /></TouchableOpacity>
+        <TouchableOpacity onPress={goBack} accessibilityLabel="Wstecz" style={s.headBtn} hitSlop={8}><ChevronLeft size={22} color={colors.text.primary} /></TouchableOpacity>
         <View style={s.field}>
           <Search size={16} color={colors.text.muted} />
           <TextInput value={q} onChangeText={setQ} autoFocus placeholder="Szukaj: sklep, produkt, notatka, kwota…" placeholderTextColor={colors.text.muted}

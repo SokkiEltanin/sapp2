@@ -1,3 +1,4 @@
+import { goBack } from '@/services/nav';
 import DashboardLayoutSheet from '@/components/settings/DashboardLayoutSheet';
 import AppHealthSheet from '@/components/settings/AppHealthSheet';
 import ThresholdsSheet from '@/components/settings/ThresholdsSheet';
@@ -1029,7 +1030,7 @@ export default function SettingsScreen() {
 
   const handleBack = () => {
     if (query) { setQuery(''); return; }
-    router.back();
+    goBack();
   };
 
   // Sprzętowy/gestowy przycisk "wstecz" na Androidzie POMIJA `handleBack` (ten reaguje

@@ -1648,6 +1648,9 @@ reszta bez zmian), `ThemeProvider` z DarkTheme (tło #000) w `app/_layout.tsx`,
 `unstable_settings.initialRouteName = '(tabs)'` (wejście prosto na /note ma zakładki pod
 spodem). `app/weather.tsx` zostaje jako zapas (router.replace, czarne tło). Nowy link
 z widgetu = wpis w `MAP` w utils/deepLink.ts.
+Strzałki „wstecz” na ekranach: `services/nav.ts` `goBack()` (canGoBack → back, inaczej
+Dashboard) — nie gołe `router.back()`. Arkusze (`AppBottomSheet`) zamykają się Wstecz
+przez `Modal.onRequestClose`.
 
 ## KATEGORIE PRZYCHODÓW (2026-11-14)
 

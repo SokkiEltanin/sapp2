@@ -1,3 +1,4 @@
+import { goBack } from '@/services/nav';
 import { useMemo, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -111,7 +112,7 @@ export default function BankReview() {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={8}>
+        <TouchableOpacity onPress={goBack} accessibilityLabel="Wstecz" style={s.backBtn} hitSlop={8}>
           <ChevronLeft size={22} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={s.title}>Płatności z banku</Text>

@@ -1,3 +1,4 @@
+import { goBack } from '@/services/nav';
 import { employerShortName, nextEmployerName } from '@/utils/employerName';
 import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
@@ -86,7 +87,7 @@ export default function WorkScreen() {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={8}>
+        <TouchableOpacity onPress={goBack} accessibilityLabel="Wstecz" style={s.backBtn} hitSlop={8}>
           <ChevronLeft size={22} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={s.title}>Praca</Text>

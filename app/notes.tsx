@@ -1,3 +1,4 @@
+import { goBack } from '@/services/nav';
 import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -39,7 +40,7 @@ export default function NotesScreen() {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.headBtn} hitSlop={8}><ChevronLeft size={22} color={colors.text.primary} /></TouchableOpacity>
+        <TouchableOpacity onPress={goBack} accessibilityLabel="Wstecz" style={s.headBtn} hitSlop={8}><ChevronLeft size={22} color={colors.text.primary} /></TouchableOpacity>
         <Text style={s.title}>Notatki</Text>
         <View style={s.headBtn} />
       </View>

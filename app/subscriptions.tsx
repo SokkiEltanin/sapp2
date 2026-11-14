@@ -1,3 +1,4 @@
+import { goBack } from '@/services/nav';
 import { sortSubscriptions, monthlyCost, SUB_SORTS, type SubSort } from '@/utils/subscriptionSort';
 import { removeWithUndo } from '@/services/undo';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -240,7 +241,7 @@ export default function SubscriptionsScreen() {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={8}>
+        <TouchableOpacity onPress={goBack} accessibilityLabel="Wstecz" style={s.backBtn} hitSlop={8}>
           <ChevronLeft size={22} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={s.title}>Stałe opłaty</Text>
