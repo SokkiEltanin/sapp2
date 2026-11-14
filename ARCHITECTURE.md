@@ -1921,7 +1921,13 @@ szczoteczek końcówek". Rzeczy zużywające się co N dni/tyg./mies.
   `services/replaceReminders.ts` (notifee, kanał `replace-reminders-v1`, id
   `repl_<id>`) ← `hooks/useReplaceReminderSync.ts` w `app/_layout.tsx`. 9:00 w
   dniu / N dni przed; po terminie jedno "minął wczoraj". Tap → `/replacements`
-  (`useNotifeeAlertLaunch` route `replacements`).
+  (`useNotifeeAlertLaunch` route `replacements`). Przycisk „Wymienione”
+  (`REPLACED_ACTION`, data `itemId`) → zaznacza dziś + „Cofnij”.
+- **Przypomnienia o zadaniach** (2026-11-14): zadanie z dokładną godziną (albo
+  `reminderDate`+`reminderTime`) → `utils/taskReminders.ts` (plan, testy, max 40, 60 dni)
+  → `services/taskReminders.ts` (kanał `task-reminders-v1`, id `task_<id>`) ←
+  `hooks/useTaskReminderSync.ts`. Przycisk „Zrobione” (`TASK_DONE_ACTION`) → status
+  done + „Cofnij”; tap → `/tasks?task=`. Hint w `AddTaskCard` przy dokładnym terminie.
 - **Dom + pojazdy razem** (2026-11-13, user: "muszą się pokazywać zwykłe rzeczy,
   ale też te z samochodu — olej za tydzień"): `allReplaceRows(items, vehicles)` —
   serwis pojazdów z interwałem (najnowszy wpis per pozycja, `carMaintItems`) na tej

@@ -35,6 +35,7 @@ import { useAuthUser } from '@/hooks/useAuthUser';
 import { useNotifeeAlertLaunch } from '@/hooks/useNotifeeAlertLaunch';
 import { useBillReminderSync } from '@/hooks/useBillReminderSync';
 import { useReplaceReminderSync } from '@/hooks/useReplaceReminderSync';
+import { useTaskReminderSync } from '@/hooks/useTaskReminderSync';
 import { startBudgetAlerts } from '@/services/budgetAlerts';
 // Kategorie z Ustawień (nazwy/kolory/ukryte/nowe) — import = zastosowanie przy starcie.
 import '@/store/categoriesStore';
@@ -160,6 +161,7 @@ export default function RootLayout() {
   // src/services/billReminders.ts.
   useBillReminderSync();
   useReplaceReminderSync();
+  useTaskReminderSync();
   // Ostrzeżenia budżetowe 80% / 100% po każdej zmianie wydatków (services/budgetAlerts.ts).
   useEffect(() => startBudgetAlerts(), []);
   // Automatyczna kopia zapasowa w chmurze (2026-11-11) — patrz

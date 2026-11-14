@@ -221,6 +221,9 @@ export default function AddTaskCard({
           </Text>
         </TouchableOpacity>
       </View>
+      {deadlineChoice === 'custom' && customDeadline && customHasTime && customDeadline.getTime() > Date.now() && (
+        <Text style={s.hint}>Powiadomienie o {formatCustomLabel(customDeadline, true).split(' · ')[1]} z przyciskiem „Zrobione”.</Text>
+      )}
       <View style={s.actions}>
         <TouchableOpacity style={s.cancelBtn} onPress={() => { haptic.tap(); reset(); }} activeOpacity={0.7}>
           <Text style={s.cancelLabel}>Anuluj</Text>
@@ -256,6 +259,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   chipActive: { backgroundColor: c.text.bright },
   chipLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   chipLabelActive: { color: c.bg.primary },
+  hint: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
 
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing[2], marginTop: spacing[1] },
   cancelBtn: { paddingHorizontal: spacing[3], paddingVertical: spacing[2] },

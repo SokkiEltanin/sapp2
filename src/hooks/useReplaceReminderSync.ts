@@ -5,8 +5,8 @@ import { syncReplaceReminders } from '@/services/replaceReminders';
 import { useThresholdsStore } from '@/store/thresholdsStore';
 import { carMaintItems, carReminderItems } from '@/utils/replacements';
 
-type Persisted = { persist: { hasHydrated: () => boolean; onFinishHydration: (cb: () => void) => () => void } };
-function useHydrated(store: Persisted): boolean {
+export type Persisted = { persist: { hasHydrated: () => boolean; onFinishHydration: (cb: () => void) => () => void } };
+export function useHydrated(store: Persisted): boolean {
   const [h, setH] = useState(() => store.persist.hasHydrated());
   useEffect(() => {
     if (h) return;

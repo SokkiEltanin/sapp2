@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useReplacementsStore } from '@/store/replacementsStore';
 import { REPLACED_ACTION } from '@/utils/replaceReminders';
+import { TASK_DONE_ACTION } from '@/utils/taskReminders';
+import { useCalendarStore } from '@/store/calendarStore';
 import { todayISO } from '@/utils/date';
 import { offerUndo } from '@/services/undo';
 
@@ -49,11 +51,25 @@ export function useNotifeeAlertLaunch() {
           else if (data.route === 'subscriptions' && pressed) router.push('/subscriptions');
           else if (data.route === 'replacements' && pressed) router.push('/replacements' as any);
           else if (data.route === 'finances' && pressed) router.push('/finances' as any);
+          else if (data.route === 'tasks' && pressed) router.navigate(typeof data.taskId === 'string' ? { pathname: '/tasks', params: { task: data.taskId } } as any : '/tasks');
         };
 
         // Przycisk "Wymienione" w przypomnieniu o wymianie (2026-11-14): zaznacz dziś,
         // zdejmij powiadomienie, pokaż listę z "Cofnij".
         const action = async (actionId: string | undefined, n: { id?: string; data?: Record<string, string | object | number> } | undefined) => {
+          if (actionId === TASK_DONE_ACTION && typeof n?.data?.taskId === 'string') {
+            // "Zrobione" w przypomnieniu o zadaniu — odhacz (jak tap w liście), z "Cofnij".
+            const taskId = n.data.taskId;
+            const cal = useCalendarStore;
+            if (!cal.persist.hasHydrated()) await cal.persist.rehydrate();
+            const task = cal.getState().tasks.find((t) => t.id === taskId);
+            if (n.id) notifee.cancelNotification(n.id).catch(() => {});
+            router.navigate('/tasks' as any);
+            if (!task || task.status === 'done') return true;
+            cal.getState().updateTask(taskId, { status: 'done', updatedAt: new Date().toISOString() });
+            offerUndo(`Zrobione: ${task.title}`, () => cal.getState().updateTask(taskId, { status: task.status, updatedAt: new Date().toISOString() }));
+            return true;
+          }
           if (actionId !== REPLACED_ACTION || typeof n?.data?.itemId !== 'string') return false;
           const itemId = n.data.itemId;
           const st = useReplacementsStore;
