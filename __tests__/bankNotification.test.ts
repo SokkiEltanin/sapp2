@@ -35,23 +35,10 @@ describe('parseBankNotification (Pekao)', () => {
     expect(tx!.selfTransfer).toBe(true);
   });
 
-  test('przelew do innej osoby o Twoim imieniu/nazwisku, bez ownName → zwykły wydatek (nie selfTransfer)', () => {
+  test('przelew do innej osoby o Twoim imieniu/nazwisku, → zwykły wydatek (nie selfTransfer; własne → szablon sklepu)', () => {
     const tx = parseBankNotification('Pekao', SELF_OUT_BY_NAME);
     expect(tx).not.toBeNull();
     expect(tx!.direction).toBe('out');
-    expect(tx!.selfTransfer).toBeFalsy();
-  });
-
-  test('przelew na WŁASNE konto rozpoznany po imieniu+nazwisku z Ustawień → selfTransfer', () => {
-    const tx = parseBankNotification('Pekao', SELF_OUT_BY_NAME, 'Wiktor Rudziński');
-    expect(tx).not.toBeNull();
-    expect(tx!.direction).toBe('out');
-    expect(tx!.selfTransfer).toBe(true);
-  });
-
-  test('niepasujące ownName → nie selfTransfer (nie zgaduje na siłę)', () => {
-    const tx = parseBankNotification('Pekao', SELF_OUT_BY_NAME, 'Jan Kowalski');
-    expect(tx).not.toBeNull();
     expect(tx!.selfTransfer).toBeFalsy();
   });
 

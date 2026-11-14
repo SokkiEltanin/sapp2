@@ -1,5 +1,4 @@
 import { parseBankNotification } from '@/utils/bankNotification';
-import { getOwnName } from '@/utils/ownName';
 import { loadMerchantMemory, merchantFor } from '@/utils/merchantMemory';
 import { isKnownPaycheckSender, knownPaycheckSenderEmployer } from '@/utils/paycheckSenders';
 import { useBankQueue } from '@/store/bankQueueStore';
@@ -29,7 +28,7 @@ export async function ingestBankNotification(title: string, text: string, notifK
   const store = useBankQueue.getState();
   if (!store.enabled) return false;
   if (notifKey && store.wasNotificationSeen(notifKey)) return false;
-  const tx = parseBankNotification(title, text, getOwnName());
+  const tx = parseBankNotification(title, text);
   if (!tx) return false;
   if (notifKey) store.markNotificationSeen(notifKey);
 

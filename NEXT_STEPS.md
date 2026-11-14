@@ -83,13 +83,10 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
   Budżety, Historia banku (karta szablonów 1 linia), Ustawienia (lista sekcji —
   OK), Zadania (puste wiersze = wzorzec FitList z designu, zostaje). Zostaje
   decyzja usera: kafel ciekawostki na Dashboardzie (zamienić na coś z danymi?).
-- **Nieużywane podsystemy (do decyzji: podpiąć albo usunąć)** — znalezione
-  2026-11-13 przy sprzątaniu: `utils/productMemory.ts` pamięć wag
-  (`weightFor`/`saveWeightMemory`) i werdyktów linii paragonu
-  (`lineVerdict`/`saveLineVerdicts`), `utils/ownName.ts` `matchesOwnName`/
-  `setOwnName` — port z sapp, nigdzie niewołane. Usunięte jako martwe:
-  `nextMaintenanceDue` (zastąpione `allReplaceRows`), `setBalanceOffset`
-  (saldo w `balanceStore`), `foodDailyAverageThisMonth`.
+- **Nieużywane podsystemy — ROZSTRZYGNIĘTE 2026-11-14**: pamięć wag PODPIĘTA
+  (statystyki ilości w Produktach, patrz ARCHITECTURE "Ilości produktów"); własne
+  imię w przelewach USUNIĘTE (user: "jak robię sam odznaczę, stworzę szablon").
+  Zostaje nieużywane: werdykty linii paragonu (`lineVerdict`) — do decyzji.
 - **Poprawione 2026-11-13**: Dashboard "Najbliższe eventy" — termin zadania bez
   godziny był liczony od północy (dzisiejszy znikał, reszta "śr. 00:00").
 - **Do sprawdzenia na urządzeniu (2026-11-12)**: paragon z Lidla dodany po

@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Faza 2.6 (2026-11-01) — port z sapp 1:1, uproszczony: sapp miał `appSettings.ts`
 // (duży, ogólny store ustawień) — sapp2 nie ma takiego pliku, więc stan "wibracje
 // włączone?" jest tu lokalnym, cache'owanym AsyncStorage-flagiem (ten sam wzorzec co
-// `ownName.ts`: wczytane raz przy starcie, potem czysta synchroniczna funkcja bez
+// dawny `ownName.ts`: wczytane raz przy starcie, potem czysta synchroniczna funkcja bez
 // await w gorącej ścieżce — haptyka musi odpalać się NATYCHMIAST przy tapie, nie po
 // odczycie z dysku).
 //

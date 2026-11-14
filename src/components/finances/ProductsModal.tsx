@@ -6,7 +6,9 @@ import { spacing, radius, themedStyles } from '@/theme';
 import { useExpensesStore } from '@/store/expensesStore';
 import { useDeferredMemo } from '@/hooks/useDeferredMemo';
 import { buildProductCatalog, findDuplicateCandidates, type ProductCatalogEntry } from '@/utils/productCatalog';
-import { loadNameAliases, saveNameAliases, saveFoodSubcatMemory } from '@/utils/productMemory';
+import { loadNameAliases, saveNameAliases, saveFoodSubcatMemory, loadWeightMemory, saveWeightMemory, parseWeightFromName, weightFor, type WeightMemory } from '@/utils/productMemory';
+import { productStats, topProductsByKg, fmtKg } from '@/utils/productStats';
+import NumberInput from '@/components/design/NumberInput';
 import { FOOD_SUBCATS, FOOD_SUBCAT_META } from '@/utils/food';
 import { haptic } from '@/utils/haptics';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
@@ -32,9 +34,15 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
   const [editName, setEditName] = useState('');
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);
+  // Waga produktów (2026-11-14): pamięć wag sztuk + statystyki ilości.
+  const [weights, setWeights] = useState<WeightMemory>({});
+  const [unitGrams, setUnitGrams] = useState<number | undefined>(undefined);
+  // Wydajność: setki kart naraz = przycinka przy otwieraniu → po 50, reszta na żądanie.
+  const PAGE = 50;
+  const [shown, setShown] = useState(PAGE);
 
   useEffect(() => {
-    if (visible) loadNameAliases().then(setAliases);
+    if (visible) { loadNameAliases().then(setAliases); loadWeightMemory().then(setWeights); setShown(PAGE); }
   }, [visible]);
 
   const catalog = useMemo(() => buildProductCatalog(expenses, aliases), [expenses, aliases]);
@@ -44,6 +52,15 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
     const pairKey = (a: ProductCatalogEntry, b: ProductCatalogEntry) => `${a.groupKey}|${b.groupKey}`;
     return allDuplicates.filter((d) => !dismissed.has(pairKey(d.a, d.b)));
   }, [allDuplicates, dismissed]);
+
+  // "Ile czego kupujesz" — jedno przejście po wydatkach, po animacji otwarcia.
+  const top = useDeferredMemo(() => topProductsByKg(expenses, aliases, weights), [expenses, aliases, weights], [] as ReturnType<typeof topProductsByKg>);
+  const labelOf = useMemo(() => new Map(catalog.map((c) => [c.groupKey, c.label])), [catalog]);
+  // Statystyki TYLKO rozwiniętego produktu.
+  const expandedStats = useMemo(
+    () => (expandedKey ? productStats(expenses, expandedKey, aliases, weights) : null),
+    [expandedKey, expenses, aliases, weights],
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -69,6 +86,15 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
   const openEdit = (entry: ProductCatalogEntry) => {
     setExpandedKey((cur) => (cur === entry.groupKey ? null : entry.groupKey));
     setEditName(entry.label);
+    const known = entry.rawNames.map((n) => weightFor(n, weights)).find((v) => v != null);
+    setUnitGrams(known != null ? Math.round(known * 1000) : undefined);
+  };
+
+  const saveUnitWeight = async (entry: ProductCatalogEntry) => {
+    if (!unitGrams || unitGrams <= 0) return;
+    haptic.success();
+    await saveWeightMemory(entry.rawNames.map((name) => ({ name, kg: unitGrams / 1000 })));
+    setWeights(await loadWeightMemory());
   };
 
   const saveName = async (entry: ProductCatalogEntry) => {
@@ -135,12 +161,25 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
         </View>
       )}
 
+      {!search && top.length > 0 && (
+        <View style={s.topCard}>
+          <Text style={s.topTitle}>Najwięcej kupujesz · średnio na miesiąc</Text>
+          {top.map((t) => (
+            <TouchableOpacity key={t.groupKey} style={s.topRow} activeOpacity={0.7}
+              onPress={() => { const e = catalog.find((c) => c.groupKey === t.groupKey); if (e) { setSearch(e.label); openEdit(e); } }}>
+              <Text style={s.topName} numberOfLines={1}>{labelOf.get(t.groupKey) ?? t.groupKey}</Text>
+              <Text style={s.topVal}>{fmtKg(t.kgPerMonth, t.liquid)}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
       {filtered.length === 0 ? (
         <Text style={s.empty}>
           {catalog.length === 0 ? 'Brak produktów — pojawią się tu po pierwszym paragonie z pozycjami.' : 'Nic nie znaleziono.'}
         </Text>
       ) : (
-        filtered.map((entry) => {
+        filtered.slice(0, search ? filtered.length : shown).map((entry) => {
           const meta = entry.foodSubcat ? FOOD_SUBCAT_META[entry.foodSubcat] : undefined;
           const expanded = expandedKey === entry.groupKey;
           return (
@@ -159,6 +198,39 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
 
               {expanded && (
                 <View style={s.editArea}>
+                  {expandedStats && expandedStats.purchases > 0 && (() => {
+                    const st = expandedStats;
+                    const maxKg = Math.max(...st.months.map((m) => m.kg), 0.001);
+                    const maxCnt = Math.max(...st.months.map((m) => m.count), 1);
+                    const useKg = st.knownKg > 0;
+                    return (
+                      <View style={s.statBox}>
+                        <View style={s.statRow}>
+                          <View style={s.statCell}><Text style={s.statVal}>{st.kgPerMonth != null ? fmtKg(st.kgPerMonth, st.liquid) : '—'}</Text><Text style={s.statKey}>na miesiąc</Text></View>
+                          <View style={s.statCell}><Text style={s.statVal}>{st.gPerWeek != null ? fmtKg(st.gPerWeek / 1000, st.liquid) : '—'}</Text><Text style={s.statKey}>na tydzień</Text></View>
+                          <View style={s.statCell}><Text style={s.statVal}>{st.pricePerKg != null ? `${st.pricePerKg.toFixed(0)} zł` : '—'}</Text><Text style={s.statKey}>{st.liquid ? 'za litr' : 'za kg'}</Text></View>
+                          <View style={s.statCell}><Text style={s.statVal}>{st.spentPerMonth} zł</Text><Text style={s.statKey}>mies.</Text></View>
+                        </View>
+                        <View style={s.bars}>
+                          {st.months.map((m) => (
+                            <View key={m.key} style={s.barCol}>
+                              <Text style={s.barVal}>{useKg ? (m.kg > 0 ? fmtKg(m.kg, st.liquid) : '') : (m.count || '')}</Text>
+                              <View style={s.barBox}>
+                                {(useKg ? m.kg : m.count) > 0 && <View style={[s.bar, { height: `${((useKg ? m.kg / maxKg : m.count / maxCnt) * 100)}%` }]} />}
+                              </View>
+                              <Text style={s.barLabel}>{m.label}</Text>
+                            </View>
+                          ))}
+                        </View>
+                        {st.coverage < 1 && (
+                          <Text style={s.statHint}>
+                            {useKg ? `Waga znana dla ${Math.round(st.coverage * 100)}% zakupów.` : 'Brak wagi w nazwie — wpisz wagę sztuki niżej, żeby liczyć kg.'}
+                          </Text>
+                        )}
+                      </View>
+                    );
+                  })()}
+
                   <Text style={s.editLabel}>Nazwa</Text>
                   <View style={s.editNameRow}>
                     <TextInput value={editName} onChangeText={setEditName} style={s.editNameInput} />
@@ -186,6 +258,22 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
                     ))}
                   </ScrollView>
 
+                  {(() => {
+                    const fromName = entry.rawNames.map((n) => parseWeightFromName(n)).find((v) => v != null);
+                    if (fromName != null) return <Text style={s.rawNamesHint}>Waga z nazwy: {fmtKg(fromName)} / szt.</Text>;
+                    return (
+                      <>
+                        <Text style={[s.editLabel, s.editLabelGap]}>Waga 1 szt. (g)</Text>
+                        <View style={s.editNameRow}>
+                          <NumberInput value={unitGrams} onChangeValue={setUnitGrams} style={s.editNameInput} placeholder="np. 150" placeholderTextColor={colors.text.muted} />
+                          <TouchableOpacity style={[s.editSaveBtn, !(unitGrams && unitGrams > 0) && { opacity: 0.4 }]} onPress={() => saveUnitWeight(entry)} disabled={!(unitGrams && unitGrams > 0)}>
+                            <Text style={s.editSaveLabel}>Zapisz</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </>
+                    );
+                  })()}
+
                   {entry.rawNames.length > 1 && (
                     <Text style={s.rawNamesHint}>Scalone nazwy: {entry.rawNames.join(', ')}</Text>
                   )}
@@ -194,6 +282,11 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
             </View>
           );
         })
+      )}
+      {!search && filtered.length > shown && (
+        <TouchableOpacity style={s.moreBtn} onPress={() => { haptic.tap(); setShown((n) => n + PAGE); }} activeOpacity={0.7}>
+          <Text style={s.moreLabel}>Pokaż więcej ({filtered.length - shown})</Text>
+        </TouchableOpacity>
       )}
     </AppBottomSheet>
   );
@@ -267,4 +360,23 @@ const makeS = themedStyles((c) => StyleSheet.create({
   pickerChipLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   pickerChipLabelActive: { color: c.bg.primary },
   rawNamesHint: { fontSize: 10.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[1] },
+  topCard: { backgroundColor: c.ui.in, borderRadius: radius.lg, padding: spacing[3], marginBottom: spacing[3], gap: 6 },
+  topTitle: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  topRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing[2] },
+  topName: { flex: 1, fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  topVal: { fontSize: 12.5, fontFamily: 'Inter_900Black', color: c.text.secondary, fontVariant: ['tabular-nums'] },
+  statBox: { backgroundColor: c.ui.in, borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3] },
+  statRow: { flexDirection: 'row' },
+  statCell: { flex: 1 },
+  statVal: { fontSize: 14, fontFamily: 'Inter_900Black', color: c.text.primary, fontVariant: ['tabular-nums'] },
+  statKey: { fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 1 },
+  bars: { flexDirection: 'row', gap: 6, height: 70, marginTop: spacing[3] },
+  barCol: { flex: 1, alignItems: 'center', gap: 3 },
+  barVal: { fontSize: 9, fontFamily: 'Inter_700Bold', color: c.text.secondary, height: 11 },
+  barBox: { flex: 1, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
+  bar: { width: '64%', minHeight: 2, borderRadius: 3, backgroundColor: c.text.secondary },
+  barLabel: { fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  statHint: { fontSize: 10.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[2] },
+  moreBtn: { alignItems: 'center', paddingVertical: spacing[3], borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, marginTop: spacing[2] },
+  moreLabel: { fontSize: 12.5, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary },
 }));

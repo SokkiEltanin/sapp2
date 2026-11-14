@@ -1609,6 +1609,20 @@ powodu co `subscriptionAuto.ts` wyżej.
 rundy). **DO POTWIERDZENIA NA URZĄDZENIU**: realny dodaj/edytuj/usuń na
 telefonie, auto-roll po realnym upływie czasu.
 
+## ILOŚCI PRODUKTÓW (waga) [PE] (2026-11-14)
+
+User: "zapisywać wagę produktu... ile sera jemy, ile czego kupujemy — tylko boję
+się, że będzie lagować". `src/utils/productStats.ts` (testy
+`__tests__/productStats.test.ts`): `itemKg` = waga z nazwy (`parseWeightFromName`:
+"150g", "6x40g", "1,5l") albo z pamięci wag sztuk (`productMemory.ts`'s
+`saveWeightMemory`/`weightFor`, wpisywane w Produktach) albo ilość ułamkowa
+(towar ważony). `productStats` (kg/mies., g/tydz., zł/kg, zł/mies., 6 miesięcy,
+pokrycie wagą, płyn → l/ml), `topProductsByKg` ("Najwięcej kupujesz").
+**Wydajność**: nic przy zapisie paragonu; w `ProductsModal` statystyki tylko
+rozwiniętego produktu, "Najwięcej kupujesz" przez `useDeferredMemo` po animacji,
+lista kart po 50 ("Pokaż więcej"), nazwa → grupa z pamięcią w obrębie wyliczenia
+(też w `buildProductCatalog`).
+
 ## BUDŻETY [PE] (2026-11-13)
 
 User: "tak, okej" na limit miesięczny na kategorię, ile zostało, ile dziennie,

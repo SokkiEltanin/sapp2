@@ -20,13 +20,17 @@ export interface ProductCatalogEntry {
 
 export function buildProductCatalog(expenses: Expense[], aliases: Record<string, string> = {}): ProductCatalogEntry[] {
   const groups = new Map<string, { names: Set<string>; items: { foodSubcat?: string; price: number; date: string }[] }>();
+  const nameCache = new Map<string, { canonical: string; key: string }>();
   for (const e of expenses) {
     for (const it of e.receiptItems ?? []) {
       if (it.kind === 'deposit') continue;
       const name = it.name.trim();
       if (!name) continue;
-      const canonical = canonicalProductName(name, aliases);
-      const key = productGroupKey(canonical);
+      // Pamięć per nazwa (2026-11-14, wydajność): te same nazwy powtarzają się na
+      // paragonach setki razy, a dopasowanie aliasów bywa rozmyte.
+      let hit = nameCache.get(name);
+      if (!hit) { const c = canonicalProductName(name, aliases); hit = { canonical: c, key: productGroupKey(c) }; nameCache.set(name, hit); }
+      const { canonical, key } = hit;
       const g = groups.get(key) ?? { names: new Set(), items: [] };
       g.names.add(canonical);
       g.items.push({ foodSubcat: it.foodSubcat, price: it.price, date: e.date });
