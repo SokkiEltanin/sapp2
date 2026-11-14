@@ -7,6 +7,7 @@ import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useHealthStore } from '@/store/healthStore';
 import { todayISO } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
+import { offerUndo } from '@/services/undo';
 
 // Kroki i ciało (2026-11-13, user: "po kliknięciu w kafelek z krokami... na górze
 // kroki, niżej waga, będzie można wprowadzić, i ewentualnie inne z zegarka rzeczy,
@@ -95,7 +96,10 @@ export default function BodySheet({ visible, onClose }: { visible: boolean; onCl
         <View key={w.at} style={s.histRow}>
           <Text style={s.histDate}>{w.date.split('-').reverse().slice(0, 2).join('.')}</Text>
           <Text style={s.histVal}>{pl(w.kg, 1)} kg</Text>
-          <TouchableOpacity onPress={() => { haptic.tap(); removeWeight(w.at); }} hitSlop={8}>
+          <TouchableOpacity onPress={() => {
+            haptic.tap(); removeWeight(w.at);
+            offerUndo(`Usunięto wagę ${pl(w.kg, 1)} kg`, () => useHealthStore.setState((st) => (st.manualWeights.some((x) => x.at === w.at) ? st : { manualWeights: [...st.manualWeights, w] })));
+          }} hitSlop={8} accessibilityLabel="Usuń wagę">
             <Trash2 size={13} color={colors.text.muted} />
           </TouchableOpacity>
         </View>

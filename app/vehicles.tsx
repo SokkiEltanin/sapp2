@@ -11,7 +11,7 @@ import AppBottomSheet from '@/components/design/AppBottomSheet';
 import FuelSheet, { type FuelPrefill } from '@/components/vehicles/FuelSheet';
 import { useVehiclesStore } from '@/store/vehiclesStore';
 import { useExpensesStore } from '@/store/expensesStore';
-import { deleteFuelLogEntry } from '@/services/vehicleFuelLog';
+import { deleteFuelLogEntry, deleteMaintenanceEntry } from '@/services/vehicleFuelLog';
 import {
   mainCarId, summarizeVehicle, vehicleYearSummary, vehicleStats, unlinkedFuelExpenses,
   maintenancePresets, maintenanceDueMonths, maintenanceDueLabel,
@@ -54,7 +54,6 @@ export default function VehiclesScreen() {
   const setMainCar = useVehiclesStore((st) => st.setMainCar);
   const addMaintenance = useVehiclesStore((st) => st.addMaintenance);
   const updateExpense = useExpensesStore((st) => st.updateExpense);
-  const deleteMaintenance = useVehiclesStore((st) => st.deleteMaintenance);
   const addOdometerReading = useVehiclesStore((st) => st.addOdometerReading);
   const expenses = useExpensesStore((st) => st.expenses);
 
@@ -269,7 +268,7 @@ export default function VehiclesScreen() {
                       <Text style={s.logMain}>{m.label}</Text>
                       <Text style={[s.logSub, due != null && due < 0 && { color: colors.accent.red }]}>{ddmm(m.date)}.{m.date.slice(0, 4)}{due != null ? ` · ${maintenanceDueLabel(due)}` : ''}</Text>
                     </View>
-                    <TouchableOpacity onPress={() => { haptic.tap(); deleteMaintenance(viewing.id, m.id); }} hitSlop={8}>
+                    <TouchableOpacity onPress={() => { haptic.tap(); deleteMaintenanceEntry(viewing.id, m.id); }} hitSlop={8} accessibilityLabel="Usuń wpis">
                       <Trash2 size={14} color={colors.text.muted} />
                     </TouchableOpacity>
                   </View>

@@ -1,6 +1,7 @@
 import { useExpensesStore } from '@/store/expensesStore';
 import { useVehiclesStore } from '@/store/vehiclesStore';
-import { FUEL_TYPE_LABEL, type FuelType } from '@/types/vehicles';
+import { FUEL_TYPE_LABEL, type FuelType, type Vehicle } from '@/types/vehicles';
+import { offerUndo } from '@/services/undo';
 
 function genId(): string {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -72,6 +73,39 @@ export function logFuelForExistingExpense(
 export function deleteFuelLogEntry(vehicleId: string, entryId: string): void {
   const vehicle = useVehiclesStore.getState().vehicles.find((v) => v.id === vehicleId);
   const entry = vehicle?.fuelLog.find((f) => f.id === entryId);
+  if (!entry) return;
+  const exp = entry.expenseId && !entry.linkedExisting
+    ? useExpensesStore.getState().expenses.find((e) => e.id === entry.expenseId)
+    : undefined;
   useVehiclesStore.getState().deleteFuelLog(vehicleId, entryId);
-  if (entry?.expenseId && !entry.linkedExisting) useExpensesStore.getState().deleteExpense(entry.expenseId);
+  if (exp) useExpensesStore.getState().deleteExpense(exp.id);
+  // "Cofnij" (2026-11-14) — wraca wpis tankowania i jego wydatek (to samo id).
+  offerUndo(`Usunięto tankowanie · ${entry.amount.toFixed(2).replace('.', ',')} zł`, () => {
+    restoreVehicleEntry(vehicleId, 'fuelLog', entry);
+    if (exp) {
+      const st = useExpensesStore.getState();
+      if (!st.expenses.some((e) => e.id === exp.id)) useExpensesStore.setState({ expenses: [...st.expenses, { ...exp, updatedAt: new Date().toISOString() }] });
+    }
+  });
+}
+
+/** Usunięcie wpisu serwisu z "Cofnij". */
+export function deleteMaintenanceEntry(vehicleId: string, entryId: string): void {
+  const entry = useVehiclesStore.getState().vehicles.find((v) => v.id === vehicleId)?.maintenance.find((m) => m.id === entryId);
+  if (!entry) return;
+  useVehiclesStore.getState().deleteMaintenance(vehicleId, entryId);
+  offerUndo(`Usunięto: ${entry.label}`, () => restoreVehicleEntry(vehicleId, 'maintenance', entry));
+}
+
+/** Wstawia z powrotem usunięty wpis pojazdu (najnowsze pierwsze, jak w liście). */
+function restoreVehicleEntry<K extends 'fuelLog' | 'maintenance'>(vehicleId: string, key: K, entry: Vehicle[K][number]): void {
+  useVehiclesStore.setState((s) => ({
+    vehicles: s.vehicles.map((v) => {
+      if (v.id !== vehicleId) return v;
+      const list = v[key] as { id: string; date: string }[];
+      if (list.some((x) => x.id === entry.id)) return v;
+      const next = [...list, entry as { id: string; date: string }].sort((a, b) => b.date.localeCompare(a.date));
+      return { ...v, [key]: next, updatedAt: Date.now() };
+    }),
+  }));
 }
