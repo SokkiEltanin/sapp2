@@ -62,6 +62,13 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
   `users/{uid}/{document=**}` (już ustawione dla zadań) i GitHub Pages dla komputera.
 - **Zegarek (Wear OS)** — decyzja usera: tylko proste rzeczy, których zegarek nie
   ma sam (ostatnie wydatki, zadania na dziś, ewentualnie humor); sen ma natywnie.
+  ZBUDOWANE 2026-11-14 (`wear/`, Releases "Wear #N"). [sprawdź na Galaxy Watch]:
+  instalacja (MAINTENANCE §8), czy dane przychodzą po otwarciu Sapp2 na telefonie
+  (telefon musi mieć APK ≥ #216 z withWearSync), odhaczenie zadania na zegarku →
+  odhaczone po otwarciu appki na telefonie, kafelek (przytrzymaj tarczę → Kafelki →
+  Sapp2), po północy "—" / "brak danych z dziś" zamiast wczorajszej kwoty.
+- **[sprawdź] Cofanie po wejściu z widgetu** (pogoda, zadania, notatka): bez szarego
+  ekranu, strzałka wraca na Dashboard gdy nie ma historii (`services/nav.ts goBack`).
 - **[sprawdź] Wymiany** (Finanse → Wymiany): dodaj filtr/końcówki z szablonu,
   ✓ = wymienione dziś, przypomnienie o 9:00. Paragon z „Dafi”/„Oral-B” itp. →
   karta „wymienione?”. Pomysły na potem: sync między urządzeniami (jak zadania),
