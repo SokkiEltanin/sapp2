@@ -9,6 +9,7 @@ import { affectsBalance } from './balance';
 // (wear/) tylko go wyświetla. Zadania — te same co widget (buildWidgetSnapshot).
 export interface WearSnapshot {
   t: number;
+  day: string;     // RRRR-MM-DD snapshotu — zegarek nie pokaże wczorajszego "dziś" po północy
   tasks: { id: string; title: string; sub: string; overdue: boolean }[];
   today: number;   // wydatki dziś (zł)
   month: number;   // wydatki w tym miesiącu (zł)
@@ -31,6 +32,7 @@ export function buildWearSnapshot(tasks: Task[], expenses: Expense[], now: Date 
     .map((e) => ({ label: e.storeName || e.note || (e.type === 'income' ? 'Przychód' : 'Wydatek'), amount: e.type === 'income' ? e.amount : -e.amount, date: e.date }));
   return {
     t: now.getTime(),
+    day: today,
     tasks: buildWidgetSnapshot(tasks, now, 10).rows.map((r) => ({ id: r.id, title: r.title, sub: r.sub, overdue: r.overdue })),
     today: Math.round(t * 100) / 100,
     month: Math.round(m * 100) / 100,

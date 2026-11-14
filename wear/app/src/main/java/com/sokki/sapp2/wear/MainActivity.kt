@@ -122,8 +122,9 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener {
         list.addView(text(if (at > 0) "SAPP2 · " + SimpleDateFormat("HH:mm", pl).format(Date(at)) else "SAPP2", 10f, "#A3A3A3", bold = true, center = true))
 
         // Wydatki
-        list.addView(text(money(snap.optDouble("today", 0.0)), 26f, "#F2F2F2", bold = true, center = true).apply { setPadding(0, dp(4), 0, 0) })
-        list.addView(text("dziś · " + money(snap.optDouble("month", 0.0)) + " w miesiącu", 11f, "#A3A3A3", center = true))
+        val fresh = Snapshot.isToday(snap)
+        list.addView(text(if (fresh) money(snap.optDouble("today", 0.0)) else "—", 26f, "#F2F2F2", bold = true, center = true).apply { setPadding(0, dp(4), 0, 0) })
+        list.addView(text(if (fresh) "dziś · " + money(snap.optDouble("month", 0.0)) + " w miesiącu" else "brak danych z dziś — otwórz Sapp2 na telefonie", 11f, "#A3A3A3", center = true, maxLines = 2))
 
         // Zadania
         val tasks = snap.optJSONArray("tasks")

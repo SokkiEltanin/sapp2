@@ -244,7 +244,9 @@ export default function RootLayout() {
     const unsubWearT = useCalendarStore.subscribe((st, prev) => { if (st.tasks !== prev.tasks) pushWear(); });
     const unsubWearE = useExpensesStore.subscribe((st, prev) => { if (st.expenses !== prev.expenses) pushWear(); });
     const wearStart = setTimeout(pushWear, 3000);
-    return () => { unsubWearT(); unsubWearE(); clearTimeout(wearStart); if (wt) clearTimeout(wt); unsub(); unsubWx(); unsubNote(); sub.remove(); clearTimeout(start); clearTimeout(wxStart); if (t) clearTimeout(t); if (nt) clearTimeout(nt); };
+    // Po powrocie do appki (np. następnego dnia) — świeże "dziś" na zegarku.
+    const subWear = AppState.addEventListener('change', (st) => { if (st === 'active') pushWear(); });
+    return () => { subWear.remove(); unsubWearT(); unsubWearE(); clearTimeout(wearStart); if (wt) clearTimeout(wt); unsub(); unsubWx(); unsubNote(); sub.remove(); clearTimeout(start); clearTimeout(wxStart); if (t) clearTimeout(t); if (nt) clearTimeout(nt); };
   }, []);
 
   // W przeciwieństwie do fontów, TEGO jednego czekania appka nie może "ignorować" —

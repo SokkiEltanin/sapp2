@@ -10,6 +10,7 @@ describe('dane dla zegarka', () => {
       E({ type: 'income', amount: 5000, note: 'Wypłata', date: '2026-11-10' }), E({ amount: 7, date: '2026-11-20' }),
     ], new Date(2026, 10, 14, 12));
     expect(s.today).toBe(20);
+    expect(s.day).toBe('2026-11-14');
     expect(s.month).toBe(50);
     expect(s.recent[0]).toEqual({ label: 'Żabka', amount: -20, date: '2026-11-14' });
     expect(s.recent.find((r) => r.label === 'Wypłata')!.amount).toBe(5000);

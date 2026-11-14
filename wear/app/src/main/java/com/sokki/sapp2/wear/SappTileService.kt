@@ -32,8 +32,9 @@ class SappTileService : TileService() {
             col.addContent(text("na telefonie", 14f, 0xFFF2F2F2.toInt()))
         } else {
             col.addContent(spacer(4f))
-            col.addContent(text(Snapshot.money(snap.optDouble("today", 0.0)), 26f, 0xFFF2F2F2.toInt(), bold = true))
-            col.addContent(text("dziś · " + Snapshot.money(snap.optDouble("month", 0.0)) + " w mies.", 11f, 0xFFA3A3A3.toInt()))
+            val fresh = Snapshot.isToday(snap)
+            col.addContent(text(if (fresh) Snapshot.money(snap.optDouble("today", 0.0)) else "—", 26f, 0xFFF2F2F2.toInt(), bold = true))
+            col.addContent(text(if (fresh) "dziś · " + Snapshot.money(snap.optDouble("month", 0.0)) + " w mies." else "brak danych z dziś", 11f, 0xFFA3A3A3.toInt()))
             val tasks = snap.optJSONArray("tasks")
             val n = tasks?.length() ?: 0
             var overdue = 0
