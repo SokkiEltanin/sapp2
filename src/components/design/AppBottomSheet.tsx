@@ -2,8 +2,9 @@ import { useRef, useEffect, useState, useContext } from 'react';
 import { NavigationContext } from '@react-navigation/native';
 import {
   Modal, View, StyleSheet, ScrollView, TouchableWithoutFeedback,
-  Platform, Animated, Easing, Dimensions, Keyboard, type TextInput,
+  Platform, Animated, Easing, Dimensions, Keyboard, useWindowDimensions, type TextInput,
 } from 'react-native';
+import { DESKTOP_MIN_W } from '@/utils/desktopColumns';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
 import { colors } from '@/theme/colors';
@@ -100,6 +101,10 @@ export default function AppBottomSheet({
   children: React.ReactNode;
 }) {
   const s = makeS(maxHeightRatio);
+  // Komputer (2026-11-14): na szerokim oknie arkusz = wyśrodkowane okno dialogowe,
+  // nie pasek przyklejony do dołu ekranu pod kolumnami.
+  const { width: winW } = useWindowDimensions();
+  const dialog = Platform.OS === 'web' && winW >= DESKTOP_MIN_W;
   const focusInitial = () => {
     if (!initialFocusRef) return;
     setTimeout(() => initialFocusRef.current?.focus(), 60);
@@ -258,9 +263,9 @@ export default function AppBottomSheet({
             `keyboardDidHide`, bez polegania na `KeyboardAvoidingView`'s
             własnym (zawodnym na Androidzie przy dynamicznej wysokości
             dziecka) przeliczaniu. */}
-        <Animated.View style={[s.sheetOuter, { paddingBottom: Animated.add(spacing[2], keyboardOffset) }]} pointerEvents="box-none">
+        <Animated.View style={[s.sheetOuter, dialog && { justifyContent: 'center' }, { paddingBottom: Animated.add(spacing[2], keyboardOffset) }]} pointerEvents="box-none">
           <Animated.View style={[s.sheet, { transform: [{ translateY: sheetY }] }]}>
-            <View style={s.handleWrap}><View style={s.handle} /></View>
+            {dialog ? <View style={{ height: spacing[3] }} /> : <View style={s.handleWrap}><View style={s.handle} /></View>}
             {header && <View style={s.header}>{header}</View>}
             <Body {...bodyProps}>{children}</Body>
             {footer && <View style={s.footer}>{footer}</View>}

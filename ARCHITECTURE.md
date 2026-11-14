@@ -1520,7 +1520,9 @@ z kolumny). Pozostałe ekrany (ustawienia, notatki…) = **panel z prawej**: Sta
 `FULL_SCREEN_ROUTES`), kolumny widać pod spodem; `ui/DesktopPanelBackdrop.tsx`
 przyciemnia je i kliknięcie zamyka panel (`isDesktopPanelPath`). **Skróty**:
 `utils/desktopShortcuts.ts` (1–4, / i Ctrl+K, N, przecinek, Esc; nic podczas pisania)
-← `hooks/useDesktopShortcuts.ts`; ściąga pod przyciskiem „Skróty” na pasku. Pułapki: style elementu w `TabTrigger asChild` muszą być
+← `hooks/useDesktopShortcuts.ts`; ściąga pod przyciskiem „Skróty” na pasku.
+Arkusze (`AppBottomSheet`) na oknie ≥ `DESKTOP_MIN_W` = wyśrodkowane okno dialogowe
+(bez uchwytu), na telefonie/wąskim oknie bez zmian. Pułapki: style elementu w `TabTrigger asChild` muszą być
 `StyleSheet.flatten` (webowy Slot); po zmianach w node_modules — `--clear`, inaczej
 serwer dev potrafi serwować stary moduł i rzucać mylące błędy.
 **Kalendarz Google na komputerze**: kopia z telefonu (`utils/gcalMirror.ts`, docBinding
