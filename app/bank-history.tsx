@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { filterBankHistory, BANK_HIST_STATUSES, type BankHistStatus } from '@/utils/bankHistoryFilter';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChevronLeft, Undo2, BookmarkPlus, Trash2, Landmark, AlertTriangle, Zap, ChevronRight } from 'lucide-react-native';
+import { ChevronLeft, Undo2, BookmarkPlus, Trash2, Landmark, AlertTriangle, Zap, ChevronRight, Search } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { useBankQueue, type BankIngestHistoryEntry } from '@/store/bankQueueStore';
@@ -63,7 +64,10 @@ export default function BankHistory() {
 
   const clearAll = () => { haptic.tap(); useBankQueue.getState().clearHistory(); };
 
-  const rows = useMemo(() => history, [history]);
+  // Szukanie i filtr (2026-11-14).
+  const [q, setQ] = useState('');
+  const [status, setStatus] = useState<BankHistStatus>('all');
+  const rows = useMemo(() => filterBankHistory(history, q, status), [history, q, status]);
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -104,7 +108,26 @@ export default function BankHistory() {
           ))}
         </View>
 
-        {rows.length === 0 && (
+        {history.length > 0 && (
+          <View style={s.filterBox}>
+            <View style={s.searchRow}>
+              <Search size={14} color={colors.text.muted} />
+              <TextInput value={q} onChangeText={setQ} placeholder="Sklep, tag albo kwota…" placeholderTextColor={colors.text.muted} style={s.searchInput} autoCorrect={false} />
+            </View>
+            <View style={s.fChips}>
+              {BANK_HIST_STATUSES.map(([k, label]) => (
+                <TouchableOpacity key={k} style={[s.fChip, status === k && s.fChipOn]} onPress={() => { haptic.tap(); setStatus(k); }}>
+                  <Text style={[s.fChipLabel, status === k && s.fChipLabelOn]}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={s.fCount}>{rows.length} z {history.length}</Text>
+          </View>
+        )}
+
+        {history.length > 0 && rows.length === 0 && <Text style={s.fCount}>Nic nie pasuje.</Text>}
+
+        {history.length === 0 && (
           <View style={s.empty}>
             <Landmark size={30} color={colors.text.muted} />
             <Text style={s.emptyText}>Pusto — jak coś złapiemy z banku, log pojawi się tu.</Text>
@@ -209,4 +232,13 @@ const makeS = themedStyles((c) => StyleSheet.create({
   tplName: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary },
   tplTags: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 1 },
   actText: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
+  filterBox: { gap: spacing[2], marginBottom: spacing[3] },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], borderWidth: 1, borderColor: c.border.default, borderRadius: radius.md, paddingHorizontal: spacing[3] },
+  searchInput: { flex: 1, minWidth: 0, paddingVertical: 9, fontSize: 13.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  fChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  fChip: { paddingHorizontal: spacing[3], paddingVertical: 6, borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default },
+  fChipOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
+  fChipLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
+  fChipLabelOn: { color: c.bg.primary },
+  fCount: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted },
 }));
