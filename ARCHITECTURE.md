@@ -1620,7 +1620,7 @@ nazwy/usuwać/dodawać — czy nie będzie kolizji danych".
   zostają, nowe: elektronika, części, hobby, prezenty, zwierzęta.
 - `variableSplitOf(e)` / `variableByCategory` (expenseCategory.ts): pozycje z
   kategorią + reszta wkładu do Zmiennych pod `expenseCategory` albo "Bez kategorii"
-  (`UNCATEGORIZED`). Używane: kafel Finansów "Zmienne · kategorie", zakładka Zmienne
+  (`UNCATEGORIZED`). Używane: kafel Finansów "Kategorie" (zakładka Zmienne), zakładka Zmienne
   w WydatkiModal (jedna sekcja "Kategorie"), budżety `cat:`, filtr transakcji.
 - **Wybór w paragonie** (`ReceiptItemRow.tsx`): Jedzenie / Nie jedzenie / Brak, pod
   spodem zawijana siatka kategorii grupy (bez poziomego scrolla). Produkty i
@@ -1632,6 +1632,13 @@ nazwy/usuwać/dodawać — czy nie będzie kolizji danych".
   updatedAt → synchronizacja), domyślna ukrywana (do przywrócenia), własna usuwana.
   `applyCategoryPrefs` modyfikuje listy/słowniki z food.ts/nonFood.ts W MIEJSCU;
   ekrany z listami subskrybują `useCategoriesVersion()`. Synchronizowane w `prefs`.
+- **3 koszyki** (user: "3 główne JEDZENIE, STAŁE, ZMIENNE i one na mniejsze"): kafel
+  Finansów "Kategorie" z przełącznikiem Jedzenie / Stałe / Zmienne. Stałe =
+  `utils/fixedCategory.ts` (`FIXED_CATS` z `BILL_TYPES` + subskrypcje;
+  `fixedCategoryOf` po `billType`/subskrypcji/dopasowaniu nazwy, reszta →
+  `FIXED_OTHER`). Paliwo to kategoria Zmiennych: wydatek bez kategorii, który
+  `looksLikeFuel`, trafia do `paliwo`. W Ustawieniach Stałe = tylko nazwa/kolor
+  (typy rachunków są używane przez wykrywanie opłat).
 
 ## NOTATKI [PE] (2026-11-14)
 

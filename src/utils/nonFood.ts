@@ -24,7 +24,8 @@ import type { FoodCategoryBar, FoodCategoryItem } from './foodStats';
 export const NON_FOOD_SUBCATS: { tag: string; label: string; color: string }[] = [
   { tag: 'rozrywka', label: 'Rozrywka', color: '#F472B6' },
   { tag: 'transport', label: 'Transport', color: '#60A5FA' },
-  { tag: 'zdrowie', label: 'Zdrowie', color: '#4ADE80' },
+  { tag: 'paliwo', label: 'Paliwo', color: '#EAB308' },
+  { tag: 'zdrowie', label: 'Zdrowie i leki', color: '#4ADE80' },
   { tag: 'ubrania', label: 'Ubrania', color: '#C084FC' },
   { tag: 'dom', label: 'Dom', color: '#FBBF24' },
   { tag: 'higiena', label: 'Higiena', color: '#5EEAD4' },

@@ -39,3 +39,24 @@ describe('edytowalne kategorie', () => {
     expect(r.expenses[1]).toBe(ex[1]);
   });
 });
+
+import { fixedCategoryOf, fixedByCategory, FIXED_OTHER, FIXED_CAT_META } from '@/utils/fixedCategory';
+import { variableSplitOf } from '@/utils/expenseCategory';
+describe('Stałe i paliwo', () => {
+  const ex = (o: any) => ({ id: o.id ?? 'x', type: 'expense', amount: 100, date: '2026-11-10', note: '', tags: [], source: 'manual', createdAt: '', updatedAt: '', ...o });
+  test('podkategorie stałych: rachunek, subskrypcja, inne', () => {
+    expect(fixedCategoryOf(ex({ storeName: 'PGE Obrót' }) as any)).toBe('prąd');
+    expect(fixedCategoryOf(ex({ note: 'Netflix', subscriptionId: 's1' }) as any)).toBe('subskrypcje');
+    expect(fixedCategoryOf(ex({ note: 'Internet Orange', subscriptionId: 's2' }) as any)).toBe('internet');
+    expect(fixedCategoryOf(ex({ note: 'Coś', fvOverride: 'fixed' }) as any)).toBe(FIXED_OTHER);
+    const bars = fixedByCategory([ex({ id: 'a', storeName: 'PGE' }), ex({ id: 'b', note: 'Spotify', subscriptionId: 's' })] as any);
+    expect(bars.map((b) => b.tag).sort()).toEqual(['prąd', 'subskrypcje']);
+  });
+  test('zmiana nazwy stałej kategorii', () => {
+    applyCategoryPrefs({ added: { food: [], var: [] }, overrides: { 'fixed:czynsz': { label: 'Mieszkanie' } } });
+    expect(FIXED_CAT_META['czynsz'].label).toBe('Mieszkanie');
+  });
+  test('tankowanie bez kategorii → Paliwo', () => {
+    expect(Object.fromEntries(variableSplitOf(ex({ storeName: 'ORLEN', amount: 250 }) as any))).toEqual({ paliwo: 250 });
+  });
+});

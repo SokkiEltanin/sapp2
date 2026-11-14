@@ -14,6 +14,7 @@ import BudgetSheet, { BudgetBar, budgetLine, levelColor } from '@/components/bud
 import { useBudgetsStore } from '@/store/budgetsStore';
 import { budgetStatuses, scopeLabel } from '@/utils/budgets';
 import { variableByCategory } from '@/utils/expenseCategory';
+import { fixedByCategory } from '@/utils/fixedCategory';
 import { useCategoriesVersion } from '@/store/categoriesStore';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useExpensesStore } from '@/store/expensesStore';
@@ -214,9 +215,10 @@ export default function FinancesScreen() {
 
   const catVersion = useCategoriesVersion();
   const varCats = useMemo(() => variableByCategory(expenses, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`), [expenses, now, catVersion]);
-  const varTotal = varCats.reduce((a, c) => a + c.amount, 0);
+  const fixedCats = useMemo(() => fixedByCategory(expenses, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`), [expenses, now, catVersion]);
+  const [catTab, setCatTab] = useState<'food' | 'fixed' | 'variable'>('food');
   const foodCats = wydatkiData.food.categories;
-  const foodTotal = parseZl(wydatkiData.food.total);
+  const catBars = catTab === 'food' ? foodCats : catTab === 'fixed' ? fixedCats : varCats;
 
   return (
     <Screen
@@ -285,29 +287,23 @@ export default function FinancesScreen() {
         </Tile>
       </Row>
 
+      {/* Kategorie (2026-11-14, user: "3 główne JEDZENIE, STAŁE, ZMIENNE i one na
+          mniejsze") — jeden kafel z przełącznikiem zamiast osobnych kafli. */}
       <Row>
         <Tile span={4}>
-          <Cap l="Jedzenie · kategorie" r={`${foodTotal} PLN`} />
-          {foodCats.length === 0 ? (
-            <Text style={[T.small, s.emptyInline]}>Brak jedzenia w tym miesiącu</Text>
+          <View style={s.catHead}>
+            {(['food', 'fixed', 'variable'] as const).map((k) => (
+              <TouchableOpacity key={k} onPress={() => { haptic.tap(); setCatTab(k); }} hitSlop={6} style={[s.catTab, catTab === k && s.catTabOn]}>
+                <Text style={[s.catTabLabel, catTab === k && s.catTabLabelOn]}>{k === 'food' ? 'Jedzenie' : k === 'fixed' ? 'Stałe' : 'Zmienne'}</Text>
+              </TouchableOpacity>
+            ))}
+            <Text style={s.catTotal}>{catBars.reduce((a2, c) => a2 + c.amount, 0)} PLN</Text>
+          </View>
+          {catBars.length === 0 ? (
+            <Text style={[T.small, s.emptyInline]}>Brak w tym miesiącu</Text>
           ) : (
-            <TouchableOpacity onPress={() => { setWydatkiTab('food'); setWydatkiOpen(true); }} activeOpacity={0.7} style={s.barSpace}>
-              <StackBar parts={foodCats.map((c) => ({ label: c.label, value: c.amount, color: c.color }))} height={10} legendMax={3} />
-            </TouchableOpacity>
-          )}
-        </Tile>
-      </Row>
-
-      {/* Zmienne · kategorie (2026-11-14, user: "żeby było też dodatkowo pod spodem") —
-          ten sam wzorzec co Jedzenie wyżej; pozycje paragonu + reszta wydatku. */}
-      <Row>
-        <Tile span={4}>
-          <Cap l="Zmienne · kategorie" r={`${varTotal} PLN`} />
-          {varCats.length === 0 ? (
-            <Text style={[T.small, s.emptyInline]}>Brak zmiennych w tym miesiącu</Text>
-          ) : (
-            <TouchableOpacity onPress={() => { setWydatkiTab('variable'); setWydatkiOpen(true); }} activeOpacity={0.7} style={s.barSpace}>
-              <StackBar parts={varCats.map((c) => ({ label: c.label, value: c.amount, color: c.color }))} height={10} legendMax={3} />
+            <TouchableOpacity onPress={() => { setWydatkiTab(catTab); setWydatkiOpen(true); }} activeOpacity={0.7} style={s.barSpace}>
+              <StackBar parts={catBars.map((c) => ({ label: c.label, value: c.amount, color: c.color }))} height={10} legendMax={3} />
             </TouchableOpacity>
           )}
         </Tile>
@@ -540,4 +536,10 @@ const makeS = themedStyles((c) => StyleSheet.create({
   editCancelLabel: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
   editSaveBtn: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md, backgroundColor: c.text.bright },
   editSaveLabel: { fontSize: 12.5, fontFamily: 'Inter_900Black', color: c.bg.primary },
+  catHead: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  catTab: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999 },
+  catTabOn: { backgroundColor: C.txt },
+  catTabLabel: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: C.mut },
+  catTabLabelOn: { color: C.bg },
+  catTotal: { marginLeft: 'auto', fontSize: 10, fontFamily: 'Inter_700Bold', color: C.mut },
 }));

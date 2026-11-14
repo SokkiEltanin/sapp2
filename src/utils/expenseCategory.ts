@@ -2,6 +2,7 @@ import type { Expense } from '@/types/finances';
 import { fvSplitOf, labelFor } from './fixedVariable';
 import type { FoodCategoryBar, FoodCategoryItem } from './foodStats';
 import { NON_FOOD_SUBCATS, NON_FOOD_SUBCAT_META } from './nonFood';
+import { looksLikeFuel } from './vehicleMatch';
 
 // Kategorie CAŁEGO wydatku (2026-11-10, user: "zróbmy to drugie, właśnie to
 // nie jedzenie, i tam też zróbmy podział na kategorie... żeby były na
@@ -74,7 +75,8 @@ export function variableSplitOf(e: Expense): Map<string, number> {
   }
   const rest = Math.round((variable - itemized) * 100) / 100;
   if (rest > 0.004) {
-    const tag = e.expenseCategory || UNCATEGORIZED;
+    // Paliwo (2026-11-14): tankowanie bez ręcznej kategorii samo trafia do "Paliwo".
+    const tag = e.expenseCategory || (looksLikeFuel(e) ? 'paliwo' : UNCATEGORIZED);
     out.set(tag, (out.get(tag) ?? 0) + rest);
   }
   return out;

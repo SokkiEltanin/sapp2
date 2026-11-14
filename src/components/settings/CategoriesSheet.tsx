@@ -22,7 +22,7 @@ export default function CategoriesSheet({ visible, onClose }: { visible: boolean
   const prefs = useCategoriesStore((st) => st.prefs);
   const { rename, recolor, setHidden, add, removeCustom } = useCategoriesStore.getState();
   const expenses = useExpensesStore((st) => st.expenses);
-  const [kind, setKind] = useState<CatKind>('var');
+  const [kind, setKind] = useState<CatKind>('food');
   const [editing, setEditing] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [color, setColor] = useState(SWATCHES[0]);
@@ -57,13 +57,13 @@ export default function CategoriesSheet({ visible, onClose }: { visible: boolean
   return (
     <AppBottomSheet visible={visible} onClose={onClose} maxHeightRatio={0.92} header={<Text style={s.title}>Kategorie</Text>}>
       <View style={s.seg}>
-        {([['var', 'Zmienne / nie jedzenie'], ['food', 'Jedzenie']] as const).map(([k, label]) => (
+        {([['food', 'Jedzenie'], ['fixed', 'Stałe'], ['var', 'Zmienne']] as const).map(([k, label]) => (
           <TouchableOpacity key={k} style={[s.segItem, kind === k && s.segOn]} onPress={() => { haptic.tap(); setKind(k); setEditing(null); setDeleting(null); }}>
             <Text style={[s.segLabel, kind === k && s.segLabelOn]}>{label}</Text>
           </TouchableOpacity>
         ))}
       </View>
-      <Text style={s.note}>Zmiana nazwy nie rusza danych — wydatki pamiętają kategorię, nie jej nazwę.</Text>
+      <Text style={s.note}>{kind === 'fixed' ? 'Stałe rozpoznają się same z nazwy płatności (prąd, czynsz…) — tu zmienisz nazwę i kolor.' : 'Zmiana nazwy nie rusza danych — wydatki pamiętają kategorię, nie jej nazwę.'}</Text>
 
       <SheetCard>
         {visibleCats.map((c) => {
@@ -83,9 +83,11 @@ export default function CategoriesSheet({ visible, onClose }: { visible: boolean
                   <View style={s.editRow}>
                     <TextInput value={name} onChangeText={setName} style={s.input} placeholder="Nazwa" placeholderTextColor={colors.text.muted} />
                     <TouchableOpacity style={s.okBtn} onPress={() => saveEdit(c)} accessibilityLabel="Zapisz"><Check size={16} color={colors.bg.primary} /></TouchableOpacity>
-                    <TouchableOpacity style={s.delBtn} onPress={() => { haptic.tap(); if (n === 0) finishDelete(c, null); else setDeleting(c.tag); }} accessibilityLabel="Usuń">
-                      <Trash2 size={15} color={colors.accent.red} />
-                    </TouchableOpacity>
+                    {kind !== 'fixed' && (
+                      <TouchableOpacity style={s.delBtn} onPress={() => { haptic.tap(); if (n === 0) finishDelete(c, null); else setDeleting(c.tag); }} accessibilityLabel="Usuń">
+                        <Trash2 size={15} color={colors.accent.red} />
+                      </TouchableOpacity>
+                    )}
                   </View>
                   <View style={s.swatches}>
                     {SWATCHES.map((sw) => (
@@ -118,7 +120,7 @@ export default function CategoriesSheet({ visible, onClose }: { visible: boolean
             </View>
           );
         })}
-        <View style={[s.editRow, { marginTop: spacing[3] }]}>
+        {kind !== 'fixed' && <View style={[s.editRow, { marginTop: spacing[3] }]}>
           <TextInput value={newName} onChangeText={setNewName} style={s.input} placeholder={kind === 'var' ? 'Nowa, np. Sport' : 'Nowa, np. Kawa'} placeholderTextColor={colors.text.muted} />
           <TouchableOpacity
             style={[s.addBtn, !newName.trim() && { opacity: 0.4 }]}
@@ -127,7 +129,7 @@ export default function CategoriesSheet({ visible, onClose }: { visible: boolean
           >
             <Plus size={15} color={colors.bg.primary} /><Text style={s.addLabel}>Dodaj</Text>
           </TouchableOpacity>
-        </View>
+        </View>}
       </SheetCard>
 
       {hiddenCats.length > 0 && (

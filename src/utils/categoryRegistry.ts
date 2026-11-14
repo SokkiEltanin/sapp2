@@ -1,5 +1,6 @@
 import { FOOD_SUBCATS, FOOD_SUBCAT_META, FOOD_ITEM_TAGS } from './food';
 import { NON_FOOD_SUBCATS, NON_FOOD_SUBCAT_META, NON_FOOD_ITEM_TAGS } from './nonFood';
+import { FIXED_CATS, FIXED_CAT_META, fixedCategoryOf } from './fixedCategory';
 import type { Expense } from '@/types/finances';
 
 // Edytowalne kategorie (2026-11-14, user: "w ustawieniach edytować nazwy istniejących
@@ -13,15 +14,17 @@ import type { Expense } from '@/types/finances';
 // czytają statystyki, pickery i parser) — `applyCategoryPrefs` odtwarza je z
 // domyślnych + preferencji przy starcie i każdej zmianie (store/categoriesStore.ts).
 
-export type CatKind = 'food' | 'var';
+// 'fixed' — Stałe (rozpoznawane automatycznie: tylko nazwa i kolor do zmiany).
+export type CatKind = 'food' | 'var' | 'fixed';
 export interface Cat { tag: string; label: string; color: string }
 export interface CatOverride { label?: string; color?: string; hidden?: boolean }
-export interface CategoryPrefs { added: Record<CatKind, Cat[]>; overrides: Record<string, CatOverride> }
+export interface CategoryPrefs { added: { food: Cat[]; var: Cat[]; fixed?: Cat[] }; overrides: Record<string, CatOverride> }
 export const EMPTY_CATEGORY_PREFS: CategoryPrefs = { added: { food: [], var: [] }, overrides: {} };
 
 const DEFAULTS: Record<CatKind, Cat[]> = {
   food: FOOD_SUBCATS.map((c) => ({ ...c })),
   var: NON_FOOD_SUBCATS.map((c) => ({ ...c })),
+  fixed: FIXED_CATS.map((c) => ({ ...c })),
 };
 const FOOD_EXTRA_META = { inne: { label: 'Inne jedzenie', color: '#9CA3AF' } };
 
@@ -55,6 +58,9 @@ export function applyCategoryPrefs(prefs: CategoryPrefs): void {
   refill(NON_FOOD_SUBCATS, vis(vars));
   refill(NON_FOOD_ITEM_TAGS, vis(vars).map((c) => c.tag));
   refillMap(NON_FOOD_SUBCAT_META, vars.map((c) => [c.tag, { label: c.label, color: c.color }]));
+  const fixed = resolveCategories(prefs, 'fixed');
+  refill(FIXED_CATS, vis(fixed));
+  refillMap(FIXED_CAT_META, fixed.map((c) => [c.tag, { label: c.label, color: c.color }]));
 }
 
 // Nowy tag z nazwy, unikalny w obrębie rodzaju.
@@ -68,6 +74,7 @@ export function newTag(label: string, taken: string[]): string {
 // Ile razy kategoria jest użyta (pozycje paragonu + wydatki).
 export function categoryUsage(expenses: Expense[], kind: CatKind, tag: string): number {
   let n = 0;
+  if (kind === 'fixed') return expenses.filter((e) => e.type === 'expense' && fixedCategoryOf(e) === tag).length;
   for (const e of expenses) {
     if (kind === 'var' && e.expenseCategory === tag) n++;
     for (const it of e.receiptItems ?? []) {

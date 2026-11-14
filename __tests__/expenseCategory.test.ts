@@ -43,7 +43,7 @@ describe('expenseCategory — expenseCategoryByCategory', () => {
       e({ id: '3', note: 'Wizyta u lekarza', amount: 150, expenseCategory: 'zdrowie' }),
     ];
     expect(expenseCategoryByCategory(exps)).toEqual([
-      { label: 'Zdrowie', amount: 150, color: EXPENSE_CATEGORY_META.zdrowie.color, items: expect.any(Array) },
+      { label: 'Zdrowie i leki', amount: 150, color: EXPENSE_CATEGORY_META.zdrowie.color, items: expect.any(Array) },
     ]);
   });
 
