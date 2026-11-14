@@ -17,6 +17,7 @@ import { useBalanceStore } from '@/store/balanceStore';
 import { useDayPlanStore } from '@/store/dayPlanStore';
 import { useBudgetsStore } from '@/store/budgetsStore';
 import { useCategoryRulesStore } from '@/store/categoryRulesStore';
+import { useThresholdsStore } from '@/store/thresholdsStore';
 import { useNotesStore } from '@/store/notesStore';
 import { useCategoriesStore } from '@/store/categoriesStore';
 import { getBalanceOffset } from '@/utils/balance';
@@ -108,19 +109,21 @@ const docBindings: DocBinding[] = [
   },
   {
     name: 'prefs',
-    stores: [S(useBalanceStore), S(useSubscriptionsStore), S(useDayPlanStore), S(useWorkStore), S(useCategoriesStore)],
+    stores: [S(useBalanceStore), S(useSubscriptionsStore), S(useDayPlanStore), S(useWorkStore), S(useCategoriesStore), S(useThresholdsStore)],
     get: () => ({
       balanceOffset: useBalanceStore.getState().offset ?? 0,
       dismissedBills: useSubscriptionsStore.getState().dismissedBills,
       dayPlanTags: useDayPlanStore.getState().tags,
       activeEmployerId: useWorkStore.getState().activeEmployerId,
       categories: useCategoriesStore.getState().prefs,
+      thresholds: useThresholdsStore.getState().t,
     }),
     set: (v) => {
       if (typeof v.balanceOffset === 'number') useBalanceStore.setState({ offset: v.balanceOffset });
       if (Array.isArray(v.dismissedBills)) useSubscriptionsStore.setState({ dismissedBills: v.dismissedBills });
       if ('dayPlanTags' in v) useDayPlanStore.setState({ tags: v.dayPlanTags ?? null });
       if ('activeEmployerId' in v) useWorkStore.setState({ activeEmployerId: v.activeEmployerId ?? null });
+      if (v.thresholds && typeof v.thresholds === 'object') useThresholdsStore.getState().set(v.thresholds);
       if (v.categories && typeof v.categories === 'object') useCategoriesStore.getState().setPrefs({ added: { food: v.categories.added?.food ?? [], var: v.categories.added?.var ?? [] }, overrides: v.categories.overrides ?? {} });
     },
     isEmpty: (v) => !v.balanceOffset && !(v.dismissedBills ?? []).length && v.dayPlanTags == null && v.activeEmployerId == null

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useReplacementsStore } from '@/store/replacementsStore';
 import { useVehiclesStore } from '@/store/vehiclesStore';
 import { syncReplaceReminders } from '@/services/replaceReminders';
+import { useThresholdsStore } from '@/store/thresholdsStore';
 import { carMaintItems, carReminderItems } from '@/utils/replacements';
 
 type Persisted = { persist: { hasHydrated: () => boolean; onFinishHydration: (cb: () => void) => () => void } };
@@ -27,9 +28,10 @@ export function useReplaceReminderSync() {
   const repReady = useHydrated(useReplacementsStore as unknown as Persisted);
   const vehReady = useHydrated(useVehiclesStore as unknown as Persisted);
   const ready = repReady && vehReady;
+  const reminderHour = useThresholdsStore((st) => st.t.reminderHour);
   useEffect(() => {
     if (!ready) return;
     const t = setTimeout(() => syncReplaceReminders([...items, ...carReminderItems(carMaintItems(vehicles))]), 800);
     return () => clearTimeout(t);
-  }, [ready, items, vehicles]);
+  }, [ready, items, vehicles, reminderHour]);
 }

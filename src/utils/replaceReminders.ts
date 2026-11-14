@@ -1,3 +1,4 @@
+import { THRESHOLDS } from './thresholds';
 import type { ReplaceItem } from '@/types/replacements';
 import { replaceDue } from './replacements';
 
@@ -13,7 +14,7 @@ export interface PlannedReplaceReminder { id: string; itemId: string; fireAt: nu
 
 const at9 = (ymd: string, minusDays: number) => {
   const [y, m, d] = ymd.split('-').map(Number);
-  return new Date(y, m - 1, d - minusDays, REPLACE_REMINDER_HOUR, 0, 0, 0);
+  return new Date(y, m - 1, d - minusDays, THRESHOLDS.reminderHour, 0, 0, 0);
 };
 
 export function planReplaceReminders(items: ReplaceItem[], now: Date = new Date()): PlannedReplaceReminder[] {

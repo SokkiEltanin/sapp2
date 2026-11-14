@@ -1,3 +1,4 @@
+import { THRESHOLDS } from './thresholds';
 import type { Subscription } from '@/types/subscriptions';
 import { advanceNextBillingDate, isDurationExpired, subscriptionEndDate } from './recurringBills';
 import { ymdLocal } from './dateMath';
@@ -25,7 +26,7 @@ const MONTHS = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', '
 function fireTimeFor(dueDate: string, daysBefore: number): Date {
   const d = new Date(`${dueDate}T00:00:00`);
   d.setDate(d.getDate() - daysBefore);
-  d.setHours(BILL_REMINDER_HOUR, 0, 0, 0);
+  d.setHours(THRESHOLDS.reminderHour, 0, 0, 0);
   return d;
 }
 

@@ -1,3 +1,4 @@
+import { THRESHOLDS } from './thresholds';
 import type { Budget, BudgetScope } from '@/types/budgets';
 import type { Expense } from '@/types/finances';
 import { fvSplitOf } from './fixedVariable';
@@ -48,7 +49,7 @@ export interface BudgetStatus {
   daysLeft: number;     // łącznie z dziś
   projected: number;    // prognoza na koniec miesiąca przy obecnym tempie
   pacePct: number;      // ile miesiąca minęło (0..1) — "kreska" na pasku
-  level: BudgetLevel;   // over ≥100%, warn ≥80%, pace = prognoza > limit, ok
+  level: BudgetLevel;   // over ≥100%, warn ≥ THRESHOLDS.budgetWarnPct (80%), pace = prognoza > limit, ok
 }
 
 export function budgetStatus(b: Budget, expenses: Expense[], now: Date = new Date()): BudgetStatus {
@@ -61,7 +62,7 @@ export function budgetStatus(b: Budget, expenses: Expense[], now: Date = new Dat
   // Prognoza: tempo z minionych dni (dziś liczone jako pełny dzień dopiero od połowy).
   const elapsed = Math.max(1, day - 1 + Math.min(1, now.getHours() / 24 + 0.5));
   const projected = Math.round((spent / elapsed) * dim);
-  const level: BudgetLevel = pct >= 1 ? 'over' : pct >= 0.8 ? 'warn' : projected > b.limit && day >= 5 ? 'pace' : 'ok';
+  const level: BudgetLevel = pct >= 1 ? 'over' : pct >= THRESHOLDS.budgetWarnPct / 100 ? 'warn' : projected > b.limit && day >= 5 ? 'pace' : 'ok';
   return {
     budget: b, spent, left, pct, daysLeft, projected, level,
     perDay: Math.max(0, Math.floor(left / daysLeft)),

@@ -1637,6 +1637,20 @@ Ustawienia → Finanse → Reguły kategorii (`components/settings/CategoryRules
 skrót "Zawsze tak dla „sklep”" pod wyborem kategorii w `AddExpenseModal`.
 Odmiana liczebników: `utils/plural.ts`.
 
+## PROGI I STAN APPKI (2026-11-14)
+
+- **Progi** (`utils/thresholds.ts` — obiekt `THRESHOLDS` modyfikowany w miejscu,
+  `store/thresholdsStore.ts` `thresholds-v1`, sync w `prefs`, w kopii): paliwo od
+  kwoty (`vehicleMatch.looksLikeFuel`), % ostrzeżenia budżetu (`budgets.budgetStatus`),
+  godzina przypomnień (`billReminders`, `replaceReminders`; hooki *ReminderSync
+  przeliczają plan po zmianie). UI: Ustawienia → Ogólne → Progi i przypomnienia
+  (`components/settings/ThresholdsSheet.tsx`). Nowy próg = pole w `Thresholds` +
+  clamp w `applyThresholds` + wiersz w `ROWS` arkusza.
+- **Stan appki** (`utils/appHealth.ts` — synchronizacja, kopia w chmurze, kopia do
+  pliku, błędy 24 h, aktualizacja, płatności z banku; każdy problem z "co zrobić"),
+  `components/settings/AppHealthSheet.tsx`, Ustawienia → Diagnostyka → Stan appki
+  (podsumowanie też w opisie sekcji).
+
 ## WIDGETY — OSOBNY WYGLĄD I CZYTELNOŚĆ (2026-11-14)
 
 `store/widgetSettingsStore.ts` v1: `tasks` i `weather` (WidgetLook), migracja v0 →

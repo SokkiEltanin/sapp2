@@ -1,3 +1,4 @@
+import { THRESHOLDS } from './thresholds';
 import type { Expense } from '@/types/finances';
 import type { Vehicle, VehicleMaintenance, VehicleKind, OdometerReading } from '@/types/vehicles';
 import { addMonthsClipped } from '@/utils/dateMath';
@@ -26,7 +27,7 @@ export interface CostPerKm {
 //   • paragon z pozycjami → paliwo tylko gdy któraś pozycja to paliwo,
 //   • sama stacja (bez słów o paliwie) przy kwocie < FUEL_MIN_AMOUNT → nie paliwo.
 const FUEL_TAGS = ['paliwo', 'tankowanie', 'benzyna', 'diesel', 'lpg', 'olej napędowy'];
-export const FUEL_MIN_AMOUNT = 30;
+export const FUEL_MIN_AMOUNT = 30; // domyślny — bieżący w THRESHOLDS.fuelMin (Ustawienia)
 const FUEL_WORDS = /paliw|tankow|benzyn|diesel|\blpg\b|olej\s+nap/;
 const STATIONS = /orlen|\bbp\b|shell|circle\s*k|\bmoya\b|amic|lotos/;
 const FUEL_ITEM = /\bpb\s?9[58]\b|\bpb\b|\bon\b|diesel|benzyn|\blpg\b|verva|efecta|v-?power|eurosuper|super\s?9[58]|olej\s+nap|paliw|\be(95|98)\b|adblue/i;
@@ -40,7 +41,7 @@ export function looksLikeFuel(
   const txt = `${e.note ?? ''} ${e.storeName ?? ''}`.toLowerCase();
   if (FUEL_WORDS.test(txt)) return true;
   if (!STATIONS.test(txt)) return false;
-  return e.amount == null || e.amount >= FUEL_MIN_AMOUNT;
+  return e.amount == null || e.amount >= THRESHOLDS.fuelMin;
 }
 
 // Czy wydatek pasuje do pojazdu? Bez `vehicleId` (sapp2 nie dotyka schematu

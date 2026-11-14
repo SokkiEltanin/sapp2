@@ -23,6 +23,7 @@ import { useBudgetsStore } from '@/store/budgetsStore';
 import { useNotesStore } from '@/store/notesStore';
 import { useCategoriesStore } from '@/store/categoriesStore';
 import { useCategoryRulesStore } from '@/store/categoryRulesStore';
+import { useThresholdsStore } from '@/store/thresholdsStore';
 import { useDayPlanStore } from '@/store/dayPlanStore';
 import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
 
@@ -150,6 +151,6 @@ export async function applyEntries(entries: Record<string, string>): Promise<voi
     useExpensesStore, useMoodStore, useCalendarStore, useHabitsStore, useHealthStore,
     useBankQueue, useCountdownStore, useSubscriptionsStore, useVehiclesStore, useWorkStore,
     useReplacementsStore, useBalanceStore, useBudgetsStore, useNotesStore, useCategoriesStore,
-    useDayPlanStore, useWidgetSettingsStore, useCategoryRulesStore,
+    useDayPlanStore, useWidgetSettingsStore, useCategoryRulesStore, useThresholdsStore,
   ].map((store) => store.persist.rehydrate()));
 }

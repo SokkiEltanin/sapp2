@@ -29,6 +29,8 @@ import { useReplaceReminderSync } from '@/hooks/useReplaceReminderSync';
 import { startBudgetAlerts } from '@/services/budgetAlerts';
 // Kategorie z Ustawień (nazwy/kolory/ukryte/nowe) — import = zastosowanie przy starcie.
 import '@/store/categoriesStore';
+// Progi z Ustawień (paliwo, budżet, godzina przypomnień) — import = zastosowanie przy starcie.
+import '@/store/thresholdsStore';
 import { useAutoBackup } from '@/hooks/useAutoBackup';
 import { useCloudSync } from '@/hooks/useCloudSync';
 import { useShareReceiptLaunch } from '@/hooks/useShareReceiptLaunch';

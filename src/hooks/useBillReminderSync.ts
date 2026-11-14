@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import { syncBillReminders } from '@/services/billReminders';
+import { useThresholdsStore } from '@/store/thresholdsStore';
 
 // Synchronizuje przypomnienia o Stałych opłatach z listą subskrypcji
 // (2026-11-11) — po wczytaniu store'u z AsyncStorage i przy każdej zmianie.
@@ -17,8 +18,10 @@ export function useBillReminderSync() {
     return useSubscriptionsStore.persist.onFinishHydration(() => setHydrated(true));
   }, [hydrated]);
 
+  // Godzina przypomnień z Ustawień (progi) też przelicza plan.
+  const reminderHour = useThresholdsStore((st) => st.t.reminderHour);
   useEffect(() => {
     if (!hydrated) return;
     syncBillReminders(subscriptions);
-  }, [hydrated, subscriptions]);
+  }, [hydrated, subscriptions, reminderHour]);
 }

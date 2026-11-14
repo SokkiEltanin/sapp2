@@ -1,3 +1,7 @@
+import AppHealthSheet from '@/components/settings/AppHealthSheet';
+import ThresholdsSheet from '@/components/settings/ThresholdsSheet';
+import { appHealth, healthSummary } from '@/utils/appHealth';
+import { useThresholdsStore } from '@/store/thresholdsStore';
 import { plural, nWydatkow } from '@/utils/plural';
 import CategoryRulesSheet from '@/components/settings/CategoryRulesSheet';
 import { useCategoryRulesStore } from '@/store/categoryRulesStore';
@@ -108,6 +112,8 @@ function buildSections(
   update: string,
   errors: string,
   rulesCount: number,
+  appStatus: string,
+  thresholds: string,
 ): SettingsSection[] {
   return [
   {
@@ -240,9 +246,11 @@ function buildSections(
   },
   {
     id: 'ogolne', title: 'Ogólne', icon: Vibrate, group: 'main',
-    summary: `wibracje ${hapticsEnabled ? 'włączone' : 'wyłączone'}`,
+    summary: `wibracje ${hapticsEnabled ? 'włączone' : 'wyłączone'} · ${thresholds}`,
     items: [
       { kind: 'switch', key: 'haptics-enabled', label: 'Wibracje', description: 'delikatne kliknięcie przy tapach w appce', icon: Vibrate, value: hapticsEnabled },
+      // Progi (2026-11-14) — liczby wcześniej zaszyte w kodzie.
+      { kind: 'action', key: 'thresholds', label: 'Progi i przypomnienia', description: thresholds, icon: Clock },
     ],
   },
   // "Diagnostyka" + stara "Info" złączone w jedną sekcję (2026-11-02) — build-info
@@ -250,8 +258,10 @@ function buildSections(
   // build"), osobna sekcja dla czterech statycznych wierszy była przerostem.
   {
     id: 'diagnostyka', title: 'Diagnostyka', icon: Stethoscope, group: 'advanced',
-    summary: `wersja ${BUILD_INFO.version} · build ${BUILD_INFO.buildNumber} · testy połączeń`,
+    summary: `${appStatus} · build ${BUILD_INFO.buildNumber}`,
     items: [
+      // Stan appki (2026-11-14) — synchronizacja, kopie, błędy, aktualizacje w jednym miejscu.
+      { kind: 'action', key: 'app-health', label: 'Stan appki', description: appStatus, icon: Stethoscope },
       { kind: 'value', key: 'info-version', label: 'Wersja', description: 'numer wersji appki', icon: Info, value: BUILD_INFO.version },
       { kind: 'value', key: 'info-build', label: 'Build', description: 'numer builda CI', icon: Info, value: BUILD_INFO.buildNumber },
       { kind: 'value', key: 'info-date', label: 'Data builda', description: 'kiedy zbudowano ten APK', icon: Clock, value: BUILD_INFO.buildDate },
@@ -359,6 +369,20 @@ export default function SettingsScreen() {
   const rulesCount = useCategoryRulesStore((st) => st.rules.length);
   const upd = useAppUpdateStore();
   const errEntries = useErrorLog((x) => x.entries);
+  const [healthOpen, setHealthOpen] = useState(false);
+  const [thresholdsOpen, setThresholdsOpen] = useState(false);
+  const th = useThresholdsStore((st) => st.t);
+  const thresholdsText = `paliwo od ${th.fuelMin} zł · budżet ${th.budgetWarnPct}% · przypomnienia ${th.reminderHour}:00`;
+  const healthRows = useMemo(() => appHealth({
+    sync: { state: syncState, lastAt: syncLastAt, error: syncError },
+    cloudBackup: { auto: backupAuto, lastAt: backupLastAt },
+    fileBackup: fileInfo,
+    errorTimes: errEntries.map((e) => e.t),
+    update: { otaReady: upd.otaReady, apkBuild: upd.apk?.build ?? null, lastError: upd.lastError },
+    bankPending,
+    web: Platform.OS === 'web',
+  }), [syncState, syncLastAt, syncError, backupAuto, backupLastAt, fileInfo, errEntries, upd.otaReady, upd.apk, upd.lastError, bankPending]);
+  const healthText = healthSummary(healthRows);
   const [errorsOpen, setErrorsOpen] = useState(false);
   const errorsLabel = errEntries.length === 0 ? 'pusto — nic się nie wywaliło'
     : `${errEntries.length} ${plural(errEntries.length, 'wpis', 'wpisy', 'wpisów')} · ostatni ${entryTime(errEntries[0].t)} — do skopiowania`;
@@ -385,8 +409,10 @@ export default function SettingsScreen() {
       updateLabel,
       errorsLabel,
       rulesCount,
+      healthText,
+      thresholdsText,
     ),
-    [rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, syncLabel],
+    [healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, syncLabel],
   );
 
   const backupNow = async () => {
@@ -974,6 +1000,8 @@ export default function SettingsScreen() {
     categories: leave(() => setCategoriesOpen(true)),
     'category-rules': leave(() => setRulesOpen(true)),
     'update-check': updateCheck,
+    'app-health': leave(() => setHealthOpen(true)),
+    thresholds: leave(() => setThresholdsOpen(true)),
     'error-log': leave(() => setErrorsOpen(true)),
     'health-diag': leave(() => router.push('/health-debug' as any)),
   };
@@ -1195,6 +1223,8 @@ export default function SettingsScreen() {
       <WidgetAppearanceSheet visible={!!widgetOpen} widget={widgetOpen ?? 'tasks'} onClose={() => setWidgetOpen(null)} />
       <CategoriesSheet visible={categoriesOpen} onClose={() => setCategoriesOpen(false)} />
       <CategoryRulesSheet visible={rulesOpen} onClose={() => setRulesOpen(false)} />
+      <AppHealthSheet visible={healthOpen} onClose={() => setHealthOpen(false)} rows={healthRows} />
+      <ThresholdsSheet visible={thresholdsOpen} onClose={() => setThresholdsOpen(false)} />
       <ErrorLogSheet visible={errorsOpen} onClose={() => setErrorsOpen(false)} header={`sapp2 ${BUILD_INFO.version} · build ${BUILD_INFO.buildNumber} · ${BUILD_INFO.commit} · ${runningUpdateLabel()}`} />
     </SafeAreaView>
   );

@@ -95,7 +95,7 @@ CI sam to rozpozna.
 
 ## 7. Gdy coś nie działa
 
-1. Ustawienia → Diagnostyka: wersja, build, „Paczka JS” (APK czy OTA), testy
+1. Ustawienia → Diagnostyka → **Stan appki** (co nie działa i co zrobić), potem wersja, build, „Paczka JS” (APK czy OTA), testy
    Google/Firestore/kalendarza, „Sprawdź aktualizacje”.
 2. GitHub → Actions: czerwony job = log z błędem (najczęściej `tsc`/test albo Gradle).
 3. Bank „nie łapie” → najpierw test parsera na dokładnym tekście powiadomienia
