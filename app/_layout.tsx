@@ -18,6 +18,8 @@ import { WEB_MAX_W } from '@/ui/layout';
 import { desktopLayout } from '@/utils/desktopColumns';
 import { DesktopPanelBackdrop } from '@/ui/DesktopPanelBackdrop';
 import { useDesktopShortcuts } from '@/hooks/useDesktopShortcuts';
+// Nasłuch instalacji PWA od startu (zdarzenie przychodzi zaraz po załadowaniu strony).
+import '@/services/pwaInstall';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';

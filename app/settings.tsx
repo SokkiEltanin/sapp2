@@ -1,4 +1,5 @@
 import { goBack } from '@/services/nav';
+import { usePwaInstall, pwaInstallLabel, promptPwaInstall } from '@/services/pwaInstall';
 import DashboardLayoutSheet from '@/components/settings/DashboardLayoutSheet';
 import AppHealthSheet from '@/components/settings/AppHealthSheet';
 import ThresholdsSheet from '@/components/settings/ThresholdsSheet';
@@ -116,6 +117,7 @@ function buildSections(
   rulesCount: number,
   appStatus: string,
   thresholds: string,
+  pwa: string | null,
 ): SettingsSection[] {
   return [
   {
@@ -255,6 +257,8 @@ function buildSections(
       // Progi (2026-11-14) — liczby wcześniej zaszyte w kodzie.
       { kind: 'action', key: 'thresholds', label: 'Progi i przypomnienia', description: thresholds, icon: Clock },
       { kind: 'action', key: 'dash-layout', label: 'Układ Dashboardu', description: 'kolejność rzędów i ukrywanie', icon: LayoutGrid },
+      // Tylko na komputerze (services/pwaInstall.ts).
+      ...(pwa ? [{ kind: 'action' as const, key: 'pwa-install', label: 'Zainstaluj na komputerze', description: pwa, icon: Download }] : []),
     ],
   },
   // "Diagnostyka" + stara "Info" złączone w jedną sekcję (2026-11-02) — build-info
@@ -378,6 +382,8 @@ export default function SettingsScreen() {
   const [thresholdsOpen, setThresholdsOpen] = useState(false);
   const [layoutOpen, setLayoutOpen] = useState(false);
   const th = useThresholdsStore((st) => st.t);
+  const pwaState = usePwaInstall();
+  const pwaLabel = pwaInstallLabel(pwaState);
   const thresholdsText = `paliwo od ${th.fuelMin} zł · budżet ${th.budgetWarnPct}% · przypomnienia ${th.reminderHour}:00`;
   const healthRows = useMemo(() => appHealth({
     sync: { state: syncState, lastAt: syncLastAt, error: syncError },
@@ -417,8 +423,9 @@ export default function SettingsScreen() {
       rulesCount,
       healthText,
       thresholdsText,
+      pwaLabel,
     ),
-    [healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, widgetNote, syncLabel],
+    [pwaLabel, healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, widgetNote, syncLabel],
   );
 
   const backupNow = async () => {
@@ -1010,6 +1017,7 @@ export default function SettingsScreen() {
     'app-health': leave(() => setHealthOpen(true)),
     thresholds: leave(() => setThresholdsOpen(true)),
     'dash-layout': leave(() => setLayoutOpen(true)),
+    'pwa-install': () => { if (pwaState.canInstall) promptPwaInstall().catch(() => {}); },
     'error-log': leave(() => setErrorsOpen(true)),
     'health-diag': leave(() => router.push('/health-debug' as any)),
   };

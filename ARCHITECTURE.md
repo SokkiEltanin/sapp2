@@ -1526,6 +1526,9 @@ Arkusze (`AppBottomSheet`) na oknie ≥ `DESKTOP_MIN_W` = wyśrodkowane okno dia
 (bez uchwytu), na telefonie/wąskim oknie bez zmian. Pułapki: style elementu w `TabTrigger asChild` muszą być
 `StyleSheet.flatten` (webowy Slot); po zmianach w node_modules — `--clear`, inaczej
 serwer dev potrafi serwować stary moduł i rzucać mylące błędy.
+**Instalacja PWA jednym kliknięciem**: `services/pwaInstall.ts` (łapie
+`beforeinstallprompt` od startu — import w app/_layout.tsx) → Ustawienia → Ogólne →
+„Zainstaluj na komputerze” (tylko web).
 **Kalendarz Google na komputerze**: kopia z telefonu (`utils/gcalMirror.ts`, docBinding
 `gcal` w cloudSync — `readOnly` na web, `keepWhenEmpty`).
 
