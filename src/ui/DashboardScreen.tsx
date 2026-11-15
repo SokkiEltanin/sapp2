@@ -5,6 +5,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Globe, ListTodo, CalendarClock, Wrench, MapPin, StickyNote } from 'lucide-react-native';
 import NotePreview from '@/components/notes/NotePreview';
+import NotePage from '@/components/notes/NotePage';
 import { noteTitle } from '@/utils/notes';
 import type { Note } from '@/types/notes';
 import * as LucideIcons from 'lucide-react-native';
@@ -201,7 +202,11 @@ export function DashboardScreen(d: DashData) {
               <Cap l={d.note ? noteTitle(d.note) : 'Notatka'} r={d.notesCount > 0 ? `wszystkie ${d.notesCount}` : undefined} onR={() => d.onOpen('notes')} />
               {d.note ? (
                 <View style={{ flex: 1, marginTop: 6 }}>
-                  <NotePreview note={d.note} maxLines={7} compact onToggle={(itemId) => d.onNoteToggle(d.note!.id, itemId)} />
+                  {/* Tekst/rysunek = pomniejszona strona 1:1 (linia "widoczne na Dashboardzie"
+                      w edytorze); lista — odhaczana z podglądu. */}
+                  {d.note.kind === 'list'
+                    ? <NotePreview note={d.note} maxLines={7} compact onToggle={(itemId) => d.onNoteToggle(d.note!.id, itemId)} />
+                    : <NotePage note={d.note} />}
                 </View>
               ) : (
                 <View style={st.noteEmpty}>

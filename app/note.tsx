@@ -4,9 +4,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform, type LayoutChangeEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Pin, PinOff, Trash2, Check, X, Plus, Undo2, Eraser, Pencil, Folder, Brush, PenLine, Type, NotebookText } from 'lucide-react-native';
+import { ChevronLeft, Pin, PinOff, Trash2, Check, X, Plus, Undo2, Eraser, Pencil, Folder, Brush, PenLine, Type, NotebookText, Eye, EyeOff } from 'lucide-react-native';
 import ColorPicker from '@/components/notes/ColorPicker';
 import { StrokesLayer } from '@/components/notes/DrawingCanvas';
+import { useNoteViewStore, tileCutY } from '@/store/noteViewStore';
 import FolderSheet, { type FolderSheetMode } from '@/components/notes/FolderSheet';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -62,6 +63,12 @@ export default function NoteScreen() {
   const [mode, setMode] = useState<'text' | 'draw'>(note?.kind === 'drawing' || (!!note && !note.text && note.strokes.length > 0) ? 'draw' : 'text');
   const [viewH, setViewH] = useState(0);
   const [pageW, setPageW] = useState(0);
+  // Linia "widoczne na Dashboardzie" (2026-11-15) — store/noteViewStore.ts.
+  const tile = useNoteViewStore((st) => st.tile);
+  const guide = useNoteViewStore((st) => st.guide);
+  const toggleGuide = useNoteViewStore((st) => st.toggleGuide);
+  const setStorePageW = useNoteViewStore((st) => st.setPageW);
+  const cutY = tileCutY(tile, pageW);
   const [showColors, setShowColors] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [focusId, setFocusId] = useState<string | null>(null);
@@ -154,8 +161,13 @@ export default function NoteScreen() {
                   minHeight: Math.max(viewH - 54, strokesBottom(note.strokes, pageW) + 160),
                   wrap: (field) => (
                     <ScrollView style={{ flex: 1 }} scrollEnabled={mode === 'text'} keyboardShouldPersistTaps="handled">
-                      <View onLayout={(e: LayoutChangeEvent) => setPageW(e.nativeEvent.layout.width)}>
+                      <View onLayout={(e: LayoutChangeEvent) => { setPageW(e.nativeEvent.layout.width); setStorePageW(e.nativeEvent.layout.width); }}>
                         {field}
+                        {guide && cutY != null && (
+                          <View style={[s.guide, { top: cutY }]} pointerEvents="none">
+                            <Text style={s.guideLabel}>widoczne na Dashboardzie ↑</Text>
+                          </View>
+                        )}
                         {mode === 'draw' ? (
                           <View style={StyleSheet.absoluteFill}>
                             <DrawingCanvas strokes={note.strokes} onChange={strokesChange} tool={tool} onPressure={setPressure} />
@@ -226,6 +238,10 @@ export default function NoteScreen() {
           )}
           {/* Narzędzie: Tekst albo Rysunek — ta sama notatka. */}
           <View style={s.modeSwitch}>
+            <TouchableOpacity onPress={() => { haptic.tap(); toggleGuide(); }} style={[s.guideBtn, guide && s.guideBtnOn]}
+              accessibilityLabel={guide ? 'Ukryj linię kafelka Dashboardu' : 'Pokaż linię kafelka Dashboardu'}>
+              {guide ? <Eye size={15} color={colors.text.primary} /> : <EyeOff size={15} color={colors.text.muted} />}
+            </TouchableOpacity>
             {([['text', 'Tekst', Type], ['draw', 'Rysunek', PenLine]] as const).map(([m, label, Icon]) => {
               const on = mode === m;
               return (
@@ -316,6 +332,10 @@ const makeS = themedStyles((c) => StyleSheet.create({
   toolOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
   moreColors: { borderColor: c.border.default, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   colorPanel: { paddingHorizontal: spacing[3], paddingBottom: spacing[2] },
+  guide: { position: 'absolute', left: 0, right: 0, height: 0, borderTopWidth: 1, borderStyle: 'dashed', borderColor: c.text.muted, opacity: 0.45 },
+  guideLabel: { position: 'absolute', right: spacing[3], top: -16, fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  guideBtn: { width: 40, height: 36, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, alignItems: 'center', justifyContent: 'center' },
+  guideBtnOn: { borderColor: c.text.muted },
   modeSwitch: { flexDirection: 'row', gap: 6, paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderTopWidth: 1, borderTopColor: c.ui.line },
   modeTab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 36, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
   modeTabOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },

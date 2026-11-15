@@ -1746,6 +1746,12 @@ Zadania z `task`, notatka → edytor, reszta → ich ekrany. Nowy rodzaj danych 
   Rysunek, `StrokesLayer` bez dotyku w trybie Tekst) — kreski przewijają się z
   tekstem; strona rośnie pod najniższą kreskę (`strokesBottom`). W trybie Rysunek
   przewijanie i edycja tekstu wyłączone. Podgląd: tekst + miniatura kresek.
+- **Linia „widoczne na Dashboardzie”** (2026-11-15): kafel Dashboardu pokazuje notatkę
+  tekst/rysunek jako pomniejszoną stronę 1:1 (`components/notes/NotePage.tsx`, stałe =
+  styl pola edytora; lista — dalej `NotePreview`). Kafel zapisuje swój rozmiar, edytor
+  szerokość strony (`store/noteViewStore.ts`, lokalnie, bez sync) → linia przerywana na
+  `tileCutY` = h_kafla × szer_strony / szer_kafla. Oko przy „Tekst | Rysunek” włącza/
+  wyłącza (`guide`, zapamiętane).
 - **Moja paleta**: `notesStore.palette` (+ addColor/removeColor, sync w `prefs` jako
   `notePalette`), `components/notes/ColorPicker.tsx` (podstawowe + moja paleta, „+”
   dodaje #hex, przytrzymanie → usuń) — w kolorze tekstu i w kolorze pióra.
