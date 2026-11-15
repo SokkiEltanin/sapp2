@@ -41,6 +41,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-15 — notatka: klawiatura zasłaniała pasek** (edge-to-edge, okno się nie
+kurczy) → padding = wysokość klawiatury (`useKeyboardHeight`) w app/note.tsx.
+- [ ] Sprawdzić na telefonie; przy długim tekście — czy kursor nie chowa się pod klawiaturą.
+- [ ] Jeśli inny pełny ekran (nie sheet) ma pole nisko i klawiatura je zasłania — ten sam wzorzec.
+
 **2026-11-15 — Dashboard: klikalne kafle + mocniejsze wibracje:**
 - [ ] „Najbliższa wymiana” → ekran Wymiany; termin z „Najbliższe eventy” → Zadania na
   dzień terminu; „Najbliższy” bez wydarzenia → Zadania.

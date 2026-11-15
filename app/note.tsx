@@ -1,8 +1,9 @@
 import { goBack } from '@/services/nav';
 import { removeWithUndo } from '@/services/undo';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform, type LayoutChangeEvent } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, type LayoutChangeEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Pin, PinOff, Trash2, Check, X, Plus, Undo2, Eraser, Pencil, Folder, Brush, PenLine, Type, NotebookText, Eye, EyeOff } from 'lucide-react-native';
 import ColorPicker from '@/components/notes/ColorPicker';
@@ -35,6 +36,7 @@ function strokesBottom(strokes: NoteStroke[], w: number): number {
 }
 
 export default function NoteScreen() {
+  const kb = useKeyboardHeight();
   const s = makeS();
   const { id } = useLocalSearchParams<{ id: string }>();
   const note = useNotesStore((st) => st.notes.find((n) => n.id === id));
@@ -147,7 +149,11 @@ export default function NoteScreen() {
       </View>
 
       {(note.kind === 'text' || note.kind === 'drawing') && (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        // Klawiatura (2026-11-15, user: "klawiatura zasłania pisanie"): RN 0.81 na
+        // Androidzie jest edge-to-edge — okno nie kurczy się pod klawiaturę, a
+        // KeyboardAvoidingView bez `behavior` nic nie robi. Realna wysokość klawiatury
+        // jako padding — pasek formatowania i przełącznik Tekst/Rysunek nad nią.
+        <View style={{ flex: 1, paddingBottom: kb }}>
           <View style={{ flex: 1 }} onLayout={(e: LayoutChangeEvent) => setViewH(e.nativeEvent.layout.height)}>
             {viewH > 0 && (
               <RichTextEditor
@@ -252,11 +258,11 @@ export default function NoteScreen() {
               );
             })}
           </View>
-        </KeyboardAvoidingView>
+        </View>
       )}
 
       {note.kind === 'list' && (
-        <ScrollView contentContainerStyle={s.listWrap} keyboardShouldPersistTaps="handled">
+        <ScrollView style={{ marginBottom: kb }} contentContainerStyle={s.listWrap} keyboardShouldPersistTaps="handled">
           {items.map((it, idx) => (
             <View key={it.id} style={s.itemRow}>
               <TouchableOpacity
