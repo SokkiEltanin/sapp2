@@ -1,7 +1,7 @@
 import type { Expense } from '@/types/finances';
-import { fixedVariableMonths, fixedBreakdown, fixedDeviations, topVariableContributors } from './fixedVariable';
+import { fixedVariableMonths, fixedBreakdown, fixedDeviations } from './fixedVariable';
 import { foodByCategory, foodByWeekOfMonth, foodByDayOfMonth, foodByMonth, MONTH_FULL, type FoodWeekBar, type FoodCategoryBar } from './foodStats';
-import type { FixedItem, FixedDeviation, VariableContributor } from './fixedVariable';
+import type { FixedItem, FixedDeviation } from './fixedVariable';
 
 // Dane dla popupu "Wydatki" (WydatkiModal), WSPÓLNE dla Dashboardu (rząd 4,
 // domyślnie zakładka Jedzenie) i Finansów (Faza 2.4, domyślnie zakładka Stałe) —
@@ -32,7 +32,7 @@ export interface WydatkiData {
   month: string;
   food: WydatkiBucketTotals & { weeks: FoodWeekBar[]; days: FoodWeekBar[]; months: FoodWeekBar[]; categories: FoodCategoryBar[] };
   fixed: WydatkiBucketTotals & { items: FixedItem[]; deviations: FixedDeviation[] };
-  variable: WydatkiBucketTotals & { top: VariableContributor[] };
+  variable: WydatkiBucketTotals;
 }
 
 export function computeWydatkiData(expenses: Expense[], today: Date): WydatkiData {
@@ -68,7 +68,6 @@ export function computeWydatkiData(expenses: Expense[], today: Date): WydatkiDat
       total: `${thisMonth.variable} zł`,
       changePercent: pctChange(thisMonth.variable, prevMonth.variable),
       previousTotal: `${prevMonth.variable} zł`,
-      top: topVariableContributors(expenses, thisKey, 5),
     },
   };
 }

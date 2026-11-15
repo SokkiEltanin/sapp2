@@ -1,5 +1,5 @@
 import {
-  isFixedExpense, fixedVariableMonths, fixedDeviations, topVariableContributors,
+  isFixedExpense, fixedVariableMonths, fixedDeviations,
   bucketOf, bucketTransactions, fvSplitOf,
 } from '@/utils/fixedVariable';
 import type { Expense, ReceiptItem } from '@/types/finances';
@@ -90,30 +90,6 @@ describe('fixedVariable — fixedDeviations', () => {
       e({ subscriptionId: 'sub1', note: 'Nowy serwis', amount: 40, date: '2026-08-05' }),
     ];
     expect(fixedDeviations(exps, '2026-08', 3)).toHaveLength(0);
-  });
-});
-
-describe('fixedVariable — topVariableContributors', () => {
-  test('zwraca największe zmienne zakupy tego miesiąca, pomija stałe i jedzenie', () => {
-    const exps = [
-      e({ note: 'Czynsz', amount: 1200, date: '2026-08-03' }),
-      e({
-        note: 'Biedronka', amount: 300, date: '2026-08-04',
-        receiptItems: [item({ name: 'Chleb', price: 300, foodSubcat: 'pieczywo' })],
-      }),
-      e({ note: 'Wiatrak', amount: 120, date: '2026-08-10' }),
-      e({ note: 'Kino', amount: 40, date: '2026-08-12' }),
-    ];
-    const out = topVariableContributors(exps, '2026-08', 2);
-    expect(out).toEqual([{ label: 'Wiatrak', amount: 120 }, { label: 'Kino', amount: 40 }]);
-  });
-
-  test('sumuje powtórzone zakupy w tym samym miejscu/nazwie', () => {
-    const exps = [
-      e({ note: 'Steam', amount: 30, date: '2026-08-02' }),
-      e({ note: 'Steam', amount: 20, date: '2026-08-15' }),
-    ];
-    expect(topVariableContributors(exps, '2026-08', 1)).toEqual([{ label: 'Steam', amount: 50 }]);
   });
 });
 

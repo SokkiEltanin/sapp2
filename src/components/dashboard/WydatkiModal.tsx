@@ -167,7 +167,6 @@ export default function WydatkiModal({
             total={data.variable.total}
             changePercent={data.variable.changePercent}
             previousTotal={data.variable.previousTotal}
-            top={data.variable.top}
             transactions={variableTx}
             onSelectTransaction={selectExpense}
             nonFoodCategories={nonFoodCats}

@@ -34,7 +34,6 @@ describe('wydatkiData — computeWydatkiData', () => {
       items: [{ expenseId: '3', date: '2026-08-04', storeName: undefined, name: 'Chleb', price: 200, quantity: 1 }],
     }]);
     expect(data.variable.total).toBe('60 zł');
-    expect(data.variable.top).toEqual([{ label: 'Kino', amount: 60 }]);
   });
 
   test('pusty miesiąc nie wywala się, zwraca zera/puste listy', () => {
@@ -43,7 +42,6 @@ describe('wydatkiData — computeWydatkiData', () => {
     expect(data.fixed.total).toBe('0 zł');
     expect(data.fixed.items).toEqual([]);
     expect(data.food.categories).toEqual([]);
-    expect(data.variable.top).toEqual([]);
     expect(data.fixed.changePercent).toBe(0);
   });
 });

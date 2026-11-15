@@ -138,27 +138,6 @@ export function fixedDeviations(expenses: Expense[], month: string, lookback = 3
   return out.sort((a, b) => Math.abs(b.deltaPct) - Math.abs(a.deltaPct));
 }
 
-export interface VariableContributor { label: string; amount: number }
-
-// Największy pojedynczy "zmienny" zakup(y) tego miesiąca — gdy suma zmiennych jest
-// wyższa niż zwykle, to zazwyczaj "co przeważyło". Grupowane jak `fixedBreakdown`, żeby
-// powtórne zakupy w tym samym miejscu sumowały się zamiast listować każdą pozycję.
-export function topVariableContributors(expenses: Expense[], month: string, n = 2): VariableContributor[] {
-  const map: Record<string, number> = {};
-  for (const e of expenses) {
-    if (e.type === 'income') continue;
-    if ((e.date ?? '').slice(0, 7) !== month) continue;
-    const variableAmt = fvSplitOf(e).variable;
-    if (variableAmt <= 0) continue;
-    const label = labelFor(e);
-    map[label] = (map[label] ?? 0) + variableAmt;
-  }
-  return Object.entries(map)
-    .map(([label, amount]) => ({ label, amount: Math.round(amount) }))
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, n);
-}
-
 export interface FvTransaction { id: string; label: string; amount: number; date: string; overridden: boolean }
 
 // Chronologiczna (najnowsze pierwsze) lista POJEDYNCZYCH transakcji liczonych w danym

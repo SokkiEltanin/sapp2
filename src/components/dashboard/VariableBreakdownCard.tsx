@@ -3,7 +3,7 @@ import { ShoppingCart, Pencil, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { haptic } from '@/utils/haptics';
-import type { VariableContributor, FvTransaction } from '@/utils/fixedVariable';
+import type { FvTransaction } from '@/utils/fixedVariable';
 import type { FoodCategoryItem } from '@/utils/foodStats';
 
 function fmtTxDate(ymd: string): string {
@@ -13,9 +13,9 @@ function fmtTxDate(ymd: string): string {
 }
 
 // Zakładka "Zmienne" w popupie Wydatki (Faza 2.4, 2026-11-01) — trzeci kubeł obok
-// Stałe/Jedzenie, ten sam układ karty co `FixedBreakdownCard.tsx`. "Top wydatki"
-// (`topVariableContributors`, już przetestowane) — co faktycznie przeważyło,
-// pogrupowane, nie każda transakcja osobno.
+// Stałe/Jedzenie, ten sam układ karty co `FixedBreakdownCard.tsx`. Sekcja "Co
+// najbardziej przeważyło" USUNIĘTA 2026-11-15 (user: "nie potrzebne mi to bo na dole
+// i tak tam mam wszystko") — kategorie + pełna lista transakcji wystarczają.
 //
 // "Wszystkie transakcje" DOŁĄCZONE 2026-11-09 (user: "nie moge edytowac tam i
 // klikać co jest zmienna a co nie") — `bucketTransactions` (fixedVariable.ts)
@@ -27,14 +27,13 @@ function fmtTxDate(ymd: string): string {
 // (ręcznie ustawione przez usera, nie automatyczne rozpoznanie) dostaje małą
 // ikonkę ołówka — widoczny ślad że ktoś już tu grzebał.
 export default function VariableBreakdownCard({
-  month, total, changePercent, previousTotal, top, transactions, onSelectTransaction,
+  month, total, changePercent, previousTotal, transactions, onSelectTransaction,
   nonFoodCategories, expenseCategories, onSelectCategory,
 }: {
   month: string;
   total: string;
   changePercent: number;
   previousTotal: string;
-  top: VariableContributor[];
   transactions: FvTransaction[];
   onSelectTransaction: (id: string) => void;
   // Higiena/Chemia itp. (2026-11-10, user: "daj możliwość dodania... higiena...
@@ -51,7 +50,6 @@ export default function VariableBreakdownCard({
   onSelectCategory: (category: { label: string; amount: number; color: string; items: FoodCategoryItem[] }) => void;
 }) {
   const s = makeS();
-  const maxAmount = Math.max(1, ...top.map((i) => i.amount));
   const maxCategory = Math.max(1, ...nonFoodCategories.map((c) => c.amount));
   const maxExpenseCategory = Math.max(1, ...expenseCategories.map((c) => c.amount));
 
@@ -68,23 +66,7 @@ export default function VariableBreakdownCard({
         {changePercent > 0 ? '+' : ''}{changePercent}% vs miesiąc temu ({previousTotal})
       </Text>
 
-      <Text style={s.hint}>Co najbardziej przeważyło</Text>
-
-      {top.length === 0 ? (
-        <Text style={s.empty}>Brak zmiennych wydatków w tym miesiącu.</Text>
-      ) : (
-        <View style={s.items}>
-          {top.map((it) => (
-            <View key={it.label} style={s.itemRow}>
-              <Text style={s.itemLabel} numberOfLines={1}>{it.label}</Text>
-              <View style={s.itemBarTrack}>
-                <View style={[s.itemBar, { width: `${Math.max(3, (it.amount / maxAmount) * 100)}%` }]} />
-              </View>
-              <Text style={s.itemAmount}>{it.amount} zł</Text>
-            </View>
-          ))}
-        </View>
-      )}
+      {transactions.length === 0 && <Text style={s.empty}>Brak zmiennych wydatków w tym miesiącu.</Text>}
 
       {nonFoodCategories.length > 0 && (
         <>
@@ -163,7 +145,6 @@ const makeS = themedStyles((c) => StyleSheet.create({
   empty: { fontSize: 12, fontFamily: 'Inter_500Medium', color: c.text.muted, paddingVertical: spacing[3] },
 
   items: { gap: spacing[3] },
-  itemRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   categoryRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   dot: { width: 8, height: 8, borderRadius: 4 },
   itemLabel: { width: 100, fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
