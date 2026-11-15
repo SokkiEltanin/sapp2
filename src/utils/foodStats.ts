@@ -95,6 +95,24 @@ export interface FoodCategoryBar { label: string; amount: number; color: string;
 // jedzeniowe i nie-jedzeniowe pozycje), pomija wykluczone/kaucje/bez kategorii.
 // Zbiera też same pozycje (`items`) w tej samej przebiegówce — jedno źródło
 // prawdy dla sumy kafla I listy drill-down pod spodem, żeby nigdy się nie rozjechały.
+// Rozkład jedzenia JEDNEGO wydatku per podkategoria (2026-11-15, budżety na
+// podkategorie: "słodycze, przekąski, napoje"). Kwota jedzenia = fvSplitOf(e).food;
+// pozycje paragonu ją rozdzielają (proporcjonalnie, gdy ich suma > kwota), reszta →
+// 'inne'. Jedno źródło prawdy dla foodByCategory, budżetów i trendu.
+export function foodSplitOf(e: Expense): Map<string, number> {
+  const out = new Map<string, number>();
+  if (e.type !== 'expense') return out;
+  const foodAmt = fvSplitOf(e).food;
+  if (foodAmt <= 0) return out;
+  const food = (e.receiptItems ?? []).filter((it) => !it.excluded && it.kind !== 'deposit' && !!it.foodSubcat);
+  const itemsSum = food.reduce((a, it) => a + (it.price ?? 0), 0);
+  const k = itemsSum > foodAmt ? foodAmt / itemsSum : 1;
+  for (const it of food) out.set(it.foodSubcat!, (out.get(it.foodSubcat!) ?? 0) + (it.price ?? 0) * k);
+  const rest = foodAmt - itemsSum * k;
+  if (rest >= 0.01) out.set('inne', (out.get('inne') ?? 0) + rest);
+  return out;
+}
+
 export function foodByCategory(expenses: Expense[], monthFilterKey?: string): FoodCategoryBar[] {
   const sums = new Map<string, number>();
   const items = new Map<string, FoodCategoryItem[]>();

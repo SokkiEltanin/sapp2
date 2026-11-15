@@ -3,7 +3,7 @@ import type { Expense } from '@/types/finances';
 import { fvSplitOf } from './fixedVariable';
 import { variableSplitOf } from './expenseCategory';
 import { fixedCategoryOf } from './fixedCategory';
-import { isFoodItem, foodSubcat } from './food';
+import { foodSplitOf } from './foodStats';
 import { round2 } from './money';
 
 // Trend 12 miesięcy (2026-11-14) — ile szło na koszyk/kategorię miesiąc po miesiącu.
@@ -47,11 +47,7 @@ export function trendSeries(expenses: Expense[], n = 12, now: Date = new Date())
     add('fixed', i, s.fixed);
     if (s.variable > 0) for (const [tag, v] of variableSplitOf(e)) add(`cat:${tag}`, i, v);
     if (s.fixed > 0) add(`fixed:${fixedCategoryOf(e)}`, i, s.fixed);
-    if (s.food > 0) {
-      const items = (e.receiptItems ?? []).filter(isFoodItem);
-      if (items.length) for (const it of items) add(`food:${foodSubcat(it)}`, i, it.price ?? 0);
-      else add('food:inne', i, s.food);
-    }
+    if (s.food > 0) for (const [tag, v] of foodSplitOf(e)) add(`food:${tag}`, i, v);
   }
   for (const arr of series.values()) for (let i = 0; i < arr.length; i++) arr[i] = round2(arr[i]);
   return { months, series };

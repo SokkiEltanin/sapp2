@@ -294,7 +294,7 @@ export default function FinancesScreen() {
         <Tile span={4} onPress={() => { haptic.tap(); setBudgetOpen(true); }}>
           <Cap l="Budżet" r={budgetStats.length ? `${budgetStats[0].daysLeft} dni do końca mies.${budgetStats.length > 3 ? ` · +${budgetStats.length - 3}` : ''}` : 'ustaw limit'} />
           {budgetStats.length === 0 ? (
-            <Text style={[T.small, s.emptyInline]}>Limit na jedzenie, zmienne albo kategorię — ile zostało na dzień</Text>
+            <Text style={[T.small, s.emptyInline]}>Limit na jedzenie, słodycze, zmienne albo kategorię — ile zostało na dzień</Text>
           ) : budgetStats.slice(0, 3).map((st) => (
             <View key={st.budget.id} style={s.budgetRow}>
               <View style={s.budgetHead}>

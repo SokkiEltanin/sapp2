@@ -4,6 +4,8 @@ import type { Expense } from '@/types/finances';
 import { fvSplitOf } from './fixedVariable';
 import { EXPENSE_CATEGORY_META, variableSplitOf } from './expenseCategory';
 import { round2, money } from './money';
+import { FOOD_SUBCAT_META } from './food';
+import { foodSplitOf } from './foodStats';
 
 // Logika budżetów (2026-11-13) — czyste funkcje, testy __tests__/budgets.test.ts.
 
@@ -12,10 +14,12 @@ export function scopeLabel(scope: BudgetScope): string {
   if (scope === 'food') return 'Jedzenie';
   if (scope === 'variable') return 'Zmienne';
   if (scope === 'fixed') return 'Stałe';
+  if (scope.startsWith('food:')) return FOOD_SUBCAT_META[scope.slice(5)]?.label ?? scope.slice(5);
   return EXPENSE_CATEGORY_META[scope.slice(4)]?.label ?? scope.slice(4);
 }
 
 export function scopeColor(scope: BudgetScope): string | null {
+  if (scope.startsWith('food:')) return FOOD_SUBCAT_META[scope.slice(5)]?.color ?? null;
   return scope.startsWith('cat:') ? EXPENSE_CATEGORY_META[scope.slice(4)]?.color ?? null : null;
 }
 
@@ -27,6 +31,7 @@ export function amountInScope(e: Expense, scope: BudgetScope): number {
   if (scope === 'food') return s.food;
   if (scope === 'variable') return s.variable;
   if (scope === 'fixed') return s.fixed;
+  if (scope.startsWith('food:')) return foodSplitOf(e).get(scope.slice(5)) ?? 0;
   // Kategoria = pozycje paragonu z tą kategorią + reszta wydatku z nią (2026-11-14).
   return variableSplitOf(e).get(scope.slice(4)) ?? 0;
 }

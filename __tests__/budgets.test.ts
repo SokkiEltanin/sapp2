@@ -29,6 +29,21 @@ describe('budżety', () => {
     expect(spentInMonth(expenses, 'variable', '2026-11')).toBe(300);
     expect(scopeLabel('cat:rozrywka')).toBe('Rozrywka');
   });
+  test('podkategorie jedzenia (słodycze, napoje…)', () => {
+    const mixed = e('m', '2026-11-08', 40, { receiptItems: [
+      { name: 'Czekolada', price: 12.5, quantity: 1, unitPrice: 12.5, foodSubcat: 'słodycze' },
+      { name: 'Cola', price: 7.49, quantity: 1, unitPrice: 7.49, foodSubcat: 'napoje' },
+      { name: 'Wafelki', price: 4.2, quantity: 1, unitPrice: 4.2, foodSubcat: 'słodycze' },
+      { name: 'Płyn', price: 15.81, quantity: 1, unitPrice: 15.81 },
+    ] } as any);
+    expect(amountInScope(mixed, 'food:słodycze')).toBeCloseTo(16.7, 2);
+    expect(amountInScope(mixed, 'food:napoje')).toBeCloseTo(7.49, 2);
+    expect(amountInScope(mixed, 'food:pieczywo')).toBe(0);
+    expect(spentInMonth([...expenses, mixed], 'food:słodycze', '2026-11')).toBe(16.7);
+    expect(scopeLabel('food:słodycze')).toBe('Słodycze');
+    // wydatek przeniesiony do Stałych nie liczy pozycji jako jedzenia
+    expect(amountInScope({ ...mixed, fvOverride: 'fixed' } as any, 'food:słodycze')).toBe(0);
+  });
   test('status: zostało, dziennie, tempo, poziom', () => {
     const s = budgetStatus(B('food', 1000), expenses, NOW);
     expect(s.spent).toBe(300);

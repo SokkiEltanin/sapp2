@@ -1938,7 +1938,9 @@ lista kart po 50 ("Pokaż więcej"), nazwa → grupa z pamięcią w obrębie wyl
 User: "tak, okej" na limit miesięczny na kategorię, ile zostało, ile dziennie,
 ostrzeżenie.
 - **Model** `src/types/budgets.ts` (`scope`: 'all' | 'food' | 'variable' | 'fixed' |
-  'cat:<tag>', `limit` zł/mies.). Store `src/store/budgetsStore.ts` (`budgets-v1`;
+  'cat:<tag>' | 'food:<podkategoria>' (2026-11-15: słodycze, napoje… — kwota z
+  `foodStats.foodSplitOf`, tej samej co trend i "Jedzenie" w Wydatkach), `limit` zł/mies.).
+  Wybór zakresu w BudgetSheet pogrupowany: Ogólne / Jedzenie / Zmienne. Store `src/store/budgetsStore.ts` (`budgets-v1`;
   `setBudget(scope, limit)` dodaje albo zmienia; `notified` = zgłoszone progi, per
   urządzenie).
 - **Logika** `src/utils/budgets.ts` (testy `__tests__/budgets.test.ts`): zakresy =

@@ -11,6 +11,8 @@ import { useExpensesStore } from '@/store/expensesStore';
 import type { BudgetScope } from '@/types/budgets';
 import { budgetStatuses, budgetHistory, suggestLimit, scopeLabel, scopeColor, type BudgetStatus } from '@/utils/budgets';
 import { EXPENSE_CATEGORIES } from '@/utils/expenseCategory';
+import { FOOD_SUBCATS } from '@/utils/food';
+import { useCategoriesVersion } from '@/store/categoriesStore';
 import { haptic } from '@/utils/haptics';
 import { zl, round2 } from '@/utils/money';
 
@@ -18,7 +20,16 @@ import { zl, round2 } from '@/utils/money';
 // kreską "dziś" (ile miesiąca minęło), zostało i ile dziennie, prognoza, 6
 // ostatnich miesięcy (zmieszczone / ponad). Limit zmieniany w miejscu. Na dole
 // dodanie nowego: zakres + podpowiedź limitu ze średniej 3 miesięcy.
-const ALL_SCOPES: BudgetScope[] = ['all', 'food', 'variable', 'fixed', ...EXPENSE_CATEGORIES.map((c) => `cat:${c.tag}` as BudgetScope)];
+// 2026-11-15: + podkategorie jedzenia (user: "limity też na podkategorie np słodycze,
+// przekąski, napoje"). Grupy liczone przy renderze — uwzględniają własne/ukryte
+// kategorie z Ustawień (categoryRegistry mutuje listy).
+function scopeGroups(): { title: string; scopes: BudgetScope[] }[] {
+  return [
+    { title: 'Ogólne', scopes: ['all', 'food', 'variable', 'fixed'] },
+    { title: 'Jedzenie', scopes: FOOD_SUBCATS.map((c) => `food:${c.tag}` as BudgetScope) },
+    { title: 'Zmienne', scopes: EXPENSE_CATEGORIES.map((c) => `cat:${c.tag}` as BudgetScope) },
+  ];
+}
 
 export function levelColor(s: BudgetStatus): string {
   return s.level === 'over' ? colors.accent.red : s.level === 'warn' ? colors.accent.orange : s.level === 'pace' ? colors.accent.orange : colors.text.secondary;
@@ -47,7 +58,12 @@ export default function BudgetSheet({ visible, onClose }: { visible: boolean; on
   const remove = useBudgetsStore((st) => st.remove);
   const expenses = useExpensesStore((st) => st.expenses);
   const statuses = useMemo(() => budgetStatuses(budgets, expenses), [budgets, expenses]);
-  const free = ALL_SCOPES.filter((sc) => !budgets.some((b) => b.scope === sc));
+  const catVer = useCategoriesVersion();
+  const groups = useMemo(() => scopeGroups()
+    .map((g) => ({ ...g, scopes: g.scopes.filter((sc) => !budgets.some((b) => b.scope === sc)) }))
+    .filter((g) => g.scopes.length > 0),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [budgets, catVer]);
 
   const [newScope, setNewScope] = useState<BudgetScope | null>(null);
   const [newLimit, setNewLimit] = useState<number | undefined>(undefined);
@@ -71,7 +87,7 @@ export default function BudgetSheet({ visible, onClose }: { visible: boolean; on
 
   return (
     <AppBottomSheet visible={visible} onClose={onClose} maxHeightRatio={0.9} header={<Text style={s.title}>Budżety</Text>}>
-      {statuses.length === 0 && <Text style={s.intro}>Miesięczny limit na jedzenie, zmienne albo kategorię — appka pokaże, ile zostało na dzień, i ostrzeże przy 80% i 100%.</Text>}
+      {statuses.length === 0 && <Text style={s.intro}>Miesięczny limit na jedzenie, zmienne, kategorię albo podkategorię jedzenia (np. słodycze) — appka pokaże, ile zostało na dzień, i ostrzeże przy 80% i 100%.</Text>}
 
       {statuses.map((st) => {
         const b = st.budget;
@@ -133,20 +149,25 @@ export default function BudgetSheet({ visible, onClose }: { visible: boolean; on
         );
       })}
 
-      {free.length > 0 && (
+      {groups.length > 0 && (
         <SheetCard title="Nowy budżet">
-          <View style={s.chips}>
-            {free.map((sc) => {
-              const on = newScope === sc;
-              const dot = scopeColor(sc);
-              return (
-                <TouchableOpacity key={sc} style={[s.chip, on && s.chipOn]} onPress={() => pickScope(sc)} activeOpacity={0.8}>
-                  {dot && <View style={[s.dot, { backgroundColor: dot }]} />}
-                  <Text style={[s.chipLabel, on && s.chipLabelOn]}>{scopeLabel(sc)}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          {groups.map((g, gi) => (
+            <View key={g.title} style={gi > 0 ? { marginTop: spacing[3] } : undefined}>
+              <Text style={s.groupLabel}>{g.title}</Text>
+              <View style={s.chips}>
+                {g.scopes.map((sc) => {
+                  const on = newScope === sc;
+                  const dot = scopeColor(sc);
+                  return (
+                    <TouchableOpacity key={sc} style={[s.chip, on && s.chipOn]} onPress={() => pickScope(sc)} activeOpacity={0.8}>
+                      {dot && <View style={[s.dot, { backgroundColor: dot }]} />}
+                      <Text style={[s.chipLabel, on && s.chipLabelOn]}>{scopeLabel(sc)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
           {newScope && (
             <>
               <View style={[s.editRow, { marginTop: spacing[3] }]}>
@@ -194,6 +215,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   delBtnOn: { backgroundColor: c.accent.red, borderColor: c.accent.red },
   addBtn: { paddingHorizontal: spacing[3], paddingVertical: 9, borderRadius: radius.md, backgroundColor: c.text.bright },
   addLabel: { fontSize: 12.5, fontFamily: 'Inter_900Black', color: c.bg.primary },
+  groupLabel: { fontSize: 10.5, fontFamily: 'Inter_800ExtraBold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: spacing[2] },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing[3], paddingVertical: 7, borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default },
   chipOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },

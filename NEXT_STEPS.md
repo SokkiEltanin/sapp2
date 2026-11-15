@@ -41,6 +41,10 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-15 — budżety na podkategorie jedzenia** (słodycze, przekąski, napoje…):
+- [ ] Finanse → Budżet → Nowy budżet → sekcja „Jedzenie”: dodać limit na Słodycze,
+  sprawdzić kwotę wydaną vs Wydatki → Jedzenie → Słodycze (mają być równe).
+
 **2026-11-15 — sen bez faz:** źródło nocy z fazami (zegarek) wygrywa teraz z dłuższą
 sesją bez faz (np. tryb snu telefonu), o ile ma ≥ 60 % jej długości (`pickSleepSource`).
 - [ ] Sprawdzić na telefonie, czy fazy pojawiają się zawsze; jeśli nadal czasem brak —
