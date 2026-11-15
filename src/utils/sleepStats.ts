@@ -13,6 +13,21 @@ export const PHASE_META: Record<SleepStageKind, { label: string; norm: [number, 
 };
 export const PHASE_ORDER: SleepStageKind[] = ['deep', 'light', 'rem', 'awake'];
 
+// Wybór źródła nocy z Health Connect (2026-11-15, user: "czemu czasami mi snu nie
+// pokazuje tak fajnie z danymi"). Wcześniej wygrywało najdłuższe źródło — gdy
+// telefon (tryb snu / Digital Wellbeing) zapisał dłuższą sesję BEZ faz, wypierała
+// noc z zegarka z fazami. Teraz źródło z fazami wygrywa, o ile pokrywa ≥ 60 %
+// najdłuższej sesji (krótka drzemka z fazami nie zastąpi całej nocy).
+export interface SleepSourceAgg { min: number; deep: number; rem: number; light: number; awake: number }
+export function pickSleepSource<T extends SleepSourceAgg>(sources: T[]): T | null {
+  const valid = sources.filter((s) => s.min > 0);
+  if (!valid.length) return null;
+  const longest = valid.reduce((a, b) => (b.min > a.min ? b : a));
+  const staged = valid.filter((s) => s.deep + s.rem + s.light + s.awake > 0 && s.min >= longest.min * 0.6);
+  if (!staged.length) return longest;
+  return staged.reduce((a, b) => (b.min > a.min ? b : a));
+}
+
 export interface PhaseStat { kind: SleepStageKind; min: number; pct: number; status: 'low' | 'ok' | 'high' }
 export interface SleepSummary {
   total: number;       // od zaśnięcia do pobudki (min)

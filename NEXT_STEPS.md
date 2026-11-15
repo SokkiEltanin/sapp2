@@ -41,6 +41,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-15 — sen bez faz:** źródło nocy z fazami (zegarek) wygrywa teraz z dłuższą
+sesją bez faz (np. tryb snu telefonu), o ile ma ≥ 60 % jej długości (`pickSleepSource`).
+- [ ] Sprawdzić na telefonie, czy fazy pojawiają się zawsze; jeśli nadal czasem brak —
+  Ustawienia → test Health Connect → SleepSession: które źródła (origins) zapisały noc.
+
 **2026-11-14 — do sprawdzenia na telefonie / do zrobienia przez usera:**
 - [ ] **Dodać sekret `EXPO_TOKEN`** w repo sapp2 (MAINTENANCE.md §3) — bez niego każdy
   push = pełny APK zamiast OTA. Potem zainstalować pierwszy APK z expo-updates (≥ #189).

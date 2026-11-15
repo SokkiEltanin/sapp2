@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Screen, Row, Tile, Cap, StackBar, FitList } from '@/ui/layout';
 import { router } from 'expo-router';
 import DayPlanTagsSheet from '@/components/daily/DayPlanTagsSheet';
@@ -124,6 +124,11 @@ export default function DailyScreen() {
                     ))}
                   </View>
                 </View>
+              )}
+              {!sleep.hasPhases && (
+                <Text style={[T.small, { marginTop: 6 }]} numberOfLines={2}>
+                  Bez faz snu — zegarek jeszcze ich nie przesłał do Health Connect{Platform.OS === 'web' ? ' (komputer pokazuje to, co telefon wysłał ostatnio)' : ''}.
+                </Text>
               )}
             </>
           ) : (

@@ -1,5 +1,6 @@
 import type { HealthConnectResult } from '@/types/health';
 import type { SleepStageSpan, HealthDaySnapshot } from '@/types/health';
+import { pickSleepSource } from '@/utils/sleepStats';
 
 // Health Connect — natywny moduł (`react-native-health-connect`, patrz
 // `plugins/withHealthConnectQueries.js`), niedostępny w Expo Go. Ten sam wzorzec
@@ -186,11 +187,8 @@ export async function readHealthDay(date: Date): Promise<HealthDaySnapshot> {
       }
       bySrc.set(src, e);
     }
-    const best = [...bySrc.values()].reduce(
-      (a, b) => (b.min > a.min ? b : a),
-      { min: 0, deep: 0, rem: 0, light: 0, awake: 0, start: 0, end: 0, spans: [] as SleepStageSpan[] },
-    );
-    if (best.min > 0) {
+    const best = pickSleepSource([...bySrc.values()]);
+    if (best) {
       sleepMinutes = best.min; sleepDeepMin = best.deep; sleepRemMin = best.rem; sleepLightMin = best.light; sleepAwakeMin = best.awake;
       const hhmm = (ms: number) => new Date(ms).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
       sleepFrom = hhmm(best.start); sleepTo = hhmm(best.end);
