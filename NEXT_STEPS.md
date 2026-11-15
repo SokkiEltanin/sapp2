@@ -41,6 +41,9 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-15 — kreator kolorów ze spektrum** (notatki → kolor → Kreator):
+- [ ] Na telefonie: przeciąganie po spektrum i suwaku nasycenia (S-Pen i palec).
+
 **2026-11-15 — własny picker daty/godziny** (zamiast szarego systemowego, user: „takie
 elementy surowe miałeś zrobić”): zadania, wydatek, wymiany, wydarzenia, tankowanie, płatności.
 - [ ] Na telefonie: picker nad formularzem (sheet), łańcuch data → godzina w Zadaniach.

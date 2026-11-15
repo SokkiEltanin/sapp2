@@ -1769,9 +1769,12 @@ Zadania z `task`, notatka → edytor, reszta → ich ekrany. Nowy rodzaj danych 
   szerokość strony (`store/noteViewStore.ts`, lokalnie, bez sync) → linia przerywana na
   `tileCutY` = h_kafla × szer_strony / szer_kafla. Oko przy „Tekst | Rysunek” włącza/
   wyłącza (`guide`, zapamiętane).
-- **Moja paleta**: `notesStore.palette` (+ addColor/removeColor, sync w `prefs` jako
-  `notePalette`), `components/notes/ColorPicker.tsx` (podstawowe + moja paleta, „+”
-  dodaje #hex, przytrzymanie → usuń) — w kolorze tekstu i w kolorze pióra.
+- **Moja paleta**: `notesStore.palette` (+ addColor/removeColor/replaceColor, sync w
+  `prefs` jako `notePalette`), `components/notes/ColorPicker.tsx` (podstawowe + moja
+  paleta + „Kreator”) — w kolorze tekstu i w kolorze pióra. **Kreator** (2026-11-15)
+  `components/notes/ColorCreator.tsx`: spektrum (odcień × jasność, SVG gradienty,
+  responder), suwak nasycenia, #hex; paleta w kreatorze = biblioteka (stuknij →
+  edytuj / usuń). Przeliczenia `utils/colorSpace.ts` (testy).
 - **Wejście do listy**: przycisk „Wszystkie notatki” w nagłówku notatki (z Dashboardu
   otwiera się sama notatka).
 

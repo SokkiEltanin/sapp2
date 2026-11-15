@@ -28,6 +28,7 @@ interface NotesState {
   palette: string[];
   addColor: (hex: string) => void;
   removeColor: (hex: string) => void;
+  replaceColor: (oldHex: string, hex: string) => void; // edycja koloru w kreatorze (to samo miejsce w palecie)
 }
 
 export const useNotesStore = create<NotesState>()(
@@ -41,6 +42,12 @@ export const useNotesStore = create<NotesState>()(
         return st.palette.includes(c) ? st : { palette: [...st.palette, c].slice(-24) };
       }),
       removeColor: (hex) => set((st) => ({ palette: st.palette.filter((c) => c !== hex.toUpperCase()) })),
+      replaceColor: (oldHex, hex) => set((st) => {
+        const o = oldHex.toUpperCase(), c = hex.toUpperCase();
+        if (o === c) return st;
+        const next = st.palette.map((x) => (x === o ? c : x));
+        return { palette: next.filter((x, i) => next.indexOf(x) === i) };
+      }),
       create: (kind, pinned = false, folderId = null) => {
         const t = now();
         const note: Note = { id: genNoteId(), kind, title: '', text: '', items: [], strokes: [], pinned, folderId, createdAt: t, updatedAt: t };
