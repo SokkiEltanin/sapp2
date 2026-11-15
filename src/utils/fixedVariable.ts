@@ -140,6 +140,11 @@ export function fixedDeviations(expenses: Expense[], month: string, lookback = 3
 
 export interface FvTransaction { id: string; label: string; amount: number; date: string; overridden: boolean }
 
+/** Kwota transakcji na liście: "36,47 zł", pełne złote bez groszy ("40 zł"). */
+export function fmtTxAmount(v: number): string {
+  return Number.isInteger(v) ? `${v} zł` : `${v.toFixed(2).replace('.', ',')} zł`;
+}
+
 // Chronologiczna (najnowsze pierwsze) lista POJEDYNCZYCH transakcji liczonych w danym
 // kuble (fixed/variable/food) w danym miesiącu — do drill-down w popupie
 // Stałe/Zmienne/Jedzenie (każda transakcja osobno, żeby dało się ją pojedynczo
@@ -154,7 +159,9 @@ export function bucketTransactions(expenses: Expense[], month: string, bucket: F
     // tylko swoją częścią kwoty, patrz `fvSplitOf`.
     const amt = fvSplitOf(e)[bucket];
     if (amt <= 0) continue;
-    out.push({ id: e.id, label: labelFor(e), amount: Math.round(amt), date: e.date, overridden: !!e.fvOverride });
+    // Grosze (2026-11-15): lista pojedynczych transakcji pokazuje dokładną kwotę —
+    // zaokrąglanie do złotówek dawało "0 zł" dla drobnej części mieszanego paragonu.
+    out.push({ id: e.id, label: labelFor(e), amount: Math.round(amt * 100) / 100, date: e.date, overridden: !!e.fvOverride });
   }
   return out.sort((a, b) => b.date.localeCompare(a.date));
 }

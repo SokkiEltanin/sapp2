@@ -4,6 +4,7 @@ import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { haptic } from '@/utils/haptics';
 import type { FvTransaction } from '@/utils/fixedVariable';
+import { fmtTxAmount } from '@/utils/fixedVariable';
 import type { FoodCategoryItem } from '@/utils/foodStats';
 
 function fmtTxDate(ymd: string): string {
@@ -120,7 +121,7 @@ export default function VariableBreakdownCard({
                 <Text style={s.txDate}>{fmtTxDate(tx.date)}</Text>
                 <Text style={s.txLabel} numberOfLines={1}>{tx.label}</Text>
                 {tx.overridden ? <Pencil size={11} color={colors.text.muted} style={s.txPencil} /> : null}
-                <Text style={s.txAmount}>{tx.amount} zł</Text>
+                <Text style={s.txAmount}>{fmtTxAmount(tx.amount)}</Text>
               </TouchableOpacity>
             ))}
           </View>

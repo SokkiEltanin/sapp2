@@ -1,6 +1,6 @@
 import {
   isFixedExpense, fixedVariableMonths, fixedDeviations,
-  bucketOf, bucketTransactions, fvSplitOf,
+  bucketOf, bucketTransactions, fvSplitOf, fmtTxAmount,
 } from '@/utils/fixedVariable';
 import type { Expense, ReceiptItem } from '@/types/finances';
 
@@ -218,5 +218,18 @@ describe('fixedVariable — bucketTransactions', () => {
     expect(bucketTransactions(exps, '2026-08', 'fixed')).toHaveLength(0);
     const out = bucketTransactions(exps, '2026-08', 'variable');
     expect(out).toEqual([{ id: 'a', label: 'Czynsz', amount: 100, date: '2026-08-05', overridden: true }]);
+  });
+});
+
+describe('fixedVariable — kwoty z groszami na liście', () => {
+  test('drobna część paragonu nie znika jako "0 zł"', () => {
+    const mixed = e({
+      id: 'm2', amount: 20.39, date: '2026-08-04', note: 'Lidl',
+      receiptItems: [item({ name: 'chleb', price: 20, foodSubcat: 'pieczywo' }), item({ name: 'reklamówka', price: 0.39 })],
+    });
+    const [tx] = bucketTransactions([mixed], '2026-08', 'variable');
+    expect(tx.amount).toBe(0.39);
+    expect(fmtTxAmount(tx.amount)).toBe('0,39 zł');
+    expect(fmtTxAmount(40)).toBe('40 zł');
   });
 });

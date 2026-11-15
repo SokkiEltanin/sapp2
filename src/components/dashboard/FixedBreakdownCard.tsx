@@ -5,6 +5,7 @@ import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { haptic } from '@/utils/haptics';
 import type { FixedItem, FixedDeviation, FvTransaction } from '@/utils/fixedVariable';
+import { fmtTxAmount } from '@/utils/fixedVariable';
 
 function fmtTxDate(ymd: string): string {
   const [y, m, d] = (ymd || '').slice(0, 10).split('-').map(Number);
@@ -115,7 +116,7 @@ export default function FixedBreakdownCard({
                       <Text style={s.txDate}>{fmtTxDate(tx.date)}</Text>
                       <Text style={s.txLabel} numberOfLines={1}>{tx.label}</Text>
                       {tx.overridden ? <Pencil size={11} color={colors.text.muted} style={s.txPencil} /> : null}
-                      <Text style={s.txAmount}>{tx.amount} zł</Text>
+                      <Text style={s.txAmount}>{fmtTxAmount(tx.amount)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
