@@ -11,6 +11,8 @@ export interface WeatherHour { time: string; temp: number; pop: number; precip: 
 export interface WeatherDay {
   date: string; code: number; max: number; min: number; precipSum: number; pop: number;
   sunrise: string; sunset: string; uvMax: number;
+  // Godziny 0–23 tego dnia (2026-11-15, pasek doby w "7 dni"): szansa i ilość opadu.
+  hours?: { pop: number; precip: number }[];
 }
 export interface AirQuality { aqi: number; pm25: number; pm10: number; no2: number | null; o3: number | null }
 export interface WeatherData {
@@ -54,6 +56,11 @@ export function parseWeather(fc: any, aq: any | null, place: string, fetchedAt =
     sunrise: String(d.sunrise?.[i] ?? ''),
     sunset: String(d.sunset?.[i] ?? ''),
     uvMax: n(d.uv_index_max?.[i]),
+    hours: Array.from({ length: 24 }, (_, hh) => {
+      const key = `${date}T${String(hh).padStart(2, '0')}`;
+      const k = times.findIndex((t) => t.slice(0, 13) === key);
+      return k < 0 ? { pop: 0, precip: 0 } : { pop: n(h.precipitation_probability?.[k]), precip: n(h.precipitation?.[k]) };
+    }),
   }));
   const a = aq?.current;
   const air: AirQuality | null = a && typeof a.european_aqi === 'number'
@@ -204,3 +211,24 @@ export function weatherTip(w: WeatherData): string | null {
 }
 
 export const fmtTemp = (t: number) => `${Math.round(t) === 0 ? 0 : Math.round(t)}°`;
+
+// ── Pasek doby w "7 dni" (2026-11-15, user: "myślałem że to opady deszczu w ciągu dnia
+// ... zaznaczone kiedy jest DZIEŃ i NOC") ─────────────────────────────────────────
+export interface StripHour { hour: number; night: boolean; rain: number } // rain 0–1
+
+const hourOf = (iso: string): number | null => {
+  const m = /T(\d{2}):(\d{2})/.exec(iso);
+  return m ? Number(m[1]) + Number(m[2]) / 60 : null;
+};
+
+/** 24 godziny dnia: noc (przed wschodem / po zachodzie) i natężenie deszczu. */
+export function dayStrip(d: Pick<WeatherDay, 'sunrise' | 'sunset' | 'hours'>): StripHour[] {
+  const sr = hourOf(d.sunrise) ?? 7, ss = hourOf(d.sunset) ?? 17;
+  return Array.from({ length: 24 }, (_, hh) => {
+    const mid = hh + 0.5;
+    const x = d.hours?.[hh] ?? { pop: 0, precip: 0 };
+    const byPop = x.pop >= 20 ? x.pop / 100 : 0;
+    const byMm = x.precip > 0 ? Math.min(1, 0.45 + x.precip / 2) : 0;
+    return { hour: hh, night: mid < sr || mid > ss, rain: Math.round(Math.max(byPop, byMm) * 100) / 100 };
+  });
+}

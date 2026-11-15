@@ -90,3 +90,24 @@ describe('kolory pogody', () => {
     expect(tempColor(5)).toMatch(/^#[0-9a-f]{6}$/);
   });
 });
+
+import { dayStrip } from '../src/utils/weather';
+describe('dayStrip — pasek doby', () => {
+  const hours = Array.from({ length: 24 }, (_, h) => ({ pop: h >= 14 && h < 17 ? 70 : h === 20 ? 10 : 0, precip: h === 15 ? 1.2 : 0 }));
+  const strip = dayStrip({ sunrise: '2026-11-15T07:01', sunset: '2026-11-15T16:05', hours });
+  it('noc przed wschodem i po zachodzie', () => {
+    expect(strip[6].night).toBe(true);
+    expect(strip[7].night).toBe(false);
+    expect(strip[15].night).toBe(false);
+    expect(strip[16].night).toBe(true);
+  });
+  it('deszcz z szansy (od 20%) i z ilości mm', () => {
+    expect(strip[14].rain).toBe(0.7);
+    expect(strip[15].rain).toBe(1);
+    expect(strip[20].rain).toBe(0);
+    expect(strip[3].rain).toBe(0);
+  });
+  it('bez danych godzinowych — sama noc/dzień', () => {
+    expect(dayStrip({ sunrise: '', sunset: '' }).every((x) => x.rain === 0)).toBe(true);
+  });
+});

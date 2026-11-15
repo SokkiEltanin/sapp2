@@ -10,7 +10,7 @@ import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useWeatherStore } from '@/store/weatherStore';
 import { refreshWeather } from '@/hooks/useWeather';
 import { searchCity, type CityHit } from '@/services/weather';
-import { weatherCodeInfo, aqiInfo, rainSummary, cloudSummary, weatherTip, fmtTemp, weatherColor, weatherToneKey, WEATHER_TONES, tempColor } from '@/utils/weather';
+import { weatherCodeInfo, aqiInfo, rainSummary, cloudSummary, weatherTip, fmtTemp, weatherColor, weatherToneKey, WEATHER_TONES, tempColor, dayStrip } from '@/utils/weather';
 import { haptic } from '@/utils/haptics';
 
 // Szczegóły pogody (2026-11-13): teraz (odczuwalna/wilgotność/wiatr/ciśnienie/
@@ -88,8 +88,8 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
     haptic.tap();
     Linking.openURL(`https://www.rainviewer.com/map.html?loc=${coords.lat.toFixed(3)},${coords.lon.toFixed(3)},8&layer=radar&sm=1&sn=1`).catch(() => {});
   };
-  const weekMin = data ? Math.min(...data.daily.map((d) => d.min)) : 0;
-  const weekMax = data ? Math.max(...data.daily.map((d) => d.max)) : 1;
+  // Pozycja "teraz" na pasku doby (0–1).
+  const nowFrac = (() => { const d = new Date(); return (d.getHours() + d.getMinutes() / 60) / 24; })();
 
   const header = (
     <View style={s.head}>
@@ -190,12 +190,14 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
             <View style={s.dayHead}>
               <Text style={[s.colHead, { width: 92 }]}>dzień</Text>
               <Text style={[s.colHead, { width: 40, textAlign: 'right' }]}>opady</Text>
-              <Text style={[s.colHead, { width: 34, textAlign: 'right' }]}>noc</Text>
-              <Text style={[s.colHead, { flex: 1, textAlign: 'center' }]}>temperatura</Text>
-              <Text style={[s.colHead, { width: 34 }]}>dzień</Text>
+              <Text style={[s.colHead, { width: 34, textAlign: 'right' }]}>min</Text>
+              {/* Skala doby nad paskiem: 6 / 12 / 18. */}
+              <View style={s.hoursHead}>
+                {[6, 12, 18].map((h) => <Text key={h} style={[s.colHead, s.hourTick, { left: `${(h / 24) * 100}%` }]}>{h}</Text>)}
+              </View>
+              <Text style={[s.colHead, { width: 34 }]}>max</Text>
             </View>
             {data!.daily.map((d, i) => {
-              const span = Math.max(1, weekMax - weekMin);
               const tone = WEATHER_TONES[weatherToneKey(d.code)];
               return (
                 <View key={d.date} style={s.dayRow}>
@@ -211,19 +213,20 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
                     <Text style={s.dayPop}>{d.pop >= 20 ? `${d.pop}%` : '–'}</Text>
                   </View>
                   <Text style={[s.dayMin, { color: tempColor(d.min) }]}>{fmtTemp(d.min)}</Text>
-                  <View style={s.rangeTrack}>
-                    <LinearGradient
-                      colors={[tempColor(d.min), tempColor(d.max)]}
-                      start={{ x: 0, y: 0.5 }}
-                      end={{ x: 1, y: 0.5 }}
-                      style={[s.rangeFill, { left: `${((d.min - weekMin) / span) * 100}%`, right: `${((weekMax - d.max) / span) * 100}%` }]}
-                    />
+                  {/* Doba 0–24 h: jasne = dzień, ciemne = noc, niebieskie = godziny z deszczem. */}
+                  <View style={s.strip}>
+                    {dayStrip(d).map((x) => (
+                      <View key={x.hour} style={[s.stripHour, { backgroundColor: x.night ? '#0B0B0B' : '#2A2A2A' }]}>
+                        {x.rain > 0 && <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.accent.blue, opacity: 0.25 + x.rain * 0.75 }]} />}
+                      </View>
+                    ))}
+                    {i === 0 && nowFrac != null && <View style={[s.stripNow, { left: `${nowFrac * 100}%` }]} />}
                   </View>
                   <Text style={[s.dayMax, { color: tempColor(d.max) }]}>{fmtTemp(d.max)}</Text>
                 </View>
               );
             })}
-            <Text style={s.note}>Pasek = od nocy do dnia; dalej w prawo = cieplej niż w inne dni. Kolor: niebieski zimno → pomarańczowy ciepło.</Text>
+            <Text style={s.note}>Pasek = cała doba (0–24 h): jasne = dzień, ciemne = noc, niebieskie = godziny z deszczem (mocniejszy = pewniejszy). Kreska na „dziś” = teraz. Liczby: najniższa i najwyższa temperatura dnia.</Text>
           </SheetCard>
 
           {data!.air && (() => {
@@ -344,8 +347,11 @@ const makeS = themedStyles((c) => StyleSheet.create({
   dayPop: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.accent.blue, textAlign: 'right' },
   dayMin: { width: 34, fontSize: 12, fontFamily: 'Inter_800ExtraBold', textAlign: 'right', fontVariant: ['tabular-nums'] },
   dayMax: { width: 34, fontSize: 12.5, fontFamily: 'Inter_900Black', fontVariant: ['tabular-nums'] },
-  rangeTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: c.bg.primary },
-  rangeFill: { position: 'absolute', top: 0, bottom: 0, borderRadius: 3 },
+  strip: { flex: 1, height: 12, flexDirection: 'row', borderRadius: 4, overflow: 'hidden', gap: 1 },
+  stripHour: { flex: 1 },
+  stripNow: { position: 'absolute', top: -1, bottom: -1, width: 2, marginLeft: -1, backgroundColor: c.text.bright },
+  hoursHead: { flex: 1, height: 12 },
+  hourTick: { position: 'absolute', marginLeft: -6, width: 12, textAlign: 'center' },
 
   airHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   airDot: { width: 10, height: 10, borderRadius: 5 },
