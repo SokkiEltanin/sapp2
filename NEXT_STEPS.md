@@ -91,7 +91,8 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 - **[sprawdź] Komputer — kolumny (2026-11-14)**: szerokie okno = Dashboard / Finanse /
   Zadania / Daily obok siebie, pasek po lewej (Ustawienia, zakładki, Notatki, Szukaj).
   Ustawienia/Notatki/Szukaj itd. = panel z prawej (klik obok zamyka), skróty
-  klawiszowe (przycisk „Skróty” na dole paska).
+  klawiszowe (przycisk „Skróty” na dole paska; W = wydatek, Z = zadanie), okienka
+  jako dialog na środku, Ustawienia → Ogólne → „Zainstaluj na komputerze”.
 - **Kalendarz Google na komputerze (2026-11-14)**: telefon wysyła okno −45..+180 dni
   (`utils/gcalMirror.ts`, dokument `sync_docs/gcal`), komputer tylko czyta.
   [sprawdź] po nowej wersji na telefonie: otwórz appkę na telefonie (pobierze
