@@ -2,6 +2,7 @@ import type { Expense } from '@/types/finances';
 import type { FoodCategoryBar, FoodCategoryItem } from './foodStats';
 import { fvSplitOf, labelFor } from './fixedVariable';
 import { BILL_TYPES, billTagFor } from './recurringBills';
+import { round2 } from './money';
 
 // Podkategorie STAŁYCH (2026-11-14, user: "3 główne: JEDZENIE, STAŁE, ZMIENNE i one
 // na mniejsze — STAŁE: prąd, czynsz/mieszkanie, internet, subskrypcje"). Stałe są
@@ -46,7 +47,7 @@ export function fixedByCategory(expenses: Expense[], monthFilterKey?: string): (
     .map(([tag, amount]) => ({
       tag,
       label: tag === FIXED_OTHER ? 'Inne stałe' : FIXED_CAT_META[tag]?.label ?? tag,
-      amount: Math.round(amount),
+      amount: round2(amount),
       color: tag === FIXED_OTHER ? '#3F3F3F' : FIXED_CAT_META[tag]?.color ?? '#8A8A8A',
       items: (items.get(tag) ?? []).sort((a, b) => b.date.localeCompare(a.date)),
     }))

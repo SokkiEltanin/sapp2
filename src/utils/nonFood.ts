@@ -1,5 +1,6 @@
 import type { Expense } from '@/types/finances';
 import type { FoodCategoryBar, FoodCategoryItem } from './foodStats';
+import { round2 } from './money';
 
 // Kategorie pozycji NIE-jedzeniowych (2026-11-10, user: "daj możliwość dodania...
 // higiena, bo chemia to chyba bardziej taka... kapsułki i tak dalej") —
@@ -64,7 +65,7 @@ export function nonFoodByCategory(expenses: Expense[], monthFilterKey?: string):
   return [...sums.entries()]
     .map(([tag, amount]) => ({
       label: NON_FOOD_SUBCAT_META[tag]?.label ?? tag,
-      amount: Math.round(amount),
+      amount: round2(amount),
       color: NON_FOOD_SUBCAT_META[tag]?.color ?? '#8A8A8A',
       items: (items.get(tag) ?? []).sort((a, b) => b.date.localeCompare(a.date) || b.price - a.price),
     }))

@@ -5,6 +5,7 @@ import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { haptic } from '@/utils/haptics';
 import type { FoodCategory } from './FoodBreakdownCard';
+import { zl, money } from '@/utils/money';
 
 // Drill-down popup "co konkretnie się na to złożyło" (2026-11-01, user: "jak
 // klikam w jedzenie nie mam tam zrobione na popupie jak w sap na dashboardzie") —
@@ -53,7 +54,7 @@ export default function FoodCategoryItemsModal({
           <X size={18} color={colors.text.secondary} />
         </TouchableOpacity>
       </View>
-      <Text style={s.subtitle}>{category.amount} zł · {month.toLowerCase()}</Text>
+      <Text style={s.subtitle}>{zl(category.amount)} · {month.toLowerCase()}</Text>
     </>
   );
 
@@ -79,7 +80,7 @@ export default function FoodCategoryItemsModal({
                 {it.quantity > 1 ? ` · ${it.quantity}×` : ''}
               </Text>
             </View>
-            <Text style={s.itemPrice}>{it.price.toFixed(2)} zł</Text>
+            <Text style={s.itemPrice}>{zl(it.price)}</Text>
           </TouchableOpacity>
         ))
       )}

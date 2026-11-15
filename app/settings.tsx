@@ -1,5 +1,6 @@
 import { goBack } from '@/services/nav';
 import { usePwaInstall, pwaInstallLabel, promptPwaInstall } from '@/services/pwaInstall';
+import { useCalendarStore } from '@/store/calendarStore';
 import DashboardLayoutSheet from '@/components/settings/DashboardLayoutSheet';
 import AppHealthSheet from '@/components/settings/AppHealthSheet';
 import ThresholdsSheet from '@/components/settings/ThresholdsSheet';
@@ -277,10 +278,11 @@ function buildSections(
       { kind: 'value', key: 'info-ota', label: 'Paczka JS', description: 'wbudowana w APK czy z aktualizacji OTA', icon: Info, value: runningUpdateLabel() },
       { kind: 'action', key: 'update-check', label: 'Sprawdź aktualizacje', description: update, icon: Download },
       { kind: 'action', key: 'error-log', label: 'Dziennik błędów', description: errors, icon: AlertTriangle },
-      { kind: 'action', tier: 'sub', key: 'google', label: 'Zaloguj przez Google (test)', description: 'sprawdź czy Google Sign-In działa', icon: LogIn },
+      // Testy logowania Google z Androida — na komputerze nie mają sensu (inne logowanie).
+      ...(Platform.OS === 'web' ? [] : [{ kind: 'action' as const, tier: 'sub' as const, key: 'google', label: 'Zaloguj przez Google (test)', description: 'sprawdź czy Google Sign-In działa', icon: LogIn }]),
       { kind: 'action', tier: 'sub', key: 'firestore', label: 'Firestore (test)', description: 'zapis/odczyt testowego dokumentu', icon: Database },
-      { kind: 'action', tier: 'sub', key: 'calendar', label: 'Kalendarz Google (test)', description: 'odczyt nadchodzących wydarzeń', icon: CalendarDays },
-      { kind: 'action', tier: 'sub', key: 'calendar-sync', label: 'Sync kalendarza (test)', description: 'round-trip dodaj/zmień/usuń, Firestore + Google', icon: CalendarDays },
+      { kind: 'action', tier: 'sub', key: 'calendar', label: Platform.OS === 'web' ? 'Kalendarz z telefonu' : 'Kalendarz Google (test)', description: Platform.OS === 'web' ? 'ile wydarzeń przyszło z telefonu' : 'odczyt nadchodzących wydarzeń', icon: CalendarDays },
+      ...(Platform.OS === 'web' ? [] : [{ kind: 'action' as const, tier: 'sub' as const, key: 'calendar-sync', label: 'Sync kalendarza (test)', description: 'round-trip dodaj/zmień/usuń, Firestore + Google', icon: CalendarDays }]),
     ],
   },
   ];
@@ -555,6 +557,15 @@ export default function SettingsScreen() {
 
   const testCalendar = async () => {
     append('Kalendarz Google…');
+    // Komputer (2026-11-15): tu nie ma logowania Google z Androida — wydarzenia
+    // przychodzą z telefonu przez synchronizację (utils/gcalMirror.ts).
+    if (Platform.OS === 'web') {
+      const n = useCalendarStore.getState().gcalEvents.length;
+      append(n > 0
+        ? `Kalendarz z telefonu: ${n} wydarzeń (od 45 dni wstecz do 180 dni w przód). Zmiany robisz na telefonie.`
+        : 'Brak wydarzeń z telefonu — zainstaluj na telefonie APK #225 lub nowszy, otwórz Sapp2 na telefonie (pobierze kalendarz), potem odśwież tę stronę.');
+      return;
+    }
     try {
       const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
       const tokens = await GoogleSignin.getTokens();

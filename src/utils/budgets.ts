@@ -3,6 +3,7 @@ import type { Budget, BudgetScope } from '@/types/budgets';
 import type { Expense } from '@/types/finances';
 import { fvSplitOf } from './fixedVariable';
 import { EXPENSE_CATEGORY_META, variableSplitOf } from './expenseCategory';
+import { round2, money } from './money';
 
 // Logika budżetów (2026-11-13) — czyste funkcje, testy __tests__/budgets.test.ts.
 
@@ -61,11 +62,11 @@ export function budgetStatus(b: Budget, expenses: Expense[], now: Date = new Dat
   const pct = b.limit > 0 ? spent / b.limit : 0;
   // Prognoza: tempo z minionych dni (dziś liczone jako pełny dzień dopiero od połowy).
   const elapsed = Math.max(1, day - 1 + Math.min(1, now.getHours() / 24 + 0.5));
-  const projected = Math.round((spent / elapsed) * dim);
+  const projected = round2((spent / elapsed) * dim);
   const level: BudgetLevel = pct >= 1 ? 'over' : pct >= THRESHOLDS.budgetWarnPct / 100 ? 'warn' : projected > b.limit && day >= 5 ? 'pace' : 'ok';
   return {
     budget: b, spent, left, pct, daysLeft, projected, level,
-    perDay: Math.max(0, Math.floor(left / daysLeft)),
+    perDay: Math.max(0, Math.floor((left / daysLeft) * 100) / 100),
     pacePct: (day - 1 + 0.5) / dim,
   };
 }
@@ -117,9 +118,9 @@ export function newBudgetAlerts(
       title: s.level === 'over' ? `Budżet przekroczony: ${name}` : `Budżet ${Math.round(s.pct * 100)}%: ${name}`,
       body: s.level === 'over'
         ? `Wydane ${fmt(s.spent)} z ${fmt(s.budget.limit)} zł — ${fmt(-s.left)} zł ponad limit.`
-        : `Zostało ${fmt(s.left)} zł na ${s.daysLeft} dni (${s.perDay} zł dziennie).`,
+        : `Zostało ${fmt(s.left)} zł na ${s.daysLeft} dni (${fmt(s.perDay)} zł dziennie).`,
     });
   }
   return out;
 }
-const fmt = (n: number) => String(Math.round(n));
+const fmt = (n: number) => money(n);

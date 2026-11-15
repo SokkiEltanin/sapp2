@@ -25,21 +25,21 @@ describe('wydatkiData — computeWydatkiData', () => {
     const data = computeWydatkiData(exps, today);
 
     expect(data.month).toBe('Sierpień');
-    expect(data.fixed.total).toBe('1000 zł');
-    expect(data.fixed.previousTotal).toBe('950 zł');
+    expect(data.fixed.total).toBe('1000,00 zł');
+    expect(data.fixed.previousTotal).toBe('950,00 zł');
     expect(data.fixed.items).toEqual([{ label: 'Czynsz', amount: 1000 }]);
-    expect(data.food.total).toBe('200 zł');
+    expect(data.food.total).toBe('200,00 zł');
     expect(data.food.categories).toEqual([{
       label: 'Pieczywo', amount: 200, color: expect.any(String),
       items: [{ expenseId: '3', date: '2026-08-04', storeName: undefined, name: 'Chleb', price: 200, quantity: 1 }],
     }]);
-    expect(data.variable.total).toBe('60 zł');
+    expect(data.variable.total).toBe('60,00 zł');
   });
 
   test('pusty miesiąc nie wywala się, zwraca zera/puste listy', () => {
     const today = new Date(2026, 7, 15);
     const data = computeWydatkiData([], today);
-    expect(data.fixed.total).toBe('0 zł');
+    expect(data.fixed.total).toBe('0,00 zł');
     expect(data.fixed.items).toEqual([]);
     expect(data.food.categories).toEqual([]);
     expect(data.fixed.changePercent).toBe(0);

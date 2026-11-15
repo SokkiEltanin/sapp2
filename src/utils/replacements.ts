@@ -2,6 +2,7 @@ import type { ReplaceItem, ReplaceUnit } from '@/types/replacements';
 import type { Expense } from '@/types/finances';
 import type { Vehicle } from '@/types/vehicles';
 import { addMonthsClipped, ymdLocal } from './dateMath';
+import { round2 } from './money';
 
 // Logika wymian domowych (2026-11-13) — czyste funkcje, testy w
 // __tests__/replacements.test.ts.
@@ -143,7 +144,7 @@ export function yearlyCost(item: Pick<ReplaceItem, 'every' | 'unit' | 'keywords'
   const last = findBuys(item, expenses).find((b) => b.price != null && b.price > 0);
   if (!last || last.price == null) return null;
   const perYear = item.unit === 'm' ? 12 / item.every : item.unit === 'w' ? 52 / item.every : 365 / item.every;
-  return Math.round(last.price * perYear);
+  return round2(last.price * perYear);
 }
 
 // ── Wspólna lista: dom + pojazdy ─────────────────────────────────────────────

@@ -1500,6 +1500,11 @@ ekrany czytają tylko lokalne store'y. `services/cloudSync.ts`:
 - Zegarek (Wear OS, później): tylko proste rzeczy, których zegarek sam nie ma —
   np. ostatnie wydatki, zadania na dziś (sen/kroki ma natywnie).
 
+**Kwoty zawsze z groszami** (2026-11-15, user: "bez zaokrągleń wgle... dla całej apki"):
+`src/utils/money.ts` — `zl(n)` ("45,32 zł"), `money(n)` ("1441,37", odstęp tysięcy od
+10 000), `round2`. Sumy w utils liczone `round2` (nie `Math.round`). Nowy ekran z kwotą →
+`zl()/money()`, nie `toFixed`/`Math.round`/`toLocaleString`.
+
 **Wersja na komputer (PWA)** (2026-11-13): ten sam kod na web →
 `.github/workflows/web.yml` (expo export web + `scripts/pwa-postbuild.js`: manifest,
 service worker `public/sw.js`, 404.html dla podstron) → GitHub Pages

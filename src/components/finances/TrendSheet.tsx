@@ -12,6 +12,7 @@ import { FOOD_SUBCAT_META } from '@/utils/food';
 import { FIXED_CAT_META, FIXED_OTHER } from '@/utils/fixedCategory';
 import { EXPENSE_CATEGORY_META, UNCATEGORIZED } from '@/utils/expenseCategory';
 import { haptic } from '@/utils/haptics';
+import { zl } from '@/utils/money';
 
 // Trend 12 miesięcy (2026-11-14, z listy "czego brakuje": "ile szło na paliwo albo
 // jedzenie miesiąc po miesiącu"). Koszyk → podkategorie, słupki z kreską średniej,
@@ -19,7 +20,6 @@ import { haptic } from '@/utils/haptics';
 type Bucket = 'all' | 'food' | 'fixed' | 'variable' | 'income';
 const BUCKETS: [Bucket, string][] = [['all', 'Wydatki'], ['food', 'Jedzenie'], ['fixed', 'Stałe'], ['variable', 'Zmienne'], ['income', 'Wpływy']];
 const PREFIX: Record<Bucket, string> = { all: '', food: 'food:', fixed: 'fixed:', variable: 'cat:', income: 'inc:' };
-const zl = (n: number) => `${Math.round(n).toLocaleString('pl-PL')} zł`;
 const CHART_H = 120;
 
 function metaOf(key: string): { label: string; color: string } {

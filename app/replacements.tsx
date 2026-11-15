@@ -16,6 +16,7 @@ import { REPLACE_PRESETS, presetByKey, allReplaceRows, shortEvery, pendingBuy, y
 import { toDisplayDate } from '@/utils/dateInput';
 import { todayISO } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
+import { zl, money } from '@/utils/money';
 
 // Ekran "Wymiany" (2026-11-13, user: "wszystko z wymianami, filtrów w dzbanku,
 // do powietrza itp itd i szczoteczek końcówek"). Zasada 10 — dane na wierzchu:
@@ -85,7 +86,7 @@ export default function ReplacementsScreen() {
               <Text style={s.statKey}>w 7 dni</Text>
             </View>
             <View style={s.stat}>
-              <Text style={s.statNum}>{knownCosts.length ? `${yearTotal}` : '—'}<Text style={s.statUnit}>{knownCosts.length ? ' zł' : ''}</Text></Text>
+              <Text style={s.statNum}>{knownCosts.length ? money(yearTotal) : '—'}<Text style={s.statUnit}>{knownCosts.length ? ' zł' : ''}</Text></Text>
               <Text style={s.statKey}>na rok{knownCosts.length && knownCosts.length < rows.length ? ` (${knownCosts.length}/${rows.length})` : ''}</Text>
             </View>
           </View>
@@ -96,7 +97,7 @@ export default function ReplacementsScreen() {
             <ShoppingBag size={16} color={colors.accent.blue} />
             <View style={{ flex: 1 }}>
               <Text style={s.buyTitle} numberOfLines={1}>{it.name} — wymienione?</Text>
-              <Text style={s.buySub} numberOfLines={1}>kupione {shortDate(buy!.date, today)}: {buy!.text}{buy!.price ? ` · ${buy!.price.toFixed(2).replace('.', ',')} zł` : ''}</Text>
+              <Text style={s.buySub} numberOfLines={1}>kupione {shortDate(buy!.date, today)}: {buy!.text}{buy!.price ? ` · ${zl(buy!.price)}` : ''}</Text>
             </View>
             <TouchableOpacity style={s.buyYes} onPress={() => done(it, buy!.date)} activeOpacity={0.8}>
               <Text style={s.buyYesLabel}>Tak</Text>
@@ -141,7 +142,7 @@ export default function ReplacementsScreen() {
                   </Text>
                   <Text style={s.sub} numberOfLines={1}>
                     <Text style={[s.due, { color }]}>{doneToday ? 'wymienione dziś' : due.label}</Text>
-                    {` · co ${every} · ost. ${shortDate(lastDate, today)}${cost ? ` · ~${cost} zł/rok` : ''}`}
+                    {` · co ${every} · ost. ${shortDate(lastDate, today)}${cost ? ` · ~${zl(cost)}/rok` : ''}`}
                   </Text>
                 </View>
                 <TouchableOpacity

@@ -6,6 +6,7 @@ import { spacing, radius, themedStyles } from '@/theme';
 import { haptic } from '@/utils/haptics';
 import type { FixedItem, FixedDeviation, FvTransaction } from '@/utils/fixedVariable';
 import { fmtTxAmount } from '@/utils/fixedVariable';
+import { zl, money } from '@/utils/money';
 
 function fmtTxDate(ymd: string): string {
   const [y, m, d] = (ymd || '').slice(0, 10).split('-').map(Number);
@@ -90,7 +91,7 @@ export default function FixedBreakdownCard({
                 <View style={s.itemBarTrack}>
                   <View style={[s.itemBar, { width: `${Math.max(3, (it.amount / maxAmount) * 100)}%` }]} />
                 </View>
-                <Text style={s.itemAmount}>{it.amount} zł</Text>
+                <Text style={s.itemAmount}>{zl(it.amount)}</Text>
                 {dev && (
                   <View style={[s.deviationBadge, dev.deltaPct > 0 ? s.deviationUp : s.deviationDown]}>
                     {dev.deltaPct > 0 ? <TrendingUp size={10} color={colors.accent.red} /> : <TrendingDown size={10} color={colors.accent.green} />}

@@ -11,6 +11,7 @@ import { useCategoriesVersion } from '@/store/categoriesStore';
 import { suggestSimilarName, priceFor, priceAnomaly, type PriceMemory } from '@/utils/productMemory';
 import { haptic } from '@/utils/haptics';
 import NumberInput from '@/components/design/NumberInput';
+import { zl } from '@/utils/money';
 
 // Zaokrąglenie DO WYŚWIETLENIA (user, 2026-11-01: "z owoców przeliczyło i
 // wywaliło dużo liczb po przecinku... max 3 po przecinku") — wagi (owoce/warzywa
@@ -127,7 +128,7 @@ export default function ReceiptItemRow({
       {priceFlag && (
         <View style={s.anomalyRow}>
           <TriangleAlert size={11} color={colors.accent.red} />
-          <Text style={s.anomalyText}>Zwykle ~{priceFlag.typical.toFixed(2)} zł — sprawdź cenę</Text>
+          <Text style={s.anomalyText}>Zwykle ~{zl(priceFlag.typical)} — sprawdź cenę</Text>
         </View>
       )}
 
@@ -166,7 +167,7 @@ export default function ReceiptItemRow({
           item.kind !== 'deposit' && (hasDiscount ? (
             <TouchableOpacity style={s.discChip} onPress={() => setDiscountInput(String(item.discount).replace('.', ','))} activeOpacity={0.7} accessibilityLabel="Zmień zniżkę">
               <Percent size={10} color={colors.accent.green} />
-              <Text style={s.discChipLabel}>−{item.discount!.toFixed(2).replace('.', ',')} zł</Text>
+              <Text style={s.discChipLabel}>−{zl(item.discount!)}</Text>
               <Text style={s.discWas}>{grossPrice(item).toFixed(2).replace('.', ',')}</Text>
               {item.promotion ? <Text style={s.discPromo} numberOfLines={1}>{item.promotion}</Text> : null}
             </TouchableOpacity>

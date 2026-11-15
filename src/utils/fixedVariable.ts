@@ -1,6 +1,7 @@
 import type { Expense, FvBucket } from '@/types/finances';
 import { looksLikeBill } from './recurringBills';
 import { foodAmountOf } from './food';
+import { round2, zl } from './money';
 
 // Port z sapp (src/utils/fixedVariable.ts), logika 1:1, JEDNA adaptacja: sapp sprawdzał
 // `e.category === 'housing' || e.category === 'subscriptions'` — sapp2 nie ma sztywnej
@@ -69,7 +70,7 @@ export function fixedVariableMonths(expenses: Expense[], n = 4, now = new Date()
       const s = fvSplitOf(e);
       fixed += s.fixed; food += s.food; variable += s.variable;
     }
-    out.push({ month: key, fixed: Math.round(fixed), variable: Math.round(variable), food: Math.round(food) });
+    out.push({ month: key, fixed: round2(fixed), variable: round2(variable), food: round2(food) });
   }
   return out;
 }
@@ -95,7 +96,7 @@ export function fixedBreakdown(expenses: Expense[], month: string): FixedItem[] 
     map[label] = (map[label] ?? 0) + fixedAmt;
   }
   return Object.entries(map)
-    .map(([label, amount]) => ({ label, amount: Math.round(amount) }))
+    .map(([label, amount]) => ({ label, amount: round2(amount) }))
     .sort((a, b) => b.amount - a.amount);
 }
 
@@ -140,9 +141,9 @@ export function fixedDeviations(expenses: Expense[], month: string, lookback = 3
 
 export interface FvTransaction { id: string; label: string; amount: number; date: string; overridden: boolean }
 
-/** Kwota transakcji na liście: "36,47 zł", pełne złote bez groszy ("40 zł"). */
+/** Kwota transakcji na liście: zawsze z groszami ("36,47 zł", "40,00 zł"). */
 export function fmtTxAmount(v: number): string {
-  return Number.isInteger(v) ? `${v} zł` : `${v.toFixed(2).replace('.', ',')} zł`;
+  return zl(v);
 }
 
 // Chronologiczna (najnowsze pierwsze) lista POJEDYNCZYCH transakcji liczonych w danym

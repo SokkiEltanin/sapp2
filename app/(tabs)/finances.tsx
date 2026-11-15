@@ -9,6 +9,7 @@ import { spacing, radius, themedStyles } from '@/theme';
 import { Screen, Row, Tile, Cap, FitList, Item, Price, StackBar } from '@/ui/layout';
 import { C, T, S } from '@/ui/theme';
 import AddExpenseModal from '@/components/finances/AddExpenseModal';
+import { money, round2 } from '@/utils/money';
 import { useQuickAdd, takeQuickAdd } from '@/services/quickAdd';
 import ProductsModal from '@/components/finances/ProductsModal';
 import TransactionsModal from '@/components/finances/TransactionsModal';
@@ -66,11 +67,13 @@ import type { Expense } from '@/types/finances';
 // Popupy (AddExpenseModal/ProductsModal/TransactionsModal/WydatkiModal,
 // balance-edit) BEZ ZMIAN — `AppBottomSheet` już od Fazy 3.8, kit nie ma
 // odpowiednika popupów.
+// "1 234,56 zł" → 1234.56 (sumy z wydatkiData są tekstem z groszami, utils/money.ts).
 function parseZl(s: string): number {
-  return parseInt(s.replace(/[^\d]/g, ''), 10) || 0;
+  const v = parseFloat(s.replace(/[^\d,−-]/g, '').replace(',', '.').replace('−', '-'));
+  return Number.isFinite(v) ? v : 0;
 }
 function fmtAmount(n: number): string {
-  return Math.abs(n).toFixed(2).replace('.', ',');
+  return money(Math.abs(n));
 }
 // "wypłata za listopad" — biernik = mianownik dla nazw miesięcy.
 const PAY_MONTHS = ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień'];
@@ -86,7 +89,7 @@ function fmtHours(h: number): string {
   return Number.isInteger(r) ? String(r) : r.toFixed(1).replace('.', ',');
 }
 function fmtBalance(n: number): string {
-  return n.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return money(n);
 }
 
 export default function FinancesScreen() {
@@ -205,7 +208,7 @@ export default function FinancesScreen() {
   );
 
   const splitTotal = useMemo(
-    () => parseZl(wydatkiData.fixed.total) + parseZl(wydatkiData.food.total) + parseZl(wydatkiData.variable.total),
+    () => round2(parseZl(wydatkiData.fixed.total) + parseZl(wydatkiData.food.total) + parseZl(wydatkiData.variable.total)),
     [wydatkiData],
   );
   const split = useMemo(() => {
@@ -280,7 +283,7 @@ export default function FinancesScreen() {
 
       <Row>
         <Tile span={4} onPress={() => { setWydatkiTab('fixed'); setWydatkiOpen(true); }}>
-          <Cap l="Podział" r={`${splitTotal} PLN`} />
+          <Cap l="Podział" r={`${money(splitTotal)} PLN`} />
           <View style={s.barSpace}>
             <StackBar parts={split} height={10} />
           </View>
@@ -296,7 +299,7 @@ export default function FinancesScreen() {
             <View key={st.budget.id} style={s.budgetRow}>
               <View style={s.budgetHead}>
                 <Text style={s.budgetName} numberOfLines={1}>{scopeLabel(st.budget.scope)}</Text>
-                <Text style={[s.budgetAmt, { color: levelColor(st) }]}>{Math.round(st.spent)}<Text style={s.budgetOf}> / {st.budget.limit} zł</Text></Text>
+                <Text style={[s.budgetAmt, { color: levelColor(st) }]}>{money(st.spent)}<Text style={s.budgetOf}> / {money(st.budget.limit)} zł</Text></Text>
               </View>
               <BudgetBar s={st} height={5} />
               <Text style={[s.budgetLine, st.left < 0 && { color: C.warn }]} numberOfLines={1}>{budgetLine(st)}</Text>
@@ -315,7 +318,7 @@ export default function FinancesScreen() {
                 <Text style={[s.catTabLabel, catTab === k && s.catTabLabelOn]}>{k === 'food' ? 'Jedzenie' : k === 'fixed' ? 'Stałe' : k === 'income' ? 'Wpływy' : 'Zmienne'}</Text>
               </TouchableOpacity>
             ))}
-            <Text style={s.catTotal}>{catBars.reduce((a2, c) => a2 + c.amount, 0)} PLN</Text>
+            <Text style={s.catTotal}>{money(catBars.reduce((a2, c) => a2 + c.amount, 0))} PLN</Text>
             <TouchableOpacity onPress={() => { haptic.tap(); setTrendOpen(true); }} hitSlop={8} style={s.trendBtn} accessibilityLabel="Trend 12 miesięcy">
               <TrendingUp size={15} color={C.mut} />
             </TouchableOpacity>
@@ -332,13 +335,13 @@ export default function FinancesScreen() {
 
       <Row>
         <Tile span={2} onPress={() => { haptic.tap(); router.push('/work'); }}>
-          <Cap l="Praca" r={work?.rate != null ? `${work.rate.toFixed(0)} zł/h` : undefined} />
+          <Cap l="Praca" r={work?.rate != null ? `${money(work.rate)} zł/h` : undefined} />
           {!work ? (
             <Text style={[T.small, s.workEmpty]}>Dodaj pracodawcę</Text>
           ) : (
             <>
               <Text style={[T.num, s.workPay, !work.nextPay && { color: C.dim }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-                {work.nextPay ? `≈${Math.round(work.nextPay.amount).toLocaleString('pl-PL')}` : '—'}
+                {work.nextPay ? `≈${money(work.nextPay.amount)}` : '—'}
                 <Text style={s.workPayCur}> zł</Text>
               </Text>
               <Text style={s.workSub} numberOfLines={1}>

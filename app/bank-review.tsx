@@ -14,6 +14,7 @@ import { commitBankTx } from '@/services/bankCommit';
 import { loadMerchantMemory, setMerchantAuto, AUTO_THRESHOLD, type MerchantMemory } from '@/utils/merchantMemory';
 import { haptic } from '@/utils/haptics';
 import MerchantTemplateSheet, { type TemplateTarget } from '@/components/finances/MerchantTemplateSheet';
+import { zl } from '@/utils/money';
 
 // Port z sapp (app/bank-review.tsx), styl sapp2 (themedStyles, bez PressableScale/
 // haptyki/toastów — żadnego z nich appka jeszcze nie ma). Największa różnica: sapp ma
@@ -261,7 +262,7 @@ export default function BankReview() {
                 <View style={s.linkedRow}>
                   <Check size={13} color={colors.accent.green} />
                   <Text style={s.linkedText} numberOfLines={2}>
-                    Już jest w wydatkach: {linked.storeName || linked.note || 'wydatek'} · {linked.amount.toFixed(2)} zł
+                    Już jest w wydatkach: {linked.storeName || linked.note || 'wydatek'} · {zl(linked.amount)}
                     {linked.receiptItems?.length ? ' (paragon)' : ''} — zatwierdzenie połączy, nie doda drugi raz.
                   </Text>
                 </View>

@@ -1,5 +1,6 @@
 import type { Expense, ReceiptItem } from '@/types/finances';
 import { canonicalProductName, productGroupKey, parseWeightFromName, weightFor, type WeightMemory } from './productMemory';
+import { round2 } from './money';
 
 // Statystyki ilości produktów (2026-11-14, user: "zapisywać wagę produktu... ile
 // sera jemy, ile czego kupujemy — tylko boję się, że to będzie lagować").
@@ -88,7 +89,7 @@ export function productStats(
     coverage: items.length ? known / items.length : 0,
     kgPerMonth: kgPerMonth != null ? Math.round(kgPerMonth * 1000) / 1000 : null,
     gPerWeek: kgPerMonth != null ? Math.round((kgPerMonth * 1000 * 12) / 52) : null,
-    spentPerMonth: span > 0 ? Math.round(spent6 / span) : 0,
+    spentPerMonth: span > 0 ? round2(spent6 / span) : 0,
     pricePerKg: knownKg > 0 ? Math.round((kgSpent / knownKg) * 100) / 100 : null,
     months,
     liquid: liquidN > items.length / 2,

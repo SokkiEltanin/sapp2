@@ -2,6 +2,7 @@ import type { Expense } from '@/types/finances';
 import { fixedVariableMonths, fixedBreakdown, fixedDeviations } from './fixedVariable';
 import { foodByCategory, foodByWeekOfMonth, foodByDayOfMonth, foodByMonth, MONTH_FULL, type FoodWeekBar, type FoodCategoryBar } from './foodStats';
 import type { FixedItem, FixedDeviation } from './fixedVariable';
+import { round2, zl } from './money';
 
 // Dane dla popupu "Wydatki" (WydatkiModal), WSPÓLNE dla Dashboardu (rząd 4,
 // domyślnie zakładka Jedzenie) i Finansów (Faza 2.4, domyślnie zakładka Stałe) —
@@ -42,15 +43,15 @@ export function computeWydatkiData(expenses: Expense[], today: Date): WydatkiDat
   const [prevMonth, thisMonth] = fixedVariableMonths(expenses, 2, today);
 
   const categories = foodByCategory(expenses, thisKey);
-  const foodTotal = categories.reduce((a, c) => a + c.amount, 0);
-  const prevFoodTotal = foodByCategory(expenses, prevKey).reduce((a, c) => a + c.amount, 0);
+  const foodTotal = round2(categories.reduce((a, c) => a + c.amount, 0));
+  const prevFoodTotal = round2(foodByCategory(expenses, prevKey).reduce((a, c) => a + c.amount, 0));
 
   return {
     month: MONTH_FULL[today.getMonth()],
     food: {
-      total: `${foodTotal} zł`,
+      total: zl(foodTotal),
       changePercent: pctChange(foodTotal, prevFoodTotal),
-      previousTotal: `${prevFoodTotal} zł`,
+      previousTotal: zl(prevFoodTotal),
       weeks: foodByWeekOfMonth(expenses, today),
       days: foodByDayOfMonth(expenses, today),
       // Ostatnie 6 miesięcy KOŃCZĄC na oglądanym (strzałki w popupie przesuwają okno).
@@ -58,16 +59,16 @@ export function computeWydatkiData(expenses: Expense[], today: Date): WydatkiDat
       categories,
     },
     fixed: {
-      total: `${thisMonth.fixed} zł`,
+      total: zl(thisMonth.fixed),
       changePercent: pctChange(thisMonth.fixed, prevMonth.fixed),
-      previousTotal: `${prevMonth.fixed} zł`,
+      previousTotal: zl(prevMonth.fixed),
       items: fixedBreakdown(expenses, thisKey),
       deviations: fixedDeviations(expenses, thisKey),
     },
     variable: {
-      total: `${thisMonth.variable} zł`,
+      total: zl(thisMonth.variable),
       changePercent: pctChange(thisMonth.variable, prevMonth.variable),
-      previousTotal: `${prevMonth.variable} zł`,
+      previousTotal: zl(prevMonth.variable),
     },
   };
 }

@@ -230,6 +230,6 @@ describe('fixedVariable — kwoty z groszami na liście', () => {
     const [tx] = bucketTransactions([mixed], '2026-08', 'variable');
     expect(tx.amount).toBe(0.39);
     expect(fmtTxAmount(tx.amount)).toBe('0,39 zł');
-    expect(fmtTxAmount(40)).toBe('40 zł');
+    expect(fmtTxAmount(40)).toBe('40,00 zł');
   });
 });

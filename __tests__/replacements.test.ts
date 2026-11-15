@@ -83,7 +83,7 @@ describe('zakupy z paragonów', () => {
     expect(pendingBuy(item({ lastDate: '2026-11-10' }), expenses)).toBeNull();
   });
   test('koszt roczny z ostatniej ceny', () => {
-    expect(yearlyCost(item(), [expenses[0]])).toBe(480);
+    expect(yearlyCost(item(), [expenses[0]])).toBe(479.88); // z groszami
     expect(yearlyCost(item({ keywords: [] }), expenses)).toBeNull();
   });
   test('szablony mają słowa i interwał', () => {

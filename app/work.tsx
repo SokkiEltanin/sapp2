@@ -16,6 +16,7 @@ import { useExpensesStore } from '@/store/expensesStore';
 import { computePayMonths, payMonthsSummary } from '@/utils/workSummary';
 import { workMonthProgress, upcomingShifts } from '@/utils/workMonth';
 import { haptic } from '@/utils/haptics';
+import { zl, money } from '@/utils/money';
 
 // Ekran "Praca" (2026-11-09 port z sapp; przebudowa 2026-11-12 wg CLAUDE.md
 // zasady 10 "ekran = dane, nie konfiguracja"). Na górze: najbliższa wypłata,
@@ -140,7 +141,7 @@ export default function WorkScreen() {
             </View>
 
             <Text style={s.payBig}>
-              {progress?.nextPay ? `≈${pl(Math.round(progress.nextPay.amount))}` : '—'}<Text style={s.payCur}> zł</Text>
+              {progress?.nextPay ? `≈${money(progress.nextPay.amount)}` : '—'}<Text style={s.payCur}> zł</Text>
             </Text>
             <Text style={s.paySub}>{progress?.nextPay ? `najbliższa wypłata · za ${monthName(progress.nextPay.month)}` : 'brak stawki — ustaw prefiks albo pensję w Edytuj'}</Text>
 
@@ -153,14 +154,14 @@ export default function WorkScreen() {
 
             <View style={s.grid}>
               <View style={s.gridCell}>
-                <Text style={s.gridNum}>{rate != null ? pl(rate, 2) : '—'}</Text>
+                <Text style={s.gridNum}>{rate != null ? money(rate) : '—'}</Text>
                 <Text style={s.gridUnit}>zł / h</Text>
-                {summary.avgRate != null && <Text style={s.gridSub}>śr. z wypłat {pl(summary.avgRate, 2)}</Text>}
+                {summary.avgRate != null && <Text style={s.gridSub}>śr. z wypłat {money(summary.avgRate)}</Text>}
               </View>
               <View style={s.gridCell}>
-                <Text style={s.gridNum}>{pl(yearEarned)}</Text>
+                <Text style={s.gridNum}>{money(yearEarned)}</Text>
                 <Text style={s.gridUnit}>zł w {new Date().getFullYear()}</Text>
-                {summary.includedCount > 0 && <Text style={s.gridSub}>śr. {pl(summary.totalEarned / summary.includedCount)} zł / wypłatę</Text>}
+                {summary.includedCount > 0 && <Text style={s.gridSub}>śr. {zl(summary.totalEarned / summary.includedCount)} / wypłatę</Text>}
               </View>
             </View>
           </View>
@@ -173,7 +174,7 @@ export default function WorkScreen() {
                 <View key={sh.id} style={s.row}>
                   <Text style={s.rowMain}>{shiftDay(sh.date)}</Text>
                   <Text style={s.rowMid}>{sh.startTime && sh.endTime ? `${sh.startTime}–${sh.endTime}` : ''} · {hrs(sh.hours)} h</Text>
-                  {rate != null && <Text style={s.rowRight}>≈{pl(Math.round(sh.hours * rate))} zł</Text>}
+                  {rate != null && <Text style={s.rowRight}>≈{zl(sh.hours * rate)}</Text>}
                 </View>
               ))}
             </View>
@@ -193,9 +194,9 @@ export default function WorkScreen() {
                 <View key={row.month} style={[s.row, row.excluded && { opacity: 0.45 }]}>
                   <View style={{ flex: 1 }}>
                     <Text style={s.rowMain}>{monthName(row.month)} {row.month.slice(0, 4)}</Text>
-                    <Text style={s.rowSub}>{hrs(row.hours)} h{monthRate != null ? ` · ${pl(monthRate, 2)} zł/h` : ''}{row.excluded ? ' · poza średnią' : ''}</Text>
+                    <Text style={s.rowSub}>{hrs(row.hours)} h{monthRate != null ? ` · ${zl(monthRate)}/h` : ''}{row.excluded ? ' · poza średnią' : ''}</Text>
                   </View>
-                  <Text style={s.payAmount}>{pl(row.amount, 2)} zł</Text>
+                  <Text style={s.payAmount}>{zl(row.amount)}</Text>
                   <TouchableOpacity style={[s.miniBtn, confirmed && s.miniBtnOn]} onPress={() => confirmMonth(row.month, row.amount, row.hours)} hitSlop={6} accessibilityLabel="Potwierdź miesiąc">
                     <Check size={13} color={confirmed ? colors.bg.primary : colors.text.muted} />
                   </TouchableOpacity>

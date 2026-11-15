@@ -19,6 +19,7 @@ import {
 import { FUEL_TYPE_LABEL, VEHICLE_KIND_LABEL, vehicleHasFuel, type VehicleKind, type FuelType, type Vehicle } from '@/types/vehicles';
 import { haptic } from '@/utils/haptics';
 import { todayISO } from '@/utils/date';
+import { zl, money } from '@/utils/money';
 
 // Ekran "Pojazdy" (2026-11-09 port z sapp; przebudowa 2026-11-12 wg CLAUDE.md
 // zasady 10 "ekran = dane, nie konfiguracja" — user: "zobacz ile miejsca zajmuje
@@ -92,12 +93,12 @@ export default function VehiclesScreen() {
     }
     if (hasFuel) {
       t.push({ k: 'cons', v: stats.consumption != null ? pl(stats.consumption, 1) : '—', u: 'l / 100 km', sub: stats.consumption != null && stats.mainFuel ? FUEL_TYPE_LABEL[stats.mainFuel as FuelType] : 'potrzeba 2 tankowań' });
-      t.push({ k: 'ppl', v: stats.avgPricePerLiter != null ? pl(stats.avgPricePerLiter, 2) : '—', u: 'zł / litr', sub: stats.lastFillDaysAgo != null ? `tankowano ${stats.lastFillDaysAgo === 0 ? 'dziś' : `${stats.lastFillDaysAgo} dni temu`}` : undefined });
+      t.push({ k: 'ppl', v: stats.avgPricePerLiter != null ? money(stats.avgPricePerLiter) : '—', u: 'zł / litr', sub: stats.lastFillDaysAgo != null ? `tankowano ${stats.lastFillDaysAgo === 0 ? 'dziś' : `${stats.lastFillDaysAgo} dni temu`}` : undefined });
     }
     if (showMileage) {
-      t.push({ k: 'c100', v: stats.costPer100km != null ? pl(stats.costPer100km) : '—', u: 'zł / 100 km', sub: stats.fuelPer100km != null ? `w tym paliwo ${pl(stats.fuelPer100km)} zł` : 'wszystkie koszty' });
+      t.push({ k: 'c100', v: stats.costPer100km != null ? money(stats.costPer100km) : '—', u: 'zł / 100 km', sub: stats.fuelPer100km != null ? `w tym paliwo ${zl(stats.fuelPer100km)}` : 'wszystkie koszty' });
     }
-    t.push({ k: 'month', v: pl(summary.thisMonth), u: 'zł w tym mies.', sub: year && year.total > 0 ? `12 mies.: ${pl(year.total)} zł${year.deltaPct != null ? ` (${year.deltaPct > 0 ? '+' : ''}${year.deltaPct}%)` : ''}` : undefined });
+    t.push({ k: 'month', v: money(summary.thisMonth), u: 'zł w tym mies.', sub: year && year.total > 0 ? `12 mies.: ${zl(year.total)}${year.deltaPct != null ? ` (${year.deltaPct > 0 ? '+' : ''}${year.deltaPct}%)` : ''}` : undefined });
     return t;
   }, [viewing, stats, summary, year, showMileage, hasFuel]);
 
@@ -199,11 +200,11 @@ export default function VehiclesScreen() {
                 <TouchableOpacity
                   key={e.id}
                   style={s.logRow}
-                  onPress={() => openFuel({ expenseId: e.id, amount: e.amount, date: e.date, label: `${e.storeName || e.note || 'Wydatek'} · ${pl(e.amount, 2)} zł · ${ddmm(e.date)}` })}
+                  onPress={() => openFuel({ expenseId: e.id, amount: e.amount, date: e.date, label: `${e.storeName || e.note || 'Wydatek'} · ${zl(e.amount)} · ${ddmm(e.date)}` })}
                   activeOpacity={0.7}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={s.logMain} numberOfLines={1}>{e.storeName || e.note || 'Wydatek'} · {pl(e.amount, 2)} zł</Text>
+                    <Text style={s.logMain} numberOfLines={1}>{e.storeName || e.note || 'Wydatek'} · {zl(e.amount)}</Text>
                     <Text style={s.logSub}>{ddmm(e.date)} · brak litrów i przebiegu</Text>
                   </View>
                   <Text style={s.fillLink}>Uzupełnij</Text>
@@ -240,10 +241,10 @@ export default function VehiclesScreen() {
               {stats.fills.slice(0, 6).map((f) => (
                 <View key={f.id} style={s.logRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.logMain}>{ddmm(f.date)} · {pl(f.liters, 1)} l · {pl(f.amount, 2)} zł</Text>
+                    <Text style={s.logMain}>{ddmm(f.date)} · {pl(f.liters, 1)} l · {zl(f.amount)}</Text>
                     <Text style={s.logSub}>
                       {pl(f.odometerKm)} km
-                      {f.pricePerLiter != null ? ` · ${pl(f.pricePerLiter, 2)} zł/l` : ''}
+                      {f.pricePerLiter != null ? ` · ${zl(f.pricePerLiter)}/l` : ''}
                       {f.kmSincePrev != null ? ` · +${pl(f.kmSincePrev)} km` : ''}
                     </Text>
                   </View>

@@ -3,6 +3,7 @@ import { fvSplitOf, labelFor } from './fixedVariable';
 import type { FoodCategoryBar, FoodCategoryItem } from './foodStats';
 import { NON_FOOD_SUBCATS, NON_FOOD_SUBCAT_META } from './nonFood';
 import { looksLikeFuel } from './vehicleMatch';
+import { round2 } from './money';
 
 // Kategorie CAŁEGO wydatku (2026-11-10, user: "zróbmy to drugie, właśnie to
 // nie jedzenie, i tam też zróbmy podział na kategorie... żeby były na
@@ -42,13 +43,13 @@ export function expenseCategoryByCategory(expenses: Expense[], monthFilterKey?: 
     const tag = e.expenseCategory;
     sums.set(tag, (sums.get(tag) ?? 0) + amt);
     const list = items.get(tag) ?? [];
-    list.push({ expenseId: e.id, date: e.date, storeName: e.storeName, name: labelFor(e), price: Math.round(amt), quantity: 1 });
+    list.push({ expenseId: e.id, date: e.date, storeName: e.storeName, name: labelFor(e), price: round2(amt), quantity: 1 });
     items.set(tag, list);
   }
   return [...sums.entries()]
     .map(([tag, amount]) => ({
       label: EXPENSE_CATEGORY_META[tag]?.label ?? tag,
-      amount: Math.round(amount),
+      amount: round2(amount),
       color: EXPENSE_CATEGORY_META[tag]?.color ?? '#8A8A8A',
       items: (items.get(tag) ?? []).sort((a, b) => b.date.localeCompare(a.date) || b.price - a.price),
     }))
@@ -104,7 +105,7 @@ export function variableByCategory(expenses: Expense[], monthFilterKey?: string)
     .map(([tag, amount]) => ({
       tag,
       label: tag === UNCATEGORIZED ? 'Bez kategorii' : EXPENSE_CATEGORY_META[tag]?.label ?? tag,
-      amount: Math.round(amount),
+      amount: round2(amount),
       color: tag === UNCATEGORIZED ? '#3F3F3F' : EXPENSE_CATEGORY_META[tag]?.color ?? '#8A8A8A',
       items: (items.get(tag) ?? []).sort((a, b) => b.date.localeCompare(a.date) || b.price - a.price),
     }))

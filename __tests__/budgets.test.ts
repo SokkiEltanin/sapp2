@@ -34,7 +34,7 @@ describe('budżety', () => {
     expect(s.spent).toBe(300);
     expect(s.left).toBe(700);
     expect(s.daysLeft).toBe(16);
-    expect(s.perDay).toBe(43);
+    expect(s.perDay).toBe(43.75); // z groszami (700 / 16)
     expect(s.level).toBe('ok');
     expect(budgetStatus(B('food', 350), expenses, NOW).level).toBe('warn');
     expect(budgetStatus(B('food', 300), expenses, NOW).level).toBe('over');

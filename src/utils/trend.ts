@@ -4,6 +4,7 @@ import { fvSplitOf } from './fixedVariable';
 import { variableSplitOf } from './expenseCategory';
 import { fixedCategoryOf } from './fixedCategory';
 import { isFoodItem, foodSubcat } from './food';
+import { round2 } from './money';
 
 // Trend 12 miesięcy (2026-11-14) — ile szło na koszyk/kategorię miesiąc po miesiącu.
 // JEDEN przebieg po wydatkach liczy wszystkie serie naraz (klucze jak zakresy
@@ -52,7 +53,7 @@ export function trendSeries(expenses: Expense[], n = 12, now: Date = new Date())
       else add('food:inne', i, s.food);
     }
   }
-  for (const arr of series.values()) for (let i = 0; i < arr.length; i++) arr[i] = Math.round(arr[i]);
+  for (const arr of series.values()) for (let i = 0; i < arr.length; i++) arr[i] = round2(arr[i]);
   return { months, series };
 }
 
@@ -67,7 +68,7 @@ export interface TrendStats {
 export function trendStats(values: number[]): TrendStats {
   const past = values.slice(0, -1);
   const active = past.filter((v) => v > 0);
-  const avg = active.length ? Math.round(active.reduce((a, b) => a + b, 0) / active.length) : 0;
+  const avg = active.length ? round2(active.reduce((a, b) => a + b, 0) / active.length) : 0;
   const current = values[values.length - 1] ?? 0;
   let max = { i: 0, v: 0 };
   values.forEach((v, i) => { if (v > max.v) max = { i, v }; });

@@ -5,6 +5,7 @@ import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import type { FoodCategoryItem } from '@/utils/foodStats';
 import { haptic } from '@/utils/haptics';
+import { zl, money } from '@/utils/money';
 
 // Szkielet "Jedzenie — rozkład wydatków" (2026-10-30, user podesłał screenshot
 // analogicznego widoku z sapp: "musimy na dashbordzie w naszym stylu dodać takie coś
@@ -69,7 +70,7 @@ export default function FoodBreakdownCard({
   const isDays = period === 'days';
   const peakIdx = bars.reduce((best, b, i) => (b.value > bars[best].value ? i : best), 0);
   const daysWithFood = days.filter((d) => d.value > 0);
-  const dayAvg = daysWithFood.length ? Math.round(daysWithFood.reduce((a, d) => a + d.value, 0) / days.length) : 0;
+  const dayAvg = daysWithFood.length ? daysWithFood.reduce((a, d) => a + d.value, 0) / days.length : 0;
 
   return (
     <View style={s.card}>
@@ -102,7 +103,7 @@ export default function FoodBreakdownCard({
           const isLastMonth = period === 'months' && i === bars.length - 1;
           return (
             <View key={`${period}_${w.label}_${i}`} style={s.weekCol}>
-              {!isDays && <Text style={s.weekValue} numberOfLines={1}>{w.value}</Text>}
+              {!isDays && <Text style={s.weekValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{money(w.value)}</Text>}
               <View style={[s.weekBarTrack, isDays && s.dayBarTrack]}>
                 <View style={[
                   s.weekBar,
@@ -127,7 +128,7 @@ export default function FoodBreakdownCard({
       )}
       {isDays && (
         <Text style={s.periodNote}>
-          średnio {dayAvg} zł/dzień · najwięcej {bars[peakIdx]?.value ?? 0} zł ({bars[peakIdx]?.label}. dzień)
+          średnio {zl(dayAvg)}/dzień · najwięcej {zl(bars[peakIdx]?.value ?? 0)} ({bars[peakIdx]?.label}. dzień)
         </Text>
       )}
 
@@ -141,7 +142,7 @@ export default function FoodBreakdownCard({
             <View style={s.categoryBarTrack}>
               <View style={[s.categoryBar, { width: `${Math.max(3, (c.amount / maxCategory) * 100)}%`, backgroundColor: c.color }]} />
             </View>
-            <Text style={s.categoryAmount}>{c.amount} zł</Text>
+            <Text style={s.categoryAmount}>{zl(c.amount)}</Text>
             <ChevronRight size={14} color={colors.text.muted} />
           </TouchableOpacity>
         ))}

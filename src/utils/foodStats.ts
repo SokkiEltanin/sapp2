@@ -1,6 +1,7 @@
 import type { Expense } from '@/types/finances';
 import { fvSplitOf, fixedVariableMonths, labelFor } from './fixedVariable';
 import { FOOD_SUBCAT_META } from './food';
+import { round2 } from './money';
 
 // Dashboard, rząd 4 (2026-11-01, user: "czemu na dashboardzie nie ma widgetu... z
 // wydatkami jedzenie" — kafelki BYŁY, ale wciąż na MOCK_FOOD_* z 2026-10-30, zanim
@@ -55,7 +56,7 @@ export function foodByWeekOfMonth(expenses: Expense[], today: Date = new Date())
     const idx = Math.min(4, Math.max(0, Math.floor((day - 1) / 7)));
     weeks[idx] += fvSplitOf(e).food;
   }
-  return weeks.map((v, i) => ({ label: `T${i + 1}`, value: Math.round(v) }));
+  return weeks.map((v, i) => ({ label: `T${i + 1}`, value: round2(v) }));
 }
 
 // Jedzenie per DZIEŃ oglądanego miesiąca (2026-11-11, user: "na jedzeniu nie
@@ -70,7 +71,7 @@ export function foodByDayOfMonth(expenses: Expense[], month: Date = new Date()):
     const day = parseInt(e.date.slice(8, 10), 10);
     if (day >= 1 && day <= daysInMonth) days[day - 1] += fvSplitOf(e).food;
   }
-  return days.map((v, i) => ({ label: String(i + 1), value: Math.round(v) }));
+  return days.map((v, i) => ({ label: String(i + 1), value: round2(v) }));
 }
 
 // Jedna pozycja paragonu wchodząca w skład kategorii — do popupu drill-down
@@ -120,12 +121,12 @@ export function foodByCategory(expenses: Expense[], monthFilterKey?: string): Fo
       put(it.foodSubcat!, it.price * k, { expenseId: e.id, date: e.date, storeName: e.storeName, name: it.name, price: it.price, quantity: it.quantity });
     }
     const rest = foodAmt - itemsSum * k;
-    if (rest >= 0.5) put('inne', rest, { expenseId: e.id, date: e.date, storeName: e.storeName, name: labelFor(e), price: Math.round(rest * 100) / 100, quantity: 1 });
+    if (rest >= 0.01) put('inne', rest, { expenseId: e.id, date: e.date, storeName: e.storeName, name: labelFor(e), price: Math.round(rest * 100) / 100, quantity: 1 });
   }
   return [...sums.entries()]
     .map(([tag, amount]) => ({
       label: FOOD_SUBCAT_META[tag]?.label ?? tag,
-      amount: Math.round(amount),
+      amount: round2(amount),
       color: FOOD_SUBCAT_META[tag]?.color ?? '#8A8A8A',
       items: (items.get(tag) ?? []).sort((a, b) => b.date.localeCompare(a.date) || b.price - a.price),
     }))

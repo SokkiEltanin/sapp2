@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import type { CalendarEvent } from '@/types/calendar';
 import { mapEvent, type GCalEvent } from '@/utils/googleCalendarMap';
 
@@ -42,6 +43,8 @@ export const googleCalendarService = {
   },
 
   async refreshToken(): Promise<string | null> {
+    // Komputer: brak logowania Google z Androida — kalendarz przychodzi z telefonu.
+    if (Platform.OS === 'web') return null;
     try {
       const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
       const tokens = await GoogleSignin.getTokens();

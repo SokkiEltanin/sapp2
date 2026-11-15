@@ -6,6 +6,7 @@ import { haptic } from '@/utils/haptics';
 import type { FvTransaction } from '@/utils/fixedVariable';
 import { fmtTxAmount } from '@/utils/fixedVariable';
 import type { FoodCategoryItem } from '@/utils/foodStats';
+import { zl, money } from '@/utils/money';
 
 function fmtTxDate(ymd: string): string {
   const [y, m, d] = (ymd || '').slice(0, 10).split('-').map(Number);
@@ -80,7 +81,7 @@ export default function VariableBreakdownCard({
                 <View style={s.itemBarTrack}>
                   <View style={[s.itemBar, { width: `${Math.max(3, (c.amount / maxCategory) * 100)}%`, backgroundColor: c.color }]} />
                 </View>
-                <Text style={s.itemAmount}>{c.amount} zł</Text>
+                <Text style={s.itemAmount}>{zl(c.amount)}</Text>
                 <ChevronRight size={14} color={colors.text.muted} />
               </TouchableOpacity>
             ))}
@@ -99,7 +100,7 @@ export default function VariableBreakdownCard({
                 <View style={s.itemBarTrack}>
                   <View style={[s.itemBar, { width: `${Math.max(3, (c.amount / maxExpenseCategory) * 100)}%`, backgroundColor: c.color }]} />
                 </View>
-                <Text style={s.itemAmount}>{c.amount} zł</Text>
+                <Text style={s.itemAmount}>{zl(c.amount)}</Text>
                 <ChevronRight size={14} color={colors.text.muted} />
               </TouchableOpacity>
             ))}

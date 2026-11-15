@@ -3,6 +3,7 @@ import type { Subscription } from '@/types/subscriptions';
 import { advanceNextBillingDate, isDurationExpired, subscriptionEndDate } from './recurringBills';
 import { ymdLocal } from './dateMath';
 import { pendingFxOf, formatFx } from './fx';
+import { zl } from './money';
 
 // Plan przypomnień o Stałych opłatach (2026-11-11) — `reminderDaysBefore`
 // ("Przypomnienie: 3 dni przed") było od początku ZAPISYWANE w formularzu, ale
@@ -66,7 +67,7 @@ export function planBillReminders(subs: Subscription[], now: Date = new Date()):
       dueDate: due,
       title: `${sub.name} — ${whenLabel(sub.reminderDaysBefore)}`,
       // Obca waluta bez kwoty PLN → oryginał zamiast "0,00 zł".
-      body: `${fx ? formatFx(fx) : `${sub.amount.toFixed(2).replace('.', ',')} zł`} · płatność ${d} ${MONTHS[m - 1]}`,
+      body: `${fx ? formatFx(fx) : zl(sub.amount)} · płatność ${d} ${MONTHS[m - 1]}`,
     });
   }
   return out.sort((a, b) => a.fireAt - b.fireAt);

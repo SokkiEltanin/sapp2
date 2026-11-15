@@ -12,13 +12,13 @@ import type { BudgetScope } from '@/types/budgets';
 import { budgetStatuses, budgetHistory, suggestLimit, scopeLabel, scopeColor, type BudgetStatus } from '@/utils/budgets';
 import { EXPENSE_CATEGORIES } from '@/utils/expenseCategory';
 import { haptic } from '@/utils/haptics';
+import { zl, round2 } from '@/utils/money';
 
 // Budżety (2026-11-13): każdy limit w osobnej karcie — wydane / limit, pasek z
 // kreską "dziś" (ile miesiąca minęło), zostało i ile dziennie, prognoza, 6
 // ostatnich miesięcy (zmieszczone / ponad). Limit zmieniany w miejscu. Na dole
 // dodanie nowego: zakres + podpowiedź limitu ze średniej 3 miesięcy.
 const ALL_SCOPES: BudgetScope[] = ['all', 'food', 'variable', 'fixed', ...EXPENSE_CATEGORIES.map((c) => `cat:${c.tag}` as BudgetScope)];
-const zl = (n: number) => `${Math.round(n).toLocaleString('pl-PL')} zł`;
 
 export function levelColor(s: BudgetStatus): string {
   return s.level === 'over' ? colors.accent.red : s.level === 'warn' ? colors.accent.orange : s.level === 'pace' ? colors.accent.orange : colors.text.secondary;
@@ -36,7 +36,7 @@ export function BudgetBar({ s, height = 6 }: { s: BudgetStatus; height?: number 
 
 export function budgetLine(s: BudgetStatus): string {
   if (s.left < 0) return `${zl(-s.left)} ponad limit`;
-  const base = `zostało ${zl(s.left)} · ${s.perDay} zł/dzień`;
+  const base = `zostało ${zl(s.left)} · ${zl(s.perDay)}/dzień`;
   return s.level === 'pace' ? `${base} · tempo ~${zl(s.projected)}` : base;
 }
 
@@ -65,7 +65,7 @@ export default function BudgetSheet({ visible, onClose }: { visible: boolean; on
   const addNew = () => {
     if (!newScope || !newLimit || newLimit <= 0) return;
     haptic.success();
-    setBudget(newScope, Math.round(newLimit));
+    setBudget(newScope, round2(newLimit));
     setNewScope(null); setNewLimit(undefined);
   };
 
@@ -80,7 +80,7 @@ export default function BudgetSheet({ visible, onClose }: { visible: boolean; on
         const knownN = hist.filter((h) => h.spent > 0).length;
         const maxH = Math.max(b.limit, ...hist.map((h) => h.spent), 1);
         const edit = edits[b.id];
-        const dirty = edit != null && edit > 0 && Math.round(edit) !== b.limit;
+        const dirty = edit != null && edit > 0 && round2(edit) !== b.limit;
         const dot = scopeColor(b.scope);
         return (
           <SheetCard key={b.id} style={statuses[0] === st ? { marginTop: 0 } : undefined}>
@@ -117,7 +117,7 @@ export default function BudgetSheet({ visible, onClose }: { visible: boolean; on
               <NumberInput value={edit ?? b.limit} onChangeValue={(v) => setEdits((e) => ({ ...e, [b.id]: v }))} style={s.input} selectTextOnFocus />
               <Text style={s.editLabel}>zł</Text>
               {dirty && (
-                <TouchableOpacity style={s.okBtn} onPress={() => { haptic.success(); setBudget(b.scope, Math.round(edit!)); setEdits((e) => ({ ...e, [b.id]: undefined })); }} accessibilityLabel="Zapisz limit">
+                <TouchableOpacity style={s.okBtn} onPress={() => { haptic.success(); setBudget(b.scope, round2(edit!)); setEdits((e) => ({ ...e, [b.id]: undefined })); }} accessibilityLabel="Zapisz limit">
                   <Check size={16} color={colors.bg.primary} />
                 </TouchableOpacity>
               )}

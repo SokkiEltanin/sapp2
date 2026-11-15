@@ -14,6 +14,7 @@ import { pendingFxOf, formatFx } from '@/utils/fx';
 import { filterTransactions, summarize, activeFilterCount, datePreset, EMPTY_FILTER, type TxFilter, type TxKind, type TxBucket } from '@/utils/txFilter';
 import { EXPENSE_CATEGORIES } from '@/utils/expenseCategory';
 import { toDisplayDate, parseDisplayDate, maskDateDigits } from '@/utils/dateInput';
+import { zl } from '@/utils/money';
 
 // Pełna lista transakcji (Faza 2.4, 2026-11-01) — "Ostatnie transakcje" na ekranie
 // Finanse pokazuje kilka pozycji, tu żyje reszta. `onSelect` NIE zamyka tego modala
@@ -35,7 +36,6 @@ const BUCKETS: { b: TxBucket; label: string }[] = [
   { b: 'food', label: 'Jedzenie' }, { b: 'fixed', label: 'Stałe' }, { b: 'variable', label: 'Zmienne' },
   ...EXPENSE_CATEGORIES.map((c) => ({ b: `cat:${c.tag}` as TxBucket, label: c.label })),
 ];
-const zl = (n: number) => `${n.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł`;
 
 export default function TransactionsModal({
   visible, onClose, expenses, onSelect,
@@ -207,7 +207,7 @@ export default function TransactionsModal({
               </View>
             ) : (
               <Text style={[s.rowAmount, e.type === 'income' && s.rowAmountIncome]}>
-                {e.type === 'income' ? '+' : '−'}{e.amount.toFixed(2)} zł
+                {e.type === 'income' ? '+' : '−'}{zl(Math.abs(e.amount))}
               </Text>
             )}
           </TouchableOpacity>

@@ -2,6 +2,7 @@ import { useExpensesStore } from '@/store/expensesStore';
 import { useVehiclesStore } from '@/store/vehiclesStore';
 import { FUEL_TYPE_LABEL, type FuelType, type Vehicle } from '@/types/vehicles';
 import { offerUndo } from '@/services/undo';
+import { zl } from '@/utils/money';
 
 function genId(): string {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -80,7 +81,7 @@ export function deleteFuelLogEntry(vehicleId: string, entryId: string): void {
   useVehiclesStore.getState().deleteFuelLog(vehicleId, entryId);
   if (exp) useExpensesStore.getState().deleteExpense(exp.id);
   // "Cofnij" (2026-11-14) — wraca wpis tankowania i jego wydatek (to samo id).
-  offerUndo(`Usunięto tankowanie · ${entry.amount.toFixed(2).replace('.', ',')} zł`, () => {
+  offerUndo(`Usunięto tankowanie · ${zl(entry.amount)}`, () => {
     restoreVehicleEntry(vehicleId, 'fuelLog', entry);
     if (exp) {
       const st = useExpensesStore.getState();

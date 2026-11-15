@@ -15,6 +15,7 @@ import { useVehiclesStore } from '@/store/vehiclesStore';
 import { globalSearch, type HitKind, type SearchHit } from '@/utils/globalSearch';
 import { openNote } from '@/services/notesNav';
 import { haptic } from '@/utils/haptics';
+import { zl } from '@/utils/money';
 
 // Szukaj w całej appce (2026-11-14) — lupa w dolnym pasku. Logika: utils/globalSearch.ts.
 const GROUPS: { kind: HitKind; label: string; Icon: typeof Receipt }[] = [
@@ -25,7 +26,7 @@ const GROUPS: { kind: HitKind; label: string; Icon: typeof Receipt }[] = [
   { kind: 'replacement', label: 'Wymiany', Icon: RefreshCw },
   { kind: 'vehicle', label: 'Pojazdy', Icon: Car },
 ];
-const zl = (n: number) => `${n > 0 ? '+' : '−'}${Math.abs(n).toFixed(2).replace('.', ',')} zł`;
+const zlSigned = (n: number) => `${n > 0 ? '+' : '−'}${zl(Math.abs(n))}`;
 const dateLabel = (d?: string) => (d ? `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(2, 4)}` : '');
 
 function openHit(h: SearchHit) {
@@ -84,7 +85,7 @@ export default function SearchScreen() {
                   <Text style={s.title} numberOfLines={1}>{h.title}</Text>
                   {(h.sub || h.date) ? <Text style={s.sub} numberOfLines={1}>{[dateLabel(h.date), h.sub].filter(Boolean).join(' · ')}</Text> : null}
                 </View>
-                {h.amount != null && <Text style={[s.amount, h.amount > 0 && { color: colors.accent.green }]}>{zl(h.amount)}</Text>}
+                {h.amount != null && <Text style={[s.amount, h.amount > 0 && { color: colors.accent.green }]}>{zlSigned(h.amount)}</Text>}
               </TouchableOpacity>
             ))}
           </View>

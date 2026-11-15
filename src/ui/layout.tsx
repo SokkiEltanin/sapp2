@@ -3,6 +3,7 @@ import { View, Text, Pressable, Animated, Easing, useWindowDimensions, StyleShee
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic } from '@/utils/haptics';
 import { C, R, S, T, F } from './theme';
+import { money } from '@/utils/money';
 
 /* ------------------------------------------------------------------
  * SIATKA 4 KOLUMN
@@ -260,7 +261,7 @@ export function Bars({ values, labels, active = values.length - 1, height = 44, 
       {showValues ? (
         <View style={st.barsRow}>
           {values.map((v, i) => (
-            <Text key={i} style={[st.barVal, i === active && { color: C.hi }]}>{Math.round(v)}</Text>
+            <Text key={i} style={[st.barVal, i === active && { color: C.hi }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{money(v)}</Text>
           ))}
         </View>
       ) : null}
@@ -310,7 +311,7 @@ export function StackBar({ parts, height = 10, legend = true, legendMax = 3 }: {
             <View key={i} style={st.legItem}>
               <View style={[st.legDot, { backgroundColor: p.color }]} />
               <Text style={st.legT} numberOfLines={1}>
-                {p.label} <Text style={{ color: C.txt, fontFamily: F.xb }}>{p.display ?? Math.round(p.value)}</Text>
+                {p.label} <Text style={{ color: C.txt, fontFamily: F.xb }}>{p.display ?? money(p.value)}</Text>
               </Text>
             </View>
           ))}

@@ -19,6 +19,7 @@ import { haptic } from '@/utils/haptics';
 import { pendingFxOf, formatFx } from '@/utils/fx';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { toDisplayDate, parseDisplayDate, maskDateDigits } from '@/utils/dateInput';
+import { zl, money } from '@/utils/money';
 
 // Ekran "Stałe opłaty" / Subskrypcje (2026-11-09, user: "czy w sapp mozemy
 // eksportować szablony te do łapania powiadomien i stałych? Zeby przeniesc je do
@@ -254,14 +255,14 @@ export default function SubscriptionsScreen() {
         {(subscriptions.length > 0 || detected.length > 0) && (
           <View style={s.summaryCard}>
             <View style={s.summaryItem}>
-              <Text style={s.summaryVal}>{monthlyTotal.toFixed(2)} zł</Text>
+              <Text style={s.summaryVal}>{zl(monthlyTotal)}</Text>
               <Text style={s.summaryLabel}>miesięcznie</Text>
-              <Text style={s.summarySub}>≈ {Math.round(monthlyTotal * 12).toLocaleString('pl-PL')} zł rocznie</Text>
+              <Text style={s.summarySub}>≈ {zl(monthlyTotal * 12)} rocznie</Text>
               {pendingFxCount > 0 && <Text style={s.fxSummary}>+ {pendingFxCount} w obcej walucie</Text>}
             </View>
             <View style={s.summaryDivider} />
             <View style={s.summaryItem}>
-              <Text style={s.summaryVal}>{leftThisMonth.sum.toFixed(0)} zł</Text>
+              <Text style={s.summaryVal}>{zl(leftThisMonth.sum)}</Text>
               <Text style={s.summaryLabel}>do końca mies.</Text>
               <Text style={s.summarySub}>{leftThisMonth.count} płatn. · {active.length} aktywnych</Text>
             </View>
@@ -450,7 +451,7 @@ function DetectedRow({ bill, s, onAdd, onDismiss }: {
       </View>
       <TouchableOpacity style={s.itemBody} onPress={() => onAdd(bill)} activeOpacity={0.7}>
         <Text style={s.itemName} numberOfLines={1}>{bill.name}</Text>
-        <Text style={s.itemSub} numberOfLines={1}>ostatnio {bill.lastAmount.toFixed(2)} zł · {toDisplayDate(bill.lastDate).slice(0, 5)}{bill.months > 1 ? ` · ${bill.months} mies.` : ''}</Text>
+        <Text style={s.itemSub} numberOfLines={1}>ostatnio {zl(bill.lastAmount)} · {toDisplayDate(bill.lastDate).slice(0, 5)}{bill.months > 1 ? ` · ${bill.months} mies.` : ''}</Text>
         <Text style={s.itemSub} numberOfLines={1}>następna ≈ {toDisplayDate(due).slice(0, 5)} · {nextLabel(days)}</Text>
       </TouchableOpacity>
       <View style={s.detectedActions}>
@@ -487,7 +488,7 @@ function SubRow({ sub, s, onEdit, onDelete, onToggle }: {
         <Text style={s.itemSub} numberOfLines={1}>
           {fx ? (
             <Text style={s.fxText}>{formatFx(fx)}{CYCLE_SHORT[sub.billingCycle]} · wpisz PLN</Text>
-          ) : `${sub.amount.toFixed(2)} zł${CYCLE_SHORT[sub.billingCycle]}`} · {end ? toDisplayDate(sub.nextBillingDate).slice(0, 5) : toDisplayDate(sub.nextBillingDate)}
+          ) : `${zl(sub.amount)}${CYCLE_SHORT[sub.billingCycle]}`} · {end ? toDisplayDate(sub.nextBillingDate).slice(0, 5) : toDisplayDate(sub.nextBillingDate)}
           {end ? ` · do ${toDisplayDate(end).slice(0, 5)}.${end.slice(2, 4)}` : ''}
         </Text>
       </TouchableOpacity>

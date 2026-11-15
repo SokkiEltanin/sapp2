@@ -13,6 +13,7 @@ import NumberInput from '@/components/design/NumberInput';
 import { FOOD_SUBCATS, FOOD_SUBCAT_META } from '@/utils/food';
 import { haptic } from '@/utils/haptics';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
+import { zl } from '@/utils/money';
 
 // Faza 2.3 (2026-11-01) — "jak złapie źle... wejść w produkty i edytować, ale dużo
 // ładniej zrobione niż w SAPie". Brak osobnego store'u "Produkty" — katalog jest
@@ -190,7 +191,7 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
                 <View style={s.cardInfo}>
                   <Text style={s.cardLabel} numberOfLines={1}>{entry.label}</Text>
                   <Text style={s.cardStats}>
-                    {entry.timesBought}× · ostatnio {entry.lastPrice.toFixed(2)} zł · razem {entry.totalSpent.toFixed(2)} zł
+                    {entry.timesBought}× · ostatnio {zl(entry.lastPrice)} · razem {zl(entry.totalSpent)}
                   </Text>
                 </View>
                 <View style={[s.subcatChip, meta && { backgroundColor: meta.color + '2A', borderColor: meta.color }]}>
@@ -210,8 +211,8 @@ export default function ProductsModal({ visible, onClose }: { visible: boolean; 
                         <View style={s.statRow}>
                           <View style={s.statCell}><Text style={s.statVal}>{st.kgPerMonth != null ? fmtKg(st.kgPerMonth, st.liquid) : '—'}</Text><Text style={s.statKey}>na miesiąc</Text></View>
                           <View style={s.statCell}><Text style={s.statVal}>{st.gPerWeek != null ? fmtKg(st.gPerWeek / 1000, st.liquid) : '—'}</Text><Text style={s.statKey}>na tydzień</Text></View>
-                          <View style={s.statCell}><Text style={s.statVal}>{st.pricePerKg != null ? `${st.pricePerKg.toFixed(0)} zł` : '—'}</Text><Text style={s.statKey}>{st.liquid ? 'za litr' : 'za kg'}</Text></View>
-                          <View style={s.statCell}><Text style={s.statVal}>{st.spentPerMonth} zł</Text><Text style={s.statKey}>mies.</Text></View>
+                          <View style={s.statCell}><Text style={s.statVal}>{st.pricePerKg != null ? zl(st.pricePerKg) : '—'}</Text><Text style={s.statKey}>{st.liquid ? 'za litr' : 'za kg'}</Text></View>
+                          <View style={s.statCell}><Text style={s.statVal}>{zl(st.spentPerMonth)}</Text><Text style={s.statKey}>mies.</Text></View>
                         </View>
                         <View style={s.bars}>
                           {st.months.map((m) => (

@@ -32,6 +32,7 @@ import FuelSheet from '@/components/vehicles/FuelSheet';
 import { useVehiclesStore } from '@/store/vehiclesStore';
 import { looksLikeFuel, expenseMatchesVehicle, mainCarId } from '@/utils/vehicleMatch';
 import { vehicleHasFuel, type Vehicle } from '@/types/vehicles';
+import { zl } from '@/utils/money';
 
 // "Jeden ujednolicony dodaj" (ARCHITECTURE.md §FINANSE, decyzja 2026-10-26) — PASTE
 // paragonu i RĘCZNE dodawanie pozycji nie są dwoma osobnymi ekranami (jak w sapp:
@@ -223,7 +224,7 @@ export default function AddExpenseModal({
       deleteExpense(gone.id);
       // "Cofnij" (2026-11-14) — przywraca ten sam wydatek (to samo id, nowszy
       // updatedAt → synchronizacja odtworzy go też na komputerze).
-      offerUndo(`Usunięto: ${gone.storeName || gone.note || `${gone.amount} zł`}`, () => {
+      offerUndo(`Usunięto: ${gone.storeName || gone.note || zl(gone.amount)}`, () => {
         const st = useExpensesStore.getState();
         if (st.expenses.some((e) => e.id === gone.id)) return;
         useExpensesStore.setState({ expenses: [...st.expenses, { ...gone, updatedAt: new Date().toISOString() }] });
@@ -498,7 +499,7 @@ export default function AddExpenseModal({
       <View style={s.footer}>
         <View>
           <Text style={s.footerLabel}>{type === 'expense' ? 'Wydatek' : 'Przychód'}</Text>
-          <Text style={s.footerAmount}>{amount.toFixed(2)} zł</Text>
+          <Text style={s.footerAmount}>{zl(amount)}</Text>
         </View>
         <TouchableOpacity style={[s.saveBtn, !canSave && s.btnDisabled]} onPress={() => handleSave()} disabled={!canSave} activeOpacity={0.7}>
           <Text style={s.saveLabel}>{editingExpense ? 'Zaktualizuj' : 'Zapisz'}</Text>
@@ -634,7 +635,7 @@ export default function AddExpenseModal({
           {items.length > 0 && (
             <View style={s.sumRow}>
               <Text style={s.sumLabel}>Suma pozycji</Text>
-              <Text style={s.sumValue}>{includedSum.toFixed(2)} zł</Text>
+              <Text style={s.sumValue}>{zl(includedSum)}</Text>
             </View>
           )}
           {/* Zniżki (2026-11-14, user: "zniżek nie widać ile wynoszą i jak się dodaje"):
@@ -642,7 +643,7 @@ export default function AddExpenseModal({
           {items.length > 0 && (
             <View style={s.savingsRow}>
               {savings.amount > 0
-                ? <Text style={s.savingsText}>Zniżki: −{savings.amount.toFixed(2).replace('.', ',')} zł · {savings.count} {plural(savings.count, 'pozycja', 'pozycje', 'pozycji')}</Text>
+                ? <Text style={s.savingsText}>Zniżki: −{zl(savings.amount)} · {savings.count} {plural(savings.count, 'pozycja', 'pozycje', 'pozycji')}</Text>
                 : <Text style={s.savingsNone}>Bez zniżek — dodasz przy pozycji („Zniżka”) albo na cały paragon</Text>}
               {receiptDisc === null ? (
                 <TouchableOpacity onPress={() => setReceiptDisc('')} hitSlop={6} accessibilityLabel="Rabat na cały paragon">
@@ -665,7 +666,7 @@ export default function AddExpenseModal({
           )}
           {mismatch && (
             <Text style={s.mismatchText}>
-              Na paragonie: {parsedTotal.toFixed(2)} zł — różnica {Math.abs(includedSum - parsedTotal).toFixed(2)} zł, sprawdź pozycje
+              Na paragonie: {zl(parsedTotal)} — różnica {zl(Math.abs(includedSum - parsedTotal))}, sprawdź pozycje
             </Text>
           )}
         </View>
