@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { goBack } from '@/services/nav';
 import { shortcutFor } from '@/utils/desktopShortcuts';
 import { tabFromPath } from '@/utils/desktopColumns';
+import { requestQuickAdd } from '@/services/quickAdd';
 
 // Skróty klawiszowe na komputerze (2026-11-14) — lista: utils/desktopShortcuts.ts.
 // Esc na zakładce (nic do zamknięcia) nic nie robi; otwarte okno (arkusz) zamyka się
@@ -22,6 +23,11 @@ export function useDesktopShortcuts(enabled: boolean): void {
       e.preventDefault();
       if (a.kind === 'back') {
         if (!tabFromPath(window.location.pathname.replace(/^\/sapp2/, '') || '/')) goBack();
+        return;
+      }
+      if (a.kind === 'add') {
+        requestQuickAdd(a.what);
+        router.navigate((a.what === 'expense' ? '/finances' : '/tasks') as any);
         return;
       }
       if (a.href === '/' || a.href === '/finances' || a.href === '/tasks' || a.href === '/daily') router.navigate(a.href as any);

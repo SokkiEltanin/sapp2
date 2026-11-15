@@ -2,13 +2,16 @@
 // (testy: __tests__/desktopShortcuts.test.ts); podpięcie: hooks/useDesktopShortcuts.ts.
 export type ShortcutAction =
   | { kind: 'go'; href: '/' | '/finances' | '/tasks' | '/daily' | '/search' | '/settings' | '/notes' }
-  | { kind: 'back' };
+  | { kind: 'back' }
+  | { kind: 'add'; what: 'expense' | 'task' };
 
 export interface KeyInfo { key: string; ctrl: boolean; meta: boolean; alt: boolean; typing: boolean }
 
 export const SHORTCUT_HELP: [string, string][] = [
   ['1 – 4', 'Dashboard / Finanse / Zadania / Daily'],
   ['/ albo Ctrl+K', 'Szukaj'],
+  ['W', 'Nowy wydatek'],
+  ['Z', 'Nowe zadanie'],
   ['N', 'Notatki'],
   [',', 'Ustawienia'],
   ['Esc', 'Zamknij panel / wstecz'],
@@ -25,5 +28,7 @@ export function shortcutFor(k: KeyInfo): ShortcutAction | null {
   if (k.key === '/') return { kind: 'go', href: '/search' };
   if (k.key === ',') return { kind: 'go', href: '/settings' };
   if (k.key.toLowerCase() === 'n') return { kind: 'go', href: '/notes' };
+  if (k.key.toLowerCase() === 'w') return { kind: 'add', what: 'expense' };
+  if (k.key.toLowerCase() === 'z') return { kind: 'add', what: 'task' };
   return null;
 }

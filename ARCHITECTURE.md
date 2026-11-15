@@ -1519,7 +1519,8 @@ z kolumny). Pozostałe ekrany (ustawienia, notatki…) = **panel z prawej**: Sta
 `presentation: 'transparentModal'` + `DESK_PANEL_STYLE` (app/_layout.tsx; wyjątki
 `FULL_SCREEN_ROUTES`), kolumny widać pod spodem; `ui/DesktopPanelBackdrop.tsx`
 przyciemnia je i kliknięcie zamyka panel (`isDesktopPanelPath`). **Skróty**:
-`utils/desktopShortcuts.ts` (1–4, / i Ctrl+K, N, przecinek, Esc; nic podczas pisania)
+`utils/desktopShortcuts.ts` (1–4, / i Ctrl+K, N, W/Z, przecinek, Esc; nic podczas pisania;
+W/Z = `services/quickAdd.ts` — prośba odbierana przez Finanse/Zadania, które trzymają formularz)
 ← `hooks/useDesktopShortcuts.ts`; ściąga pod przyciskiem „Skróty” na pasku.
 Arkusze (`AppBottomSheet`) na oknie ≥ `DESKTOP_MIN_W` = wyśrodkowane okno dialogowe
 (bez uchwytu), na telefonie/wąskim oknie bez zmian. Pułapki: style elementu w `TabTrigger asChild` muszą być

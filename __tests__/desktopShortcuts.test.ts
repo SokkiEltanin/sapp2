@@ -26,4 +26,9 @@ describe('shortcutFor', () => {
     expect(shortcutFor(k('N'))).toEqual({ kind: 'go', href: '/notes' });
     expect(shortcutFor(k(','))).toEqual({ kind: 'go', href: '/settings' });
   });
+  it('W / Z = szybkie dodawanie, nie podczas pisania', () => {
+    expect(shortcutFor(k('w'))).toEqual({ kind: 'add', what: 'expense' });
+    expect(shortcutFor(k('Z'))).toEqual({ kind: 'add', what: 'task' });
+    expect(shortcutFor(k('w', { typing: true }))).toBeNull();
+  });
 });

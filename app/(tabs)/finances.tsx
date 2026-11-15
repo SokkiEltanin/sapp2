@@ -9,6 +9,7 @@ import { spacing, radius, themedStyles } from '@/theme';
 import { Screen, Row, Tile, Cap, FitList, Item, Price, StackBar } from '@/ui/layout';
 import { C, T, S } from '@/ui/theme';
 import AddExpenseModal from '@/components/finances/AddExpenseModal';
+import { useQuickAdd, takeQuickAdd } from '@/services/quickAdd';
 import ProductsModal from '@/components/finances/ProductsModal';
 import TransactionsModal from '@/components/finances/TransactionsModal';
 import WydatkiModal from '@/components/dashboard/WydatkiModal';
@@ -115,6 +116,11 @@ export default function FinancesScreen() {
   // ekran (nie layout) ma dostęp do `setAddOpen`/`AddExpenseModal`. Otwiera modal
   // automatycznie, zamiast czekać aż user sam tapnie FAB — to deep-linkowana reakcja na
   // JEGO własne "Udostępnij", nie zgadywanie jak `clipboardSuggestion` w modalu.
+  // Skrót W na komputerze (services/quickAdd.ts).
+  const quickAdd = useQuickAdd((st) => st.pending);
+  useEffect(() => {
+    if (takeQuickAdd('expense')) { setEditingExpense(null); setAddOpen(true); }
+  }, [quickAdd]);
   const pendingShareText = useShareReceiptStore((st) => st.pendingText);
   useEffect(() => {
     if (pendingShareText) { setEditingExpense(null); setAddOpen(true); }

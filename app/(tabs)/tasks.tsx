@@ -18,6 +18,7 @@ import { useGoogleCalendarSync } from '@/hooks/useGoogleCalendarSync';
 import WeekMonthCalendar from '@/components/tasks/WeekMonthCalendar';
 import TaskRow from '@/components/tasks/TaskRow';
 import AddTaskCard from '@/components/tasks/AddTaskCard';
+import { useQuickAdd, takeQuickAdd } from '@/services/quickAdd';
 import DayDetailModal from '@/components/tasks/DayDetailModal';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 
@@ -67,6 +68,9 @@ export default function TasksScreen() {
   const deleteTask = useCalendarStore((st) => st.deleteTask);
 
   const [composerOpen, setComposerOpen] = useState(false);
+  // Skrót Z na komputerze (services/quickAdd.ts).
+  const quickAdd = useQuickAdd((st) => st.pending);
+  useEffect(() => { if (takeQuickAdd('task')) setComposerOpen(true); }, [quickAdd]);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
