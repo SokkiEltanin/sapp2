@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
+import ColorPicker from './ColorPicker';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform, ScrollView } from 'react-native';
 import { runTextStyle } from './richStyle';
-import { Bold, Italic, Underline, Type, Palette, Highlighter, RemoveFormatting, Check } from 'lucide-react-native';
+import { Bold, Italic, Underline, Type, Palette, Highlighter, RemoveFormatting } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import {
@@ -22,12 +23,17 @@ const PALETTE = [
 ];
 const HIGHLIGHTS = ['#FDE04766', '#4ADE8055', '#60A5FA55', '#F472B655', '#FB923C55', '#A78BFA55'];
 const SIZES: [TextSize, string][] = [['s', 'Mały'], ['m', 'Normalny'], ['l', 'Duży'], ['xl', 'Nagłówek']];
-const HEX = /^#?([0-9a-f]{6})$/i;
 
 type Panel = 'size' | 'color' | 'highlight' | null;
 
-export default function RichTextEditor({ text, runs, onChange, autoFocus }: {
+export default function RichTextEditor({ text, runs, onChange, autoFocus, page, editable = true, toolbar = true }: {
   text: string; runs: TextRun[] | undefined; onChange: (text: string, runs: TextRun[]) => void; autoFocus?: boolean;
+  // Tryb "strona" (2026-11-15, tekst + rysunek w jednej notatce): pole nie przewija się
+  // samo, tylko rośnie z treścią, a `page.wrap` owija je (ScrollView + warstwa kresek),
+  // żeby rysunek przewijał się razem z tekstem. `minHeight` = co najmniej ekran.
+  page?: { wrap: (field: ReactNode) => ReactNode; minHeight: number };
+  editable?: boolean;
+  toolbar?: boolean;
 }) {
   const s = makeS();
   const fitted = useMemo(() => fitRuns(runs, text.length), [runs, text.length]);
@@ -36,7 +42,7 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus }: {
   // Styl "na zapas" (bez zaznaczenia) — obowiązuje, dopóki kursor stoi w tym miejscu.
   const [pending, setPending] = useState<{ at: number; st: RunStyle } | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
-  const [hex, setHex] = useState('');
+  const [fieldH, setFieldH] = useState(0);
 
   const hasSel = selState.end > selState.start;
   const cur: RunStyle = hasSel ? styleAt(fitted, selState.start + 1) : pending && pending.at === selState.start ? pending.st : styleAt(fitted, selState.start);
@@ -61,34 +67,33 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus }: {
     onChange(t, next);
   };
 
-  const customHex = () => {
-    const m = HEX.exec(hex.trim());
-    if (!m) return;
-    apply({ c: `#${m[1].toUpperCase()}` });
-    setHex('');
-  };
-
   const segs = segments(text, fitted);
   const web = Platform.OS === 'web';
 
-  return (
-    <View style={s.wrap}>
+  const field = (
       <TextInput
         {...(web ? { value: text } : {})}
         onChangeText={handleText}
         onSelectionChange={(e) => { sel.current = e.nativeEvent.selection; setSelState(e.nativeEvent.selection); }}
         placeholder="Pisz…"
         placeholderTextColor={colors.text.muted}
-        style={s.body}
+        style={page ? [s.body, s.pageBody, { minHeight: page.minHeight }, web && fieldH > 0 ? { height: Math.max(page.minHeight, fieldH) } : null] : s.body}
         multiline
         textAlignVertical="top"
         autoFocus={autoFocus}
-        scrollEnabled
+        editable={editable}
+        scrollEnabled={!page}
+        onContentSizeChange={page ? (e) => setFieldH(e.nativeEvent.contentSize.height + 40) : undefined}
       >
         {web ? undefined : segs.map((g, i) => <Text key={i} style={runTextStyle(g.st)}>{g.t}</Text>)}
       </TextInput>
+  );
 
-      {panel === 'size' && (
+  return (
+    <View style={s.wrap}>
+      {page ? page.wrap(field) : field}
+
+      {toolbar && panel === 'size' && (
         <View style={s.panel}>
           {SIZES.map(([z, label]) => (
             <TouchableOpacity key={z} style={[s.sizeBtn, (cur.z ?? 'm') === z && s.on]} onPress={() => apply({ z })}>
@@ -97,24 +102,12 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus }: {
           ))}
         </View>
       )}
-      {panel === 'color' && (
+      {toolbar && panel === 'color' && (
         <View style={s.panelCol}>
-          <View style={s.swatches}>
-            {PALETTE.map((c) => (
-              <TouchableOpacity key={c} onPress={() => apply({ c: c === '#F2F2F2' ? undefined : c })} style={[s.swatch, { backgroundColor: c }, (cur.c ?? '#F2F2F2') === c && s.swatchOn]} accessibilityLabel={`Kolor ${c}`} />
-            ))}
-          </View>
-          <View style={s.hexRow}>
-            <View style={[s.hexDot, { backgroundColor: HEX.test(hex.trim()) ? `#${HEX.exec(hex.trim())![1]}` : 'transparent' }]} />
-            <TextInput value={hex} onChangeText={setHex} placeholder="własny kolor, np. #FF8800" placeholderTextColor={colors.text.muted}
-              autoCapitalize="none" autoCorrect={false} style={s.hexInput} onSubmitEditing={customHex} />
-            <TouchableOpacity style={[s.hexOk, !HEX.test(hex.trim()) && { opacity: 0.35 }]} onPress={customHex} disabled={!HEX.test(hex.trim())} accessibilityLabel="Użyj własnego koloru">
-              <Check size={15} color={colors.bg.primary} />
-            </TouchableOpacity>
-          </View>
+          <ColorPicker base={PALETTE} value={cur.c ?? '#F2F2F2'} onPick={(c) => apply({ c: c.toUpperCase() === '#F2F2F2' ? undefined : c })} />
         </View>
       )}
-      {panel === 'highlight' && (
+      {toolbar && panel === 'highlight' && (
         <View style={s.panel}>
           <TouchableOpacity style={[s.swatch, s.noHl, !cur.h && s.swatchOn]} onPress={() => apply({ h: undefined })} accessibilityLabel="Bez zakreślenia" />
           {HIGHLIGHTS.map((c) => (
@@ -124,7 +117,7 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus }: {
       )}
 
       {/* Przybornik nad klawiaturą */}
-      <ScrollView horizontal keyboardShouldPersistTaps="always" showsHorizontalScrollIndicator={false} style={s.barScroll} contentContainerStyle={s.bar}>
+      {toolbar && <ScrollView horizontal keyboardShouldPersistTaps="always" showsHorizontalScrollIndicator={false} style={s.barScroll} contentContainerStyle={s.bar}>
         <TouchableOpacity style={[s.tool, cur.b && s.on]} onPress={() => toggle('b')} accessibilityLabel="Pogrubienie"><Bold size={17} color={cur.b ? colors.bg.primary : colors.text.primary} /></TouchableOpacity>
         <TouchableOpacity style={[s.tool, cur.i && s.on]} onPress={() => toggle('i')} accessibilityLabel="Kursywa"><Italic size={17} color={cur.i ? colors.bg.primary : colors.text.primary} /></TouchableOpacity>
         <TouchableOpacity style={[s.tool, cur.u && s.on]} onPress={() => toggle('u')} accessibilityLabel="Podkreślenie"><Underline size={17} color={cur.u ? colors.bg.primary : colors.text.primary} /></TouchableOpacity>
@@ -145,13 +138,14 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus }: {
           <RemoveFormatting size={17} color={colors.text.muted} />
         </TouchableOpacity>
         <Text style={s.hint}>{hasSel ? 'zaznaczenie' : 'dalsze pisanie'}</Text>
-      </ScrollView>
+      </ScrollView>}
     </View>
   );
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
   wrap: { flex: 1 },
+  pageBody: { flex: 0, paddingBottom: 40 },
   body: { flex: 1, fontSize: 15, lineHeight: 22, fontFamily: 'Inter_500Medium', color: c.text.primary, paddingHorizontal: spacing[4], paddingTop: spacing[2] },
   barScroll: { flexGrow: 0, borderTopWidth: 1, borderTopColor: c.ui.line, backgroundColor: c.bg.primary },
   bar: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing[2], paddingVertical: 6 },
@@ -167,12 +161,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   panelCol: { paddingHorizontal: spacing[3], paddingVertical: spacing[2], gap: spacing[2], borderTopWidth: 1, borderTopColor: c.ui.line },
   sizeBtn: { paddingHorizontal: spacing[3], height: 36, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, justifyContent: 'center' },
   sizeLabel: { fontFamily: 'Inter_700Bold', color: c.text.primary },
-  swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   swatch: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: 'transparent' },
   swatchOn: { borderColor: c.text.bright },
   noHl: { borderColor: c.border.default, borderStyle: 'dashed' },
-  hexRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  hexDot: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: c.border.default },
-  hexInput: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: c.border.default, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: 7, fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary },
-  hexOk: { width: 36, height: 34, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: c.text.bright },
 }));

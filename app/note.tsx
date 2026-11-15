@@ -1,10 +1,12 @@
 import { goBack } from '@/services/nav';
 import { removeWithUndo } from '@/services/undo';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform, type LayoutChangeEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Pin, PinOff, Trash2, Check, X, Plus, Undo2, Eraser, Pencil, Folder, Brush, PenLine } from 'lucide-react-native';
+import { ChevronLeft, Pin, PinOff, Trash2, Check, X, Plus, Undo2, Eraser, Pencil, Folder, Brush, PenLine, Type, NotebookText } from 'lucide-react-native';
+import ColorPicker from '@/components/notes/ColorPicker';
+import { StrokesLayer } from '@/components/notes/DrawingCanvas';
 import FolderSheet, { type FolderSheetMode } from '@/components/notes/FolderSheet';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -22,6 +24,14 @@ import { haptic } from '@/utils/haptics';
 // pustą notatką = notatka znika (bez śmieciowych pustych wpisów).
 const PEN_COLORS = ['#F2F2F2', '#EF4444', '#FBBF24', '#22C55E', '#60A5FA', '#A78BFA'];
 const PEN_WIDTHS = [2, 4, 9];
+
+// Dolna krawędź rysunku w px (kreski trzymane w jednostkach szerokości) — strona
+// rośnie, żeby było miejsce pod najniższą kreską.
+function strokesBottom(strokes: NoteStroke[], w: number): number {
+  let max = 0;
+  for (const st of strokes) for (let i = 1; i < st.p.length; i += 2) if (st.p[i] > max) max = st.p[i];
+  return max * w;
+}
 
 export default function NoteScreen() {
   const s = makeS();
@@ -46,6 +56,13 @@ export default function NoteScreen() {
     if (p) setPressureState(p);
     else pressureTimer.current = setTimeout(() => setPressureState(null), 2000);
   }, []);
+  // Tekst + rysunek w jednej notatce (2026-11-15, user: "połączyć TEKST RYSUNEK... po
+  // prostu narzędzie wybrać tekst albo rysunek"): przełącznik narzędzia na dole, kreski
+  // leżą na tej samej "stronie" co tekst i przewijają się razem z nim.
+  const [mode, setMode] = useState<'text' | 'draw'>(note?.kind === 'drawing' || (!!note && !note.text && note.strokes.length > 0) ? 'draw' : 'text');
+  const [viewH, setViewH] = useState(0);
+  const [pageW, setPageW] = useState(0);
+  const [showColors, setShowColors] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [focusId, setFocusId] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -101,6 +118,11 @@ export default function NoteScreen() {
           placeholderTextColor={colors.text.muted}
           style={s.titleInput}
         />
+        {/* Wszystkie notatki (2026-11-15, user: "z Dashboardu przenosi tylko do tej notatki
+            i nie mam jak wejść do ekranu notatek"). */}
+        <TouchableOpacity onPress={() => { haptic.tap(); flush(); router.navigate('/notes' as any); }} style={s.headBtn} hitSlop={8} accessibilityLabel="Wszystkie notatki">
+          <NotebookText size={18} color={colors.text.secondary} />
+        </TouchableOpacity>
         {/* Katalog (2026-11-14) — kolor ikony = kolor katalogu, szara = bez katalogu. */}
         <TouchableOpacity onPress={() => { haptic.tap(); flush(); setFolderSheet({ kind: 'pick', noteId: note.id, current: note.folderId ?? null }); }} style={s.headBtn} hitSlop={8}
           accessibilityLabel={`Katalog: ${folders.find((f) => f.id === note.folderId)?.name ?? 'brak'}`}>
@@ -117,14 +139,103 @@ export default function NoteScreen() {
         </TouchableOpacity>
       </View>
 
-      {note.kind === 'text' && (
+      {(note.kind === 'text' || note.kind === 'drawing') && (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <RichTextEditor
-            text={text}
-            runs={runs}
-            onChange={(t, r) => { setText(t); setRuns(r); save({ text: t, runs: hasFormatting(r) ? r : undefined }); }}
-            autoFocus={!note.text}
-          />
+          <View style={{ flex: 1 }} onLayout={(e: LayoutChangeEvent) => setViewH(e.nativeEvent.layout.height)}>
+            {viewH > 0 && (
+              <RichTextEditor
+                text={text}
+                runs={runs}
+                onChange={(t, r) => { setText(t); setRuns(r); save({ text: t, runs: hasFormatting(r) ? r : undefined }); }}
+                autoFocus={mode === 'text' && !note.text && note.strokes.length === 0}
+                editable={mode === 'text'}
+                toolbar={mode === 'text'}
+                page={{
+                  minHeight: Math.max(viewH - 54, strokesBottom(note.strokes, pageW) + 160),
+                  wrap: (field) => (
+                    <ScrollView style={{ flex: 1 }} scrollEnabled={mode === 'text'} keyboardShouldPersistTaps="handled">
+                      <View onLayout={(e: LayoutChangeEvent) => setPageW(e.nativeEvent.layout.width)}>
+                        {field}
+                        {mode === 'draw' ? (
+                          <View style={StyleSheet.absoluteFill}>
+                            <DrawingCanvas strokes={note.strokes} onChange={strokesChange} tool={tool} onPressure={setPressure} />
+                          </View>
+                        ) : note.strokes.length > 0 && pageW > 0 ? (
+                          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                            <StrokesLayer strokes={note.strokes} width={pageW} height={Math.max(viewH, strokesBottom(note.strokes, pageW) + 160)} />
+                          </View>
+                        ) : null}
+                      </View>
+                    </ScrollView>
+                  ),
+                }}
+              />
+            )}
+          </View>
+          {mode === 'draw' && (
+            <>
+              {/* Pióro / pędzel (S-Pen: grubość z nacisku) + odczyt nacisku na żywo (test rysika). */}
+              <View style={s.modeRow}>
+                {([[false, 'Pióro'], [true, 'Pędzel']] as const).map(([b, label]) => {
+                  const on = !tool.eraser && !!tool.brush === b;
+                  return (
+                    <TouchableOpacity key={label} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, brush: b, eraser: false })); }} style={[s.modeBtn, on && s.toolOn]} accessibilityLabel={label}>
+                      {b ? <Brush size={14} color={on ? colors.bg.primary : colors.text.primary} /> : <PenLine size={14} color={on ? colors.bg.primary : colors.text.primary} />}
+                      <Text style={[s.modeLabel, on && { color: colors.bg.primary }]}>{label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                <Text style={s.pressure} numberOfLines={1}>
+                  {pressure
+                    ? (pressure.stylus ? `Nacisk rysika ${Math.round((pressure.pressure ?? 0) * 100)}% · ×${pressure.factor.toFixed(2).replace('.', ',')}` : `Palec · grubość z szybkości ×${pressure.factor.toFixed(2).replace('.', ',')}`)
+                    : tool.brush ? 'Rysuj S-Penem — mocniej = grubiej' : ''}
+                </Text>
+              </View>
+              <View style={s.toolbar}>
+                {PEN_COLORS.slice(0, 4).map((c) => (
+                  <TouchableOpacity key={c} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, color: c, eraser: false })); }}
+                    style={[s.swatch, { backgroundColor: c }, !tool.eraser && tool.color === c && s.swatchOn]} accessibilityLabel={`Kolor ${c}`} />
+                ))}
+                {/* Więcej kolorów + własna paleta. */}
+                <TouchableOpacity onPress={() => { haptic.tap(); setShowColors((v) => !v); }}
+                  style={[s.swatch, s.moreColors, !PEN_COLORS.slice(0, 4).includes(tool.color) && { backgroundColor: tool.color }, showColors && s.swatchOn]} accessibilityLabel="Więcej kolorów i moja paleta">
+                  {PEN_COLORS.slice(0, 4).includes(tool.color) ? <Plus size={14} color={colors.text.primary} /> : null}
+                </TouchableOpacity>
+                <View style={s.sep} />
+                {PEN_WIDTHS.map((w) => (
+                  <TouchableOpacity key={w} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, width: w, eraser: false })); }}
+                    style={[s.toolBtn, !tool.eraser && tool.width === w && s.toolOn]} accessibilityLabel={`Grubość ${w}`}>
+                    <View style={{ width: w + 3, height: w + 3, borderRadius: (w + 3) / 2, backgroundColor: !tool.eraser && tool.width === w ? colors.bg.primary : colors.text.primary }} />
+                  </TouchableOpacity>
+                ))}
+                <View style={s.sep} />
+                <TouchableOpacity onPress={() => { haptic.tap(); setTool((t) => ({ ...t, eraser: !t.eraser })); }} style={[s.toolBtn, tool.eraser && s.toolOn]} accessibilityLabel="Gumka">
+                  {tool.eraser ? <Eraser size={16} color={colors.bg.primary} /> : <Eraser size={16} color={colors.text.primary} />}
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { haptic.tap(); if (note.strokes.length) update(note.id, { strokes: note.strokes.slice(0, -1) }); }} style={s.toolBtn} accessibilityLabel="Cofnij">
+                  <Undo2 size={16} color={note.strokes.length ? colors.text.primary : colors.text.muted} />
+                </TouchableOpacity>
+              </View>
+              {showColors && (
+                <View style={s.colorPanel}>
+                  <ColorPicker base={PEN_COLORS} value={tool.color} onPick={(c) => setTool((t) => ({ ...t, color: c, eraser: false }))} size={26} />
+                </View>
+              )}
+              {tool.eraser && <Text style={s.hint}><Pencil size={10} color={colors.text.muted} /> Gumka usuwa całe kreski, których dotkniesz.</Text>}
+            </>
+          )}
+          {/* Narzędzie: Tekst albo Rysunek — ta sama notatka. */}
+          <View style={s.modeSwitch}>
+            {([['text', 'Tekst', Type], ['draw', 'Rysunek', PenLine]] as const).map(([m, label, Icon]) => {
+              const on = mode === m;
+              return (
+                <TouchableOpacity key={m} onPress={() => { haptic.tap(); flush(); setMode(m); setShowColors(false); }} style={[s.modeTab, on && s.modeTabOn]} accessibilityLabel={`Narzędzie: ${label}`}>
+                  <Icon size={15} color={on ? colors.bg.primary : colors.text.primary} />
+                  <Text style={[s.modeTabLabel, on && { color: colors.bg.primary }]}>{label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </KeyboardAvoidingView>
       )}
 
@@ -167,57 +278,6 @@ export default function NoteScreen() {
         </ScrollView>
       )}
 
-      {note.kind === 'drawing' && (
-        <>
-          <View style={s.canvasBox}>
-            <DrawingCanvas
-              strokes={note.strokes}
-              onChange={strokesChange}
-              tool={tool}
-              onRatio={(r) => { if (!note.canvasRatio || Math.abs(note.canvasRatio - r) > 0.05) update(note.id, { canvasRatio: Math.round(r * 100) / 100 }); }}
-              onPressure={setPressure}
-            />
-          </View>
-          {/* Pióro / pędzel (S-Pen: grubość z nacisku) + odczyt nacisku na żywo (test rysika). */}
-          <View style={s.modeRow}>
-            {([[false, 'Pióro'], [true, 'Pędzel']] as const).map(([b, label]) => {
-              const on = !tool.eraser && !!tool.brush === b;
-              return (
-                <TouchableOpacity key={label} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, brush: b, eraser: false })); }} style={[s.modeBtn, on && s.toolOn]} accessibilityLabel={label}>
-                  {b ? <Brush size={14} color={on ? colors.bg.primary : colors.text.primary} /> : <PenLine size={14} color={on ? colors.bg.primary : colors.text.primary} />}
-                  <Text style={[s.modeLabel, on && { color: colors.bg.primary }]}>{label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-            <Text style={s.pressure} numberOfLines={1}>
-              {pressure
-                ? (pressure.stylus ? `Nacisk rysika ${Math.round((pressure.pressure ?? 0) * 100)}% · ×${pressure.factor.toFixed(2).replace('.', ',')}` : `Palec · grubość z szybkości ×${pressure.factor.toFixed(2).replace('.', ',')}`)
-                : tool.brush ? 'Rysuj S-Penem — mocniej = grubiej' : ''}
-            </Text>
-          </View>
-          <View style={s.toolbar}>
-            {PEN_COLORS.map((c) => (
-              <TouchableOpacity key={c} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, color: c, eraser: false })); }}
-                style={[s.swatch, { backgroundColor: c }, !tool.eraser && tool.color === c && s.swatchOn]} accessibilityLabel={`Kolor ${c}`} />
-            ))}
-            <View style={s.sep} />
-            {PEN_WIDTHS.map((w) => (
-              <TouchableOpacity key={w} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, width: w, eraser: false })); }}
-                style={[s.toolBtn, !tool.eraser && tool.width === w && s.toolOn]} accessibilityLabel={`Grubość ${w}`}>
-                <View style={{ width: w + 3, height: w + 3, borderRadius: (w + 3) / 2, backgroundColor: !tool.eraser && tool.width === w ? colors.bg.primary : colors.text.primary }} />
-              </TouchableOpacity>
-            ))}
-            <View style={s.sep} />
-            <TouchableOpacity onPress={() => { haptic.tap(); setTool((t) => ({ ...t, eraser: !t.eraser })); }} style={[s.toolBtn, tool.eraser && s.toolOn]} accessibilityLabel="Gumka">
-              {tool.eraser ? <Eraser size={16} color={colors.bg.primary} /> : <Eraser size={16} color={colors.text.primary} />}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => { haptic.tap(); if (note.strokes.length) update(note.id, { strokes: note.strokes.slice(0, -1) }); }} style={s.toolBtn} accessibilityLabel="Cofnij">
-              <Undo2 size={16} color={note.strokes.length ? colors.text.primary : colors.text.muted} />
-            </TouchableOpacity>
-          </View>
-          {tool.eraser && <Text style={s.hint}><Pencil size={10} color={colors.text.muted} /> Gumka usuwa całe kreski, których dotkniesz.</Text>}
-        </>
-      )}
       <FolderSheet mode={folderSheet} onClose={() => setFolderSheet(null)} />
     </SafeAreaView>
   );
@@ -254,5 +314,11 @@ const makeS = themedStyles((c) => StyleSheet.create({
   sep: { width: 1, height: 22, backgroundColor: c.ui.line, marginHorizontal: 4 },
   toolBtn: { width: 34, height: 34, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border.default },
   toolOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
+  moreColors: { borderColor: c.border.default, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
+  colorPanel: { paddingHorizontal: spacing[3], paddingBottom: spacing[2] },
+  modeSwitch: { flexDirection: 'row', gap: 6, paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderTopWidth: 1, borderTopColor: c.ui.line },
+  modeTab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 36, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
+  modeTabOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
+  modeTabLabel: { fontSize: 12.5, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
   hint: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: c.text.muted, paddingHorizontal: spacing[4], paddingBottom: spacing[2] },
 }));

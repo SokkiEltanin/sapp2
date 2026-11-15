@@ -88,6 +88,10 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
   [sprawdź] logowanie + dane z telefonu po synchronizacji; domena w Firebase
   Authorized domains już dodana przez usera. Reguły Firestore opublikowane i
   sprawdzone z zewnątrz (PERMISSION_DENIED na zapis/odczyt/zapytanie).
+- **[sprawdź] Notatki: tekst + rysunek (2026-11-15)**: w notatce na dole „Tekst |
+  Rysunek” — rysowanie po tekście S-Penem, kreski przewijają się z tekstem; „+” przy
+  kolorach → Moja paleta (też w kolorze tekstu). Ikona notesu w nagłówku = lista notatek.
+  Do sprawdzenia na telefonie: długi tekst + rysunek (przewijanie), klawiatura w trybie Tekst.
 - **[sprawdź] Komputer — kolumny (2026-11-14)**: szerokie okno = Dashboard / Finanse /
   Zadania / Daily obok siebie, pasek po lewej (Ustawienia, zakładki, Notatki, Szukaj).
   Ustawienia/Notatki/Szukaj itd. = panel z prawej (klik obok zamyka), skróty

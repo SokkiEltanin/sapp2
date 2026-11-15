@@ -14,8 +14,12 @@ export default function NotePreview({ note, maxLines = 6, onToggle, compact }: {
   note: Note; maxLines?: number; onToggle?: (itemId: string) => void; compact?: boolean;
 }) {
   const [w, setW] = useState(0);
-  if (note.kind === 'drawing') {
-    const ratio = note.canvasRatio ?? 1.3;
+  // Rysunek — też w notatce tekstowej (tekst + rysunek w jednej, 2026-11-15): tekst na
+  // górze, miniatura kresek pod nim.
+  const drawing = note.strokes.length > 0 || note.kind === 'drawing' ? (() => {
+    let maxY = 0;
+    for (const st of note.strokes) for (let i = 1; i < st.p.length; i += 2) if (st.p[i] > maxY) maxY = st.p[i];
+    const ratio = note.kind === 'drawing' && !note.text.trim() ? (note.canvasRatio ?? 1.3) : Math.max(0.2, maxY + 0.04);
     return (
       <View style={styles.drawBox} onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}>
         {w > 0 && (
@@ -23,10 +27,11 @@ export default function NotePreview({ note, maxLines = 6, onToggle, compact }: {
             <StrokesLayer strokes={note.strokes} width={w} height={w * ratio} />
           </View>
         )}
-        {note.strokes.length === 0 && <Text style={styles.muted}>Pusty rysunek</Text>}
+        {note.strokes.length === 0 && !note.text.trim() && <Text style={styles.muted}>Pusty rysunek</Text>}
       </View>
     );
-  }
+  })() : null;
+  if (note.kind !== 'list' && drawing && !note.text.trim()) return drawing;
   if (note.kind === 'list') {
     const visible = note.items.filter((i) => i.text.trim()).slice(0, maxLines);
     const more = note.items.filter((i) => i.text.trim()).length - visible.length;
@@ -45,12 +50,15 @@ export default function NotePreview({ note, maxLines = 6, onToggle, compact }: {
   }
   if (!note.text.trim()) return <Text style={styles.text}>Pusta notatka</Text>;
   // Formatowanie (2026-11-14) — te same odcinki co w edytorze, mniejsze rozmiary.
-  if (!hasFormatting(note.runs)) return <Text style={styles.text} numberOfLines={maxLines}>{note.text.trim()}</Text>;
-  return (
-    <Text style={styles.text} numberOfLines={maxLines}>
-      {segments(note.text, note.runs).map((g, i) => <Text key={i} style={runTextStyle(g.st, 0.75)}>{g.t}</Text>)}
-    </Text>
-  );
+  const textEl = !hasFormatting(note.runs)
+    ? <Text style={styles.text} numberOfLines={drawing ? Math.max(2, Math.ceil(maxLines / 2)) : maxLines}>{note.text.trim()}</Text>
+    : (
+      <Text style={styles.text} numberOfLines={drawing ? Math.max(2, Math.ceil(maxLines / 2)) : maxLines}>
+        {segments(note.text, note.runs).map((g, i) => <Text key={i} style={runTextStyle(g.st, 0.75)}>{g.t}</Text>)}
+      </Text>
+    );
+  if (!drawing) return textEl;
+  return <View style={{ gap: 6 }}>{textEl}{drawing}</View>;
 }
 
 const styles = StyleSheet.create({

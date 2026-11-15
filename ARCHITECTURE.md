@@ -1739,6 +1739,18 @@ Zadania z `task`, notatka → edytor, reszta → ich ekrany. Nowy rodzaj danych 
   palcem z szybkości (`utils/notes.ts` brushFactor + smoothFactor), rysowanie jako
   wypełniony kontur (`brushOutline`). Pasek: Pióro/Pędzel + odczyt nacisku na żywo
   (`onPressure`, test rysika).
+- **Tekst + rysunek w jednej notatce** (2026-11-15): kind `text` i `drawing` mają ten
+  sam edytor w `app/note.tsx` — przełącznik Tekst/Rysunek na dole (`mode`; `drawing` i
+  notatka z samymi kreskami startują w Rysunku). `RichTextEditor` z `page` = pole
+  rośnie z treścią w ScrollView, a nad nim warstwa kresek (`DrawingCanvas` w trybie
+  Rysunek, `StrokesLayer` bez dotyku w trybie Tekst) — kreski przewijają się z
+  tekstem; strona rośnie pod najniższą kreskę (`strokesBottom`). W trybie Rysunek
+  przewijanie i edycja tekstu wyłączone. Podgląd: tekst + miniatura kresek.
+- **Moja paleta**: `notesStore.palette` (+ addColor/removeColor, sync w `prefs` jako
+  `notePalette`), `components/notes/ColorPicker.tsx` (podstawowe + moja paleta, „+”
+  dodaje #hex, przytrzymanie → usuń) — w kolorze tekstu i w kolorze pióra.
+- **Wejście do listy**: przycisk „Wszystkie notatki” w nagłówku notatki (z Dashboardu
+  otwiera się sama notatka).
 
 ## ZNIŻKI NA PARAGONIE (2026-11-14)
 

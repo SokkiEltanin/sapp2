@@ -23,6 +23,11 @@ interface NotesState {
   setPinned: (id: string, pinned: boolean) => void;
   toggleItem: (noteId: string, itemId: string) => void;
   setItems: (noteId: string, items: NoteItem[]) => void;
+  // Własna paleta kolorów (2026-11-15, user: "customowe kolory albo stworzyć własną
+  // paletę") — wspólna dla tekstu i rysunku; synchronizowana w dokumencie `prefs`.
+  palette: string[];
+  addColor: (hex: string) => void;
+  removeColor: (hex: string) => void;
 }
 
 export const useNotesStore = create<NotesState>()(
@@ -30,6 +35,12 @@ export const useNotesStore = create<NotesState>()(
     (set) => ({
       notes: [],
       folders: [],
+      palette: [],
+      addColor: (hex) => set((st) => {
+        const c = hex.toUpperCase();
+        return st.palette.includes(c) ? st : { palette: [...st.palette, c].slice(-24) };
+      }),
+      removeColor: (hex) => set((st) => ({ palette: st.palette.filter((c) => c !== hex.toUpperCase()) })),
       create: (kind, pinned = false, folderId = null) => {
         const t = now();
         const note: Note = { id: genNoteId(), kind, title: '', text: '', items: [], strokes: [], pinned, folderId, createdAt: t, updatedAt: t };
