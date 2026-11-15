@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
-import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { openPicker } from '@/services/picker';
 import { Fuel, Check } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -73,9 +73,9 @@ export default function FuelSheet({ vehicle, prefill, onClose, onSaved }: {
     onSaved?.();
   };
 
-  const openPicker = () => {
+  const openDayPicker = () => {
     haptic.tap();
-    DateTimePickerAndroid.open({
+    openPicker({
       value: new Date(`${date}T12:00:00`), mode: 'date',
       onChange: (ev, sel) => { if (ev.type === 'set' && sel) setDate(ymd(sel)); },
     });
@@ -130,7 +130,7 @@ export default function FuelSheet({ vehicle, prefill, onClose, onSaved }: {
             <Text style={[s.chipLabel, date === o.v && s.chipLabelOn]}>{o.l}</Text>
           </TouchableOpacity>
         ))}
-        <TouchableOpacity style={[s.chip, date !== todayISO() && date !== ymd(new Date(Date.now() - 86400000)) && s.chipOn]} onPress={openPicker} activeOpacity={0.8}>
+        <TouchableOpacity style={[s.chip, date !== todayISO() && date !== ymd(new Date(Date.now() - 86400000)) && s.chipOn]} onPress={openDayPicker} activeOpacity={0.8}>
           <Text style={[s.chipLabel, date !== todayISO() && date !== ymd(new Date(Date.now() - 86400000)) && s.chipLabelOn]}>{date.split('-').reverse().join('.')}</Text>
         </TouchableOpacity>
       </View>

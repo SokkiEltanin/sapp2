@@ -18,6 +18,7 @@ import { WEB_MAX_W } from '@/ui/layout';
 import { desktopLayout } from '@/utils/desktopColumns';
 import { DesktopPanelBackdrop } from '@/ui/DesktopPanelBackdrop';
 import EventEditSheet from '@/components/calendar/EventEditSheet';
+import PickerHost from '@/components/design/PickerHost';
 import { useDesktopShortcuts } from '@/hooks/useDesktopShortcuts';
 // Nasłuch instalacji PWA od startu (zdarzenie przychodzi zaraz po załadowaniu strony).
 import '@/services/pwaInstall';
@@ -332,6 +333,8 @@ export default function RootLayout() {
         <UpdateBanner />
         {/* Formularz wydarzenia kalendarza — jeden dla całej appki (services/eventEditor.ts). */}
         <EventEditSheet />
+        {/* Picker daty/godziny — jeden dla całej appki (services/picker.ts). */}
+        <PickerHost />
         <UndoToast />
       </SafeAreaProvider>
     </GestureHandlerRootView>

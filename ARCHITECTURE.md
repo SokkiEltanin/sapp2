@@ -848,6 +848,11 @@ ustalenia z 2026-10-26 (poniżej) WCIĄŻ obowiązują — ten plan je rozwija, 
   jak klikam w transakcjach")**. Pole "Data" w `AddExpenseModal.tsx` miało TYLKO
   chipy "Dziś"/"Wczoraj" + statyczną odznakę z wartością — żadnego sposobu wybrania
   DOWOLNEGO dnia, realny problem przy edycji starszej/zaimportowanej transakcji.
+  **2026-11-15: systemowy picker ZASTĄPIONY własnym** — `openPicker()` z
+  `src/services/picker.ts` (te same opcje co `DateTimePickerAndroid.open`), UI
+  `components/design/PickerHost.tsx` (kalendarz miesiąca / siatka godzin, po polsku,
+  działa też na komputerze), zamontowany raz w app/_layout.tsx. Nowe pola daty/godziny
+  → zawsze `openPicker`, nigdy systemowy dialog. Historycznie:
   `@react-native-community/datetimepicker` (nowa zależność, natywny Androidowy
   picker przez imperatywne `DateTimePickerAndroid.open()` — tak działa ten pakiet na
   Androidzie, inaczej niż inline-komponent na iOS) — zero własnego kalendarza do

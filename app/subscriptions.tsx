@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { openPicker } from '@/services/picker';
 import { ChevronLeft, Plus, Trash2, Bell, BellOff, Check, Edit2, CalendarDays, X } from 'lucide-react-native';
 import * as LucideIcons from 'lucide-react-native';
 import { colors } from '@/theme/colors';
@@ -166,7 +166,7 @@ export default function SubscriptionsScreen() {
   const openEndDatePicker = () => {
     haptic.tap();
     const iso = parseDisplayDate(form.endDate) ?? parseDisplayDate(form.nextBillingDate) ?? todayISO();
-    DateTimePickerAndroid.open({
+    openPicker({
       value: new Date(`${iso}T12:00:00`),
       mode: 'date',
       onChange: (event, selected) => {
@@ -177,7 +177,7 @@ export default function SubscriptionsScreen() {
   const openDatePicker = () => {
     haptic.tap();
     const iso = parseDisplayDate(form.nextBillingDate) ?? todayISO();
-    DateTimePickerAndroid.open({
+    openPicker({
       value: new Date(`${iso}T12:00:00`),
       mode: 'date',
       onChange: (event, selected) => {

@@ -1,7 +1,7 @@
 import { removeWithUndo } from '@/services/undo';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform } from 'react-native';
-import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { openPicker } from '@/services/picker';
 import * as LucideIcons from 'lucide-react-native';
 import { CalendarDays, Minus, Plus, Trash2, Undo2, ChevronDown, ChevronUp, Home, Car } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
@@ -87,10 +87,9 @@ export default function ReplaceSheet({ visible, onClose, editing, presetKey }: {
   const nextIso = lastIso && everyN > 0 ? addInterval(lastIso, everyN, unit) : null;
 
   const step = (d: number) => { haptic.tap(); setEvery(String(Math.max(1, everyN + d))); };
-  const openPicker = () => {
+  const openDayPicker = () => {
     haptic.tap();
-    if (Platform.OS !== 'android') return;
-    DateTimePickerAndroid.open({
+    openPicker({
       value: new Date(`${lastIso ?? todayISO()}T12:00:00`), mode: 'date', maximumDate: new Date(),
       onChange: (e, d) => { if (e.type === 'set' && d) setLast(toDisplayDate(ymd(d))); },
     });
@@ -228,7 +227,7 @@ export default function ReplaceSheet({ visible, onClose, editing, presetKey }: {
       </View>
       <View style={[s.row, { marginTop: spacing[2] }]}>
         <TextInput value={last} onChangeText={(v) => setLast(maskDateDigits(v))} style={[s.input, { flex: 1, marginTop: 0 }]} keyboardType="number-pad" placeholder="DD.MM.RRRR" placeholderTextColor={colors.text.muted} />
-        <TouchableOpacity style={s.stepBtn} onPress={openPicker} accessibilityLabel="Wybierz z kalendarza"><CalendarDays size={16} color={colors.text.secondary} /></TouchableOpacity>
+        <TouchableOpacity style={s.stepBtn} onPress={openDayPicker} accessibilityLabel="Wybierz z kalendarza"><CalendarDays size={16} color={colors.text.secondary} /></TouchableOpacity>
       </View>
       <Text style={[s.hint, !lastIso && last.length === 10 && { color: colors.accent.red }]}>
         {nextIso ? `${everyLabel(everyN, unit)} · następna ${toDisplayDate(nextIso)}` : last.length === 10 ? 'Niepoprawna data' : ' '}

@@ -1,6 +1,6 @@
-import { createElement, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Platform, ActivityIndicator } from 'react-native';
-import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { openPicker } from '@/services/picker';
 import { CalendarDays, Clock, AlignLeft, Trash2, Palette } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -25,11 +25,6 @@ const DAYS = ['niedz.', 'pon.', 'wt.', 'śr.', 'czw.', 'pt.', 'sob.'];
 const MONTHS = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
 const dateLabel = (d: string) => { const x = new Date(`${d}T00:00:00`); return `${DAYS[x.getDay()]} ${x.getDate()} ${MONTHS[x.getMonth()]} ${x.getFullYear()}`; };
 const pad = (n: number) => String(n).padStart(2, '0');
-// Styl natywnych pól daty/godziny na komputerze (CSS, nie RN).
-const webInput = {
-  flex: '1 1 0', minWidth: 0, height: 40, boxSizing: 'border-box', borderRadius: 10, border: '1px solid #262626',
-  background: '#141414', color: '#F2F2F2', padding: '0 10px', fontSize: 14, fontWeight: 700, fontFamily: 'Inter_700Bold, system-ui, sans-serif',
-};
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/, TIME_RE = /^\d{2}:\d{2}$/;
 
 function nextHour(): [string, string] {
@@ -67,7 +62,7 @@ export default function EventEditSheet() {
 
   const pickDate = (which: 'date' | 'endDate') => {
     const cur = (which === 'date' ? f.date : f.endDate || f.date);
-    DateTimePickerAndroid.open({
+    openPicker({
       value: new Date(`${cur}T12:00:00`), mode: 'date',
       onChange: (ev, d) => {
         if (ev.type !== 'set' || !d) return;
@@ -84,7 +79,7 @@ export default function EventEditSheet() {
   const pickTime = (which: 'startTime' | 'endTime') => {
     const [h, m] = (f[which] ?? '09:00').split(':').map(Number);
     const base = new Date(); base.setHours(h, m, 0, 0);
-    DateTimePickerAndroid.open({
+    openPicker({
       value: base, mode: 'time', is24Hour: true,
       onChange: (ev, d) => {
         if (ev.type !== 'set' || !d) return;
@@ -151,13 +146,6 @@ export default function EventEditSheet() {
 
   const dateField = (which: 'date' | 'endDate') => {
     const v = which === 'date' ? f.date : f.endDate || f.date;
-    if (Platform.OS === 'web') {
-      // Komputer: natywne pole daty przeglądarki (kalendarz do kliknięcia), w ciemnym stylu.
-      return createElement('input', {
-        type: 'date', value: v, style: webInput,
-        onChange: (ev: any) => { const t = String(ev.target.value); if (!t) return; if (which === 'date') set({ date: t }); else set({ endDate: t > f.date ? t : undefined }); },
-      });
-    }
     return (
       <TouchableOpacity style={s.chip} onPress={() => { haptic.tap(); pickDate(which); }}>
         <Text style={s.chipText} numberOfLines={1}>{dateLabel(v)}</Text>
@@ -165,12 +153,6 @@ export default function EventEditSheet() {
     );
   };
   const timeField = (which: 'startTime' | 'endTime') => {
-    if (Platform.OS === 'web') {
-      return createElement('input', {
-        type: 'time', value: f[which] ?? '', style: { ...webInput, flex: '0 0 112px', width: 112, textAlign: 'center' },
-        onChange: (ev: any) => { const t = String(ev.target.value); if (t) set({ [which]: t.slice(0, 5) }); },
-      });
-    }
     return (
       <TouchableOpacity style={[s.chip, s.timeChip]} onPress={() => { haptic.tap(); pickTime(which); }}>
         <Text style={s.chipTextBig}>{f[which] ?? '--:--'}</Text>

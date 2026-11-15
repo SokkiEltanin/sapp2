@@ -41,6 +41,10 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-15 — własny picker daty/godziny** (zamiast szarego systemowego, user: „takie
+elementy surowe miałeś zrobić”): zadania, wydatek, wymiany, wydarzenia, tankowanie, płatności.
+- [ ] Na telefonie: picker nad formularzem (sheet), łańcuch data → godzina w Zadaniach.
+
 **2026-11-15 — notatka: klawiatura zasłaniała pasek** (edge-to-edge, okno się nie
 kurczy) → padding = wysokość klawiatury (`useKeyboardHeight`) w app/note.tsx.
 - [ ] Sprawdzić na telefonie; przy długim tekście — czy kursor nie chowa się pod klawiaturą.

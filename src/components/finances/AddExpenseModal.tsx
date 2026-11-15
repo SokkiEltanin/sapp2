@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { X, Receipt, Banknote, ClipboardPaste, Plus, ChevronDown, ChevronUp, Trash2, CalendarDays, Fuel } from 'lucide-react-native';
-import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { openPicker } from '@/services/picker';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { todayISO, ymd } from '@/utils/date';
@@ -338,7 +338,7 @@ export default function AddExpenseModal({
   // zero własnego UI kalendarza do budowania/utrzymywania.
   const openDatePicker = () => {
     haptic.tap();
-    DateTimePickerAndroid.open({
+    openPicker({
       value: new Date(`${date}T12:00:00`),
       mode: 'date',
       onChange: (event, selected) => {

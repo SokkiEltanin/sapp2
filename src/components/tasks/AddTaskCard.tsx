@@ -1,6 +1,6 @@
 import { useEffect, useState, type RefObject } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
-import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { openPicker } from '@/services/picker';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { ymd, todayISO } from '@/utils/date';
@@ -119,12 +119,12 @@ export default function AddTaskCard({
   const pickCustomDeadline = () => {
     haptic.tap();
     const base = customDeadline ?? new Date();
-    DateTimePickerAndroid.open({
+    openPicker({
       value: base,
       mode: 'date',
       onChange: (dateEvent, selectedDate) => {
         if (dateEvent.type !== 'set' || !selectedDate) return;
-        DateTimePickerAndroid.open({
+        openPicker({
           value: selectedDate,
           mode: 'time',
           is24Hour: true,
