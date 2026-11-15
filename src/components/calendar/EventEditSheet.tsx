@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { createElement, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Platform, ActivityIndicator } from 'react-native';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { CalendarDays, Clock, AlignLeft, Trash2, Palette } from 'lucide-react-native';
@@ -25,6 +25,11 @@ const DAYS = ['niedz.', 'pon.', 'wt.', 'śr.', 'czw.', 'pt.', 'sob.'];
 const MONTHS = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
 const dateLabel = (d: string) => { const x = new Date(`${d}T00:00:00`); return `${DAYS[x.getDay()]} ${x.getDate()} ${MONTHS[x.getMonth()]} ${x.getFullYear()}`; };
 const pad = (n: number) => String(n).padStart(2, '0');
+// Styl natywnych pól daty/godziny na komputerze (CSS, nie RN).
+const webInput = {
+  flex: '1 1 0', minWidth: 0, height: 40, boxSizing: 'border-box', borderRadius: 10, border: '1px solid #262626',
+  background: '#141414', color: '#F2F2F2', padding: '0 10px', fontSize: 14, fontWeight: 700, fontFamily: 'Inter_700Bold, system-ui, sans-serif',
+};
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/, TIME_RE = /^\d{2}:\d{2}$/;
 
 function nextHour(): [string, string] {
@@ -147,7 +152,11 @@ export default function EventEditSheet() {
   const dateField = (which: 'date' | 'endDate') => {
     const v = which === 'date' ? f.date : f.endDate || f.date;
     if (Platform.OS === 'web') {
-      return <TextInput value={v} onChangeText={(t) => (which === 'date' ? set({ date: t }) : set({ endDate: t > f.date ? t : undefined }))} style={[s.chip, s.chipInput]} placeholder="RRRR-MM-DD" placeholderTextColor={colors.text.muted} />;
+      // Komputer: natywne pole daty przeglądarki (kalendarz do kliknięcia), w ciemnym stylu.
+      return createElement('input', {
+        type: 'date', value: v, style: webInput,
+        onChange: (ev: any) => { const t = String(ev.target.value); if (!t) return; if (which === 'date') set({ date: t }); else set({ endDate: t > f.date ? t : undefined }); },
+      });
     }
     return (
       <TouchableOpacity style={s.chip} onPress={() => { haptic.tap(); pickDate(which); }}>
@@ -157,7 +166,10 @@ export default function EventEditSheet() {
   };
   const timeField = (which: 'startTime' | 'endTime') => {
     if (Platform.OS === 'web') {
-      return <TextInput value={f[which] ?? ''} onChangeText={(t) => set({ [which]: t })} style={[s.chip, s.chipInput, s.timeChip]} placeholder="GG:MM" placeholderTextColor={colors.text.muted} />;
+      return createElement('input', {
+        type: 'time', value: f[which] ?? '', style: { ...webInput, flex: '0 0 112px', width: 112, textAlign: 'center' },
+        onChange: (ev: any) => { const t = String(ev.target.value); if (t) set({ [which]: t.slice(0, 5) }); },
+      });
     }
     return (
       <TouchableOpacity style={[s.chip, s.timeChip]} onPress={() => { haptic.tap(); pickTime(which); }}>

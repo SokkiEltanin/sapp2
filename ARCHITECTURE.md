@@ -1534,6 +1534,10 @@ serwer dev potrafi serwować stary moduł i rzucać mylące błędy.
 **Instalacja PWA jednym kliknięciem**: `services/pwaInstall.ts` (łapie
 `beforeinstallprompt` od startu — import w app/_layout.tsx) → Ustawienia → Ogólne →
 „Zainstaluj na komputerze” (tylko web).
+**Wygląd elementów przeglądarki** (2026-11-15): `src/ui/webStyles.ts` (`installWebStyles()`
+przy starcie app/_layout.tsx) — `color-scheme: dark`, cienkie ciemne paski przewijania,
+bez obwódki aktywnego pola, ciemne ikonki pól daty/godziny. Pola daty/godziny na
+komputerze = natywne `<input type="date|time">` (EventEditSheet, `createElement`).
 **Formularz wydarzenia** (2026-11-15, "jak na Samsungu"): `components/calendar/
 EventEditSheet.tsx`, jeden globalny (app/_layout.tsx), otwierany przez
 `services/eventEditor.ts` (`openEventEditor(ev)` / `openNewEvent(date)`) — z szczegółów

@@ -21,6 +21,9 @@ import EventEditSheet from '@/components/calendar/EventEditSheet';
 import { useDesktopShortcuts } from '@/hooks/useDesktopShortcuts';
 // Nasłuch instalacji PWA od startu (zdarzenie przychodzi zaraz po załadowaniu strony).
 import '@/services/pwaInstall';
+import { installWebStyles } from '@/ui/webStyles';
+
+installWebStyles();
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
