@@ -41,6 +41,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-15 — Dashboard: klikalne kafle + mocniejsze wibracje:**
+- [ ] „Najbliższa wymiana” → ekran Wymiany; termin z „Najbliższe eventy” → Zadania na
+  dzień terminu; „Najbliższy” bez wydarzenia → Zadania.
+- [ ] Ustawienia → Ogólne → Siła wibracji (lekka/średnia/mocna) — czy „średnia” wystarcza.
+
 **2026-11-15 — budżety na podkategorie jedzenia** (słodycze, przekąski, napoje…):
 - [ ] Finanse → Budżet → Nowy budżet → sekcja „Jedzenie”: dodać limit na Słodycze,
   sprawdzić kwotę wydaną vs Wydatki → Jedzenie → Słodycze (mają być równe).

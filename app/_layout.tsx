@@ -53,7 +53,7 @@ import '@/store/thresholdsStore';
 import { useAutoBackup } from '@/hooks/useAutoBackup';
 import { useCloudSync } from '@/hooks/useCloudSync';
 import { useShareReceiptLaunch } from '@/hooks/useShareReceiptLaunch';
-import { loadHapticsEnabled } from '@/utils/haptics';
+import { loadHapticsEnabled, loadHapticStrength } from '@/utils/haptics';
 import { drainBankNotifications } from '@/services/bankNotificationDrain';
 import { useExpensesStore } from '@/store/expensesStore';
 import { startAppUpdateChecks } from '@/services/appUpdate';
@@ -200,7 +200,7 @@ export default function RootLayout() {
 
   // Faza 2.6 (2026-11-01) — globalny przełącznik wibracji (utils/haptics.ts), wczytany
   // raz przy starcie tak samo jak własne imię wyżej.
-  useEffect(() => { loadHapticsEnabled().catch(() => {}); }, []);
+  useEffect(() => { loadHapticsEnabled().catch(() => {}); loadHapticStrength().catch(() => {}); }, []);
 
   // Aktualizacje: OTA (sam JS) + nowy APK z GitHub Releases — src/services/appUpdate.ts.
   useEffect(() => startAppUpdateChecks(), []);

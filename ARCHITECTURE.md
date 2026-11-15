@@ -2086,7 +2086,9 @@ więc nie ma nic do migracji/zachowania.
   prowadzi do systemowego ekranu zgody → `permission: true`, zależy od innego
   wiersza wyżej → `tier: 'sub'` (i warunkowe dodanie do listy jak już robi Finanse).
 - **Wibracje — ZROBIONE (2026-11-01)** — JEDEN globalny toggle w Ustawieniach →
-  Ogólne (`utils/haptics.ts`), nie per-ekran (jeśli jakiś ekran okaże się zbyt
+  Ogólne (`utils/haptics.ts`) + od 2026-11-15 „Siła wibracji” lekka/średnia/mocna
+  (`haptics_strength_v1`, domyślnie średnia: `haptic.tap` = Medium, bo Light na
+  Androidzie ledwo czuć), nie per-ekran (jeśli jakiś ekran okaże się zbyt
   "wibrujący", wyciszamy to w kodzie tego ekranu, nie dodajemy osobnego
   przełącznika w UI). Na razie wpięte tylko w Finanse (Faza 2.6, §FINANSE) —
   kolejne ekrany (Zadania/Daily/Dashboard) dostają haptykę gdy ktoś realnie tam

@@ -44,7 +44,7 @@ import { todayISO } from '@/utils/date';
 import { useBankQueue } from '@/store/bankQueueStore';
 import { useHealthStore } from '@/store/healthStore';
 import { isHealthConnectAvailable, ensureHealthConnect, openHealthConnectSettings, readHealthDay } from '@/services/healthConnectService';
-import { isHapticsEnabled, setHapticsEnabled, haptic } from '@/utils/haptics';
+import { isHapticsEnabled, setHapticsEnabled, haptic, getHapticStrength, setHapticStrength, HAPTIC_STRENGTH_LABEL, type HapticStrength } from '@/utils/haptics';
 import Toggle from '@/components/design/Toggle';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import WidgetAppearanceSheet from '@/components/settings/WidgetAppearanceSheet';
@@ -109,6 +109,7 @@ function buildSections(
   email: string | null,
   bank: { enabled: boolean; autoAll: boolean; pending: number },
   hapticsEnabled: boolean,
+  hapticStrength: HapticStrength,
   health: { connected: boolean; lastSyncedAt: string | null },
   backup: { auto: boolean; lastAt: string | null; busy: boolean; error: string | null; fileDir: string | null; fileLastAt: string | null },
   widget: { tasks: WidgetLook; weather: WidgetLook; note: WidgetLook },
@@ -252,9 +253,10 @@ function buildSections(
   },
   {
     id: 'ogolne', title: 'Ogólne', icon: Vibrate, group: 'main',
-    summary: `wibracje ${hapticsEnabled ? 'włączone' : 'wyłączone'} · ${thresholds}`,
+    summary: `wibracje ${hapticsEnabled ? HAPTIC_STRENGTH_LABEL[hapticStrength] : 'wyłączone'} · ${thresholds}`,
     items: [
-      { kind: 'switch', key: 'haptics-enabled', label: 'Wibracje', description: 'delikatne kliknięcie przy tapach w appce', icon: Vibrate, value: hapticsEnabled },
+      { kind: 'switch', key: 'haptics-enabled', label: 'Wibracje', description: 'kliknięcie przy tapach w appce', icon: Vibrate, value: hapticsEnabled },
+      ...(hapticsEnabled ? [{ kind: 'action' as const, key: 'haptics-strength', label: 'Siła wibracji', description: `${HAPTIC_STRENGTH_LABEL[hapticStrength]} · stuknij, żeby zmienić`, icon: Vibrate }] : []),
       // Progi (2026-11-14) — liczby wcześniej zaszyte w kodzie.
       { kind: 'action', key: 'thresholds', label: 'Progi i przypomnienia', description: thresholds, icon: Clock },
       { kind: 'action', key: 'dash-layout', label: 'Układ Dashboardu', description: 'kolejność rzędów i ukrywanie', icon: LayoutGrid },
@@ -347,6 +349,7 @@ export default function SettingsScreen() {
   // finances.tsx dla `getBalanceOffset()`), żeby opis w `buildSections` odświeżał się
   // po tapie.
   const [hapticsEnabled, setHapticsEnabledState] = useState(isHapticsEnabled());
+  const [hapticStrength, setHapticStrengthState] = useState<HapticStrength>(getHapticStrength());
   const healthConnected = useHealthStore((st) => st.connected);
   const healthLastSyncedAt = useHealthStore((st) => st.lastSyncedAt);
   const setHealthConnected = useHealthStore((st) => st.setConnected);
@@ -416,6 +419,7 @@ export default function SettingsScreen() {
       user?.email ?? null,
       { enabled: bankEnabled, autoAll: bankAutoAll, pending: bankPending },
       hapticsEnabled,
+      hapticStrength,
       { connected: healthConnected, lastSyncedAt: healthLastSyncedAt },
       { auto: backupAuto, lastAt: backupLastAt, busy: backupBusy, error: backupError, fileDir: fileInfo.dir, fileLastAt: fileInfo.lastAt },
       { tasks: widgetTasks, weather: widgetWeather, note: widgetNote },
@@ -427,7 +431,7 @@ export default function SettingsScreen() {
       thresholdsText,
       pwaLabel,
     ),
-    [pwaLabel, healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, widgetNote, syncLabel],
+    [pwaLabel, healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, hapticStrength, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, widgetNote, syncLabel],
   );
 
   const backupNow = async () => {
@@ -908,6 +912,14 @@ export default function SettingsScreen() {
   // (tylko 'action'/'value'), a dodawanie go dla jednego miejsca byłoby przerostem
   // formy nad treścią. Tap po prostu odwraca stan, opis w `buildSections` wyżej od razu
   // pokazuje nowy.
+  // Lekka → średnia → mocna → lekka; od razu czuć nową siłę.
+  const cycleHapticStrength = () => {
+    const order: HapticStrength[] = ['light', 'medium', 'strong'];
+    const next = order[(order.indexOf(hapticStrength) + 1) % order.length];
+    setHapticStrength(next).catch(() => {});
+    setHapticStrengthState(next);
+    haptic.medium();
+  };
   const toggleHaptics = () => {
     // `Toggle` (src/components/design/Toggle.tsx) sam już buczy na KAŻDE naciśnięcie,
     // przed zmianą stanu — więc "wyłącz wibracje" i tak zdąży zabuczeć (działa na
@@ -1013,6 +1025,7 @@ export default function SettingsScreen() {
     'bank-history': leave(() => router.push('/bank-history' as any)),
     'import-sapp': leave(() => router.push('/import-sapp' as any)),
     'haptics-enabled': toggleHaptics,
+    'haptics-strength': cycleHapticStrength,
     'backup-auto': toggleBackupAuto,
     'backup-now': backupNow,
     'backup-restore': openRestore,

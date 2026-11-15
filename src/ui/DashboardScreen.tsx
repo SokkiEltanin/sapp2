@@ -44,10 +44,8 @@ export type DashData = {
   // zrobić i może zróbmy będzie najbliższa wymiana (oleju, filtra itp z
   // zapisanych)") — wcześniej świadomie pusty `Tile` (user: "zostaw pusty
   // kafelek"), od 2026-11-13 zasilany `allReplaceRows` (utils/replacements.ts): dom + pojazdy, ze
-  // WSZYSTKICH pojazdów naraz. CELOWO bez `onPress` — user ustalił wcześniej
-  // (przy decyzji "zostaw pusty"), że to miejsce MUSI zostać czysto
-  // informacyjne, nie klikane, bo jest wysoko na ekranie (trudno dosięgnąć
-  // kciukiem).
+  // WSZYSTKICH pojazdów naraz. 2026-11-15, user: "jak klikam wymiana niech mnie
+  // przeniesie do wymiany" — klikany, otwiera ekran Wymiany.
   nextMaintenance: { vehicleName: string; label: string; dueLabel: string; overdue: boolean } | null;
   upcoming: { id: string; when: string; title: string; kind: 'event' | 'deadline' | 'bill'; color: string; minutes?: number; amount?: number; fx?: { amount: number; currency: string } }[];
   onOpen: (what: string, id?: string) => void; // otwiera bottom sheet
@@ -89,11 +87,9 @@ export function DashboardScreen(d: DashData) {
               funkcji, tylko miejsce). Lewa połowa: BYŁA świadomie pusta, teraz
               (ten sam dzień, user zmienił zdanie na zrzucie) pokazuje "Najbliższa
               wymiana" z Pojazdów — patrz `nextMaintenance` w `DashData` wyżej.
-              CELOWO bez `onPress`/`Pressable` — czysto informacyjny `View`, nie
-              `Tile`'s klikalny wariant, bo to miejsce jest za wysoko na ekranie na
-              wygodne dotknięcie kciukiem (ta sama zasada co reszta tego rzędu). */}
+              Tap → ekran Wymiany (2026-11-15). */}
           <Row>
-            <Tile span={2} center style={st.maintTile}>
+            <Tile span={2} center style={st.maintTile} onPress={() => d.onOpen('replacements')} accessibilityLabel="Wymiany">
               {d.nextMaintenance ? (
                 <>
                   <Wrench size={12} color={C.dim} style={st.icoL} />

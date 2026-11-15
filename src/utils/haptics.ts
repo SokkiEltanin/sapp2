@@ -31,11 +31,34 @@ export async function loadHapticsEnabled(): Promise<boolean> {
   return enabled;
 }
 
+// Siła (2026-11-15, user: "poddodawaj wibracje... bardziej większe uczucie
+// haptyczne"). Na Androidzie `Light` z expo-haptics jest ledwo wyczuwalny, więc
+// domyślnie 'medium' = tap jako Medium. Zmiana w Ustawieniach → Ogólne.
+export type HapticStrength = 'light' | 'medium' | 'strong';
+const SKEY = 'haptics_strength_v1';
+let strength: HapticStrength = 'medium';
+export const HAPTIC_STRENGTH_LABEL: Record<HapticStrength, string> = { light: 'lekka', medium: 'średnia', strong: 'mocna' };
+export const getHapticStrength = () => strength;
+export async function setHapticStrength(v: HapticStrength): Promise<void> {
+  strength = v;
+  try { await AsyncStorage.setItem(SKEY, v); } catch {}
+}
+export async function loadHapticStrength(): Promise<HapticStrength> {
+  try {
+    const raw = await AsyncStorage.getItem(SKEY);
+    if (raw === 'light' || raw === 'medium' || raw === 'strong') strength = raw;
+  } catch {}
+  return strength;
+}
+
 const ok = () => enabled;
+const I = Haptics.ImpactFeedbackStyle;
+const TAP: Record<HapticStrength, Haptics.ImpactFeedbackStyle> = { light: I.Light, medium: I.Medium, strong: I.Heavy };
+const MEDIUM: Record<HapticStrength, Haptics.ImpactFeedbackStyle> = { light: I.Medium, medium: I.Heavy, strong: I.Heavy };
 
 export const haptic = {
-  tap: () => ok() && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
-  medium: () => ok() && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium),
+  tap: () => ok() && Haptics.impactAsync(TAP[strength]),
+  medium: () => ok() && Haptics.impactAsync(MEDIUM[strength]),
   success: () => ok() && Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
   error: () => ok() && Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
   warn: () => ok() && Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning),

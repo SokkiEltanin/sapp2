@@ -308,16 +308,23 @@ export default function Dashboard() {
       else if (what === 'noteNew') openNewNote('text', true);
       else if (what === 'notes') router.push('/notes' as any);
       else if (what === 'countdown') setCountdownPickerOpen(true);
-      else if (what === 'next' && upcomingEvent) setNextOpen(true);
+      else if (what === 'next') { if (upcomingEvent) setNextOpen(true); else router.push('/tasks'); }
+      else if (what === 'replacements') router.push('/replacements' as any);
       else if (what === 'bill') router.push('/subscriptions');
       else if (what === 'weather') setWeatherOpen(true);
       // Wydarzenie z "Najbliższe eventy" → formularz (edycja, 2026-11-15).
       else if (what === 'event' && id) {
         const ev = allEvents.find((e) => `e_${e.id}` === id);
         if (ev) openEventEditor(ev);
+        else router.push('/tasks');
       }
-      // upcoming — jeszcze bez docelowego popupu (szczegół pojedynczego
-      // wydarzenia/terminu z listy "Najbliższe eventy"), świadomie bez akcji na razie.
+      // Termin zadania z "Najbliższe eventy" (2026-11-15) → Zadania na dzień terminu.
+      else if (what === 'deadline' && id) {
+        const t = calendarTasks.find((x) => `t_${x.id}` === id);
+        const at = t?.deadline ? parseDeadline(t.deadline) : null;
+        if (at) setSelectedDate(`${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, '0')}-${String(at.getDate()).padStart(2, '0')}`);
+        router.push('/tasks');
+      }
       // 'streak' — przeniesione do Daily (`app/(tabs)/daily.tsx`'s rząd "Nawyki"),
       // patrz komentarz w DashboardScreen.tsx przy usunięciu kafli streak.
     },
