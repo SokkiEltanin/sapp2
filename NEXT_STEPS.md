@@ -107,7 +107,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
   (`utils/gcalMirror.ts`, dokument `sync_docs/gcal`), komputer tylko czyta.
   [sprawdź] po nowej wersji na telefonie: otwórz appkę na telefonie (pobierze
   kalendarz), potem odśwież stronę. Edycja wydarzeń Google z komputera — nie działa
-  (brak tokenu), do decyzji czy potrzebna.
+  (brak tokenu), tylko podgląd.
+- **[sprawdź] Formularz wydarzenia (2026-11-15)**: Zadania → dzień → stuknij wydarzenie
+  (edycja) albo „Dodaj wydarzenie”; Dashboard → Najbliższe eventy → wydarzenie. Zapis w
+  Kalendarzu Google (tytuł, cały dzień, początek/koniec z systemowych okienek, wiele dni,
+  kolor, opis, usuwanie). Sprawdzić na telefonie, czy zmiana widać też w Google Calendar.
 
 - **Daily (2026-11-13)**: sen (hipnogram z Health Connect `stages` — sprawdzić na
   zegarku, czy etapy przychodzą), kroki + BodySheet (waga ręczna), humor z

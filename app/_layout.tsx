@@ -17,6 +17,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator, AppState, Dimensions, 
 import { WEB_MAX_W } from '@/ui/layout';
 import { desktopLayout } from '@/utils/desktopColumns';
 import { DesktopPanelBackdrop } from '@/ui/DesktopPanelBackdrop';
+import EventEditSheet from '@/components/calendar/EventEditSheet';
 import { useDesktopShortcuts } from '@/hooks/useDesktopShortcuts';
 // Nasłuch instalacji PWA od startu (zdarzenie przychodzi zaraz po załadowaniu strony).
 import '@/services/pwaInstall';
@@ -326,6 +327,8 @@ export default function RootLayout() {
           </View>
         </View>
         <UpdateBanner />
+        {/* Formularz wydarzenia kalendarza — jeden dla całej appki (services/eventEditor.ts). */}
+        <EventEditSheet />
         <UndoToast />
       </SafeAreaProvider>
     </GestureHandlerRootView>

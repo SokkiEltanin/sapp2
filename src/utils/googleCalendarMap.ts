@@ -17,7 +17,7 @@ export interface GCalEvent {
   status?: string;
 }
 
-const GCAL_COLORS: Record<string, string> = {
+export const GCAL_COLORS: Record<string, string> = {
   '1': '#7986CB', '2': '#33B679', '3': '#8E24AA', '4': '#E67C73',
   '5': '#F6BF26', '6': '#F4511E', '7': '#039BE5', '8': '#616161',
   '9': '#3F51B5', '10': '#0B8043', '11': '#D50000',
@@ -59,4 +59,43 @@ export function mapEvent(e: GCalEvent): CalendarEvent {
     color: e.colorId ? GCAL_COLORS[e.colorId] : '#039BE5',
     createdAt: new Date().toISOString(),
   };
+}
+
+// ── Zapis (2026-11-15, formularz wydarzenia: components/calendar/EventEditSheet.tsx) ──
+export interface EventInput {
+  title: string;
+  description?: string;
+  date: string;        // YYYY-MM-DD — początek
+  endDate?: string;    // YYYY-MM-DD — koniec (włącznie); brak = ten sam dzień
+  startTime?: string;  // HH:mm (bez = cały dzień)
+  endTime?: string;    // HH:mm
+  allDay: boolean;
+  color?: string;      // hex z GCAL_COLORS
+}
+
+const addDay = (d: string, n: number) => { const x = new Date(`${d}T00:00:00`); x.setDate(x.getDate() + n); return ymd(x); };
+
+/** Treść wydarzenia dla Google Calendar API (start/end, kolor). Odwrotność mapEvent. */
+export function buildEventBody(e: EventInput, tz = 'Europe/Warsaw'): Record<string, unknown> {
+  const last = e.endDate && e.endDate > e.date ? e.endDate : e.date;
+  const body: Record<string, unknown> = { summary: e.title.trim() || '(bez tytułu)', description: e.description ?? '' };
+  if (e.allDay || !e.startTime) {
+    body.start = { date: e.date };
+    body.end = { date: addDay(last, 1) }; // Google: koniec całodniowego = dzień PO (exclusive)
+  } else {
+    const endT = e.endTime || e.startTime;
+    body.start = { dateTime: `${e.date}T${e.startTime}:00`, timeZone: tz };
+    body.end = { dateTime: `${last}T${endT}:00`, timeZone: tz };
+  }
+  const colorId = e.color ? Object.keys(GCAL_COLORS).find((k) => GCAL_COLORS[k].toLowerCase() === e.color!.toLowerCase()) : undefined;
+  if (colorId) body.colorId = colorId;
+  return body;
+}
+
+/** Czy koniec jest po początku (formularz nie zapisze odwrotnego). */
+export function eventRangeOk(e: Pick<EventInput, 'date' | 'endDate' | 'startTime' | 'endTime' | 'allDay'>): boolean {
+  const last = e.endDate || e.date;
+  if (last < e.date) return false;
+  if (e.allDay || !e.startTime || !e.endTime) return true;
+  return `${last}T${e.endTime}` > `${e.date}T${e.startTime}`;
 }

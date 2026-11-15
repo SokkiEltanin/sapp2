@@ -29,6 +29,7 @@ import { allReplaceRows, rowName } from '@/utils/replacements';
 import { useReplacementsStore } from '@/store/replacementsStore';
 import { useNotesStore } from '@/store/notesStore';
 import { openNote, openNewNote } from '@/services/notesNav';
+import { openEventEditor } from '@/services/eventEditor';
 import type { CalendarEvent } from '@/types/calendar';
 import type { Expense } from '@/types/finances';
 import { haptic } from '@/utils/haptics';
@@ -310,6 +311,11 @@ export default function Dashboard() {
       else if (what === 'next' && upcomingEvent) setNextOpen(true);
       else if (what === 'bill') router.push('/subscriptions');
       else if (what === 'weather') setWeatherOpen(true);
+      // Wydarzenie z "Najbliższe eventy" → formularz (edycja, 2026-11-15).
+      else if (what === 'event' && id) {
+        const ev = allEvents.find((e) => `e_${e.id}` === id);
+        if (ev) openEventEditor(ev);
+      }
       // upcoming — jeszcze bez docelowego popupu (szczegół pojedynczego
       // wydarzenia/terminu z listy "Najbliższe eventy"), świadomie bez akcji na razie.
       // 'streak' — przeniesione do Daily (`app/(tabs)/daily.tsx`'s rząd "Nawyki"),

@@ -1534,6 +1534,14 @@ serwer dev potrafi serwować stary moduł i rzucać mylące błędy.
 **Instalacja PWA jednym kliknięciem**: `services/pwaInstall.ts` (łapie
 `beforeinstallprompt` od startu — import w app/_layout.tsx) → Ustawienia → Ogólne →
 „Zainstaluj na komputerze” (tylko web).
+**Formularz wydarzenia** (2026-11-15, "jak na Samsungu"): `components/calendar/
+EventEditSheet.tsx`, jeden globalny (app/_layout.tsx), otwierany przez
+`services/eventEditor.ts` (`openEventEditor(ev)` / `openNewEvent(date)`) — z szczegółów
+dnia w Zadaniach (karta wydarzenia + „Dodaj wydarzenie”) i z „Najbliższe eventy” na
+Dashboardzie. Google: `googleCalendarService.saveEvent` (treść `utils/googleCalendarMap.ts`
+buildEventBody — wielodniowe, kolor, strefa Warszawa; testy), zmiana od razu lokalnie,
+przy błędzie cofnięta; potem `refreshGoogleCalendarNow()`. Lokalne → calendarStore.
+Komputer: wydarzeń Google nie zapisze (brak tokenu) — tylko podgląd; lokalne tak.
 **Kalendarz Google na komputerze**: kopia z telefonu (`utils/gcalMirror.ts`, docBinding
 `gcal` w cloudSync — `readOnly` na web, `keepWhenEmpty`).
 

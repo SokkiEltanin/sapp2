@@ -32,6 +32,12 @@ async function syncNow(): Promise<void> {
   return inFlight;
 }
 
+/** Pobierz kalendarz od razu, z pominięciem 5-min przerwy (po zapisie w formularzu). */
+export function refreshGoogleCalendarNow(): Promise<void> {
+  lastSyncedAt = 0;
+  return syncNow().catch(() => {});
+}
+
 export function useGoogleCalendarSync(): void {
   useEffect(() => { syncNow().catch(() => {}); }, []);
 }

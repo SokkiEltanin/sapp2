@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import type { CalendarEvent } from '@/types/calendar';
@@ -9,11 +9,11 @@ import type { CalendarEvent } from '@/types/calendar';
 // Kolorowy pasek z lewej = `event.color` (z Google Calendar albo lokalnego eventu) —
 // ŚWIADOMIE zostaje kolorowy mimo monochromatycznego redesignu Dashboardu: to
 // funkcjonalny akcent per-wydarzenie (jak tag zadania), nie kategoria ekranu.
-export default function EventCard({ event }: { event: CalendarEvent }) {
+export default function EventCard({ event, onPress }: { event: CalendarEvent; onPress?: () => void }) {
   const s = makeS();
   const hasTime = !!(event.startTime || event.endTime);
   return (
-    <View style={s.row}>
+    <TouchableOpacity style={s.row} onPress={onPress} disabled={!onPress} activeOpacity={0.75}>
       <View style={[s.colorBar, { backgroundColor: event.color ?? colors.text.secondary }]} />
       <View style={s.time}>
         {hasTime ? (
@@ -29,7 +29,7 @@ export default function EventCard({ event }: { event: CalendarEvent }) {
         <Text style={s.title} numberOfLines={1}>{event.title}</Text>
         {event.description ? <Text style={s.desc} numberOfLines={1}>{event.description}</Text> : null}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

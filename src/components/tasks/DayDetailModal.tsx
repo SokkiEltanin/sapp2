@@ -1,7 +1,8 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { X } from 'lucide-react-native';
+import { X, Plus } from 'lucide-react-native';
+import { openEventEditor, openNewEvent } from '@/services/eventEditor';
 import { colors } from '@/theme/colors';
-import { spacing, themedStyles } from '@/theme';
+import { spacing, radius, themedStyles } from '@/theme';
 import type { CalendarEvent } from '@/types/calendar';
 import { haptic } from '@/utils/haptics';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
@@ -49,8 +50,13 @@ export default function DayDetailModal({
       {events.length === 0 ? (
         <Text style={s.empty}>Brak wydarzeń tego dnia.</Text>
       ) : (
-        events.map((ev) => <EventCard key={ev.id} event={ev} />)
+        // Stuknięcie = formularz wydarzenia (edycja, też Google — 2026-11-15).
+        events.map((ev) => <EventCard key={ev.id} event={ev} onPress={() => { haptic.tap(); onClose(); setTimeout(() => openEventEditor(ev), 250); }} />)
       )}
+      <TouchableOpacity style={s.addBtn} onPress={() => { haptic.tap(); onClose(); setTimeout(() => openNewEvent(dateYMD), 250); }} activeOpacity={0.8}>
+        <Plus size={15} color={colors.text.primary} />
+        <Text style={s.addLabel}>Dodaj wydarzenie</Text>
+      </TouchableOpacity>
     </AppBottomSheet>
   );
 }
@@ -61,5 +67,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
     paddingBottom: spacing[3], borderBottomWidth: 1, borderBottomColor: c.border.default,
   },
   headerTitle: { fontSize: 16, fontFamily: 'Inter_900Black', color: c.text.primary },
+  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 42, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, borderStyle: 'dashed', marginTop: spacing[1] },
+  addLabel: { fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
   empty: { fontSize: 12.5, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', paddingVertical: spacing[4] },
 }));

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import type { CalendarEvent } from '@/types/calendar';
-import { mapEvent, type GCalEvent } from '@/utils/googleCalendarMap';
+import { mapEvent, buildEventBody, type GCalEvent, type EventInput } from '@/utils/googleCalendarMap';
 
 // Port z sapp (src/services/googleCalendarService.ts), logika 1:1 — JEDNA świadoma
 // różnica: sapp importuje `GoogleSignin` STATYCZNIE na górze pliku, co jest u NAS
@@ -148,6 +148,27 @@ export const googleCalendarService = {
       resp = await apiFetch(fresh, id, 'PATCH', body);
     }
     return resp.ok;
+  },
+
+  // Formularz wydarzenia (2026-11-15): pełny zapis (tytuł, opis, początek/koniec, wiele
+  // dni, kolor) — treść z utils/googleCalendarMap.ts buildEventBody. Zwraca id Google
+  // (nowe) / true (zmiana) albo null/false przy błędzie (brak tokenu, sieć).
+  async saveEvent(input: EventInput, appId?: string): Promise<string | null> {
+    let token = await this.getToken();
+    if (!token) return null;
+    const body = buildEventBody(input);
+    const send = (t: string) => (appId
+      ? apiFetch(t, realId(appId), 'PATCH', body)
+      : fetch(BASE, { method: 'POST', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
+    let resp = await send(token);
+    if (resp.status === 401) {
+      const fresh = await this.refreshToken();
+      if (!fresh) return null;
+      resp = await send(fresh);
+    }
+    if (!resp.ok) return null;
+    const data = await resp.json().catch(() => ({}));
+    return data.id ?? (appId ? realId(appId) : null);
   },
 
   async deleteEvent(appId: string): Promise<boolean> {
