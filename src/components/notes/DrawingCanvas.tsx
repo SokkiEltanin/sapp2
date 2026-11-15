@@ -46,10 +46,16 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
   const raf = useRef<number | null>(null);
   const latest = useRef(strokes);
   latest.current = strokes;
+  // Gest tworzony RAZ (2026-11-15): wcześniej zależał od `onChange`/`tool`, które
+  // zmieniają się przy każdym odświeżeniu ekranu notatki — gest podpinał się na nowo
+  // w trakcie rysowania i potrafił uciąć kreskę. Aktualne wartości czytamy z refów.
+  const live = useRef({ size: { w: 0, h: 0 }, tool, onChange, onPressure });
+  live.current = { size: live.current.size, tool, onChange, onPressure };
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
     setSize({ w: width, h: height });
+    live.current.size = { w: width, h: height };
     if (width > 0) onRatio?.(height / width);
   };
 
@@ -58,52 +64,64 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
     raf.current = requestAnimationFrame(() => { raf.current = null; setTick((t) => t + 1); });
   }, []);
 
-  const erase = useCallback((x: number, y: number) => {
+  const commit = (next: NoteStroke[]) => {
+    // Od razu do refa — kolejna szybka kreska (zanim ekran się odświeży) dopisze się do tej.
+    latest.current = next;
+    live.current.onChange(next);
+  };
+
+  const erase = (x: number, y: number) => {
     const hit = strokesHit(latest.current, x, y, 0.035);
-    if (hit.length) onChange(latest.current.filter((_, i) => !hit.includes(i)));
-  }, [onChange]);
+    if (hit.length) commit(latest.current.filter((_, i) => !hit.includes(i)));
+  };
 
   // Mnożnik grubości z nacisku (rysik) albo szybkości (palec) + odczyt do testu (max 10/s).
-  const factorOf = useCallback((e: { stylusData?: { pressure: number }; velocityX?: number; velocityY?: number }) => {
+  const factorOf = (e: { stylusData?: { pressure: number }; velocityX?: number; velocityY?: number }) => {
     const pr = e.stylusData && e.stylusData.pressure >= 0 ? e.stylusData.pressure : null;
     const f = brushFactor(pr, Math.hypot(e.velocityX ?? 0, e.velocityY ?? 0));
     const t = Date.now();
-    if (onPressure && t - lastInfo.current > 100) { lastInfo.current = t; onPressure({ stylus: pr != null, pressure: pr, factor: f }); }
+    const onP = live.current.onPressure;
+    if (onP && t - lastInfo.current > 100) { lastInfo.current = t; onP({ stylus: pr != null, pressure: pr, factor: f }); }
     return f;
-  }, [onPressure]);
+  };
+  const fns = useRef({ erase, factorOf, commit });
+  fns.current = { erase, factorOf, commit };
 
   const gesture = useMemo(() => Gesture.Pan()
     .minDistance(0)
     .runOnJS(true)
     .onBegin((e) => {
-      if (size.w <= 0) return;
-      const x = e.x / size.w, y = e.y / size.w;
-      if (tool.eraser) { erase(x, y); return; }
+      const { size: sz, tool: tl } = live.current;
+      if (sz.w <= 0) return;
+      const x = e.x / sz.w, y = e.y / sz.w;
+      if (tl.eraser) { fns.current.erase(x, y); return; }
       current.current = [];
       widths.current = [];
       addPoint(current.current, x, y, 0);
-      if (tool.brush) widths.current.push(factorOf(e));
+      if (tl.brush) widths.current.push(fns.current.factorOf(e));
       redraw();
     })
     .onUpdate((e) => {
-      if (size.w <= 0) return;
-      const x = e.x / size.w, y = e.y / size.w;
-      if (tool.eraser) { erase(x, y); return; }
+      const { size: sz, tool: tl } = live.current;
+      if (sz.w <= 0) return;
+      const x = e.x / sz.w, y = e.y / sz.w;
+      if (tl.eraser) { fns.current.erase(x, y); return; }
       if (current.current && addPoint(current.current, x, y)) {
-        if (tool.brush) widths.current.push(smoothFactor(widths.current[widths.current.length - 1], factorOf(e)));
+        if (tl.brush) widths.current.push(smoothFactor(widths.current[widths.current.length - 1], fns.current.factorOf(e)));
         redraw();
       }
     })
     .onFinalize(() => {
+      const tl = live.current.tool;
       const p = current.current;
       current.current = null;
-      if (p && p.length >= 2) onChange([...latest.current, tool.brush
-        ? { color: tool.color, width: tool.width, p, w: widths.current.slice(0, p.length / 2) }
-        : { color: tool.color, width: tool.width, p }]);
+      if (p && p.length >= 2) fns.current.commit([...latest.current, tl.brush
+        ? { color: tl.color, width: tl.width, p, w: widths.current.slice(0, p.length / 2) }
+        : { color: tl.color, width: tl.width, p }]);
       widths.current = [];
-      onPressure?.(null);
+      live.current.onPressure?.(null);
       redraw();
-    }), [size.w, tool, erase, onChange, redraw, factorOf, onPressure]);
+    }), [redraw]);
 
   const cur = current.current;
   return (

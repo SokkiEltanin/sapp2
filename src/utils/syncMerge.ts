@@ -116,6 +116,12 @@ export function applyRemote<T extends SyncItem>(
     const item = stripMeta<T>(c.data, c.id);
     const cur = map.get(c.id);
     if (cur && stableStringify(cur) === stableStringify(item)) continue;
+    // Starsza wersja z chmury nie nadpisuje nowszej lokalnej (2026-11-15, user: przy
+    // rysowaniu "utnie kreskę... cofnie"): potwierdzenie z serwera zapisu kreski A
+    // przychodzi, gdy lokalnie jest już kreska B, której synchronizacja jeszcze nie
+    // wzięła do kolejki — bez tego B znikała. Lokalna nowsza wersja i tak pójdzie do
+    // chmury przy najbliższym porównaniu.
+    if (cur && localTime(cur) > localTime(item)) continue;
     map.set(c.id, item);
     applied.push({ id: c.id, item });
   }

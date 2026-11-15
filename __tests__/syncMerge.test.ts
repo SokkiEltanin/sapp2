@@ -54,6 +54,14 @@ describe('diffLocal / applyRemote', () => {
     expect(r.items.map((x) => `${x.id}:${x.title}`).sort()).toEqual(['a:x', 'c:nowy']);
     expect(r.applied.map((x) => x.id)).toEqual(['b', 'c']);
   });
+  test('echo starszej wersji z serwera nie cofa nowszej lokalnej zmiany', () => {
+    const local = [it('n', 'kreski A+B', '2026-11-15T10:00:05Z')];
+    const r = applyRemote(local, [{ id: 'n', data: { title: 'kreska A', updatedAt: '2026-11-15T10:00:02Z' } }], new Set());
+    expect(r.items[0].title).toBe('kreski A+B');
+    expect(r.applied).toEqual([]);
+    const newer = applyRemote(local, [{ id: 'n', data: { title: 'z telefonu', updatedAt: '2026-11-15T10:00:09Z' } }], new Set());
+    expect(newer.items[0].title).toBe('z telefonu');
+  });
 });
 
 import { hashStr, itemHash, diffByHash, planDocMerge, localTime as lt } from '@/utils/syncMerge';
