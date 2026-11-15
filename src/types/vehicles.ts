@@ -13,10 +13,9 @@
 // ISTNIEJĄCE agregaty Finansów za darmo) — to właśnie pozwala policzyć realne
 // zużycie L/100km między kolejnymi tankowaniami, czego sapp nie potrafi w ogóle.
 //
-// ŚWIADOMIE NIE portowane: `vehicleId` na `Expense` (sapp's ręczne, wyłączne
-// przypisanie wydatku do pojazdu) — sapp2 nie dotyka schematu `Expense`, dopasowanie
-// idzie WYŁĄCZNIE przez tag (już w pełni obsługiwany przez istniejące pole
-// `Expense.tags` i `AddExpenseModal`'s pole Tagi, zero nowego UI potrzebne). `tireSeason`
+// Dopasowanie wydatku do pojazdu: tag + automatyka paliwa (główny samochód), a od
+// 2026-11-15 także ręcznie (`Expense.vehicleId` / `vehicleOff`, karta "Wydatki
+// pojazdu" w app/vehicles.tsx) — patrz utils/vehicleMatch.ts expenseMatchesVehicle. `tireSeason`
 // pominięte (przypomnienie o wymianie opon sezonowych — osobna, mniejsza funkcja,
 // można dobudować później, nie blokuje reszty).
 export type VehicleKind = 'car' | 'motorcycle' | 'scooter' | 'bike' | 'other';

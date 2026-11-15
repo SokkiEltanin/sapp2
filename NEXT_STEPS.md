@@ -88,6 +88,10 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
   [sprawdź] logowanie + dane z telefonu po synchronizacji; domena w Firebase
   Authorized domains już dodana przez usera. Reguły Firestore opublikowane i
   sprawdzone z zewnątrz (PERMISSION_DENIED na zapis/odczyt/zapytanie).
+- **[sprawdź] Pojazdy → Wydatki pojazdu (2026-11-15)**: lista tego, co liczy się do
+  kosztów (powód: podpięte ręcznie / tag / paliwo automatycznie), ✕ = odepnij (z
+  „Cofnij”), „Podepnij płatność” = dowolny wydatek z 120 dni (`Expense.vehicleId` /
+  `vehicleOff`, utils/vehicleMatch.ts).
 - **[sprawdź] Notatki: tekst + rysunek (2026-11-15)**: w notatce na dole „Tekst |
   Rysunek” — rysowanie po tekście S-Penem, kreski przewijają się z tekstem; „+” przy
   kolorach → Moja paleta (też w kolorze tekstu). Ikona notesu w nagłówku = lista notatek.

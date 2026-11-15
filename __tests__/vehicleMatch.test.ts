@@ -1,5 +1,5 @@
 import {
-  looksLikeFuel, expenseMatchesVehicle, mainCarId, summarizeVehicle,
+  looksLikeFuel, expenseMatchesVehicle, mainCarId, summarizeVehicle, vehicleMatchReason, attachPatch, detachPatch,
   maintenanceDueMonths, maintenanceDueLabel, maintenancePresets, costPerKm,
   vehicleYearSummary, currentOdometer, avgFuelConsumption,
 } from '@/utils/vehicleMatch';
@@ -284,5 +284,28 @@ describe('vehicleMatch — looksLikeFuel: zakupy na stacji', () => {
   test('"To nie paliwo" zawsze wygrywa; słowo "tankowanie" zawsze paliwo', () => {
     expect(looksLikeFuel(st({ amount: 250, notFuel: true }))).toBe(false);
     expect(looksLikeFuel({ tags: [], note: 'tankowanie', storeName: '', amount: 20 } as any)).toBe(true);
+  });
+});
+
+describe('vehicleMatch — ręczne przypięcie / odpięcie', () => {
+  const car = { id: 'audi', kind: 'car' as const, tag: '' };
+  const bike = { id: 'rower', kind: 'bike' as const, tag: 'rower' };
+  test('przypięty wydatek liczy się tylko do swojego pojazdu', () => {
+    const x = e({ storeName: 'Myjnia', ...attachPatch({}, 'audi') });
+    expect(expenseMatchesVehicle(x, car)).toBe(true);
+    expect(vehicleMatchReason(x, car)).toBe('manual');
+    expect(expenseMatchesVehicle({ ...x, tags: ['rower'] }, bike)).toBe(false);
+  });
+  test('odpięty nie liczy się mimo tagu albo automatyki paliwa', () => {
+    const fuel = e({ storeName: 'Orlen', amount: 200 });
+    expect(vehicleMatchReason(fuel, car, 'audi')).toBe('fuel');
+    expect(expenseMatchesVehicle({ ...fuel, ...detachPatch(fuel, 'audi') }, car, 'audi')).toBe(false);
+    const tagged = e({ tags: ['rower'] });
+    expect(vehicleMatchReason(tagged, bike)).toBe('tag');
+    expect(expenseMatchesVehicle({ ...tagged, ...detachPatch(tagged, 'rower') }, bike)).toBe(false);
+  });
+  test('ponowne przypięcie zdejmuje odpięcie', () => {
+    const off = e({ storeName: 'Orlen', amount: 200, vehicleOff: ['audi'] });
+    expect(expenseMatchesVehicle({ ...off, ...attachPatch(off, 'audi') }, car, 'audi')).toBe(true);
   });
 });

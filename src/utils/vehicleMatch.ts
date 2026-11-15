@@ -44,12 +44,15 @@ export function looksLikeFuel(
   return e.amount == null || e.amount >= THRESHOLDS.fuelMin;
 }
 
-// Czy wydatek pasuje do pojazdu? Bez `vehicleId` (sapp2 nie dotyka schematu
-// `Expense` — patrz src/types/vehicles.ts): tag pojazdu na wydatku, LUB prefiks
+// Czy wydatek pasuje do pojazdu? Najpierw ręczne decyzje (vehicleOff / vehicleId,
+// 2026-11-15), potem: tag pojazdu na wydatku, LUB prefiks
 // #tag/[X] w notatce/sklepie, LUB (tylko dla wyznaczonego głównego samochodu)
 // wydatek "wygląda jak paliwo".
 export function expenseMatchesVehicle(e: Expense, v: Pick<Vehicle, 'id' | 'kind' | 'tag'>, mainCarId?: string): boolean {
   if (e.type === 'income') return false;
+  // Ręczne decyzje wygrywają: odpięty od tego pojazdu / przypięty (do tego albo innego).
+  if (e.vehicleOff?.includes(v.id)) return false;
+  if (e.vehicleId) return e.vehicleId === v.id;
   const tag = (v.tag ?? '').toLowerCase().trim();
   if (tag) {
     if ((e.tags ?? []).some((t) => t.toLowerCase() === tag)) return true;
@@ -67,6 +70,30 @@ export function mainCarId(vehicles: Pick<Vehicle, 'id' | 'kind' | 'isMainCar'>[]
   if (flagged) return flagged.id;
   const cars = vehicles.filter((v) => v.kind === 'car');
   return cars.length === 1 ? cars[0].id : undefined;
+}
+
+/** Dlaczego wydatek liczy się do pojazdu (podpis na liście "Wydatki pojazdu"). */
+export function vehicleMatchReason(e: Expense, v: Pick<Vehicle, 'id' | 'kind' | 'tag'>, mainCarId?: string): 'manual' | 'tag' | 'fuel' | null {
+  if (!expenseMatchesVehicle(e, v, mainCarId)) return null;
+  if (e.vehicleId === v.id) return 'manual';
+  const tag = (v.tag ?? '').toLowerCase().trim();
+  if (tag) {
+    if ((e.tags ?? []).some((t) => t.toLowerCase() === tag)) return 'tag';
+    const txt = `${e.note ?? ''} ${e.storeName ?? ''}`.toLowerCase();
+    if (txt.includes(`#${tag}`) || txt.includes(`[${tag[0]}]`)) return 'tag';
+  }
+  return 'fuel';
+}
+
+/** Przypięcie / odpięcie wydatku (patch do updateExpense). */
+export function attachPatch(e: Pick<Expense, 'vehicleOff'>, vehicleId: string): Pick<Expense, 'vehicleId' | 'vehicleOff'> {
+  return { vehicleId, vehicleOff: (e.vehicleOff ?? []).filter((x) => x !== vehicleId) };
+}
+export function detachPatch(e: Pick<Expense, 'vehicleId' | 'vehicleOff'>, vehicleId: string): Pick<Expense, 'vehicleId' | 'vehicleOff'> {
+  return {
+    vehicleId: e.vehicleId === vehicleId ? null : e.vehicleId ?? null,
+    vehicleOff: [...new Set([...(e.vehicleOff ?? []), vehicleId])],
+  };
 }
 
 export interface VehicleSummary {

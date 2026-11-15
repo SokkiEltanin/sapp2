@@ -4,7 +4,9 @@ import { useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Plus, Fuel, Gauge, Wrench, Trash2, Star, Pencil, AlertCircle } from 'lucide-react-native';
+import { ChevronLeft, Plus, Fuel, Gauge, Wrench, Trash2, Star, Pencil, AlertCircle, Link2, X } from 'lucide-react-native';
+import AttachExpenseSheet from '@/components/vehicles/AttachExpenseSheet';
+import { offerUndo } from '@/services/undo';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
@@ -13,6 +15,7 @@ import { useVehiclesStore } from '@/store/vehiclesStore';
 import { useExpensesStore } from '@/store/expensesStore';
 import { deleteFuelLogEntry, deleteMaintenanceEntry } from '@/services/vehicleFuelLog';
 import {
+  vehicleMatchReason, detachPatch,
   mainCarId, summarizeVehicle, vehicleYearSummary, vehicleStats, unlinkedFuelExpenses,
   maintenancePresets, maintenanceDueMonths, maintenanceDueLabel,
 } from '@/utils/vehicleMatch';
@@ -68,6 +71,8 @@ export default function VehiclesScreen() {
   const [fuelFor, setFuelFor] = useState<{ vehicle: Vehicle; prefill?: FuelPrefill } | null>(null);
   const [odoOpen, setOdoOpen] = useState(false);
   const [maintOpen, setMaintOpen] = useState(false);
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [allExp, setAllExp] = useState(false);
 
   const handleAddVehicle = () => {
     haptic.tap();
@@ -234,6 +239,48 @@ export default function VehiclesScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Wydatki pojazdu (2026-11-15, user: "zobaczyć co podlicza aktualnie / edycji
+              tego") — co się liczy do kosztów i dlaczego; odepnij / podepnij ręcznie. */}
+          {summary && (
+            <View style={s.card}>
+              <View style={s.expHead}>
+                <Text style={s.label}>Wydatki pojazdu · {summary.count}</Text>
+                <TouchableOpacity onPress={() => { haptic.tap(); setAttachOpen(true); }} style={s.attachBtn} accessibilityLabel="Podepnij płatność">
+                  <Link2 size={13} color={colors.text.primary} />
+                  <Text style={s.attachLabel}>Podepnij płatność</Text>
+                </TouchableOpacity>
+              </View>
+              {summary.expenses.length === 0 ? (
+                <Text style={s.logSub}>Nic się jeszcze nie liczy. Podepnij płatność albo dodaj tag pojazdu do wydatku.</Text>
+              ) : (allExp ? summary.expenses : summary.expenses.slice(0, 6)).map((e) => {
+                const why = vehicleMatchReason(e, viewing, mainId);
+                return (
+                  <View key={e.id} style={s.logRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.logMain} numberOfLines={1}>{e.storeName || e.note || 'Wydatek'} · {zl(e.amount)}</Text>
+                      <Text style={s.logSub}>{ddmm(e.date)}.{e.date.slice(2, 4)} · {why === 'manual' ? 'podpięte ręcznie' : why === 'tag' ? `tag #${viewing.tag}` : 'paliwo (automatycznie)'}</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => {
+                        haptic.tap();
+                        const before = { vehicleId: e.vehicleId ?? null, vehicleOff: e.vehicleOff ?? [] };
+                        updateExpense(e.id, detachPatch(e, viewing.id));
+                        offerUndo(`Odpięto: ${e.storeName || e.note || zl(e.amount)}`, () => updateExpense(e.id, before));
+                      }}
+                      hitSlop={8} style={s.detachBtn} accessibilityLabel="Odepnij od pojazdu">
+                      <X size={14} color={colors.text.muted} />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+              {summary.expenses.length > 6 && (
+                <TouchableOpacity onPress={() => { haptic.tap(); setAllExp((v) => !v); }} style={{ paddingTop: spacing[2] }}>
+                  <Text style={s.moreLink}>{allExp ? 'Pokaż mniej' : `Pokaż wszystkie (${summary.expenses.length})`}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
           {/* 4. Historia tankowań */}
           {stats && stats.fills.length > 0 && (
             <View style={s.card}>
@@ -283,6 +330,7 @@ export default function VehiclesScreen() {
       )}
 
       {/* ── Sheety ── */}
+      <AttachExpenseSheet vehicle={attachOpen ? viewing : null} mainId={mainId} onClose={() => setAttachOpen(false)} />
       <FuelSheet vehicle={fuelFor?.vehicle ?? null} prefill={fuelFor?.prefill} onClose={() => setFuelFor(null)} />
 
       <AppBottomSheet visible={odoOpen && !!viewing} onClose={() => setOdoOpen(false)} initialFocusRef={odoRef} scrollable={false}>
@@ -400,6 +448,11 @@ export default function VehiclesScreen() {
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
+  expHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2] },
+  attachBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing[3], height: 30, borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default },
+  attachLabel: { fontSize: 11.5, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
+  detachBtn: { marginLeft: spacing[2], width: 26, height: 26, alignItems: 'center', justifyContent: 'center' },
+  moreLink: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.secondary, textDecorationLine: 'underline' },
   safe: { flex: 1, backgroundColor: c.bg.primary },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing[3], paddingVertical: spacing[2] },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },

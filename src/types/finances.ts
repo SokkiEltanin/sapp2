@@ -57,6 +57,12 @@ export interface Expense {
   // "To nie paliwo" (2026-11-14, user: "pójdę na stację kupić batonika, a każe mi
   // wpisać ile paliwa zatankowałem") — zakup na stacji, który NIE jest tankowaniem.
   notFuel?: boolean;
+  // Ręczne przypięcie do pojazdu (2026-11-15, user: "w pojazdach daj mi możliwość
+  // podpięcia jakiejś płatności lub zobaczenia co podlicza... edycji tego"):
+  // `vehicleId` = liczony dla TEGO pojazdu (i tylko jego), `vehicleOff` = pojazdy, z
+  // których wydatek ręcznie odpięto (wygrywa nad tagiem i automatyką paliwa).
+  vehicleId?: string | null;
+  vehicleOff?: string[];
   source: ExpenseSource;
   // Obecność `subscriptionId` = ZAWSZE Stałe, niezależnie od słownika rachunków
   // (utils/recurringBills.ts) — podpinane gdy ekran Subskrypcje (później) powstanie.
