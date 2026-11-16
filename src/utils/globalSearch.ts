@@ -46,7 +46,7 @@ export function globalSearch(d: SearchData, q: string, perKind = 30): Record<Hit
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, perKind)
     .map((n) => ({ kind: 'note', id: n.id, title: noteTitle(n), sub: n.kind === 'list' ? 'lista' : n.kind === 'drawing' ? 'rysunek' : n.text.replace(/\s+/g, ' ').slice(0, 80) }));
 
-  out.task = d.tasks.filter((t) => matches(`${t.title} ${t.description ?? ''} ${t.tags.join(' ')} ${(t.subtasks ?? []).map((x) => x.title).join(' ')}`, ws))
+  out.task = d.tasks.filter((t) => t.status !== 'deleted' && matches(`${t.title} ${t.description ?? ''} ${t.tags.join(' ')} ${(t.subtasks ?? []).map((x) => x.title).join(' ')}`, ws))
     .sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done') || b.updatedAt.localeCompare(a.updatedAt)).slice(0, perKind)
     .map((t) => ({ kind: 'task', id: t.id, title: t.title, sub: [t.status === 'done' ? 'zrobione' : t.deadline ? `termin ${t.deadline.slice(0, 10)}` : 'bez terminu', ...(t.subtasks?.length ? [`kroki ${t.subtasks.filter((x) => x.done).length}/${t.subtasks.length}`] : []), ...t.tags.map((x) => `#${x}`)].join(' · ') }));
 

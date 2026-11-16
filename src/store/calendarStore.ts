@@ -29,6 +29,7 @@ interface CalendarState {
   setTasks: (tasks: Task[]) => void;
   addTask: (task: Task) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
+  purgeDeleted: (days?: number) => void;
   deleteTask: (id: string) => void;
 
   setSelectedDate: (date: string) => void;
@@ -80,10 +81,17 @@ export const useCalendarStore = create<CalendarState>()(
             const next: Task = { ...t, ...updates, updatedAt: now };
             // Kiedy odhaczone (2026-11-16): licznik "dziś" i seria w Zadaniach.
             if (updates.status === 'done' && t.status !== 'done') next.completedAt = updates.completedAt ?? now;
-            if (updates.status === 'pending') delete next.completedAt;
+            if (updates.status === 'deleted' && t.status !== 'deleted') next.deletedAt = now;
+            if (updates.status === 'pending') { delete next.completedAt; delete next.deletedAt; }
             return next;
           }),
         })),
+      // Kosz starszy niż 30 dni → usunięcie na stałe (Historia zadań, 2026-11-16).
+      purgeDeleted: (days = 30) => set((state) => {
+        const cut = Date.now() - days * 86400000;
+        const keep = state.tasks.filter((t) => !(t.status === 'deleted' && Date.parse(t.deletedAt ?? t.updatedAt) < cut));
+        return keep.length === state.tasks.length ? state : { tasks: keep };
+      }),
       deleteTask: (id) =>
         set((state) => ({ tasks: state.tasks.filter((t) => t.id !== id) })),
 

@@ -13,7 +13,8 @@
 //     tej zakładki — ciągnięcie starego modelu klasyfikacji do warstwy danych PRZED
 //     zaprojektowaniem nowego UX byłoby zgadywaniem, nie portem.
 export type EventPriority = 'high' | 'normal' | 'low';
-export type TaskStatus = 'pending' | 'done' | 'snoozed';
+// 'deleted' (2026-11-16) = w koszu: Historia zadań → Przywróć; po 30 dniach usuwane na stałe.
+export type TaskStatus = 'pending' | 'done' | 'snoozed' | 'deleted';
 export type TaskRecurring = 'none' | 'daily' | 'weekly' | 'monthly';
 
 export interface CalendarEvent {
@@ -66,6 +67,7 @@ export interface Task {
   recurring?: TaskRecurring;
   subtasks?: Subtask[];     // kamienie milowe / kroki (2026-11-16, utils/taskProgress.ts)
   completedAt?: string;     // kiedy odhaczone (licznik dziś / seria) — ustawia calendarStore.updateTask
+  deletedAt?: string;       // kiedy trafiło do kosza (status 'deleted')
   reminderTime?: string;    // HH:mm — custom reminder time
   reminderDate?: string;    // YYYY-MM-DD — day the reminder fires; independent of deadline
   reminderMessage?: string; // custom notification text

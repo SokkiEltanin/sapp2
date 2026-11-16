@@ -33,7 +33,7 @@ export function planTaskReminders(tasks: Task[], now: Date = new Date()): Planne
   const limit = now.getTime() + HORIZON_DAYS * 86400000;
   const out: PlannedTaskReminder[] = [];
   for (const t of tasks) {
-    if (t.status === 'done') continue;
+    if (t.status === 'done' || t.status === 'deleted') continue;
     const at = fireTime(t);
     if (!at || isNaN(at.getTime())) continue;
     const ms = at.getTime();

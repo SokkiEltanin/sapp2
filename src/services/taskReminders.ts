@@ -63,7 +63,7 @@ export async function snoozeTaskReminder(taskId: string, notificationId?: string
     const notifee = (await import('@notifee/react-native')).default;
     if (notificationId) await notifee.cancelDisplayedNotification(notificationId);
   } catch {}
-  if (!task || task.status === 'done') return;
+  if (!task || task.status === 'done' || task.status === 'deleted') return;
   st.getState().updateTask(taskId, { ...snoozeFields(new Date()), updatedAt: new Date().toISOString() });
   await syncTaskReminders(st.getState().tasks);
 }

@@ -30,6 +30,7 @@ export function matchesDue(t: Task, due: TaskDueFilter, today: string): boolean 
 export function filterTasks(tasks: Task[], f: TaskFilter, today: string): Task[] {
   const q = normText(f.q);
   const out = tasks.filter((t) => {
+    if (t.status === 'deleted') return false; // kosz — tylko w Historii zadań
     if (f.status !== 'all' && (f.status === 'done' ? t.status !== 'done' : t.status === 'done')) return false;
     if (f.tag && !t.tags.includes(f.tag)) return false;
     if (!matchesDue(t, f.due, today)) return false;

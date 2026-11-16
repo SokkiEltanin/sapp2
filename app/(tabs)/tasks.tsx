@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { removeWithUndo } from '@/services/undo';
+import { offerUndo } from '@/services/undo';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
 import { View, Text, StyleSheet, TouchableOpacity, type TextInput } from 'react-native';
-import { Plus, Search, CheckCheck, Flame } from 'lucide-react-native';
+import { Plus, Search, CheckCheck, Flame, History } from 'lucide-react-native';
+import TaskHistorySheet from '@/components/tasks/TaskHistorySheet';
 import TaskSearchSheet from '@/components/tasks/TaskSearchSheet';
 import { spacing, radius, themedStyles } from '@/theme';
 import { colors } from '@/theme/colors';
@@ -87,6 +88,9 @@ export default function TasksScreen() {
   const afterDetail = useRef<{ kind: 'edit' | 'delete'; task: Task } | null>(null);
   const stats = useMemo(() => doneStats(tasks), [tasks]);
   const hasDraft = useTaskDraftStore((st) => !!st.drafts.new);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  // Kosz starszy niż 30 dni → na stałe (raz przy wejściu).
+  useEffect(() => { useCalendarStore.getState().purgeDeleted(); }, []);
   useEffect(() => {
     if (!justDone) return;
     const t = setTimeout(() => setJustDone(null), 5000);
@@ -96,7 +100,7 @@ export default function TasksScreen() {
   // Tagi posortowane po częstości użycia — szybki wybór w formularzu.
   const knownTags = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const t of tasks) for (const tag of t.tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    for (const t of tasks) if (t.status !== 'deleted') for (const tag of t.tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
     return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([tag]) => tag);
   }, [tasks]);
 
@@ -184,6 +188,9 @@ export default function TasksScreen() {
     <Screen title="Zadania" right={
       // Motywacja (2026-11-16): ile dziś odhaczone + seria dni z rzędu.
       <View style={s.stats}>
+        <TouchableOpacity onPress={() => { haptic.tap(); setHistoryOpen(true); }} hitSlop={8} style={s.histBtn} accessibilityLabel="Historia zadań (zrobione i kosz)">
+          <History size={15} color={C.txt} />
+        </TouchableOpacity>
         <CheckCheck size={13} color={stats.today ? C.hi : C.mut} />
         <Text style={[s.statTxt, stats.today > 0 && { color: C.hi }]}>{stats.today} dziś</Text>
         {stats.streak > 0 && <>
@@ -285,7 +292,14 @@ export default function TasksScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={s.confirmDelete}
-                onPress={() => { haptic.warn(); removeWithUndo(useCalendarStore, 'tasks', deletingTask, `Usunięto zadanie: ${deletingTask.title}`); setDeletingTask(null); }}
+                onPress={() => {
+                  // Do kosza, nie na zawsze (2026-11-16) — Historia zadań → Kosz → Przywróć.
+                  haptic.warn();
+                  const t = deletingTask;
+                  updateTask(t.id, { status: 'deleted' });
+                  offerUndo(`Do kosza: ${t.title}`, () => updateTask(t.id, { status: t.status === 'deleted' ? 'pending' : t.status }));
+                  setDeletingTask(null);
+                }}
                 activeOpacity={0.7}
               >
                 <Text style={s.confirmDeleteLabel}>Usuń</Text>
@@ -310,6 +324,9 @@ export default function TasksScreen() {
         onDone={(t) => { handleToggleDone(t.id); setDetailId(null); }}
       />
 
+      <LazyMount visible={historyOpen}>
+        <TaskHistorySheet visible={historyOpen} onClose={() => setHistoryOpen(false)} />
+      </LazyMount>
       <LazyMount visible={!!detailDate}>
         <DayDetailModal
           visible={!!detailDate}
@@ -329,6 +346,7 @@ function genId(): string {
 const makeS = themedStyles((c) => StyleSheet.create({
   weekTile: { padding: 6 },
   stats: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  histBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: C.in2, marginRight: 6 },
   statTxt: { fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: C.mut, marginRight: 4 },
   listTile: { gap: spacing[2] },
   bottomRow: { flexDirection: 'row', gap: spacing[2], alignItems: 'center' },

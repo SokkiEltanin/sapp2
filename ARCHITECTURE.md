@@ -659,6 +659,13 @@ opcjonalnym tekstem, zapisywanym w formie pamiętnika DZIEŃ DATA")
 
 ## ZADANIA [GE]
 
+**Historia zadań i kosz (2026-11-16)** — usuwanie = `status: 'deleted'` + `deletedAt`
+(calendarStore.updateTask), NIE usunięcie z listy; `purgeDeleted()` (30 dni) przy wejściu
+do Zadań. `TaskHistorySheet` (ikona zegara w nagłówku Zadań): Zrobione / Kosz, Przywróć
+(status 'pending', kroki zostają), w koszu „usuń na zawsze”. Kosz wykluczony z: szukania
+(taskFilter, globalSearch), przypomnień (taskReminders), tagów, widgetu/zegarka (pending).
+Nowe miejsce czytające `tasks` → pomiń `status === 'deleted'`.
+
 **Kamienie milowe i motywacja (2026-11-16)** — `Task.subtasks` = kroki do celu,
 `Task.completedAt` (ustawia `calendarStore.updateTask` przy status→done, czyści przy
 →pending). Logika `utils/taskProgress.ts` (testy): `taskProgress` (x/y, następny
