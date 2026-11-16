@@ -1,6 +1,6 @@
 import { INCOME_META } from '@/utils/incomeCategory';
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
@@ -65,8 +65,13 @@ export default function TrendSheet({ visible, onClose, initial = 'all' }: { visi
         ))}
       </View>
 
+      {/* Podkategorie w JEDNYM rzędzie przewijanym w bok (2026-11-16, user: "listy
+          powinny być poziome scroll, a nie takie rozległe"); "Wszystkie" = cały koszyk. */}
       {subs.length > 0 && (
-        <View style={s.chips}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipScroll} contentContainerStyle={s.chips}>
+          <TouchableOpacity style={[s.chip, !sub && s.chipAll]} onPress={() => { haptic.tap(); setSub(null); setPicked(null); }}>
+            <Text style={[s.chipLabel, !sub && s.chipAllLabel]}>Wszystkie</Text>
+          </TouchableOpacity>
           {subs.map((c) => {
             const on = sub === c.key;
             return (
@@ -76,7 +81,7 @@ export default function TrendSheet({ visible, onClose, initial = 'all' }: { visi
               </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
       )}
 
       <SheetCard title={sub ? metaOf(sub).label : BUCKETS.find(([b]) => b === bucket)![1]}>
@@ -118,7 +123,10 @@ const makeS = themedStyles((c) => StyleSheet.create({
   segOn: { backgroundColor: c.text.bright },
   segLabel: { fontSize: 11.5, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary },
   segLabelOn: { color: c.bg.primary },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing[3] },
+  chipScroll: { marginTop: spacing[3], flexGrow: 0 },
+  chips: { flexDirection: 'row', gap: 6, paddingRight: spacing[2] },
+  chipAll: { backgroundColor: c.text.bright, borderColor: c.text.bright },
+  chipAllLabel: { color: c.bg.primary },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing[3], paddingVertical: 6, borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default },
   chipLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   chipLabelOn: { color: c.text.primary },

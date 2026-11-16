@@ -1,6 +1,6 @@
 import { removeWithUndo } from '@/services/undo';
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { Plus, Trash2, ArrowRight } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -79,9 +79,10 @@ export default function CategoryRulesSheet({ visible, onClose }: { visible: bool
         <TextInput value={match} onChangeText={setMatch} style={s.input} autoCapitalize="none"
           placeholder={field === 'store' ? 'zawiera, np. apteka, orlen, rossmann' : 'zawiera, np. kabel, czekolada, olej'} placeholderTextColor={colors.text.muted} />
         {field === 'item' && <Text style={s.group}>Jedzenie</Text>}
-        {field === 'item' && <View style={s.chips}>{foodCats.map((c) => chip('food', c))}</View>}
+        {/* Poziomy scroll (2026-11-16, user: "listy powinny być poziome scroll"). */}
+        {field === 'item' && <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipScroll} contentContainerStyle={s.chips} keyboardShouldPersistTaps="handled">{foodCats.map((c) => chip('food', c))}</ScrollView>}
         <Text style={s.group}>{field === 'item' ? 'Nie jedzenie' : 'Kategoria Zmiennych'}</Text>
-        <View style={s.chips}>{varCats.map((c) => chip('var', c))}</View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipScroll} contentContainerStyle={s.chips} keyboardShouldPersistTaps="handled">{varCats.map((c) => chip('var', c))}</ScrollView>
         <TouchableOpacity style={[s.addBtn, !draft && s.addOff]} disabled={!draft} onPress={addRule}>
           <Plus size={15} color={colors.bg.primary} />
           <Text style={s.addLabel}>{!draft ? 'Wpisz tekst i wybierz kategorię' : impact > 0 ? `Dodaj · uzupełni ${impact}` : 'Dodaj regułę'}</Text>
@@ -121,7 +122,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
   segLabelOn: { color: c.bg.primary },
   input: { minWidth: 0, borderWidth: 1, borderColor: c.border.default, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: 8, fontSize: 13.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
   group: { fontSize: 10.5, fontFamily: 'Inter_800ExtraBold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: spacing[3], marginBottom: 6 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chipScroll: { flexGrow: 0 },
+  chips: { flexDirection: 'row', gap: 6, paddingRight: spacing[2] },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing[3], paddingVertical: 6, borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default },
   chipLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   chipLabelOn: { color: c.text.primary },
