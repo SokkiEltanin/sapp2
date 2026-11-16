@@ -41,6 +41,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-16 — zegarek: zadania z krokami + kalendarz, bez wydatków; historia/kosz zadań**:
+- [ ] Zainstalować nowy `sapp2-wear-N.apk` (MAINTENANCE §8) + nowy APK telefonu.
+- [ ] Zegarek: krok stuknięciem → po otwarciu appki na telefonie krok odhaczony.
+- [ ] Zadania → ikona historii → Kosz → Przywróć.
+
 **2026-11-16 — Tabela wydatków (Sheets) + FitText na komputerze**:
 - [ ] Telefon: Finanse → Wydatki → „Tabela wszystkich wydatków”; przewijanie w bok, drill.
 - [ ] Komputer: odliczanie / Praca / saldo nie ucięte.

@@ -1,24 +1,28 @@
-import { buildWearSnapshot } from '@/utils/wearSnapshot';
+import { buildWearSnapshot, wearEvents } from '@/utils/wearSnapshot';
 
-const E = (x: any) => ({ id: Math.random().toString(), type: 'expense', amount: 10, date: '2026-11-14', note: '', tags: [], source: 'manual', createdAt: '', updatedAt: '', ...x });
 const T = (id: string, x: any = {}) => ({ id, title: id, status: 'pending', priority: 'normal', tags: [], createdAt: '2026-11-01', updatedAt: '', ...x });
+const Ev = (x: any) => ({ id: Math.random().toString(), title: 'E', date: '2026-11-14', allDay: false, priority: 'normal', createdAt: '', ...x });
+const NOW = new Date(2026, 10, 14, 12, 0);
 
 describe('dane dla zegarka', () => {
-  it('wydatki dziś i w miesiącu, ostatnie transakcje ze znakiem', () => {
-    const s = buildWearSnapshot([], [
-      E({ amount: 20, storeName: 'Żabka' }), E({ amount: 30, date: '2026-11-02' }), E({ amount: 99, date: '2026-10-30' }),
-      E({ type: 'income', amount: 5000, note: 'Wypłata', date: '2026-11-10' }), E({ amount: 7, date: '2026-11-20' }),
-    ], new Date(2026, 10, 14, 12));
-    expect(s.today).toBe(20);
-    expect(s.day).toBe('2026-11-14');
-    expect(s.month).toBe(50);
-    expect(s.recent[0]).toEqual({ label: 'Żabka', amount: -20, date: '2026-11-14' });
-    expect(s.recent.find((r) => r.label === 'Wypłata')!.amount).toBe(5000);
-    expect(s.recent.some((r) => r.date === '2026-11-20')).toBe(false); // przyszłe pominięte
-  });
-  it('zadania: zaległe pierwsze, zrobione pominięte', () => {
-    const s = buildWearSnapshot([T('a'), T('b', { deadline: '2026-11-10' }), T('c', { status: 'done' })], [], new Date(2026, 10, 14, 12));
+  it('bez wydatków; zadania: zaległe pierwsze, zrobione pominięte, z krokami', () => {
+    const s = buildWearSnapshot([T('a', { subtasks: [{ id: 's1', title: 'Wstęp', done: true }, { id: 's2', title: 'R1', done: false }] }), T('b', { deadline: '2026-11-10' }), T('c', { status: 'done' })], [], NOW);
     expect(s.tasks.map((t) => t.id)).toEqual(['b', 'a']);
     expect(s.tasks[0].overdue).toBe(true);
+    expect(s.tasks[1].steps).toEqual([{ id: 's1', title: 'Wstęp', done: true }, { id: 's2', title: 'R1', done: false }]);
+    expect((s as any).today).toBeUndefined();
+    expect(s.day).toBe('2026-11-14');
+  });
+  it('wydarzenia dziś (bez minionych) i jutro, całodniowe pierwsze', () => {
+    const ev = wearEvents([
+      Ev({ title: '[PUR] Seminarium', startTime: '08:00', endTime: '09:30' }),
+      Ev({ title: '[JD] 13:00-20:00', startTime: '13:00', endTime: '20:00', color: '#EAB308' }),
+      Ev({ title: 'Urodziny', allDay: true }),
+      Ev({ title: 'Jutro rano', date: '2026-11-15', startTime: '07:00' }),
+      Ev({ title: 'Za 2 dni', date: '2026-11-16', startTime: '07:00' }),
+    ] as any, NOW);
+    expect(ev.map((e) => `${e.day} ${e.time} ${e.title}`)).toEqual([
+      'dziś cały dzień Urodziny', 'dziś 13:00–20:00 [JD] 13:00-20:00', 'jutro 07:00 Jutro rano',
+    ]);
   });
 });

@@ -106,10 +106,11 @@ CI sam to rozpozna.
 ## 8. Zegarek (Wear OS)
 
 Osobna mała aplikacja w `wear/` (Kotlin, bez React Native). Telefon wysyła jej dane przez
-Wear Data Layer (`plugins/withWearSync.js`, treść `src/utils/wearSnapshot.ts`): wydatki dziś
-i w miesiącu, zadania do zrobienia (stuknięcie = odhacz, telefon odhaczy przy otwarciu
-appki), ostatnie transakcje. Bezel przewija.
-Kafelek (przesunięcie tarczy): wydatki dziś / w miesiącu + zadania — dodaj go długim
+Wear Data Layer (`plugins/withWearSync.js`, treść `src/utils/wearSnapshot.ts`), od 2026-11-16
+BEZ wydatków: zadania (stuknięcie = rozwiń kroki, krok stuknięciem → `/sapp2/step`, całe
+zadanie tylko PRZYTRZYMANIEM → `/sapp2/toggle`; telefon stosuje przy otwarciu appki,
+`widgetToggleDrain.ts`), kalendarz/praca dziś i jutro, bateria → telefon. Bezel przewija.
+Kafelek (przesunięcie tarczy): liczba zadań + 2 pierwsze + najbliższe wydarzenie — dodaj go długim
 przytrzymaniem tarczy → Kafelki → Sapp2. Dane przychodzą w tle (DataListenerService).
 
 - **Build:** `.github/workflows/wear.yml` (zmiana w `wear/` albo ręcznie: Actions → Build
@@ -122,5 +123,10 @@ przytrzymaniem tarczy → Kafelki → Sapp2. Dane przychodzą w tle (DataListene
   samej sieci Wi-Fi):
   - z telefonu: aplikacja typu „Wear Installer” / „Easy Fire Tools” — wpisz adres IP zegarka
     z Opcji programisty, wskaż pobrany `sapp2-wear-N.apk`;
-  - albo z komputera: `adb connect IP:PORT` → `adb install sapp2-wear-N.apk`.
+  - albo z komputera (cmd, bez instalowania niczego): pobierz ADB
+    `curl -L -o pt.zip https://dl.google.com/android/repository/platform-tools-latest-windows.zip`
+    → `tar -xf pt.zip` → `cd platform-tools`; zegarek: Debugowanie bezprzewodowe → Sparuj nowe
+    urządzenie → `adb pair IP:PORT_PAROWANIA KOD` (raz); potem `adb connect IP:PORT` (port z ekranu
+    Debugowania, zmienia się) → `adb -s IP:PORT install -r sapp2-wear-N.apk` (`-s`, bo ADB widzi
+    zegarek 2×). Plik: `curl -L -o sapp2-wear-N.apk https://github.com/SokkiEltanin/sapp2/releases/download/wear-N/sapp2-wear-N.apk`.
 - Aktualizacja = zainstalowanie nowszego pliku tak samo (dane zostają).

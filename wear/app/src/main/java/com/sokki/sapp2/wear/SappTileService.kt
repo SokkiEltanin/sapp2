@@ -14,8 +14,8 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import org.json.JSONObject
 
-// Kafelek Sapp2 (2026-11-14): wydatki dziś (duże), w miesiącu, liczba zadań + pierwsze
-// zadanie. Stuknięcie otwiera appkę. Dane: ostatni snapshot z telefonu (Snapshot.KEY).
+// Kafelek Sapp2 (2026-11-14, od 2026-11-16 bez wydatków): liczba zadań, dwa pierwsze
+// zadania i najbliższe wydarzenie / praca. Stuknięcie otwiera appkę. Dane: ostatni snapshot z telefonu (Snapshot.KEY).
 class SappTileService : TileService() {
     private val res = "1"
 
@@ -32,20 +32,21 @@ class SappTileService : TileService() {
             col.addContent(text("Otwórz Sapp2", 14f, 0xFFF2F2F2.toInt()))
             col.addContent(text("na telefonie", 14f, 0xFFF2F2F2.toInt()))
         } else {
-            col.addContent(spacer(4f))
-            val fresh = Snapshot.isToday(snap)
-            col.addContent(text(if (fresh) Snapshot.money(snap.optDouble("today", 0.0)) else "—", 26f, 0xFFF2F2F2.toInt(), bold = true))
-            col.addContent(text(if (fresh) "dziś · " + Snapshot.money(snap.optDouble("month", 0.0)) + " w mies." else "brak danych z dziś", 11f, 0xFFA3A3A3.toInt()))
+            // Bez wydatków (2026-11-16): zadania + najbliższe wydarzenie / praca.
             val tasks = snap.optJSONArray("tasks")
             val n = tasks?.length() ?: 0
             var overdue = 0
             for (i in 0 until n) if (tasks!!.optJSONObject(i)?.optBoolean("overdue") == true) overdue++
-            col.addContent(spacer(8f))
-            col.addContent(text(
-                if (n == 0) "Zadania: nic" else "Zadania: $n" + (if (overdue > 0) " · $overdue zaległe" else ""),
-                12f, if (overdue > 0) 0xFFF87171.toInt() else 0xFFD6D6D6.toInt(), bold = true,
-            ))
-            if (n > 0) col.addContent(text(tasks!!.optJSONObject(0)?.optString("title") ?: "", 13f, 0xFFF2F2F2.toInt()))
+            col.addContent(spacer(4f))
+            col.addContent(text(if (n == 0) "✓" else "$n", 28f, if (overdue > 0) 0xFFF87171.toInt() else 0xFFF2F2F2.toInt(), bold = true))
+            col.addContent(text(if (n == 0) "wszystko zrobione" else "zadania" + (if (overdue > 0) " · $overdue zaległe" else ""), 11f, 0xFFA3A3A3.toInt()))
+            for (i in 0 until minOf(n, 2)) col.addContent(text(tasks!!.optJSONObject(i)?.optString("title") ?: "", 13f, 0xFFF2F2F2.toInt()))
+            val ev = snap.optJSONArray("events")?.optJSONObject(0)
+            if (ev != null) {
+                col.addContent(spacer(6f))
+                col.addContent(text((if (ev.optString("day") == "jutro") "jutro " else "") + ev.optString("time"), 11f, 0xFFA3A3A3.toInt(), bold = true))
+                col.addContent(text(ev.optString("title"), 12f, 0xFFD6D6D6.toInt()))
+            }
         }
 
         val open = ModifiersBuilders.Clickable.Builder()

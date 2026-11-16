@@ -100,6 +100,19 @@ import java.io.File
 //   (wear_battery_cfg.json z JS; raz na rozładowanie — reset po ładowaniu).
 class WearListenerService : WearableListenerService() {
   override fun onMessageReceived(event: MessageEvent) {
+    // Krok zadania odhaczony na zegarku (2026-11-16): "taskId|stepId|1/0" → kolejka,
+    // appka stosuje ją przy otwarciu (services/widgetToggleDrain.ts).
+    if (event.path == "/sapp2/step") {
+      val msg = String(event.data, Charsets.UTF_8).trim()
+      if (msg.isEmpty()) return
+      try {
+        val f = File(filesDir, "wear_step_queue.json")
+        val arr = if (f.exists()) try { JSONArray(f.readText()) } catch (e: Exception) { JSONArray() } else JSONArray()
+        arr.put(msg)
+        f.writeText(arr.toString())
+      } catch (e: Exception) {}
+      return
+    }
     if (event.path != "/sapp2/toggle") return
     val taskId = String(event.data, Charsets.UTF_8).trim()
     if (taskId.isEmpty()) return

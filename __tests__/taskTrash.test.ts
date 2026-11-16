@@ -28,7 +28,7 @@ describe('kosz zadań', () => {
   });
   test('kosz nie trafia do szukania ani przypomnień', () => {
     const del = T('x', { status: 'deleted', deadline: '2099-01-01T10:00:00' });
-    expect(filterTasks([del], { ...EMPTY_TASK_FILTER, status: 'all' })).toHaveLength(0);
+    expect(filterTasks([del], { ...EMPTY_TASK_FILTER, status: 'all' }, '2026-11-16')).toHaveLength(0);
     expect(planTaskReminders([del], new Date(2026, 10, 16))).toHaveLength(0);
   });
 });

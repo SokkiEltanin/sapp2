@@ -270,9 +270,10 @@ export default function RootLayout() {
     });
     // Zegarek (Wear OS): zadania + wydatki → snapshot (services/wearSync.ts), co najwyżej co 2 s.
     let wt: ReturnType<typeof setTimeout> | null = null;
-    const pushWear = () => { if (wt) clearTimeout(wt); wt = setTimeout(() => syncWear(useCalendarStore.getState().tasks, useExpensesStore.getState().expenses), 2000); };
-    const unsubWearT = useCalendarStore.subscribe((st, prev) => { if (st.tasks !== prev.tasks) pushWear(); });
-    const unsubWearE = useExpensesStore.subscribe((st, prev) => { if (st.expenses !== prev.expenses) pushWear(); });
+    // Zegarek: zadania + wydarzenia dziś/jutro (bez wydatków, 2026-11-16).
+    const pushWear = () => { if (wt) clearTimeout(wt); wt = setTimeout(() => { const c = useCalendarStore.getState(); syncWear(c.tasks, [...c.events, ...c.gcalEvents]); }, 2000); };
+    const unsubWearT = useCalendarStore.subscribe((st, prev) => { if (st.tasks !== prev.tasks || st.events !== prev.events || st.gcalEvents !== prev.gcalEvents) pushWear(); });
+    const unsubWearE = () => {};
     const wearStart = setTimeout(pushWear, 3000);
     // Po powrocie do appki (np. następnego dnia) — świeże "dziś" na zegarku.
     const subWear = AppState.addEventListener('change', (st) => { if (st === 'active') pushWear(); });
