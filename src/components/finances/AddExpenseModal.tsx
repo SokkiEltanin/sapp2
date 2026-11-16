@@ -4,7 +4,7 @@ import { plural } from '@/utils/plural';
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { X, Receipt, Banknote, ClipboardPaste, Plus, ChevronDown, ChevronUp, Trash2, CalendarDays, Fuel } from 'lucide-react-native';
+import { X, Receipt, Banknote, ArrowLeftRight, ClipboardPaste, Plus, ChevronDown, ChevronUp, Trash2, CalendarDays, Fuel } from 'lucide-react-native';
 import { openPicker } from '@/services/picker';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -72,11 +72,9 @@ const FV_CHOICES: { key: FvOverride | 'auto'; label: string }[] = [
   { key: 'fixed', label: 'Stałe' },
   { key: 'variable', label: 'Zmienne' },
   { key: 'food', label: 'Jedzenie' },
-  // 2026-11-08, user: "opcje przelewu własnego ktory nie wlicza się do liczenia
-  // stałych zmiennych i jedzenia" — piąty wybór w TYM SAMYM "Rozlicz jako" rzędzie
-  // (nie osobny toggle) bo to WYKLUCZAJĄCE się klasyfikacje tego samego wydatku,
-  // dokładnie jak Auto/Stałe/Zmienne/Jedzenie już są.
-  { key: 'transfer', label: 'Przelew własny' },
+  // "Przelew własny" (fvOverride 'transfer') od 2026-11-16 NIE tutaj, tylko trzeci
+  // przycisk obok Wydatek/Przychód (user nie znalazł go w zwiniętym "Rozlicz jako"
+  // i potrzebował też przelewu PRZYCHODZĄCEGO) — patrz `own` niżej.
 ];
 
 const PAYMENT_CHOICES: { key: PaymentMethod; label: string }[] = [
@@ -135,6 +133,11 @@ export default function AddExpenseModal({
   const knownNames = useDeferredMemo(() => buildProductCatalog(expenses, aliases).map((p) => p.label), [expenses, aliases], [] as string[]);
 
   const [type, setType] = useState<'expense' | 'income'>('expense');
+  // Przelew własny (2026-11-16, user: "ma się nie liczyć do wydatków, kategorii, ale liczyć
+  // się do sumy całkowitej"): między MOIMI kontami. Zapis = type wg kierunku (wychodzący =
+  // 'expense', przychodzący = 'income') + fvOverride 'transfer' → saldo się zmienia
+  // (utils/balance.ts), statystyki/kategorie/budżety go pomijają (isOwnTransfer).
+  const [own, setOwn] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [usedPaste, setUsedPaste] = useState(false);
   const [items, setItems] = useState<ReceiptItem[]>([]);
@@ -186,7 +189,7 @@ export default function AddExpenseModal({
   }, [visible, editingExpense]);
 
   const reset = () => {
-    setType('expense'); setPasteText(''); setUsedPaste(false); setItems([]); setParsedTotal(0);
+    setType('expense'); setOwn(false); setPasteText('');  setUsedPaste(false); setItems([]); setParsedTotal(0);
     setStoreName(''); setNote(''); setAmountInput(''); setDate(todayISO()); setPaymentMethod('card');
     setPayer('me'); setPaidOpen(false); setPasteBoxOpen(false); setFvOpen(false);
     setFvChoice('auto'); setCatOpen(false); setExpenseCategory(undefined); setIncomeCategory(undefined);
@@ -199,6 +202,7 @@ export default function AddExpenseModal({
   useEffect(() => {
     if (!visible || !editingExpense) return;
     setType(editingExpense.type);
+    setOwn(editingExpense.fvOverride === 'transfer');
     setItems(editingExpense.receiptItems ?? []);
     setStoreName(editingExpense.storeName ?? '');
     setNote(editingExpense.note ?? '');
@@ -209,7 +213,7 @@ export default function AddExpenseModal({
     setDate(editingExpense.date);
     setPaymentMethod(editingExpense.paymentMethod ?? 'card');
     setPayer(editingExpense.payer ?? 'me');
-    setFvChoice(editingExpense.fvOverride ?? 'auto');
+    setFvChoice(editingExpense.fvOverride && editingExpense.fvOverride !== 'transfer' ? editingExpense.fvOverride : 'auto');
     setExpenseCategory(editingExpense.expenseCategory);
     setIncomeCategory(editingExpense.incomeCategory);
     setTags(editingExpense.tags ?? []);
@@ -403,14 +407,14 @@ export default function AddExpenseModal({
       amount,
       date,
       note: note.trim(),
-      storeName: type === 'expense' && storeName.trim() ? storeName.trim() : undefined,
+      storeName: type === 'expense' && storeName.trim() ? storeName.trim() : undefined, // przy przelewie pole ukryte, ale nazwa z banku zostaje
       tags,
-      receiptItems: type === 'expense' && items.length > 0 ? items : undefined,
-      fvOverride: type === 'expense' && fvChoice !== 'auto' ? fvChoice : null,
-      expenseCategory: type === 'expense' ? expenseCategory : undefined,
-      incomeCategory: type === 'income' ? incomeCategory : undefined,
-      paymentMethod: type === 'expense' ? paymentMethod : undefined,
-      payer: type === 'expense' && payer !== 'me' ? payer : undefined,
+      receiptItems: type === 'expense' && !own && items.length > 0 ? items : undefined,
+      fvOverride: own ? 'transfer' as const : type === 'expense' && fvChoice !== 'auto' ? fvChoice : null,
+      expenseCategory: type === 'expense' && !own ? expenseCategory : undefined,
+      incomeCategory: type === 'income' && !own ? incomeCategory : undefined,
+      paymentMethod: own ? (type === 'expense' ? 'transfer' as const : undefined) : type === 'expense' ? paymentMethod : undefined,
+      payer: type === 'expense' && !own && payer !== 'me' ? payer : undefined,
       // Zapis = rozwiązanie oczekującego przeliczenia waluty (2026-11-09) —
       // `amount` powyżej to już prawdziwa wpisana kwota PLN, więc oba te pola
       // czyszczą się, niezależnie czy ten wydatek w ogóle był `originalCurrency`.
@@ -456,7 +460,7 @@ export default function AddExpenseModal({
   const header = (
     <View style={s.header}>
       <Text style={s.title}>
-        {editingExpense ? 'Edytuj' : 'Nowy'} {type === 'expense' ? 'wydatek' : 'przychód'}
+        {own ? `${editingExpense ? 'Edytuj p' : 'P'}rzelew własny` : `${editingExpense ? 'Edytuj' : 'Nowy'} ${type === 'expense' ? 'wydatek' : 'przychód'}`}
       </Text>
       <View style={s.headerActions}>
         {editingExpense && (
@@ -476,7 +480,7 @@ export default function AddExpenseModal({
       {/* Pływający, zawsze pod prawym kciukiem (user, 2026-11-01) — `bottom:'100%'`
           wynosi go NAD przypiętą stopkę `AppBottomSheet`'s `footer` (ta sama warstwa,
           już trzymana ponad klawiaturą przez gorhom, nie trzeba drugiej). */}
-      {type === 'expense' && (
+      {type === 'expense' && !own && (
         <TouchableOpacity style={s.pasteFab} onPress={handlePasteFromClipboard} activeOpacity={0.8} accessibilityLabel="Wklej ze schowka i rozpoznaj paragon">
           <ClipboardPaste size={20} color={colors.bg.primary} />
         </TouchableOpacity>
@@ -498,7 +502,7 @@ export default function AddExpenseModal({
       )}
       <View style={s.footer}>
         <View>
-          <Text style={s.footerLabel}>{type === 'expense' ? 'Wydatek' : 'Przychód'}</Text>
+          <Text style={s.footerLabel}>{own ? (type === 'expense' ? 'Przelew własny · wychodzący' : 'Przelew własny · przychodzący') : type === 'expense' ? 'Wydatek' : 'Przychód'}</Text>
           <Text style={s.footerAmount}>{zl(amount)}</Text>
         </View>
         <TouchableOpacity style={[s.saveBtn, !canSave && s.btnDisabled]} onPress={() => handleSave()} disabled={!canSave} activeOpacity={0.7}>
@@ -522,24 +526,45 @@ export default function AddExpenseModal({
       )}
       <View style={s.typeRow}>
         <TouchableOpacity
-          style={[s.typeChip, type === 'expense' && s.typeChipActive]}
-          onPress={() => setType('expense')}
+          style={[s.typeChip, !own && type === 'expense' && s.typeChipActive]}
+          onPress={() => { setType('expense'); setOwn(false); }}
           activeOpacity={0.7}
         >
-          <Receipt size={14} color={type === 'expense' ? colors.bg.primary : colors.text.muted} />
-          <Text style={[s.typeChipLabel, type === 'expense' && s.typeChipLabelActive]}>Wydatek</Text>
+          <Receipt size={14} color={!own && type === 'expense' ? colors.bg.primary : colors.text.muted} />
+          <Text style={[s.typeChipLabel, !own && type === 'expense' && s.typeChipLabelActive]}>Wydatek</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[s.typeChip, type === 'income' && s.typeChipActive]}
-          onPress={() => setType('income')}
+          style={[s.typeChip, !own && type === 'income' && s.typeChipActive]}
+          onPress={() => { setType('income'); setOwn(false); }}
           activeOpacity={0.7}
         >
-          <Banknote size={14} color={type === 'income' ? colors.bg.primary : colors.text.muted} />
-          <Text style={[s.typeChipLabel, type === 'income' && s.typeChipLabelActive]}>Przychód</Text>
+          <Banknote size={14} color={!own && type === 'income' ? colors.bg.primary : colors.text.muted} />
+          <Text style={[s.typeChipLabel, !own && type === 'income' && s.typeChipLabelActive]}>Przychód</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.typeChip, own && s.typeChipActive]}
+          onPress={() => { haptic.tap(); setOwn(true); }}
+          activeOpacity={0.7}
+          accessibilityLabel="Przelew własny"
+        >
+          <ArrowLeftRight size={14} color={own ? colors.bg.primary : colors.text.muted} />
+          <Text style={[s.typeChipLabel, own && s.typeChipLabelActive]} numberOfLines={1}>Własny</Text>
         </TouchableOpacity>
       </View>
+      {own && (
+        <View style={s.section}>
+          <View style={s.chips}>
+            {([['expense', 'Wychodzący', 'z tego konta'], ['income', 'Przychodzący', 'na to konto']] as const).map(([k, l, sub]) => (
+              <TouchableOpacity key={k} style={[s.chip, type === k && s.chipActive]} onPress={() => { haptic.tap(); setType(k); }} activeOpacity={0.7}>
+                <Text style={[s.chipLabel, type === k && s.chipLabelActive]}>{l} · {sub}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={s.ownHint}>Przelew między Twoimi kontami: zmienia saldo, ale nie liczy się do wydatków, przychodów, kategorii ani budżetów.</Text>
+        </View>
+      )}
 
-      {type === 'expense' && clipboardSuggestion && (
+      {type === 'expense' && !own && clipboardSuggestion && (
         <View style={[s.section, s.clipboardBanner]}>
           <Text style={s.clipboardBannerText}>Wykryto możliwy paragon w schowku</Text>
           <View style={s.clipboardBannerActions}>
@@ -554,7 +579,7 @@ export default function AddExpenseModal({
         </View>
       )}
 
-      {type === 'expense' && (
+      {type === 'expense' && !own && (
         <View style={s.section}>
           <TouchableOpacity style={s.paidSummaryRow} onPress={() => setPasteBoxOpen((v) => !v)} activeOpacity={0.7}>
             <Text style={s.label}>Wklej tekst paragonu ręcznie</Text>
@@ -580,7 +605,7 @@ export default function AddExpenseModal({
         </View>
       )}
 
-      {type === 'expense' && (
+      {type === 'expense' && !own && (
         <View style={s.section}>
           <Text style={s.label}>Sklep / firma</Text>
           <TextInput
@@ -613,7 +638,7 @@ export default function AddExpenseModal({
         </View>
       </View>
 
-      {type === 'expense' && (
+      {type === 'expense' && !own && (
         <View style={s.section}>
           <View style={s.itemsHeader}>
             <Text style={s.label}>Pozycje{items.length > 0 ? ` (${items.length})` : ''}</Text>
@@ -699,7 +724,7 @@ export default function AddExpenseModal({
       )}
 
       {/* Kategoria przychodu (2026-11-14) — brak wyboru = zgadywana z opisu/tagów. */}
-      {type === 'income' && (
+      {type === 'income' && !own && (
         <View style={s.section}>
           <Text style={s.label}>
             Kategoria: {INCOME_META[incomeCategory ?? '']?.label ?? `auto (${INCOME_META[incomeCategoryOf({ type: 'income', tags, note, storeName })].label})`}
@@ -728,7 +753,7 @@ export default function AddExpenseModal({
         />
       </View>
 
-      {type === 'expense' && (
+      {type === 'expense' && !own && (
         <View style={s.section}>
           {/* Zwinięte domyślnie (2026-11-09, user: "auto przydzielenie wydatku...
               rzadko klikam a zajmują sporo miejsca i chaosu") — ten sam wzorzec co
@@ -757,7 +782,7 @@ export default function AddExpenseModal({
         </View>
       )}
 
-      {type === 'expense' && (
+      {type === 'expense' && !own && (
         <View style={s.section}>
           {/* Kategoria CAŁEGO wydatku (2026-11-10, user: "zróbmy to drugie...
               żeby były na przykład rozrywka i tak dalej") — RÓWNOLEGŁA do
@@ -811,7 +836,7 @@ export default function AddExpenseModal({
         </View>
       )}
 
-      {type === 'expense' && (
+      {type === 'expense' && !own && (
         <View style={s.section}>
           {/* Zwinięte domyślnie (user, 2026-11-01: "ta opcja mniej widoczna po
               rozwinięciu kto płacił i czym... żeby to miejsca nie zajmowało,
@@ -935,6 +960,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   typeChipActive: { backgroundColor: c.text.bright, borderColor: c.text.bright },
   typeChipLabel: { fontSize: 13, fontFamily: 'Inter_900Black', color: c.text.muted },
   typeChipLabelActive: { color: c.bg.primary },
+  ownHint: { fontSize: 11.5, lineHeight: 16, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: spacing[2] },
 
   section: { marginBottom: spacing[4] },
   label: {

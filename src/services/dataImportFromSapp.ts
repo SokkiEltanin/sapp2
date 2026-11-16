@@ -137,7 +137,8 @@ function mapExpense(e: SappExpense): Expense {
     tags,
     receiptItems: e.receiptItems?.map(mapReceiptItem),
     source: e.receiptItems?.length ? 'receipt' : (e.bankMatched ? 'bank' : 'manual'),
-    fvOverride: e.fvOverride ?? undefined,
+    // Kategoria 'transfer' w starej appce = przelew własny (2026-11-16).
+    fvOverride: e.category === 'transfer' ? 'transfer' : e.fvOverride ?? undefined,
     paymentMethod: e.paymentMethod,
     payer: mapPayer(e.payer),
     bankMatched: e.bankMatched,

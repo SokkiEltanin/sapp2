@@ -28,7 +28,7 @@ import { zl } from '@/utils/money';
 // podsumowanie wyników (ile, suma wydatków, suma przychodów).
 // FlatList (`scrollable={false}`) — lista bywa długa i ma własny scroll.
 
-const KINDS: { k: TxKind; label: string }[] = [{ k: 'all', label: 'Wszystkie' }, { k: 'expense', label: 'Wydatki' }, { k: 'income', label: 'Przychody' }];
+const KINDS: { k: TxKind; label: string }[] = [{ k: 'all', label: 'Wszystkie' }, { k: 'expense', label: 'Wydatki' }, { k: 'income', label: 'Przychody' }, { k: 'own', label: 'Własne' }];
 const PRESETS: { p: 'thisMonth' | 'lastMonth' | 'days30' | 'thisYear'; label: string }[] = [
   { p: 'thisMonth', label: 'Ten miesiąc' }, { p: 'lastMonth', label: 'Poprzedni' }, { p: 'days30', label: '30 dni' }, { p: 'thisYear', label: 'Ten rok' },
 ];
@@ -196,9 +196,9 @@ export default function TransactionsModal({
           <TouchableOpacity style={s.row} onPress={() => { haptic.tap(); onSelect(e); }} activeOpacity={0.7}>
             <View style={s.rowInfo}>
               <Text style={s.rowNote} numberOfLines={1}>
-                {e.storeName || e.note || (e.type === 'income' ? 'Przychód' : 'Wydatek')}
+                {e.storeName || e.note || (e.fvOverride === 'transfer' ? 'Przelew własny' : e.type === 'income' ? 'Przychód' : 'Wydatek')}
               </Text>
-              <Text style={s.rowDate} numberOfLines={1}>{toDisplayDate(e.date.slice(0, 10))}{match ? ` · ${match}` : ''}</Text>
+              <Text style={s.rowDate} numberOfLines={1}>{toDisplayDate(e.date.slice(0, 10))}{e.fvOverride === 'transfer' ? ' · przelew własny' : ''}{match ? ` · ${match}` : ''}</Text>
             </View>
             {pendingFxOf(e) ? (
               <View style={s.fxCol}>

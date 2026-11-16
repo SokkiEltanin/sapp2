@@ -42,3 +42,20 @@ describe('filtry transakcji', () => {
     expect(datePreset('days30', new Date(2026, 10, 30))).toEqual({ from: '2026-11-01', to: '2026-11-30' });
   });
 });
+
+describe('przelew własny w filtrach', () => {
+  const base = { date: '2026-11-10', tags: [], createdAt: '', updatedAt: '' } as any;
+  const list = [
+    { ...base, id: 'a', type: 'expense', amount: 50 },
+    { ...base, id: 'b', type: 'expense', amount: 500, fvOverride: 'transfer' },
+    { ...base, id: 'c', type: 'income', amount: 300, fvOverride: 'transfer' },
+    { ...base, id: 'd', type: 'income', amount: 100 },
+  ];
+  it('Własne pokazuje tylko przelewy własne, Wydatki/Przychody je pomijają', () => {
+    const { filterTransactions, summarize, EMPTY_FILTER } = require('@/utils/txFilter');
+    expect(filterTransactions(list, { ...EMPTY_FILTER, kind: 'own' }).map((h: any) => h.e.id)).toEqual(['b', 'c']);
+    expect(filterTransactions(list, { ...EMPTY_FILTER, kind: 'expense' }).map((h: any) => h.e.id)).toEqual(['a']);
+    expect(filterTransactions(list, { ...EMPTY_FILTER, kind: 'income' }).map((h: any) => h.e.id)).toEqual(['d']);
+    expect(summarize(filterTransactions(list, EMPTY_FILTER))).toEqual({ count: 4, out: 50, in: 100 });
+  });
+});

@@ -1854,6 +1854,20 @@ podładować; paski naładowania zamiast Ciekawostki na Dashboardzie”.
   (telefon pisze przy zmianie / co 10 min, web czyta) → 3 paski: Komputer, Telefon, Zegarek. Ciekawostki → `utils/facts.ts`, kafel w Daily zamiast planu dnia
   (plan dnia, DayPlanTagsSheet, dayPlanStore, utils/dayPlan USUNIĘTE).
 
+## PRZELEW WŁASNY + ROZPOZNAWANIE RACHUNKÓW (2026-11-16)
+
+- Przelew własny = `fvOverride: 'transfer'` (+ `type` wg kierunku: wychodzący 'expense',
+  przychodzący 'income'). Formularz: trzeci przycisk „Własny” obok Wydatek/Przychód
+  (AddExpenseModal `own`), nie w „Rozlicz jako”. Rusza SALDO (balance.ts bez zmian), ale
+  `isOwnTransfer` (utils/fixedVariable.ts) / `fvSplitOf` = 0 wyklucza go z: sum miesiąca
+  w Finansach, Podziału, kategorii, budżetów, trendu, tabeli, wykrywania subskrypcji
+  (recurringBills), wypłaty (paycheck), nonFood. Transakcje: filtr „Własne”, summarize
+  pomija. Import ze starej appki: kategoria `transfer` → przelew własny.
+- `billTagFor` (recurringBills.ts): krótkie słowa (≤4: pge, play, upc, gaz…) tylko jako całe
+  słowo; „Czynsz / mieszkanie” sprawdzany OSTATNI (import dał rachunkom tag „mieszkanie”,
+  przez co PGE lądowało w Czynszu); Play/UPC/Vectra/Netia/Inea → Internet; „Google Play”
+  wykluczone. Test `__tests__/billMatch.test.ts`.
+
 ## CIEKAWOSTKI 2.0 (2026-11-16)
 
 User: „temat max 3 słowa, treść zachęcająca jako skrót, po kliknięciu rozszerzone info

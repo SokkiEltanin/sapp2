@@ -52,7 +52,7 @@ export function nonFoodByCategory(expenses: Expense[], monthFilterKey?: string):
   const sums = new Map<string, number>();
   const items = new Map<string, FoodCategoryItem[]>();
   for (const e of expenses) {
-    if (e.type !== 'expense') continue;
+    if (e.type !== 'expense' || e.fvOverride === 'transfer') continue;
     if (monthFilterKey && monthKeyOf(e.date) !== monthFilterKey) continue;
     for (const it of e.receiptItems ?? []) {
       if (it.excluded || it.kind === 'deposit' || !it.nonFoodCategory) continue;

@@ -6,7 +6,7 @@ import { EXPENSE_CATEGORY_META, variableSplitOf } from './expenseCategory';
 // rodzaju — wydatek czy przychód, cena od do, data"). Czyste — testy
 // __tests__/txFilter.test.ts; UI: components/finances/TransactionsModal.tsx.
 
-export type TxKind = 'all' | 'expense' | 'income';
+export type TxKind = 'all' | 'expense' | 'income' | 'own'; // own = przelewy własne
 export type TxBucket = 'food' | 'fixed' | 'variable' | `cat:${string}`;
 export interface TxFilter {
   query: string;
@@ -42,7 +42,8 @@ export function filterTransactions(expenses: Expense[], f: TxFilter): TxHit[] {
   const numQ = /^\d+([.,]\d{1,2})?$/.test(f.query.trim()) ? parseFloat(f.query.trim().replace(',', '.')) : null;
   const out: TxHit[] = [];
   for (const e of expenses) {
-    if (f.kind !== 'all' && e.type !== f.kind) continue;
+    const own = e.fvOverride === 'transfer';
+    if (f.kind === 'own' ? !own : f.kind !== 'all' && (own || e.type !== f.kind)) continue;
     if (f.min != null && e.amount < f.min) continue;
     if (f.max != null && e.amount > f.max) continue;
     const d = (e.date ?? '').slice(0, 10);
@@ -64,7 +65,8 @@ export function filterTransactions(expenses: Expense[], f: TxFilter): TxHit[] {
 
 export function summarize(hits: TxHit[]): { count: number; out: number; in: number } {
   let o = 0, i = 0;
-  for (const { e } of hits) { if (e.type === 'income') i += e.amount; else o += e.amount; }
+  // Przelewy własne nie są ani wydatkiem, ani przychodem.
+  for (const { e } of hits) { if (e.fvOverride === 'transfer') continue; if (e.type === 'income') i += e.amount; else o += e.amount; }
   return { count: hits.length, out: Math.round(o * 100) / 100, in: Math.round(i * 100) / 100 };
 }
 

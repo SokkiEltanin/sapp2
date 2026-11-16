@@ -41,6 +41,12 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-16 — Przelew własny + Prąd/Internet z tagów**:
+- [ ] Sprawdzić w Tabeli wydatków, że PGE/prąd i Play/internet są w Stałych → Prąd/Internet.
+- [ ] Stare przelewy własne z importu sapp NIE mają flagi (kategoria nie została zachowana) —
+  user oznacza ręcznie (edycja → „Własny”). Jeśli rachunek z importu ma `fvOverride`
+  'variable', zostaje w Zmiennych (zmienić w „Rozlicz jako”).
+
 **2026-11-16 — Ciekawostki 2.0** (70 faktów, 10 na dziedzinę ≈ 2,5 mies. przy 1/dzień):
 - [ ] Sprawdzić, że telefon i komputer pokazują tę samą; „Znam to” na jednym zmienia na drugim.
 - [ ] Dopisać kolejną paczkę faktów przed wyczerpaniem (nowe id; dziedziny, które user lubi najbardziej).

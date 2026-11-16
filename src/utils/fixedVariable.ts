@@ -12,6 +12,10 @@ import { round2, zl } from './money';
 // RĘCZNE oznaczenie "przelew własny" na pojedynczym wydatku (2026-11-08, user:
 // "opcje przelewu własnego ktory nie wlicza się do liczenia stałych zmiennych i
 // jedzenia") JEST zaimplementowane — `fvOverride === 'transfer'`, patrz `fvSplitOf`.
+// Przelew własny (między moimi kontami) — rusza saldo, ale NIE jest wydatkiem/przychodem:
+// pomijany w sumach miesiąca, kategoriach, budżetach, trendzie, wykrywaniu subskrypcji.
+export const isOwnTransfer = (e: Pick<Expense, 'fvOverride'>): boolean => e.fvOverride === 'transfer';
+
 export function isFixedExpense(e: Expense): boolean {
   if (e.type === 'income') return false;
   if (e.subscriptionId) return true;

@@ -42,7 +42,7 @@ export function paycheckTargetMonth(e: { note?: string; date: string }): string 
 // prefiksu → żaden przychód nie liczy się jako wypłata (sapp2 nie ma kategorii "salary" do
 // fallbacku jak sapp — `type: 'income'` samo nie wystarcza, zbyt szerokie).
 export function isPaycheck(e: Expense, workPrefix?: string): boolean {
-  if (e.type !== 'income') return false;
+  if (e.type !== 'income' || e.fvOverride === 'transfer') return false;
   const wp = workPrefix?.trim().toLowerCase();
   if (!wp) return false;
   return (e.tags ?? []).some((t) => t.toLowerCase() === wp) || (e.note ?? '').toLowerCase().includes(wp);

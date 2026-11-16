@@ -30,6 +30,7 @@ import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import { workMonthProgress } from '@/utils/workMonth';
 import { upcomingPayments } from '@/utils/recurringBills';
 import { accountBalance, affectsBalance } from '@/utils/balance';
+import { isOwnTransfer } from '@/utils/fixedVariable';
 import { useBalanceStore } from '@/store/balanceStore';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
 import { haptic } from '@/utils/haptics';
@@ -176,11 +177,11 @@ export default function FinancesScreen() {
   const balance = useMemo(() => accountBalance(expenses, offset), [expenses, offset]);
   const monthKey = today.slice(0, 7);
   const monthIncome = useMemo(
-    () => expenses.filter((e) => e.type === 'income' && affectsBalance(e) && e.date.slice(0, 7) === monthKey).reduce((a, e) => a + e.amount, 0),
+    () => expenses.filter((e) => e.type === 'income' && affectsBalance(e) && !isOwnTransfer(e) && e.date.slice(0, 7) === monthKey).reduce((a, e) => a + e.amount, 0),
     [expenses, monthKey],
   );
   const monthExpense = useMemo(
-    () => expenses.filter((e) => e.type === 'expense' && affectsBalance(e) && e.date.slice(0, 7) === monthKey).reduce((a, e) => a + e.amount, 0),
+    () => expenses.filter((e) => e.type === 'expense' && affectsBalance(e) && !isOwnTransfer(e) && e.date.slice(0, 7) === monthKey).reduce((a, e) => a + e.amount, 0),
     [expenses, monthKey],
   );
 
@@ -423,7 +424,7 @@ export default function FinancesScreen() {
               <Item onPress={() => setEditingExpense(e)}>
                 <Price amount={e.type === 'income' ? e.amount : -e.amount} fx={pendingFxOf(e)} />
                 <View style={s.txTextCol}>
-                  <Text style={T.row} numberOfLines={1}>{e.storeName || e.note || (e.type === 'income' ? 'Przychód' : 'Wydatek')}</Text>
+                  <Text style={T.row} numberOfLines={1}>{e.storeName || e.note || (isOwnTransfer(e) ? 'Przelew własny' : e.type === 'income' ? 'Przychód' : 'Wydatek')}</Text>
                   <Text style={T.rowSub} numberOfLines={1}>{e.date}</Text>
                 </View>
               </Item>

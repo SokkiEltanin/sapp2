@@ -43,7 +43,7 @@ import { pendingFxOf, type PendingFx } from '@/utils/fx';
 export const BILL_TYPES: { match: string[]; name: string; tag: string; icon: string }[] = [
   { match: ['czynsz', 'mieszkanie', 'administr', 'adm ', 'spółdziel', 'spoldziel', 'wspólnot', 'wspolnot'], name: 'Czynsz / mieszkanie', tag: 'czynsz', icon: 'Home' },
   { match: ['prąd', 'prad', 'pge', 'tauron', 'energa', 'enea', 'energia elektr'], name: 'Prąd', tag: 'prąd', icon: 'Zap' },
-  { match: ['internet'], name: 'Internet', tag: 'internet', icon: 'Wifi' },
+  { match: ['internet', 'play', 'upc', 'vectra', 'netia', 'inea', 'światłowód', 'swiatlowod', 'wi-fi', 'wifi'], name: 'Internet', tag: 'internet', icon: 'Wifi' },
   { match: ['gaz '], name: 'Gaz', tag: 'gaz', icon: 'Flame' },
   { match: ['woda', 'ścieki', 'scieki', 'wod-kan'], name: 'Woda', tag: 'woda', icon: 'Droplet' },
   { match: ['ogrzewani', 'ciepł', 'cieplo'], name: 'Ogrzewanie', tag: 'ogrzewanie', icon: 'Thermometer' },
@@ -51,17 +51,37 @@ export const BILL_TYPES: { match: string[]; name: string; tag: string; icon: str
   { match: ['abonament', 'telefon'], name: 'Telefon / abonament', tag: 'telefon', icon: 'Phone' },
 ];
 
+// Dopasowanie (2026-11-16, user: "prądu mi nie łapie po tagach — pge, PGE, prąd; internet,
+// play PLAY też nie"): (1) krótkie słowa (≤4 litery: pge, play, upc, gaz, adm…) tylko jako
+// CAŁE słowo — "play" nie łapie "playstation", "gaz" nie łapie "gazeta"; dłuższe jako
+// fragment ("energia elektr…"). (2) Ogólny "Czynsz / mieszkanie" sprawdzany OSTATNI —
+// import ze starej appki dał rachunkom tag "mieszkanie" (housing), więc PGE z tym tagiem
+// lądowało w Czynszu zamiast w Prądzie. (3) "Google Play" to nie internet.
+const WORD = 'a-z0-9ąćęłńóśźż';
+const wordRe = new Map<string, RegExp>();
+function hits(hay: string, m: string): boolean {
+  const t = m.trim();
+  if (t.length > 4) return hay.includes(t);
+  let re = wordRe.get(t);
+  // słowa ze słownika to same litery — bez escapowania
+  if (!re) { re = new RegExp(`(^|[^${WORD}])${t}($|[^${WORD}])`); wordRe.set(t, re); }
+  return re.test(hay);
+}
+const MATCH_ORDER = [...BILL_TYPES.filter((b) => b.tag !== 'czynsz'), ...BILL_TYPES.filter((b) => b.tag === 'czynsz')];
+function billTypeOf(text: string) {
+  const hay = text.toLowerCase().replace(/google play/g, ' ');
+  return MATCH_ORDER.find((bt) => bt.match.some((m) => hits(hay, m))) ?? null;
+}
+
 // Czy tekst (note + storeName + tags złączone) brzmi jak rachunek stały.
 export function looksLikeBill(text: string): boolean {
-  const hay = text.toLowerCase();
-  return BILL_TYPES.some((bt) => bt.match.some((m) => hay.includes(m)));
+  return !!billTypeOf(text);
 }
 
 // Który BILL_TYPE (jeśli jakiś) pasuje do wydatku — sprawdzane po note + storeName +
 // tags, więc wydatek z samym storeName="PGE" (bez note/tagu) i tak złapie "Prąd".
 export function billTagFor(e: { note?: string; storeName?: string; tags?: string[] }): { tag: string; name: string; icon: string } | null {
-  const hay = `${e.note ?? ''} ${e.storeName ?? ''} ${(e.tags ?? []).join(' ')}`.toLowerCase();
-  const t = BILL_TYPES.find((bt) => bt.match.some((m) => hay.includes(m)));
+  const t = billTypeOf(`${e.note ?? ''} ${e.storeName ?? ''} ${(e.tags ?? []).join(' ')}`);
   return t ? { tag: t.tag, name: t.name, icon: t.icon } : null;
 }
 
@@ -198,7 +218,7 @@ const DAY_MS = 86400000;
 export function detectRecurringBills(expenses: Expense[], subs: Subscription[], dismissed: readonly string[] = [], now: Date = new Date()): BillCandidate[] {
   const byTag: Record<string, { months: Set<string>; lastDate: string; lastAmount: number }> = {};
   for (const e of expenses) {
-    if (e.type === 'income') continue;
+    if (e.type === 'income' || e.fvOverride === 'transfer') continue; // przelew własny to nie rachunek
     const t = billTagFor(e);
     if (!t) continue;
     const date = (e.date ?? '').slice(0, 10);
@@ -235,7 +255,7 @@ function detectRecurringSubscriptions(expenses: Expense[], subs: Subscription[],
   const known: Record<string, G> = {};
   const generic: Record<string, G> = {};
   for (const e of expenses) {
-    if (e.type === 'income' || billTagFor(e)) continue;
+    if (e.type === 'income' || e.fvOverride === 'transfer' || billTagFor(e)) continue;
     const date = (e.date ?? '').slice(0, 10);
     if (!date || !(e.amount > 0)) continue;
     const sv = subServiceFor(e);
