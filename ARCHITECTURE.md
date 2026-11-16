@@ -1978,7 +1978,8 @@ ostrzeżenie.
 - **Model** `src/types/budgets.ts` (`scope`: 'all' | 'food' | 'variable' | 'fixed' |
   'cat:<tag>' | 'food:<podkategoria>' (2026-11-15: słodycze, napoje… — kwota z
   `foodStats.foodSplitOf`, tej samej co trend i "Jedzenie" w Wydatkach), `limit` zł/mies.).
-  Wybór zakresu w BudgetSheet pogrupowany: Ogólne / Jedzenie / Zmienne. Store `src/store/budgetsStore.ts` (`budgets-v1`;
+  Wybór zakresu w BudgetSheet (2026-11-16, minimalistycznie): sam przycisk „+ Nowy budżet”;
+  po stuknięciu zakładki Ogólne / Jedzenie / Zmienne i JEDEN rząd zakresów w poziomym scrollu. Store `src/store/budgetsStore.ts` (`budgets-v1`;
   `setBudget(scope, limit)` dodaje albo zmienia; `notified` = zgłoszone progi, per
   urządzenie).
 - **Logika** `src/utils/budgets.ts` (testy `__tests__/budgets.test.ts`): zakresy =

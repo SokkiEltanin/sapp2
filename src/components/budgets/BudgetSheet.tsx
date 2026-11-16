@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Trash2, Check } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { Trash2, Check, Plus, X } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
@@ -66,12 +66,15 @@ export default function BudgetSheet({ visible, onClose }: { visible: boolean; on
   [budgets, catVer]);
 
   const [newScope, setNewScope] = useState<BudgetScope | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [group, setGroup] = useState<string | null>(null);
+  const activeGroup = groups.find((g) => g.title === group) ?? groups[0];
   const [newLimit, setNewLimit] = useState<number | undefined>(undefined);
   const [edits, setEdits] = useState<Record<string, number | undefined>>({});
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
   const suggestion = useMemo(() => (newScope ? suggestLimit(expenses, newScope) : null), [newScope, expenses]);
 
-  useEffect(() => { if (visible) { setNewScope(null); setNewLimit(undefined); setEdits({}); setConfirmDel(null); } }, [visible]);
+  useEffect(() => { if (visible) { setNewScope(null); setNewLimit(undefined); setEdits({}); setConfirmDel(null); setAdding(budgets.length === 0); setGroup(null); } }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pickScope = (sc: BudgetScope) => {
     haptic.tap();
@@ -82,7 +85,7 @@ export default function BudgetSheet({ visible, onClose }: { visible: boolean; on
     if (!newScope || !newLimit || newLimit <= 0) return;
     haptic.success();
     setBudget(newScope, round2(newLimit));
-    setNewScope(null); setNewLimit(undefined);
+    setNewScope(null); setNewLimit(undefined); setAdding(false);
   };
 
   return (
@@ -149,25 +152,43 @@ export default function BudgetSheet({ visible, onClose }: { visible: boolean; on
         );
       })}
 
-      {groups.length > 0 && (
-        <SheetCard title="Nowy budżet">
-          {groups.map((g, gi) => (
-            <View key={g.title} style={gi > 0 ? { marginTop: spacing[3] } : undefined}>
-              <Text style={s.groupLabel}>{g.title}</Text>
-              <View style={s.chips}>
-                {g.scopes.map((sc) => {
-                  const on = newScope === sc;
-                  const dot = scopeColor(sc);
-                  return (
-                    <TouchableOpacity key={sc} style={[s.chip, on && s.chipOn]} onPress={() => pickScope(sc)} activeOpacity={0.8}>
-                      {dot && <View style={[s.dot, { backgroundColor: dot }]} />}
-                      <Text style={[s.chipLabel, on && s.chipLabelOn]}>{scopeLabel(sc)}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          ))}
+      {/* Nowy budżet (2026-11-16, user: "minimalistyczne... listy poziome scroll, a nie
+          takie rozległe"): domyślnie sam przycisk; po stuknięciu grupa (Ogólne /
+          Jedzenie / Zmienne) i JEDEN rząd zakresów przewijany w bok. */}
+      {groups.length > 0 && !adding && (
+        <TouchableOpacity style={s.newBtn} onPress={() => { haptic.tap(); setAdding(true); setGroup(groups[0].title); }} activeOpacity={0.8}>
+          <Plus size={15} color={colors.text.primary} />
+          <Text style={s.newBtnLabel}>Nowy budżet</Text>
+        </TouchableOpacity>
+      )}
+      {groups.length > 0 && adding && (
+        <SheetCard title="Nowy budżet" right={
+          <TouchableOpacity onPress={() => { haptic.tap(); setAdding(false); setNewScope(null); setNewLimit(undefined); }} hitSlop={8} accessibilityLabel="Zamknij">
+            <X size={16} color={colors.text.muted} />
+          </TouchableOpacity>
+        }>
+          <View style={s.groupTabs}>
+            {groups.map((g) => {
+              const on = (activeGroup?.title ?? '') === g.title;
+              return (
+                <TouchableOpacity key={g.title} style={[s.groupTab, on && s.groupTabOn]} onPress={() => { haptic.tap(); setGroup(g.title); }} activeOpacity={0.8}>
+                  <Text style={[s.groupTabLabel, on && s.chipLabelOn]}>{g.title}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow} keyboardShouldPersistTaps="handled">
+            {(activeGroup?.scopes ?? []).map((sc) => {
+              const on = newScope === sc;
+              const dot = scopeColor(sc);
+              return (
+                <TouchableOpacity key={sc} style={[s.chip, on && s.chipOn]} onPress={() => pickScope(sc)} activeOpacity={0.8}>
+                  {dot && <View style={[s.dot, { backgroundColor: dot }]} />}
+                  <Text style={[s.chipLabel, on && s.chipLabelOn]}>{scopeLabel(sc)}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
           {newScope && (
             <>
               <View style={[s.editRow, { marginTop: spacing[3] }]}>
@@ -216,6 +237,13 @@ const makeS = themedStyles((c) => StyleSheet.create({
   addBtn: { paddingHorizontal: spacing[3], paddingVertical: 9, borderRadius: radius.md, backgroundColor: c.text.bright },
   addLabel: { fontSize: 12.5, fontFamily: 'Inter_900Black', color: c.bg.primary },
   groupLabel: { fontSize: 10.5, fontFamily: 'Inter_800ExtraBold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: spacing[2] },
+  newBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: spacing[3], paddingVertical: 12, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border.default, borderStyle: 'dashed' },
+  newBtnLabel: { fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
+  groupTabs: { flexDirection: 'row', gap: 4, padding: 3, borderRadius: radius.md, backgroundColor: c.bg.primary, marginBottom: spacing[3] },
+  groupTab: { flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: radius.sm },
+  groupTabOn: { backgroundColor: c.text.bright },
+  groupTabLabel: { fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary },
+  chipRow: { flexDirection: 'row', gap: spacing[2], paddingRight: spacing[2] },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing[3], paddingVertical: 7, borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default },
   chipOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
