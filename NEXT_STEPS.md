@@ -54,8 +54,7 @@ wchodzą tylko z nowym APK (CLAUDE.md zasada 2); launcher może trzymać starą 
 - [ ] Zainstalować nową wersję appki NA ZEGARKU (raport baterii) i otworzyć ją raz.
 - [ ] Dashboard: kafel Baterie — telefon + zegarek, stuknięcie odświeża.
 - [ ] Powiadomienie poniżej progu (Ustawienia → Progi → Bateria zegarka, domyślnie 20%).
-- [ ] Kopia: na komputerze kafel pokazuje baterię laptopa; zegarek tylko na telefonie
-  (ew. później sync przez chmurę).
+- [x] Komputer: bateria telefonu i zegarka przez chmurę (doc `devices`) — 3 paski.
 
 **2026-11-16 — kopia robocza zadania**: zamknięcie formularza bez „Dodaj” nie gubi treści.
 - [ ] Na telefonie: wpisz → cofnij/zamknij → „+” (kropka) → szkic wraca.

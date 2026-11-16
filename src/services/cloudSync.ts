@@ -13,6 +13,7 @@ import { useReplacementsStore } from '@/store/replacementsStore';
 import { useVehiclesStore } from '@/store/vehiclesStore';
 import { useWorkStore } from '@/store/workStore';
 import { useHealthStore } from '@/store/healthStore';
+import { useDeviceBatteryStore } from '@/store/deviceBatteryStore';
 import { useBalanceStore } from '@/store/balanceStore';
 import { useBudgetsStore } from '@/store/budgetsStore';
 import { useCategoryRulesStore } from '@/store/categoryRulesStore';
@@ -144,6 +145,17 @@ const docBindings: DocBinding[] = [
     set: (v) => { if (Platform.OS === 'web' && Array.isArray(v.events)) useCalendarStore.getState().setGcalEvents(v.events); },
     isEmpty: (v) => !(v.events ?? []).length,
     stamp: () => 0,
+    readOnly: () => Platform.OS === 'web',
+    keepWhenEmpty: true,
+  },
+  {
+    // Baterie telefonu i zegarka (2026-11-16): telefon pisze, komputer czyta (kafel Baterie).
+    name: 'devices',
+    stores: [S(useDeviceBatteryStore)],
+    get: () => { const d = useDeviceBatteryStore.getState(); return { phone: d.phone, watch: d.watch }; },
+    set: (v) => { if (Platform.OS === 'web') useDeviceBatteryStore.setState({ phone: v.phone ?? null, watch: v.watch ?? null }); },
+    isEmpty: (v) => !v.phone && !v.watch,
+    stamp: () => { const d = useDeviceBatteryStore.getState(); return Math.max(d.phone?.t ?? 0, d.watch?.t ?? 0); },
     readOnly: () => Platform.OS === 'web',
     keepWhenEmpty: true,
   },

@@ -4,6 +4,7 @@ import * as Battery from 'expo-battery';
 import { readWatchBattery, requestWatchBattery, writeWatchBatteryCfg } from '@/services/watchBattery';
 import { useThresholdsStore } from '@/store/thresholdsStore';
 import type { WatchBattery } from '@/utils/deviceBattery';
+import { useDeviceBatteryStore } from '@/store/deviceBatteryStore';
 
 // Baterie na Dashboardzie (2026-11-16): telefon (expo-battery; na komputerze bateria
 // laptopa, jeśli przeglądarka ją podaje) + zegarek (plik od WearListenerService).
@@ -61,7 +62,19 @@ export function useDeviceBatteries() {
     return () => { clearInterval(iv); sub.remove(); timers.current.forEach(clearTimeout); };
   }, [read, refresh]);
 
-  return { phone, watch, refresh };
+  // Telefon → chmura (komputer pokazuje baterię telefonu i zegarka, store/deviceBatteryStore.ts).
+  useEffect(() => {
+    if (Platform.OS === 'android') useDeviceBatteryStore.getState().report(phone, watch);
+  }, [phone?.level, phone?.charging, watch?.t]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Komputer: telefon i zegarek z chmury (ostatni odczyt telefonu).
+  const remote = useDeviceBatteryStore((st) => (Platform.OS === 'web' ? st : null));
+  return {
+    phone,
+    watch: Platform.OS === 'web' ? remote?.watch ?? null : watch,
+    remotePhone: Platform.OS === 'web' ? remote?.phone ?? null : null,
+    refresh,
+  };
 }
 
 /** Próg powiadomienia → plik dla natywnej usługi (raz przy starcie i przy zmianie). */

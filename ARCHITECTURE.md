@@ -1843,7 +1843,8 @@ podładować; paski naładowania zamiast Ciekawostki na Dashboardzie”.
 - JS: `services/watchBattery.ts` (odczyt pliku), `hooks/useDeviceBatteries.ts` (telefon:
   expo-battery; web: navigator.getBattery — hooków expo-battery NIE na web), czyste
   `utils/deviceBattery.ts` (testy). Kafel w rzędzie `factWeather` Dashboardu (tap =
-  prośba do zegarka). Ciekawostki → `utils/facts.ts`, kafel w Daily zamiast planu dnia
+  prośba do zegarka). Komputer: `store/deviceBatteryStore.ts` + doc `devices` w cloudSync
+  (telefon pisze przy zmianie / co 10 min, web czyta) → 3 paski: Komputer, Telefon, Zegarek. Ciekawostki → `utils/facts.ts`, kafel w Daily zamiast planu dnia
   (plan dnia, DayPlanTagsSheet, dayPlanStore, utils/dayPlan USUNIĘTE).
 
 ## TAGI ZE STAREJ APPKI (2026-11-16)

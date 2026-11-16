@@ -4,7 +4,7 @@ import { useDashboardLayoutStore } from '@/store/dashboardLayoutStore';
 import { visibleSections, type DashSection } from '@/utils/dashboardLayout';
 import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-import { ListTodo, CalendarClock, Wrench, MapPin, StickyNote, Smartphone, Watch, Zap } from 'lucide-react-native';
+import { ListTodo, CalendarClock, Wrench, MapPin, StickyNote, Smartphone, Watch, Zap, Laptop } from 'lucide-react-native';
 import { batteryTone, ageLabel, watchName } from '@/utils/deviceBattery';
 import NotePreview from '@/components/notes/NotePreview';
 import NotePage from '@/components/notes/NotePage';
@@ -27,6 +27,7 @@ export type DashData = {
   batteries: {
     phone: { level: number; charging: boolean } | null;
     watch: { level: number; charging: boolean; model: string; t: number } | null;
+    remotePhone?: { level: number; charging: boolean; t: number } | null; // komputer: telefon z chmury
     lowPct: number;
   };
   // Pogoda ZAMIAST snu (2026-11-13, user: "sen na dashboardzie jest spoko, ale
@@ -147,10 +148,21 @@ export function DashboardScreen(d: DashData) {
     factWeather: <>
           <Row h={96}>
             {/* Baterie telefonu i zegarka; stuknięcie = świeży odczyt z zegarka. */}
-            <Tile span={2} onPress={() => d.onOpen('battery')} accessibilityLabel="Baterie urządzeń" style={st.batTile}>
-              <BatteryRow icon="phone" label={Platform.OS === 'web' ? 'Komputer' : 'Telefon'} b={d.batteries.phone} lowPct={d.batteries.lowPct} />
-              <BatteryRow icon="watch" label={d.batteries.watch ? watchName(d.batteries.watch.model) : 'Zegarek'} b={d.batteries.watch} lowPct={d.batteries.lowPct}
-                sub={d.batteries.watch ? ageLabel(d.batteries.watch.t) : Platform.OS === 'web' ? 'na telefonie' : 'otwórz Sapp2 na zegarku'} />
+            <Tile span={2} onPress={() => d.onOpen('battery')} accessibilityLabel="Baterie urządzeń" style={[st.batTile, Platform.OS === 'web' && { gap: 5 }]}>
+              {Platform.OS === 'web' ? (
+                <>
+                  {/* Komputer: własna bateria + telefon i zegarek z chmury (telefon je wysyła). */}
+                  <BatteryRow icon="laptop" label="Komputer" b={d.batteries.phone} lowPct={d.batteries.lowPct} />
+                  <BatteryRow icon="phone" label={d.batteries.remotePhone ? `Telefon · ${ageLabel(d.batteries.remotePhone.t)}` : 'Telefon'} b={d.batteries.remotePhone ?? null} lowPct={d.batteries.lowPct} />
+                  <BatteryRow icon="watch" label={d.batteries.watch ? `${watchName(d.batteries.watch.model).replace('Galaxy ', '')} · ${ageLabel(d.batteries.watch.t)}` : 'Zegarek'} b={d.batteries.watch} lowPct={d.batteries.lowPct} />
+                </>
+              ) : (
+                <>
+                  <BatteryRow icon="phone" label="Telefon" b={d.batteries.phone} lowPct={d.batteries.lowPct} />
+                  <BatteryRow icon="watch" label={d.batteries.watch ? watchName(d.batteries.watch.model) : 'Zegarek'} b={d.batteries.watch} lowPct={d.batteries.lowPct}
+                    sub={d.batteries.watch ? ageLabel(d.batteries.watch.t) : 'otwórz Sapp2 na zegarku'} />
+                </>
+              )}
             </Tile>
             <Tile span={2} onPress={() => d.onOpen('weather')} style={{ justifyContent: 'space-between', overflow: 'hidden' }}>
               {d.weather ? (
@@ -277,8 +289,8 @@ export function DashboardScreen(d: DashData) {
 }
 
 const BAT_TONE = { charge: '#4ADE80', low: '#F87171', mid: '#FB923C', ok: C.txt };
-function BatteryRow({ icon, label, b, lowPct, sub }: { icon: 'phone' | 'watch'; label: string; b: { level: number; charging: boolean } | null; lowPct: number; sub?: string }) {
-  const Icon = icon === 'phone' ? Smartphone : Watch;
+function BatteryRow({ icon, label, b, lowPct, sub }: { icon: 'phone' | 'watch' | 'laptop'; label: string; b: { level: number; charging: boolean } | null; lowPct: number; sub?: string }) {
+  const Icon = icon === 'phone' ? Smartphone : icon === 'laptop' ? Laptop : Watch;
   const tone = b ? BAT_TONE[batteryTone(b.level, b.charging, lowPct)] : C.dim;
   return (
     <View style={st.batRow}>
