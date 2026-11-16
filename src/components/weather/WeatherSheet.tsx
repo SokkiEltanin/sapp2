@@ -183,28 +183,31 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
 
           {/* "7 dni" (2026-11-16, user: "paski kolorki nie docierają do mnie"): bez
               pasków — każdy dzień to dwie linijki zwykłym tekstem: dzień + pogoda +
-              temperatury, pod spodem KIEDY pada (utils/weather.ts's dayRainText). */}
+              temperatury, pod spodem KIEDY pada (utils/weather.ts's dayRainText).
+              Potem (user: "drugorzędny tekst nie na kolor; dni kafelkowe, żeby było
+              widać, gdzie dzień się kończy"): każdy dzień osobny kafelek, opis i opady
+              szarym tekstem — kolor zostaje tylko na ikonie i temperaturze. */}
           <SheetCard title="7 dni">
             {data!.daily.map((d, i) => {
               const tone = WEATHER_TONES[weatherToneKey(d.code)];
               const rain = dayRainText(d);
               return (
-                <View key={d.date} style={[s.dayRow, i > 0 && s.dayDivider]}>
+                <View key={d.date} style={[s.dayRow, i === 0 && s.dayToday]}>
                   <View style={s.dayTop}>
                     <View style={s.dayNameCol}>
                       <Text style={s.dayName}>{dayName(d.date, i)}</Text>
                       <Text style={s.dayDate}>{Number(d.date.slice(8, 10))}.{d.date.slice(5, 7)}</Text>
                     </View>
                     <Icon name={weatherCodeInfo(d.code).icon} size={18} color={tone.color} />
-                    <Text style={[s.dayKind, { color: tone.color }]} numberOfLines={1}>{tone.label}</Text>
+                    <Text style={s.dayKind} numberOfLines={1}>{tone.label}</Text>
                     <Text style={s.dayTemps}>
                       <Text style={[s.dayMax, { color: tempColor(d.max) }]}>{fmtTemp(d.max)}</Text>
                       <Text style={s.dayMin}>  {fmtTemp(d.min)}</Text>
                     </Text>
                   </View>
                   <View style={s.dayRain}>
-                    <Droplet size={12} color={rain.wet ? colors.accent.blue : colors.text.muted} />
-                    <Text style={[s.dayRainTxt, rain.wet && { color: '#93C5FD' }]} numberOfLines={2}>{rain.text}</Text>
+                    <Droplet size={12} color={colors.text.muted} />
+                    <Text style={s.dayRainTxt} numberOfLines={2}>{rain.text}</Text>
                   </View>
                 </View>
               );
@@ -320,18 +323,18 @@ const makeS = themedStyles((c) => StyleSheet.create({
   hourPop: { fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.accent.blue, height: 12 },
 
   nowCard: { backgroundColor: c.ui.in, borderRadius: radius.lg, padding: spacing[3], overflow: 'hidden' },
-  dayRow: { paddingVertical: 9, gap: 5 },
-  dayDivider: { borderTopWidth: 1, borderTopColor: c.ui.line },
+  dayRow: { backgroundColor: c.bg.primary, borderRadius: radius.md, padding: spacing[3], gap: 6, marginBottom: spacing[2], borderWidth: 1, borderColor: c.ui.line },
+  dayToday: { borderColor: c.text.muted },
   dayTop: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   dayNameCol: { width: 64 },
   dayName: { fontSize: 14, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },
   dayDate: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
-  dayKind: { flex: 1, fontSize: 12.5, fontFamily: 'Inter_700Bold' },
+  dayKind: { flex: 1, fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   dayTemps: { textAlign: 'right' },
   dayMax: { fontSize: 18, fontFamily: 'Inter_900Black', fontVariant: ['tabular-nums'] },
   dayMin: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.muted, fontVariant: ['tabular-nums'] },
   dayRain: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 64 + spacing[2] },
-  dayRainTxt: { flex: 1, fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  dayRainTxt: { flex: 1, fontSize: 12, lineHeight: 16, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
 
   airHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   airDot: { width: 10, height: 10, borderRadius: 5 },
