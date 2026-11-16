@@ -30,3 +30,13 @@ describe('tabela wydatków', () => {
     expect(heat(0, 100)).toBe(0);
   });
 });
+
+describe('średnia z zerami (zapasy kupione w przód)', () => {
+  const sweets = (date: string, price: number) => E(date, price, { receiptItems: [{ name: 'Czekolada', price, quantity: 1, unitPrice: price, foodSubcat: 'słodycze' }] } as any);
+  test('miesiąc bez zakupów liczy się jako 0, miesiące przed danymi nie', () => {
+    const t = buildExpenseTable([sweets('2026-08-05', 90), sweets('2026-10-05', 30), sweets('2026-11-05', 999)], 6, NOW);
+    const s = t.groups.find((g) => g.key === 'food')!.rows.find((r) => r.label === 'Słodycze')!;
+    expect(s.values).toEqual([0, 0, 90, 0, 30, 999]);
+    expect(s.avg).toBe(40); // (90 + 0 + 30) / 3 — czerwiec, lipiec pominięte, listopad niepełny
+  });
+});

@@ -59,3 +59,13 @@ describe('przelew własny w filtrach', () => {
     expect(summarize(filterTransactions(list, EMPTY_FILTER))).toEqual({ count: 4, out: 50, in: 100 });
   });
 });
+
+describe('zakres dat z kalendarza', () => {
+  const { nextRange } = require('@/utils/dateRange');
+  it('1. stuknięcie = dzień, 2. = zakres (w dowolnej kolejności), 3. = nowy', () => {
+    expect(nextRange(undefined, undefined, '2026-11-10')).toEqual({ from: '2026-11-10', to: '2026-11-10' });
+    expect(nextRange('2026-11-10', '2026-11-10', '2026-11-20')).toEqual({ from: '2026-11-10', to: '2026-11-20' });
+    expect(nextRange('2026-11-10', '2026-11-10', '2026-11-01')).toEqual({ from: '2026-11-01', to: '2026-11-10' });
+    expect(nextRange('2026-11-01', '2026-11-10', '2026-11-05')).toEqual({ from: '2026-11-05', to: '2026-11-05' });
+  });
+});

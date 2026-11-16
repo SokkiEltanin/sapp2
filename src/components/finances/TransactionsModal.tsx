@@ -13,7 +13,8 @@ import { haptic } from '@/utils/haptics';
 import { pendingFxOf, formatFx } from '@/utils/fx';
 import { filterTransactions, summarize, activeFilterCount, datePreset, EMPTY_FILTER, type TxFilter, type TxKind, type TxBucket } from '@/utils/txFilter';
 import { EXPENSE_CATEGORIES } from '@/utils/expenseCategory';
-import { toDisplayDate, parseDisplayDate, maskDateDigits } from '@/utils/dateInput';
+import { toDisplayDate } from '@/utils/dateInput';
+import RangeCalendar from '@/components/design/RangeCalendar';
 import { zl } from '@/utils/money';
 
 // Pełna lista transakcji (Faza 2.4, 2026-11-01) — "Ostatnie transakcje" na ekranie
@@ -48,8 +49,6 @@ export default function TransactionsModal({
   const s = makeS();
   const [f, setF] = useState<TxFilter>(EMPTY_FILTER);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [fromText, setFromText] = useState('');
-  const [toText, setToText] = useState('');
   const set = (patch: Partial<TxFilter>) => setF((cur) => ({ ...cur, ...patch }));
 
   const hits = useMemo(() => filterTransactions(expenses, f), [expenses, f]);
@@ -74,13 +73,9 @@ export default function TransactionsModal({
   const nActive = activeFilterCount(f);
   const narrowed = nActive > 0 || f.query.trim().length > 0;
 
-  const setDates = (from?: string, to?: string) => {
-    set({ from, to });
-    setFromText(from ? toDisplayDate(from) : '');
-    setToText(to ? toDisplayDate(to) : '');
-  };
+  const setDates = (from?: string, to?: string) => set({ from, to });
   const presetOn = (p: typeof PRESETS[number]['p']) => { const r = datePreset(p); return f.from === r.from && f.to === r.to; };
-  const clearAll = () => { haptic.tap(); setF({ ...EMPTY_FILTER, query: f.query }); setFromText(''); setToText(''); };
+  const clearAll = () => { haptic.tap(); setF({ ...EMPTY_FILTER, query: f.query }); };
 
   const header = (
     <>
@@ -144,12 +139,18 @@ export default function TransactionsModal({
               );
             })}
           </ScrollView>
+          {/* Kalendarz zamiast wpisywania (2026-11-16, user: "wpisałem i nic nie zrobiło"):
+              1. stuknięcie = ten dzień, 2. = koniec zakresu; filtruje od razu. */}
           <View style={[s.fRow, { marginTop: spacing[2] }]}>
-            <TextInput value={fromText} onChangeText={(v) => { const t = maskDateDigits(v); setFromText(t); const iso = parseDisplayDate(t); set({ from: iso ?? undefined }); }}
-              style={s.fInput} placeholder="od DD.MM.RRRR" placeholderTextColor={colors.text.muted} keyboardType="number-pad" />
-            <Text style={s.dash}>–</Text>
-            <TextInput value={toText} onChangeText={(v) => { const t = maskDateDigits(v); setToText(t); const iso = parseDisplayDate(t); set({ to: iso ?? undefined }); }}
-              style={s.fInput} placeholder="do DD.MM.RRRR" placeholderTextColor={colors.text.muted} keyboardType="number-pad" />
+            <Text style={s.rangeTxt}>{f.from ? (f.to && f.to !== f.from ? `${toDisplayDate(f.from)} – ${toDisplayDate(f.to)}` : toDisplayDate(f.from)) : 'Cały okres'}</Text>
+            {(f.from || f.to) && (
+              <TouchableOpacity onPress={() => { haptic.tap(); setDates(); }} hitSlop={8}>
+                <Text style={s.rangeClear}>wyczyść</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <View style={s.cal}>
+            <RangeCalendar key={f.to ?? ''} from={f.from} to={f.to} onChange={(from, to) => setDates(from, to)} />
           </View>
 
           <Text style={[s.fLabel, s.fGap]}>Rodzaj</Text>
@@ -252,6 +253,9 @@ const makeS = themedStyles((c) => StyleSheet.create({
   fLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
   fGap: { marginTop: spacing[3] },
   fRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[2] },
+  rangeTxt: { flex: 1, fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
+  rangeClear: { fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.text.muted },
+  cal: { marginTop: spacing[2], padding: spacing[2], borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
   fInput: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: c.border.default, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: 7, fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary },
   dash: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.muted },
   chips: { gap: spacing[2], paddingTop: spacing[2] },

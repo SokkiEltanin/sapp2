@@ -138,7 +138,7 @@ export default function ExpenseTableScreen() {
             </View>
           </ScrollView>
         </View>
-        <Text style={s.note}>Kwoty w zł. Mocniejszy kolor = drożej niż w innych miesiącach tego wiersza. Stuknij grupę, żeby zwinąć; komórkę — żeby zobaczyć wydatki. Średnia liczy pełne miesiące z wydatkami.</Text>
+        <Text style={s.note}>Kwoty w zł. Mocniejszy kolor = drożej niż w innych miesiącach tego wiersza. Stuknij grupę, żeby zwinąć; komórkę — żeby zobaczyć wydatki. Średnia liczy wszystkie pełne miesiące od początku danych — także te z zerem (np. gdy jecie zapasy kupione wcześniej).</Text>
       </ScrollView>
 
       <DrillSheet drill={drill} onClose={() => setDrill(null)} expenses={expenses} />

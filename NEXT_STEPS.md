@@ -41,6 +41,12 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-16 — Średnia w Tabeli z zerami + kalendarz zakresu w Transakcjach**:
+- Średnia w `utils/expenseTable.ts` = pełne miesiące od pierwszego z danymi, RAZEM z zerami
+  (zapasy kupione w przód). Filtr dat: `components/design/RangeCalendar.tsx` + `utils/dateRange.ts`
+  (1. stuknięcie = dzień, 2. = zakres; filtruje od razu) zamiast wpisywania DD.MM.RRRR.
+- [ ] Sprawdzić na telefonie.
+
 **2026-11-16 — Przelew własny + Prąd/Internet z tagów**:
 - [ ] Sprawdzić w Tabeli wydatków, że PGE/prąd i Play/internet są w Stałych → Prąd/Internet.
 - [ ] Stare przelewy własne z importu sapp NIE mają flagi (kategoria nie została zachowana) —
