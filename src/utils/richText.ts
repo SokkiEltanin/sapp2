@@ -3,11 +3,16 @@
 // — szukanie, synchronizacja, podgląd działają jak dotąd), style to "odcinki" (runs)
 // pokrywające tekst po kolei: suma `n` = długość tekstu. Czyste funkcje —
 // testy __tests__/richText.test.ts. Edytor: app/note.tsx, podgląd: NotePreview.
-export type TextSize = 's' | 'm' | 'l' | 'xl';
+// 2026-11-16 (user: "wielkość zmienną"): oprócz presetów dowolny rozmiar w px (10–48).
+export type TextSize = 's' | 'm' | 'l' | 'xl' | number;
 export interface RunStyle { b?: boolean; i?: boolean; u?: boolean; c?: string; h?: string; z?: TextSize }
 export interface TextRun extends RunStyle { n: number }
 
-export const SIZE_PX: Record<TextSize, number> = { s: 13, m: 16, l: 21, xl: 28 };
+export const SIZE_PX: Record<'s' | 'm' | 'l' | 'xl', number> = { s: 13, m: 16, l: 21, xl: 28 };
+export const SIZE_MIN = 10, SIZE_MAX = 48;
+/** Rozmiar w px — preset albo liczba (przycięta do 10–48). */
+export const sizePx = (z: TextSize | undefined): number =>
+  z == null ? SIZE_PX.m : typeof z === 'number' ? Math.min(SIZE_MAX, Math.max(SIZE_MIN, Math.round(z))) : SIZE_PX[z] ?? SIZE_PX.m;
 const KEYS: (keyof RunStyle)[] = ['b', 'i', 'u', 'c', 'h', 'z'];
 
 export function clean(st: RunStyle): RunStyle {
@@ -17,7 +22,7 @@ export function clean(st: RunStyle): RunStyle {
   if (st.u) out.u = true;
   if (st.c) out.c = st.c;
   if (st.h) out.h = st.h;
-  if (st.z && st.z !== 'm') out.z = st.z;
+  if (st.z != null && sizePx(st.z) !== SIZE_PX.m) out.z = typeof st.z === 'number' ? sizePx(st.z) : st.z;
   return out;
 }
 const same = (a: RunStyle, b: RunStyle) => KEYS.every((k) => (a[k] ?? undefined) === (b[k] ?? undefined));

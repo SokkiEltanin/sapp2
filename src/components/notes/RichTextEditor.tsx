@@ -2,11 +2,11 @@ import { useMemo, useRef, useState, type ReactNode } from 'react';
 import ColorPicker from './ColorPicker';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform, ScrollView } from 'react-native';
 import { runTextStyle } from './richStyle';
-import { Bold, Italic, Underline, Type, Palette, Highlighter, RemoveFormatting } from 'lucide-react-native';
+import { Bold, Italic, Underline, Type, Palette, Highlighter, RemoveFormatting, Minus, Plus } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import {
-  applyStyle, onTextEdit, styleAt, allHave, segments, fitRuns, clean, SIZE_PX,
+  applyStyle, onTextEdit, styleAt, allHave, segments, fitRuns, clean, SIZE_PX, sizePx, SIZE_MIN, SIZE_MAX,
   type TextRun, type RunStyle, type TextSize,
 } from '@/utils/richText';
 import { haptic } from '@/utils/haptics';
@@ -43,10 +43,15 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus, page, 
   const [pending, setPending] = useState<{ at: number; st: RunStyle } | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
   const [fieldH, setFieldH] = useState(0);
+  const trackW = useRef(1);
+  const [dragPx, setDragPx] = useState<number | null>(null);
+  const pxAt = (x: number) => Math.round(SIZE_MIN + Math.min(1, Math.max(0, x / trackW.current)) * (SIZE_MAX - SIZE_MIN));
 
   const hasSel = selState.end > selState.start;
   const cur: RunStyle = hasSel ? styleAt(fitted, selState.start + 1) : pending && pending.at === selState.start ? pending.st : styleAt(fitted, selState.start);
 
+  const curPx = sizePx(cur.z);
+  const shownPx = dragPx ?? curPx;
   const apply = (patch: Partial<RunStyle>) => {
     haptic.tap();
     const { start, end } = sel.current;
@@ -59,11 +64,20 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus, page, 
     apply({ [k]: !on });
   };
 
+  // Miejsce edycji liczone z RÓŻNICY tekstów, nie z kursora (2026-11-16, user: "jak
+  // zaznaczone np. podkreślenie, to ponowne kliknięcie ma wyłączać"): na Androidzie
+  // zmiana zaznaczenia przychodzi PRZED zmianą tekstu, więc kursor był już dalej,
+  // styl "na zapas" (np. wyłączone podkreślenie) się gubił i litery wracały podkreślone.
   const handleText = (t: string) => {
+    let at = 0;
+    const max = Math.min(text.length, t.length);
+    while (at < max && text[at] === t[at]) at++;
     const { start } = sel.current;
-    const typing = pending && pending.at === start ? pending.st : styleAt(fitted, start);
+    const live = pending && (pending.at === at || pending.at === start) ? pending : null;
+    const typing = live ? live.st : styleAt(fitted, at);
     const next = onTextEdit(text, t, fitted, typing);
-    if (pending) setPending({ at: start + Math.max(0, t.length - text.length), st: pending.st });
+    if (live) setPending({ at: at + Math.max(0, t.length - text.length), st: live.st });
+    else if (pending) setPending(null);
     onChange(t, next);
   };
 
@@ -94,12 +108,41 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus, page, 
       {page ? page.wrap(field) : field}
 
       {toolbar && panel === 'size' && (
-        <View style={s.panel}>
-          {SIZES.map(([z, label]) => (
-            <TouchableOpacity key={z} style={[s.sizeBtn, (cur.z ?? 'm') === z && s.on]} onPress={() => apply({ z })}>
-              <Text style={[s.sizeLabel, { fontSize: Math.min(SIZE_PX[z], 20) }, (cur.z ?? 'm') === z && s.onLabel]}>{label}</Text>
+        <View style={s.panelCol}>
+          {/* Płynny rozmiar (2026-11-16): suwak 10–48 px + −/+ co 1 px, presety niżej. */}
+          <View style={s.sizeRow}>
+            <TouchableOpacity style={s.stepBtn} onPress={() => apply({ z: Math.max(SIZE_MIN, curPx - 1) })} accessibilityLabel="Mniejszy tekst">
+              <Minus size={15} color={colors.text.primary} />
             </TouchableOpacity>
-          ))}
+            <View
+              style={s.sizeTrack}
+              onLayout={(e) => { trackW.current = e.nativeEvent.layout.width; }}
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => true}
+              onResponderTerminationRequest={() => false}
+              onResponderGrant={(e) => setDragPx(pxAt(e.nativeEvent.locationX))}
+              onResponderMove={(e) => setDragPx(pxAt(e.nativeEvent.locationX))}
+              onResponderRelease={(e) => { const z = pxAt(e.nativeEvent.locationX); setDragPx(null); apply({ z }); }}
+            >
+              <View style={s.sizeRail} pointerEvents="none" />
+              <View style={[s.sizeFill, { width: `${((shownPx - SIZE_MIN) / (SIZE_MAX - SIZE_MIN)) * 100}%` }]} pointerEvents="none" />
+              <View style={[s.sizeKnob, { left: `${((shownPx - SIZE_MIN) / (SIZE_MAX - SIZE_MIN)) * 100}%` }]} pointerEvents="none" />
+            </View>
+            <TouchableOpacity style={s.stepBtn} onPress={() => apply({ z: Math.min(SIZE_MAX, curPx + 1) })} accessibilityLabel="Większy tekst">
+              <Plus size={15} color={colors.text.primary} />
+            </TouchableOpacity>
+            <Text style={s.sizeVal}>{shownPx}</Text>
+          </View>
+          <View style={s.presetRow}>
+            {SIZES.map(([z, label]) => {
+              const on = curPx === SIZE_PX[z as 's'];
+              return (
+                <TouchableOpacity key={String(z)} style={[s.sizeBtn, on && s.on]} onPress={() => apply({ z })}>
+                  <Text style={[s.sizeLabel, { fontSize: Math.min(SIZE_PX[z as 's'], 20) }, on && s.onLabel]}>{label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
       )}
       {toolbar && panel === 'color' && (
@@ -124,7 +167,7 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus, page, 
         <View style={s.sep} />
         <TouchableOpacity style={[s.tool, panel === 'size' && s.toolOpen]} onPress={() => { haptic.tap(); setPanel(panel === 'size' ? null : 'size'); }} accessibilityLabel="Wielkość tekstu">
           <Type size={17} color={colors.text.primary} />
-          {cur.z && cur.z !== 'm' ? <Text style={s.badge}>{cur.z.toUpperCase()}</Text> : null}
+          {curPx !== SIZE_PX.m ? <Text style={s.badge}>{curPx}</Text> : null}
         </TouchableOpacity>
         <TouchableOpacity style={[s.tool, panel === 'color' && s.toolOpen]} onPress={() => { haptic.tap(); setPanel(panel === 'color' ? null : 'color'); }} accessibilityLabel="Kolor tekstu">
           <Palette size={17} color={cur.c ?? colors.text.primary} />
@@ -159,6 +202,14 @@ const makeS = themedStyles((c) => StyleSheet.create({
   hint: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginLeft: spacing[2] },
   panel: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderTopWidth: 1, borderTopColor: c.ui.line },
   panelCol: { paddingHorizontal: spacing[3], paddingVertical: spacing[2], gap: spacing[2], borderTopWidth: 1, borderTopColor: c.ui.line },
+  sizeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  stepBtn: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: c.border.default, alignItems: 'center', justifyContent: 'center' },
+  sizeTrack: { flex: 1, height: 34, justifyContent: 'center' },
+  sizeRail: { position: 'absolute', left: 0, right: 0, height: 6, borderRadius: 3, backgroundColor: c.ui.in2 },
+  sizeFill: { position: 'absolute', left: 0, height: 6, borderRadius: 3, backgroundColor: c.text.secondary },
+  sizeKnob: { position: 'absolute', width: 22, height: 22, marginLeft: -11, borderRadius: 11, backgroundColor: c.text.bright },
+  sizeVal: { width: 28, textAlign: 'right', fontSize: 14, fontFamily: 'Inter_900Black', color: c.text.bright, fontVariant: ['tabular-nums'] },
+  presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   sizeBtn: { paddingHorizontal: spacing[3], height: 36, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, justifyContent: 'center' },
   sizeLabel: { fontFamily: 'Inter_700Bold', color: c.text.primary },
   swatch: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: 'transparent' },

@@ -41,6 +41,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-16 — notatki: B/I/U wyłącza się ponownym kliknięciem; płynny rozmiar 10–48 px**
+(miejsce edycji z różnicy tekstów, nie z kursora — Android wysyła zaznaczenie przed tekstem).
+- [ ] Na telefonie: podkreślenie → pisz → U jeszcze raz → dalsze litery bez podkreślenia.
+- [ ] Suwak rozmiaru palcem.
+
 **2026-11-16 — Daily: Miesiąc do dziś** (vs te same dni 3 poprz. mies., prąd sezonowo):
 - [ ] Na telefonie z prawdziwymi danymi: czy % mają sens; czy rachunki za prąd są rozpoznane
   (nazwa: PGE/Tauron/Energa/Enea/„prąd” — inaczej dopisać słowo w recurringBills.ts).

@@ -41,3 +41,19 @@ describe('formatowanie notatki', () => {
     expect(normalize([{ n: 0, b: true }, { n: 2, z: 'm' }, { n: 1 }])).toEqual([{ n: 3 }]);
   });
 });
+
+import { sizePx, clean as cleanRun } from '../src/utils/richText';
+describe('płynny rozmiar tekstu', () => {
+  it('preset albo px, przycięte do 10–48', () => {
+    expect(sizePx(undefined)).toBe(16);
+    expect(sizePx('xl')).toBe(28);
+    expect(sizePx(19)).toBe(19);
+    expect(sizePx(4)).toBe(10);
+    expect(sizePx(99)).toBe(48);
+  });
+  it('16 px = normalny, nie zapisuje się w odcinku', () => {
+    expect(cleanRun({ z: 16 })).toEqual({});
+    expect(cleanRun({ z: 'm' })).toEqual({});
+    expect(cleanRun({ z: 22.4 })).toEqual({ z: 22 });
+  });
+});
