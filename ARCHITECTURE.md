@@ -558,6 +558,16 @@ NIEINTERAKTYWNE (brak `onPress` → `Tile` renderuje się jako plain `View`, nie
 
 ## DAILY [GE]
 
+**Miesiąc do dziś (2026-11-16)** — kafel pod planem dnia (plan dostał mniej miejsca):
+Wydatki / Jedzenie / Słodycze w dniach 1–N bieżącego miesiąca vs średnia z TYCH SAMYCH
+dni 3 poprzednich miesięcy (tylko miesiące z jakimikolwiek danymi), pasek + kreska
+średniej + % (więcej = pomarańczowy, mniej = zielony, ±5% = „jak zwykle”); Prąd = 12
+słupków + „zima ±X%”. Tap → `MonthPaceSheet` (Miesiąc: 6 mies. w tym samym oknie dla
+wszystkich metryk z danymi; Rok: rok do dziś vs ten sam okres rok temu; Prąd 12 mies.,
+zima lis–lut vs lato maj–sie, ten miesiąc rok temu). Logika `utils/monthPace.ts`
+(`monthPace`, `windowSum`, `yearPace`, `monthlySeries`, `seasonCompare`, klucze jak
+budżety + `fixed:<tag>`), UI `components/daily/MonthPace.tsx`.
+
 **Przebudowany na nowy system komponentów (Faza 3.3, 2026-11-01)** — układ 1:1 z
 `design/app-design.html`'s `#daily` (4 kolumny, `grid-template-rows: auto auto
 auto 1fr auto`), NIEprzewijalny (był jedynym `ScrollView`-owym głównym ekranem w

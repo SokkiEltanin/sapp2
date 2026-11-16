@@ -41,6 +41,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-16 — Daily: Miesiąc do dziś** (vs te same dni 3 poprz. mies., prąd sezonowo):
+- [ ] Na telefonie z prawdziwymi danymi: czy % mają sens; czy rachunki za prąd są rozpoznane
+  (nazwa: PGE/Tauron/Energa/Enea/„prąd” — inaczej dopisać słowo w recurringBills.ts).
+- [ ] Czy plan dnia nadal mieści potrzebne wiersze po podziale.
+
 **2026-11-16 — kamienie milowe zadań + motywacja** (lista, szczegóły, widget, Daily,
 Dashboard, szukanie, zegarek):
 - [ ] Widget: druga linia „› następny krok” mieści się? tap w wiersz otwiera szczegóły?

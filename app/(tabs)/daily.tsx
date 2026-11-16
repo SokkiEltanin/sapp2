@@ -4,6 +4,8 @@ import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Screen, Row, Tile, Cap, StackBar, FitList } from '@/ui/layout';
 import { router } from 'expo-router';
 import DayPlanTagsSheet from '@/components/daily/DayPlanTagsSheet';
+import MonthPaceSheet, { MonthPaceRows, windowLabel } from '@/components/daily/MonthPace';
+import { useExpensesStore } from '@/store/expensesStore';
 import { useCalendarStore } from '@/store/calendarStore';
 import { useDayPlanStore } from '@/store/dayPlanStore';
 import { useWorkStore } from '@/store/workStore';
@@ -46,8 +48,12 @@ export default function DailyScreen() {
   useHealthSync();
   const [moodOpen, setMoodOpen] = useState(false);
   const [sleepOpen, setSleepOpen] = useState(false);
+  const [paceOpen, setPaceOpen] = useState(false);
+  const expenses = useExpensesStore((st) => st.expenses);
   const [bodyOpen, setBodyOpen] = useState(false);
   const today = todayISO();
+  // Okno "1–N" liczone raz na dzień (nie przy każdym renderze).
+  const paceNow = useMemo(() => new Date(), [today]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dayLabel = new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
   const sleep = useMemo(() => (health && health.date === today ? sleepSummary(health) : null), [health, today]);
@@ -177,6 +183,16 @@ export default function DailyScreen() {
         </Tile>
       </Row>
 
+      {/* MIESIĄC DO DZIŚ (2026-11-16, user: "duży kafelek podzielić... progress miesiąca,
+          porównuje pierwsze dni ostatnich miesięcy do pierwszych dni tego... prąd").
+          components/daily/MonthPace.tsx, logika utils/monthPace.ts. */}
+      <Row>
+        <Tile span={4} onPress={() => setPaceOpen(true)}>
+          <Cap l={`Miesiąc · ${windowLabel(paceNow)}`} r="vs te same dni" />
+          <MonthPaceRows expenses={expenses} now={paceNow} />
+        </Tile>
+      </Row>
+
       <Row>
         <Tile span={2} onPress={() => setBodyOpen(true)}>
           <Cap l="Kroki" r="więcej" />
@@ -209,6 +225,9 @@ export default function DailyScreen() {
         </Tile>
       </Row>
 
+      <LazyMount visible={paceOpen}>
+        <MonthPaceSheet visible={paceOpen} onClose={() => setPaceOpen(false)} expenses={expenses} />
+      </LazyMount>
       <LazyMount visible={sleepOpen}>
         <SleepSheet visible={sleepOpen} onClose={() => setSleepOpen(false)} />
       </LazyMount>
