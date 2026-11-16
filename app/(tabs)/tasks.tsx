@@ -17,6 +17,7 @@ import { eventCoversDay, type Task } from '@/types/calendar';
 import { useGoogleCalendarSync } from '@/hooks/useGoogleCalendarSync';
 import WeekMonthCalendar from '@/components/tasks/WeekMonthCalendar';
 import TaskRow from '@/components/tasks/TaskRow';
+import { tagColorMap } from '@/utils/taskTags';
 import AddTaskCard from '@/components/tasks/AddTaskCard';
 import { useQuickAdd, takeQuickAdd } from '@/services/quickAdd';
 import DayDetailModal from '@/components/tasks/DayDetailModal';
@@ -110,6 +111,7 @@ export default function TasksScreen() {
 
   const today = todayISO();
   const allEvents = useMemo(() => [...events, ...gcalEvents], [events, gcalEvents]);
+  const tagColors = useMemo(() => tagColorMap(allEvents), [allEvents]);
 
   const detailDateEvents = useMemo(
     () => (detailDate
@@ -198,8 +200,8 @@ export default function TasksScreen() {
         <Tile span={4} style={s.listTile}>
           <FitList
             data={activeList}
-            minRowH={56}
-            maxRowH={56}
+            minRowH={62}
+            maxRowH={66}
             renderItem={(t, i) => (
               <TaskRow
                 key={t.id}
@@ -208,6 +210,7 @@ export default function TasksScreen() {
                 onToggleDone={handleToggleDone}
                 onRequestDelete={setDeletingTask}
                 onEdit={setEditingTask}
+                tagColors={tagColors}
               />
             )}
             emptyText="Pusto"

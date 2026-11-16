@@ -41,6 +41,10 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-16 — zadania jako kafelki**: pasek i pigułki tagów w kolorze z kalendarza
+(`utils/taskTags.ts`: [PUR] w kalendarzu niebieskie → tag PUR niebieski), termin z ikoną.
+- [ ] Na telefonie: czy kolory tagów zgadzają się z kalendarzem.
+
 **2026-11-15 — kreator kolorów ze spektrum** (notatki → kolor → Kreator):
 - [ ] Na telefonie: przeciąganie po spektrum i suwaku nasycenia (S-Pen i palec).
 
