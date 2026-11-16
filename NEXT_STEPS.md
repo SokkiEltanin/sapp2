@@ -41,6 +41,10 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-16 — Ciekawostki 2.0** (70 faktów, 10 na dziedzinę ≈ 2,5 mies. przy 1/dzień):
+- [ ] Sprawdzić, że telefon i komputer pokazują tę samą; „Znam to” na jednym zmienia na drugim.
+- [ ] Dopisać kolejną paczkę faktów przed wyczerpaniem (nowe id; dziedziny, które user lubi najbardziej).
+
 **2026-11-16 — zegarek: zadania z krokami + kalendarz, bez wydatków; historia/kosz zadań**:
 - [ ] Zainstalować nowy `sapp2-wear-N.apk` (MAINTENANCE §8) + nowy APK telefonu.
 - [ ] Zegarek: krok stuknięciem → po otwarciu appki na telefonie krok odhaczony.

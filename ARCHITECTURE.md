@@ -1854,6 +1854,23 @@ podładować; paski naładowania zamiast Ciekawostki na Dashboardzie”.
   (telefon pisze przy zmianie / co 10 min, web czyta) → 3 paski: Komputer, Telefon, Zegarek. Ciekawostki → `utils/facts.ts`, kafel w Daily zamiast planu dnia
   (plan dnia, DayPlanTagsSheet, dayPlanStore, utils/dayPlan USUNIĘTE).
 
+## CIEKAWOSTKI 2.0 (2026-11-16)
+
+User: „temat max 3 słowa, treść zachęcająca jako skrót, po kliknięciu rozszerzone info
+oparte na badaniach i liczbach; znam to — nie pokazuj; każda tylko raz; ta sama na komp
+i tel”. Dziedziny usera: zdrowie, medycyna, materiały, kosmos, świat wokół, lifehacki, tech.
+- Treść: `utils/factsData.ts` (`FACT_LIST`: id, cat, topic ≤3 słowa, teaser, nums, body[],
+  src). Dopisując — NOWE id, nigdy nie zmieniaj starych (są w historii na obu urządzeniach).
+  Test `__tests__/facts.test.ts` pilnuje limitu słów, liczb, akapitów i unikalnych id.
+- Logika: `utils/facts.ts` — jedna na dzień, wybór DETERMINISTYCZNY (`FACT_ORDER`
+  przeplata dziedziny; pierwsza nieprzeczytana i nie „znam”), `rollFact`, `mergeFacts`
+  (suma seen/known; bieżąca, którą druga strona już widziała, ustępuje; `round` = „Od nowa”).
+- Stan: `store/factsStore.ts` (`facts-v1`) + doc `facts` w cloudSync (piszą OBA urządzenia,
+  `set` = merge). Backup: rehydrate w cloudBackup.
+- UI: kafel w Daily (temat, zajawka, „Znam to”; losowanie po hydracji persist) →
+  `components/daily/FactSheet.tsx` (liczby jako kafelki, wyjaśnienie, źródło, dziedziny
+  do wyłączenia, lista przeczytanych do ponownego otwarcia, „Od nowa” po wszystkich).
+
 ## TAGI ZE STAREJ APPKI (2026-11-16)
 
 Import ze sapp brał pierwszy tag pozycji jako `foodSubcat` → duplikaty kategorii

@@ -14,6 +14,8 @@ import { useVehiclesStore } from '@/store/vehiclesStore';
 import { useWorkStore } from '@/store/workStore';
 import { useHealthStore } from '@/store/healthStore';
 import { useDeviceBatteryStore } from '@/store/deviceBatteryStore';
+import { useFactsStore } from '@/store/factsStore';
+import { todayISO } from '@/utils/date';
 import { useBalanceStore } from '@/store/balanceStore';
 import { useBudgetsStore } from '@/store/budgetsStore';
 import { useCategoryRulesStore } from '@/store/categoryRulesStore';
@@ -147,6 +149,16 @@ const docBindings: DocBinding[] = [
     stamp: () => 0,
     readOnly: () => Platform.OS === 'web',
     keepWhenEmpty: true,
+  },
+  {
+    // Ciekawostki (2026-11-16): ta sama na telefonie i komputerze; piszą oba, `merge`
+    // sumuje przeczytane/"znam" (utils/facts.ts mergeFacts), więc nic się nie powtórzy.
+    name: 'facts',
+    stores: [S(useFactsStore)],
+    get: () => { const f = useFactsStore.getState(); return { cur: f.cur, seen: f.seen, known: f.known, off: f.off, round: f.round, t: f.t }; },
+    set: (v) => useFactsStore.getState().merge(v, todayISO()),
+    isEmpty: (v) => !v.cur && !(v.seen ?? []).length && !(v.known ?? []).length,
+    stamp: () => useFactsStore.getState().t,
   },
   {
     // Baterie telefonu i zegarka (2026-11-16): telefon pisze, komputer czyta (kafel Baterie).

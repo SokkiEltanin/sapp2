@@ -1,15 +1,18 @@
 import FitText from '@/ui/FitText';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { Screen, Row, Tile, Cap, StackBar, FitList } from '@/ui/layout';
 import { router } from 'expo-router';
 import MonthPaceSheet, { MonthPaceRows, windowLabel } from '@/components/daily/MonthPace';
 import { useExpensesStore } from '@/store/expensesStore';
-import { FACTS, factOfDay } from '@/utils/facts';
+import { FACT_BY_ID, CAT_LABEL } from '@/utils/facts';
+import { FACT_LIST } from '@/utils/factsData';
+import { useFactsStore } from '@/store/factsStore';
+import FactSheet from '@/components/daily/FactSheet';
 import { haptic } from '@/utils/haptics';
-import { Lightbulb } from 'lucide-react-native';
-import { C, T, S } from '@/ui/theme';
+import { Check } from 'lucide-react-native';
+import { C, T, S, R } from '@/ui/theme';
 import MoodModal from '@/components/mood/MoodModal';
 import SleepSheet from '@/components/health/SleepSheet';
 import BodySheet from '@/components/health/BodySheet';
@@ -46,12 +49,20 @@ export default function DailyScreen() {
   const [moodOpen, setMoodOpen] = useState(false);
   const [sleepOpen, setSleepOpen] = useState(false);
   const [paceOpen, setPaceOpen] = useState(false);
-  const [factIdx, setFactIdx] = useState(() => factOfDay(new Date()));
+  const [factOpen, setFactOpen] = useState(false);
+  const fact = useFactsStore((st) => (st.cur ? FACT_BY_ID[st.cur.id] ?? null : null));
+  const factSeen = useFactsStore((st) => st.seen.length);
   const expenses = useExpensesStore((st) => st.expenses);
   const [bodyOpen, setBodyOpen] = useState(false);
   const today = todayISO();
   // Okno "1–N" liczone raz na dzień (nie przy każdym renderze).
   const paceNow = useMemo(() => new Date(), [today]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Ciekawostka dnia — dopiero po wczytaniu stanu z pamięci (inaczej wylosowałaby od zera).
+  useEffect(() => {
+    const go = () => useFactsStore.getState().ensureDay(today);
+    if (useFactsStore.persist.hasHydrated()) go();
+    return useFactsStore.persist.onFinishHydration(go);
+  }, [today]);
 
   const dayLabel = new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
   const sleep = useMemo(() => (health && health.date === today ? sleepSummary(health) : null), [health, today]);
@@ -123,17 +134,25 @@ export default function DailyScreen() {
         </Tile>
       </Row>
 
-      {/* CIEKAWOSTKA (2026-11-16, user: "ciekawostkę przeniesiemy zamiast DZIŚ —
-          tej górnej części"): plan dnia był dublem "Najbliższych eventów" z
-          Dashboardu; na Dashboardzie w miejscu ciekawostki są baterie. Tap = następna. */}
+      {/* CIEKAWOSTKA (2026-11-16; 2.0: "temat max 3 słowa, treść zachęcająca jako skrót,
+          po kliknięciu rozszerzone info", "znam to", "każda tylko raz", ta sama na tel i komp).
+          Jedna na dzień — utils/facts.ts + store/factsStore.ts; tap → FactSheet. */}
       <Row flex={1}>
-        <Tile span={4} onPress={() => { haptic.tap(); setFactIdx((i) => (i + 1) % FACTS.length); }} style={st.factTile}>
-          <Cap l="Ciekawostka" r={`${factIdx + 1}/${FACTS.length}`} />
+        <Tile span={4} onPress={() => { haptic.tap(); setFactOpen(true); }} style={st.factTile}>
+          <Cap l={fact ? `Ciekawostka · ${CAT_LABEL[fact.cat]}` : 'Ciekawostka'} r={`${factSeen}/${FACT_LIST.length}`} />
           <View style={st.factBody}>
-            <Lightbulb size={22} color={C.mut} />
-            <FitText style={st.factText} numberOfLines={6} minimumFontScale={0.7}>{FACTS[factIdx]}</FitText>
+            <FitText style={st.factTopic} numberOfLines={2} minimumFontScale={0.7}>{fact ? fact.topic : 'Wszystko przeczytane'}</FitText>
+            <Text style={st.factTeaser} numberOfLines={5}>{fact ? fact.teaser : 'Dotknij, żeby wybrać inne dziedziny albo zacząć od nowa.'}</Text>
           </View>
-          <Text style={T.small}>dotknij, by zobaczyć następną</Text>
+          <View style={st.factFoot}>
+            <Text style={[T.small, { flex: 1 }]}>{fact ? 'dotknij, by czytać dalej' : ''}</Text>
+            {fact && (
+              <TouchableOpacity onPress={() => { haptic.tap(); useFactsStore.getState().knowIt(today); }} style={st.factKnow} hitSlop={8} accessibilityLabel="Znam to — pokaż następną">
+                <Check size={13} color={C.mut} />
+                <Text style={st.factKnowTxt}>Znam to</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </Tile>
       </Row>
 
@@ -179,6 +198,9 @@ export default function DailyScreen() {
         </Tile>
       </Row>
 
+      <LazyMount visible={factOpen}>
+        <FactSheet visible={factOpen} onClose={() => setFactOpen(false)} />
+      </LazyMount>
       <LazyMount visible={paceOpen}>
         <MonthPaceSheet visible={paceOpen} onClose={() => setPaceOpen(false)} expenses={expenses} />
       </LazyMount>
@@ -197,8 +219,12 @@ export default function DailyScreen() {
 
 const st = StyleSheet.create({
   factTile: { gap: 8 },
-  factBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 4 },
-  factText: { flex: 1, fontSize: 20, lineHeight: 28, fontFamily: 'Inter_800ExtraBold', color: C.hi },
+  factBody: { flex: 1, justifyContent: 'center', gap: 10, paddingHorizontal: 4 },
+  factTopic: { fontSize: 30, lineHeight: 35, fontFamily: 'Inter_900Black', letterSpacing: -0.5, color: C.hi },
+  factTeaser: { fontSize: 15, lineHeight: 22, fontFamily: 'Inter_600SemiBold', color: C.txt },
+  factFoot: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  factKnow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: R.chip, borderWidth: 1, borderColor: C.line },
+  factKnowTxt: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: C.mut },
   sleepTop: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 },
   sleepWhen: { textAlign: 'right', marginBottom: 4 },
   phaseLegend: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 4, marginTop: 8 },
