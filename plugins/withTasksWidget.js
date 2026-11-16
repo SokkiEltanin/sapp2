@@ -77,6 +77,7 @@ class ${PROVIDER_CLASS} : AppWidgetProvider() {
     private val DOT_IDS = intArrayOf(${ids('dot')})
     private val TITLE_IDS = intArrayOf(${ids('title')})
     private val SUB_IDS = intArrayOf(${ids('sub')})
+    private val NEXT_IDS = intArrayOf(${ids('next')})
     private val CHECK_IDS = intArrayOf(${ids('check')})
 
     fun prefs(context: Context): SharedPreferences =
@@ -105,6 +106,7 @@ class ${PROVIDER_CLASS} : AppWidgetProvider() {
       for (i in 0 until ROWS) {
         views.setTextViewTextSize(TITLE_IDS[i], TypedValue.COMPLEX_UNIT_SP, 13f * mult)
         views.setTextViewTextSize(SUB_IDS[i], TypedValue.COMPLEX_UNIT_SP, 10f * mult)
+        views.setTextViewTextSize(NEXT_IDS[i], TypedValue.COMPLEX_UNIT_SP, 10.5f * mult)
       }
     }
 
@@ -179,6 +181,10 @@ class ${PROVIDER_CLASS} : AppWidgetProvider() {
         views.setViewVisibility(ROW_IDS[i], View.VISIBLE)
         views.setTextViewText(TITLE_IDS[i], row.optString("title"))
         views.setTextViewText(SUB_IDS[i], row.optString("sub"))
+        // Następny kamień milowy (2026-11-16) — druga linia pod tytułem.
+        val next = row.optString("next", "")
+        views.setTextViewText(NEXT_IDS[i], next)
+        views.setViewVisibility(NEXT_IDS[i], if (next.isEmpty()) View.GONE else View.VISIBLE)
         val overdue = row.optBoolean("overdue", false)
         views.setTextColor(SUB_IDS[i], if (overdue) Color.parseColor("#F87171") else Color.parseColor("#A3A3A3"))
         try {
@@ -197,6 +203,15 @@ class ${PROVIDER_CLASS} : AppWidgetProvider() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
           )
           views.setOnClickPendingIntent(CHECK_IDS[i], togglePending)
+          // Tap w wiersz → szczegóły zadania z krokami (2026-11-16).
+          val openTask = Intent(Intent.ACTION_VIEW, Uri.parse("${SCHEME}://tasks?task=" + Uri.encode(taskId))).apply {
+            setPackage(context.packageName)
+          }
+          val openTaskPending = PendingIntent.getActivity(
+            context, 2000 + i, openTask,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+          )
+          views.setOnClickPendingIntent(ROW_IDS[i], openTaskPending)
         }
       }
       return views
@@ -316,15 +331,29 @@ function widgetRowXml(i) {
                 android:layout_height="6dp"
                 android:layout_marginEnd="8dp"
                 android:src="@drawable/widget_dot_circle" />
-            <TextView
-                android:id="@+id/widget_title${i}"
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:maxLines="1"
-                android:ellipsize="end"
-                android:textColor="#F2F2F2"
-                android:textSize="13sp" />
+                android:orientation="vertical">
+                <TextView
+                    android:id="@+id/widget_title${i}"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:textColor="#F2F2F2"
+                    android:textSize="13sp" />
+                <TextView
+                    android:id="@+id/widget_next${i}"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:textColor="#9A9A9A"
+                    android:textSize="10.5sp"
+                    android:visibility="gone" />
+            </LinearLayout>
             <TextView
                 android:id="@+id/widget_sub${i}"
                 android:layout_width="wrap_content"

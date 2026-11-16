@@ -22,6 +22,7 @@ export interface PlanItem {
   end: string | null;
   allDay: boolean;
   color?: string;
+  steps?: string; // "2/5" — kamienie milowe zadania (2026-11-16)
 }
 
 const isTimeOnly = (s: string) => /^\s*\d{1,2}[:.]\d{2}\s*[-–]\s*\d{1,2}[:.]\d{2}\s*$/.test(s);
@@ -51,7 +52,8 @@ export function dayPlan(events: CalendarEvent[], tasks: Task[], day: string, tag
     if (t.scheduledDate !== day && dl !== day) continue;
     const time = t.scheduledDate === day && t.scheduledTime ? t.scheduledTime
       : (t.deadline && t.deadline.includes('T') ? t.deadline.slice(11, 16) : null);
-    items.push({ id: t.id, kind: 'task', tag: tagOf(t.title), title: stripTag(t.title) || t.title, start: time, end: null, allDay: !time });
+    const st = t.subtasks ?? [];
+    items.push({ id: t.id, kind: 'task', tag: tagOf(t.title), title: stripTag(t.title) || t.title, start: time, end: null, allDay: !time, ...(st.length ? { steps: `${st.filter((x) => x.done).length}/${st.length}` } : {}) });
   }
   return items.sort((a, b) => {
     if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;

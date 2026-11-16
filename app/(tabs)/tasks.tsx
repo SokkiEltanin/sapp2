@@ -3,7 +3,7 @@ import { removeWithUndo } from '@/services/undo';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
 import { View, Text, StyleSheet, TouchableOpacity, type TextInput } from 'react-native';
-import { Plus, Search } from 'lucide-react-native';
+import { Plus, Search, CheckCheck, Flame } from 'lucide-react-native';
 import TaskSearchSheet from '@/components/tasks/TaskSearchSheet';
 import { spacing, radius, themedStyles } from '@/theme';
 import { colors } from '@/theme/colors';
@@ -18,6 +18,9 @@ import { useGoogleCalendarSync } from '@/hooks/useGoogleCalendarSync';
 import WeekMonthCalendar from '@/components/tasks/WeekMonthCalendar';
 import TaskRow from '@/components/tasks/TaskRow';
 import { tagColorMap } from '@/utils/taskTags';
+import TaskDetailSheet from '@/components/tasks/TaskDetailSheet';
+import { doneStats, cheer } from '@/utils/taskProgress';
+import type { Subtask } from '@/types/calendar';
 import AddTaskCard from '@/components/tasks/AddTaskCard';
 import { useQuickAdd, takeQuickAdd } from '@/services/quickAdd';
 import DayDetailModal from '@/components/tasks/DayDetailModal';
@@ -36,26 +39,10 @@ import AppBottomSheet from '@/components/design/AppBottomSheet';
 // lista wydarzeń tego dnia) bez dodawania niczego nowego. Odstępstwo od
 // mockupu świadome, na wyraźne życzenie, nie przeoczenie.
 //
-// Nowość tej rundy: nagłówek dostał zakres tygodnia ("1 – 7 LIS", `weekRangeLabel`
-// niżej) — brakowało go względem mockupu, `WeekMonthCalendar` liczy TEN SAM
-// poniedziałek-niedziela zawsze z `new Date()` (nie nawigowalny), więc etykieta
-// może to policzyć niezależnie bez propsów.
+// Nagłówek: od 2026-11-16 licznik zrobionych dziś + seria dni zamiast zakresu tygodnia.
 //
 // `WeekMonthCalendar.tsx`/`TaskRow.tsx` BEZ ZMIAN — już matchują spec koncepcyjnie
 // (patrz komentarz w WeekMonthCalendar.tsx), tylko nowy `Tile`/`FitList` dookoła.
-const MONTHS_ABBR = ['STY', 'LUT', 'MAR', 'KWI', 'MAJ', 'CZE', 'LIP', 'SIE', 'WRZ', 'PAŹ', 'LIS', 'GRU'];
-function weekRangeLabel(base: Date): string {
-  const dow = base.getDay();
-  const mondayOffset = dow === 0 ? -6 : 1 - dow;
-  const monday = new Date(base);
-  monday.setDate(base.getDate() + mondayOffset);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  if (monday.getMonth() === sunday.getMonth()) {
-    return `${monday.getDate()} – ${sunday.getDate()} ${MONTHS_ABBR[sunday.getMonth()]}`;
-  }
-  return `${monday.getDate()} ${MONTHS_ABBR[monday.getMonth()]} – ${sunday.getDate()} ${MONTHS_ABBR[sunday.getMonth()]}`;
-}
 
 export default function TasksScreen() {
   const s = makeS();
@@ -80,7 +67,7 @@ export default function TasksScreen() {
   useEffect(() => {
     if (!taskParam) return;
     const t = useCalendarStore.getState().tasks.find((x) => x.id === taskParam);
-    if (t) setEditingTask(t);
+    if (t) setDetailId(t.id);
     router.setParams({ task: undefined } as any);
   }, [taskParam]);
   const [detailDate, setDetailDate] = useState<string | null>(null);
@@ -91,6 +78,13 @@ export default function TasksScreen() {
   // pokazywane), więc przypadkowe stuknięcie gubiło zadanie. Pasek "Cofnij"
   // przez kilka sekund.
   const [justDone, setJustDone] = useState<Task | null>(null);
+  const [cheerText, setCheerText] = useState('');
+  // Szczegóły zadania (2026-11-16): tap na kafelek / wynik szukania / widget.
+  // Edycja i usuwanie z okna szczegółów otwierają się DOPIERO po jego zamknięciu
+  // (dwa sheety naraz = puste okno, ten sam bug co 2026-11-11).
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const afterDetail = useRef<{ kind: 'edit' | 'delete'; task: Task } | null>(null);
+  const stats = useMemo(() => doneStats(tasks), [tasks]);
   useEffect(() => {
     if (!justDone) return;
     const t = setTimeout(() => setJustDone(null), 5000);
@@ -152,16 +146,17 @@ export default function TasksScreen() {
 
   const activeList = buckets[segment];
 
-  const handleSaveTask = (input: { title: string; tags: string[]; deadline?: string }) => {
+  const handleSaveTask = (input: { title: string; tags: string[]; deadline?: string; subtasks?: Subtask[] }) => {
     const now = new Date().toISOString();
     if (editingTask) {
-      updateTask(editingTask.id, { title: input.title, tags: input.tags, deadline: input.deadline, updatedAt: now });
+      updateTask(editingTask.id, { title: input.title, tags: input.tags, deadline: input.deadline, subtasks: input.subtasks, updatedAt: now });
     } else {
       addTask({
         id: genId(),
         title: input.title,
         tags: input.tags,
         deadline: input.deadline,
+        subtasks: input.subtasks,
         status: 'pending',
         priority: 'normal',
         createdAt: now,
@@ -174,7 +169,7 @@ export default function TasksScreen() {
   const handleToggleDone = (id: string) => {
     const task = tasks.find((t) => t.id === id);
     updateTask(id, { status: 'done', updatedAt: new Date().toISOString() });
-    if (task) setJustDone(task);
+    if (task) { setJustDone(task); setCheerText(cheer(doneStats(useCalendarStore.getState().tasks))); }
   };
   const undoDone = () => {
     if (!justDone) return;
@@ -184,7 +179,17 @@ export default function TasksScreen() {
   };
 
   return (
-    <Screen title="Zadania" right={<Text style={T.small} numberOfLines={1}>{weekRangeLabel(new Date())}</Text>}>
+    <Screen title="Zadania" right={
+      // Motywacja (2026-11-16): ile dziś odhaczone + seria dni z rzędu.
+      <View style={s.stats}>
+        <CheckCheck size={13} color={stats.today ? C.hi : C.mut} />
+        <Text style={[s.statTxt, stats.today > 0 && { color: C.hi }]}>{stats.today} dziś</Text>
+        {stats.streak > 0 && <>
+          <Flame size={13} color={colors.accent.orange} />
+          <Text style={[s.statTxt, { color: colors.accent.orange }]}>{stats.streak} {stats.streak === 1 ? 'dzień' : 'dni'}</Text>
+        </>}
+      </View>
+    }>
       <Row>
         <Tile span={4} style={s.weekTile}>
           <WeekMonthCalendar
@@ -209,7 +214,7 @@ export default function TasksScreen() {
                 isLast={i === activeList.length - 1}
                 onToggleDone={handleToggleDone}
                 onRequestDelete={setDeletingTask}
-                onEdit={setEditingTask}
+                onEdit={(t) => setDetailId(t.id)}
                 tagColors={tagColors}
               />
             )}
@@ -217,7 +222,7 @@ export default function TasksScreen() {
           />
           {justDone && (
             <View style={s.undoBar}>
-              <Text style={s.undoText} numberOfLines={1}>Ukończono: {justDone.title}</Text>
+              <Text style={s.undoText} numberOfLines={1}>{cheerText || `Ukończono: ${justDone.title}`}</Text>
               <TouchableOpacity onPress={undoDone} hitSlop={8} activeOpacity={0.7}>
                 <Text style={s.undoBtn}>Cofnij</Text>
               </TouchableOpacity>
@@ -245,7 +250,7 @@ export default function TasksScreen() {
 
       <LazyMount visible={searchOpen}>
         <TaskSearchSheet visible={searchOpen} onClose={() => setSearchOpen(false)} knownTags={knownTags}
-          onEdit={(t) => { setSearchOpen(false); setEditingTask(t); }} />
+          onEdit={(t) => { setSearchOpen(false); setDetailId(t.id); }} />
       </LazyMount>
 
       <AppBottomSheet visible={composerOpen || !!editingTask} onClose={closeComposer} initialFocusRef={titleRef}>
@@ -285,6 +290,21 @@ export default function TasksScreen() {
         )}
       </AppBottomSheet>
 
+      <TaskDetailSheet
+        taskId={detailId}
+        tagColors={tagColors}
+        onClose={() => setDetailId(null)}
+        onClosed={() => {
+          const a = afterDetail.current;
+          afterDetail.current = null;
+          if (a?.kind === 'edit') setEditingTask(a.task);
+          else if (a?.kind === 'delete') setDeletingTask(a.task);
+        }}
+        onEdit={(t) => { afterDetail.current = { kind: 'edit', task: t }; setDetailId(null); }}
+        onDelete={(t) => { afterDetail.current = { kind: 'delete', task: t }; setDetailId(null); }}
+        onDone={(t) => { handleToggleDone(t.id); setDetailId(null); }}
+      />
+
       <LazyMount visible={!!detailDate}>
         <DayDetailModal
           visible={!!detailDate}
@@ -303,6 +323,8 @@ function genId(): string {
 
 const makeS = themedStyles((c) => StyleSheet.create({
   weekTile: { padding: 6 },
+  stats: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  statTxt: { fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: C.mut, marginRight: 4 },
   listTile: { gap: spacing[2] },
   bottomRow: { flexDirection: 'row', gap: spacing[2], alignItems: 'center' },
   undoBar: {

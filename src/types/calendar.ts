@@ -64,7 +64,8 @@ export interface Task {
   tags: string[];
   snoozedUntil?: string;
   recurring?: TaskRecurring;
-  subtasks?: Subtask[];
+  subtasks?: Subtask[];     // kamienie milowe / kroki (2026-11-16, utils/taskProgress.ts)
+  completedAt?: string;     // kiedy odhaczone (licznik dziś / seria) — ustawia calendarStore.updateTask
   reminderTime?: string;    // HH:mm — custom reminder time
   reminderDate?: string;    // YYYY-MM-DD — day the reminder fires; independent of deadline
   reminderMessage?: string; // custom notification text

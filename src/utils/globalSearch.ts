@@ -46,9 +46,9 @@ export function globalSearch(d: SearchData, q: string, perKind = 30): Record<Hit
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, perKind)
     .map((n) => ({ kind: 'note', id: n.id, title: noteTitle(n), sub: n.kind === 'list' ? 'lista' : n.kind === 'drawing' ? 'rysunek' : n.text.replace(/\s+/g, ' ').slice(0, 80) }));
 
-  out.task = d.tasks.filter((t) => matches(`${t.title} ${t.description ?? ''} ${t.tags.join(' ')}`, ws))
+  out.task = d.tasks.filter((t) => matches(`${t.title} ${t.description ?? ''} ${t.tags.join(' ')} ${(t.subtasks ?? []).map((x) => x.title).join(' ')}`, ws))
     .sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done') || b.updatedAt.localeCompare(a.updatedAt)).slice(0, perKind)
-    .map((t) => ({ kind: 'task', id: t.id, title: t.title, sub: [t.status === 'done' ? 'zrobione' : t.deadline ? `termin ${t.deadline.slice(0, 10)}` : 'bez terminu', ...t.tags.map((x) => `#${x}`)].join(' · ') }));
+    .map((t) => ({ kind: 'task', id: t.id, title: t.title, sub: [t.status === 'done' ? 'zrobione' : t.deadline ? `termin ${t.deadline.slice(0, 10)}` : 'bez terminu', ...(t.subtasks?.length ? [`kroki ${t.subtasks.filter((x) => x.done).length}/${t.subtasks.length}`] : []), ...t.tags.map((x) => `#${x}`)].join(' · ') }));
 
   out.subscription = d.subscriptions.filter((s) => matches(`${s.name} ${(s.tags ?? []).join(' ')}`, ws) || (amt != null && Math.abs(s.amount - amt) < 0.005)).slice(0, perKind)
     .map((s) => ({ kind: 'subscription', id: s.id, title: s.name, sub: `${s.active ? 'następna' : 'wstrzymana'} · ${s.nextBillingDate}`, amount: -s.amount }));

@@ -164,6 +164,7 @@ export default function DailyScreen() {
                     : <View style={[st.planBar, { backgroundColor: it.color || C.txt }, current && { width: 4 }]} />}
                   <Text style={[T.row, { flex: 1 }, current && { color: C.hi }]} numberOfLines={1}>{it.kind === 'event' && it.tag && it.title === it.tag ? (employerByTag[it.tag.toLowerCase()] ?? it.title) : it.title}</Text>
                   {it.tag && it.kind === 'event' && it.title !== it.tag ? <Text style={st.planTag}>{it.tag}</Text> : null}
+                  {it.steps ? <Text style={st.planTag}>{it.steps}</Text> : null}
                   {current ? <Text style={st.planNow}>teraz</Text> : null}
                 </View>
               );

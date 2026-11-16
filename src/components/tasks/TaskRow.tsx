@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Trash2, Check, Clock, AlertCircle } from 'lucide-react-native';
+import { Trash2, Check, Clock, AlertCircle, Flag } from 'lucide-react-native';
 import { tagColor } from '@/utils/taskTags';
+import { taskProgress } from '@/utils/taskProgress';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { haptic } from '@/utils/haptics';
@@ -44,6 +45,8 @@ export default function TaskRow({
   const today = !!due && !due.overdue && due.text.startsWith('Dziś');
   const accent = task.tags.length ? tagColor(task.tags[0], tagColors) : due?.overdue ? colors.accent.red : colors.border.default;
   const done = task.status === 'done';
+  // Kamienie milowe (2026-11-16): "2/5", następny krok zamiast tagów, pasek postępu na dole.
+  const p = taskProgress(task);
   return (
     <View style={[s.card, due?.overdue && s.cardOverdue, done && { opacity: 0.5 }]}>
       <View style={[s.bar, { backgroundColor: accent }]} />
@@ -52,7 +55,7 @@ export default function TaskRow({
       </TouchableOpacity>
       <TouchableOpacity style={s.content} onPress={() => { haptic.tap(); onEdit(task); }} activeOpacity={0.7}>
         <Text style={[s.title, done && s.titleDone]} numberOfLines={1}>{task.title}</Text>
-        {(due || task.tags.length > 0) && (
+        {(due || task.tags.length > 0 || p.total > 0) && (
           <View style={s.meta}>
             {due && (
               <View style={[s.due, due.overdue ? s.dueOver : today ? s.dueToday : null]}>
@@ -60,7 +63,15 @@ export default function TaskRow({
                 <Text style={[s.dueTxt, due.overdue ? { color: colors.accent.red } : today ? { color: colors.accent.orange } : null]} numberOfLines={1}>{due.text}</Text>
               </View>
             )}
-            {task.tags.map((tag) => {
+            {p.total > 0 && (
+              <View style={[s.steps, p.done === p.total && { backgroundColor: accent + '33' }]}>
+                <Flag size={10} color={p.done === p.total ? accent : colors.text.secondary} />
+                <Text style={[s.stepsTxt, p.done === p.total && { color: accent }]}>{p.done}/{p.total}</Text>
+              </View>
+            )}
+            {p.next ? (
+              <Text style={s.next} numberOfLines={1}>› {p.next.title}</Text>
+            ) : task.tags.map((tag) => {
               const c = tagColor(tag, tagColors);
               return (
                 <View key={tag} style={[s.tag, { backgroundColor: c + '26', borderColor: c + '55' }]}>
@@ -71,6 +82,11 @@ export default function TaskRow({
           </View>
         )}
       </TouchableOpacity>
+      {p.total > 0 && (
+        <View style={s.track} pointerEvents="none">
+          <View style={[s.fill, { width: `${p.pct * 100}%`, backgroundColor: accent }]} />
+        </View>
+      )}
       <TouchableOpacity onPress={() => { haptic.success(); onToggleDone(task.id); }} hitSlop={8} style={[s.check, done && s.checkOn]} accessibilityLabel={done ? 'Przywróć zadanie' : 'Oznacz jako zrobione'}>
         {done ? <Check size={16} color={colors.bg.primary} /> : null}
       </TouchableOpacity>
@@ -96,6 +112,11 @@ const makeS = themedStyles((c) => StyleSheet.create({
   dueTxt: { fontSize: 10.5, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary },
   tag: { paddingHorizontal: 8, paddingVertical: 2.5, borderRadius: radius.full, borderWidth: 1 },
   tagTxt: { fontSize: 10.5, fontFamily: 'Inter_900Black', letterSpacing: 0.3 },
+  steps: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: radius.full, backgroundColor: c.bg.primary },
+  stepsTxt: { fontSize: 10.5, fontFamily: 'Inter_900Black', color: c.text.secondary, fontVariant: ['tabular-nums'] },
+  next: { flexShrink: 1, fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
+  track: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 3, backgroundColor: c.ui.dim },
+  fill: { position: 'absolute', left: 0, top: 0, bottom: 0 },
   check: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: c.text.muted, alignItems: 'center', justifyContent: 'center' },
   checkOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
 }));

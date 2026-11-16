@@ -215,7 +215,7 @@ export default function Dashboard() {
   // wypadku subskrypcja płatna raz w roku zaśmiecałaby listę miesiącami z
   // wyprzedzeniem, czego lista eventów (z natury bliskich w czasie) nie robi.
   const BILL_WINDOW_DAYS = 14;
-  type TimelineEntry = { key: string; at: Date; title: string; color: string; kind: 'event' | 'deadline' | 'bill'; minutes?: number; amount?: number; fx?: PendingFx; dayOnly?: boolean };
+  type TimelineEntry = { key: string; at: Date; title: string; color: string; kind: 'event' | 'deadline' | 'bill'; minutes?: number; amount?: number; fx?: PendingFx; dayOnly?: boolean; steps?: string };
   const upcomingTimeline = useMemo<TimelineEntry[]>(() => {
     const out: TimelineEntry[] = [];
     for (const e of allEvents) {
@@ -230,7 +230,8 @@ export default function Dashboard() {
       const timed = deadlineHasTime(t.deadline);
       const at = parseDeadline(t.deadline);
       if (timed ? at < now : at.getTime() + 86400000 <= now.getTime()) continue;
-      out.push({ key: `t_${t.id}`, at, title: t.title, color: colors.accent.red, kind: 'deadline', dayOnly: !timed });
+      const st = t.subtasks ?? [];
+      out.push({ key: `t_${t.id}`, at, title: t.title, color: colors.accent.red, kind: 'deadline', dayOnly: !timed, steps: st.length ? `${st.filter((x) => x.done).length}/${st.length}` : undefined });
     }
     // `upcomingPayments` (nie samo `upcomingSubscriptions`) — 2026-11-09, user:
     // "ta ostatnia platnosc najbliższą ma być automatyczna po stałych i
@@ -300,6 +301,7 @@ export default function Dashboard() {
       minutes: x.minutes,
       amount: x.amount,
       fx: x.fx,
+      steps: x.steps,
     })),
     onOpen: (what, id) => {
       if (what === 'fact') setFactIndex((i) => ((i ?? 0) + 1) % FACTS.length);
@@ -318,12 +320,12 @@ export default function Dashboard() {
         if (ev) openEventEditor(ev);
         else router.push('/tasks');
       }
-      // Termin zadania z "Najbliższe eventy" (2026-11-15) → Zadania na dzień terminu.
+      // Termin zadania z "Najbliższe eventy" → szczegóły zadania w Zadaniach.
       else if (what === 'deadline' && id) {
+        // Od 2026-11-16 od razu szczegóły zadania (kroki), nie sama lista.
         const t = calendarTasks.find((x) => `t_${x.id}` === id);
-        const at = t?.deadline ? parseDeadline(t.deadline) : null;
-        if (at) setSelectedDate(`${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, '0')}-${String(at.getDate()).padStart(2, '0')}`);
-        router.push('/tasks');
+        if (t) router.push({ pathname: '/tasks', params: { task: t.id } } as any);
+        else router.push('/tasks');
       }
       // 'streak' — przeniesione do Daily (`app/(tabs)/daily.tsx`'s rząd "Nawyki"),
       // patrz komentarz w DashboardScreen.tsx przy usunięciu kafli streak.

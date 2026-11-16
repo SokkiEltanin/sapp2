@@ -15,4 +15,7 @@ describe('linki z widgetów', () => {
   it('nieznane bez zmian (z ukośnikiem)', () => {
     expect(rewriteDeepLink('sapp2://bank-review')).toBe('/bank-review');
   });
+  it('widget: wiersz zadania → szczegóły', () => {
+    expect(rewriteDeepLink('sapp2://tasks?task=t_123')).toBe('/tasks?task=t_123');
+  });
 });

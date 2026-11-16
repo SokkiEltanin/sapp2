@@ -1,12 +1,13 @@
 import { useEffect, useState, type RefObject } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { openPicker } from '@/services/picker';
+import StepsEditor from './StepsEditor';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { ymd, todayISO } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
 import { deadlineHasTime, parseDeadline } from '@/utils/taskDeadline';
-import type { Task } from '@/types/calendar';
+import type { Task, Subtask } from '@/types/calendar';
 
 // Dodawanie zadania (2026-10-30, user: "może od razu z... działające zadania"). Jedno
 // pole terminu napędza kategoryzację na TERAZ/TERMINOWE/BEZTERMINOWE w tasks.tsx
@@ -67,7 +68,7 @@ export default function AddTaskCard({
   knownTags = [],
 }: {
   editingTask?: Task | null;
-  onSave: (input: { title: string; tags: string[]; deadline?: string }) => void;
+  onSave: (input: { title: string; tags: string[]; deadline?: string; subtasks?: Subtask[] }) => void;
   onClose: () => void;
   // Fokus (i klawiatura) z rodzica przez `AppBottomSheet`'s `initialFocusRef`
   // (2026-11-11) — goły `autoFocus` w RN `Modal`u na Androidzie nie otwierał
@@ -85,10 +86,13 @@ export default function AddTaskCard({
   // Edytowany deadline date-only (z szybkich chipów) NIE ma godziny — bez tej
   // flagi edycja pokazywała i zapisywała sztuczne "00:00" (2026-11-11).
   const [customHasTime, setCustomHasTime] = useState(false);
+  // Kroki / kamienie milowe (2026-11-16) — też edytowalne w szczegółach zadania.
+  const [steps, setSteps] = useState<Subtask[]>([]);
 
   useEffect(() => {
     setTitle(editingTask?.title ?? '');
     setTag(editingTask?.tags[0] ?? '');
+    setSteps(editingTask?.subtasks ?? []);
     const dl = editingTask?.deadline;
     if (!dl) {
       setDeadlineChoice('none');
@@ -111,6 +115,7 @@ export default function AddTaskCard({
     setDeadlineChoice('none');
     setCustomDeadline(null);
     setCustomHasTime(false);
+    setSteps([]);
     onClose();
   };
 
@@ -157,7 +162,7 @@ export default function AddTaskCard({
       deadline = deadlineChoice === 'today' ? todayISO() : ymd(d);
     }
     const trimmedTag = tag.trim();
-    onSave({ title: trimmedTitle, tags: trimmedTag ? [trimmedTag] : [], deadline });
+    onSave({ title: trimmedTitle, tags: trimmedTag ? [trimmedTag] : [], deadline, subtasks: steps.length ? steps : undefined });
     reset();
   };
 
@@ -224,6 +229,8 @@ export default function AddTaskCard({
       {deadlineChoice === 'custom' && customDeadline && customHasTime && customDeadline.getTime() > Date.now() && (
         <Text style={s.hint}>Powiadomienie o {formatCustomLabel(customDeadline, true).split(' · ')[1]} z przyciskiem „Zrobione”.</Text>
       )}
+      <Text style={s.sectionLabel}>Kroki do celu (opcjonalnie)</Text>
+      <StepsEditor steps={steps} onChange={setSteps} placeholder="Np. „Zebrać źródła” — Enter dodaje" />
       <View style={s.actions}>
         <TouchableOpacity style={s.cancelBtn} onPress={() => { haptic.tap(); reset(); }} activeOpacity={0.7}>
           <Text style={s.cancelLabel}>Anuluj</Text>

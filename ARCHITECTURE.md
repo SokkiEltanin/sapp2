@@ -649,6 +649,22 @@ opcjonalnym tekstem, zapisywanym w formie pamiętnika DZIEŃ DATA")
 
 ## ZADANIA [GE]
 
+**Kamienie milowe i motywacja (2026-11-16)** — `Task.subtasks` = kroki do celu,
+`Task.completedAt` (ustawia `calendarStore.updateTask` przy status→done, czyści przy
+→pending). Logika `utils/taskProgress.ts` (testy): `taskProgress` (x/y, następny
+krok), `progressLine`, `doneStats` (dziś / tydzień / seria dni), `cheer`.
+- Kafelek (`TaskRow`): kolor tagu (`utils/taskTags.ts`, z kalendarza), „x/y” +
+  „› następny krok”, pasek postępu na dole. Tap → `TaskDetailSheet` (postęp
+  segmentami, oś kroków `StepsEditor`, Edytuj / Usuń / Ukończ — edycja i usuwanie
+  otwierają się po zamknięciu szczegółów, `onClosed`).
+- `StepsEditor` też w `AddTaskCard` (kroki przy tworzeniu/edycji).
+- Nagłówek Zadań: „N dziś” + seria; pasek Cofnij pokazuje `cheer`.
+- Widget (`utils/widgetTasks.ts` → `next`, `sub` z „x/y”; plugin: druga linia
+  `widget_next{i}`, tap w wiersz → `sapp2://tasks?task=ID` → szczegóły). Zegarek
+  dostaje „x/y” w `sub` (wearSnapshot korzysta z tych samych wierszy).
+- Wszędzie indziej: Daily plan dnia (`PlanItem.steps`), Dashboard „Najbliższe
+  eventy” (`steps` + tap → szczegóły), globalne szukanie (po krokach, „kroki x/y”).
+
 **Przebudowany na nowy system komponentów (Faza 3.5, 2026-11-01)** — układ z
 `design/app-design.html`'s `#tasks` (4 kolumny, `grid-template-rows: auto auto
 1fr`): WeekStrip → agenda wybranego dnia (glance, max 3) → lista zadań (JEDEN

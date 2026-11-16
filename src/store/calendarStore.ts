@@ -74,7 +74,15 @@ export const useCalendarStore = create<CalendarState>()(
       addTask: (task) => set((state) => ({ tasks: [...state.tasks, task] })),
       updateTask: (id, updates) =>
         set((state) => ({
-          tasks: state.tasks.map((t) => (t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t)),
+          tasks: state.tasks.map((t) => {
+            if (t.id !== id) return t;
+            const now = new Date().toISOString();
+            const next: Task = { ...t, ...updates, updatedAt: now };
+            // Kiedy odhaczone (2026-11-16): licznik "dziś" i seria w Zadaniach.
+            if (updates.status === 'done' && t.status !== 'done') next.completedAt = updates.completedAt ?? now;
+            if (updates.status === 'pending') delete next.completedAt;
+            return next;
+          }),
         })),
       deleteTask: (id) =>
         set((state) => ({ tasks: state.tasks.filter((t) => t.id !== id) })),

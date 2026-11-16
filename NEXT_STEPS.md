@@ -41,6 +41,12 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-16 — kamienie milowe zadań + motywacja** (lista, szczegóły, widget, Daily,
+Dashboard, szukanie, zegarek):
+- [ ] Widget: druga linia „› następny krok” mieści się? tap w wiersz otwiera szczegóły?
+- [ ] Szczegóły: odhaczanie kroków, „Ukończ zadanie” podświetla się po komplecie.
+- [ ] Pomysł na dalej: powiadomienie wieczorem „seria X dni — zrób jedno zadanie”.
+
 **2026-11-16 — zadania jako kafelki**: pasek i pigułki tagów w kolorze z kalendarza
 (`utils/taskTags.ts`: [PUR] w kalendarzu niebieskie → tag PUR niebieski), termin z ikoną.
 - [ ] Na telefonie: czy kolory tagów zgadzają się z kalendarzem.

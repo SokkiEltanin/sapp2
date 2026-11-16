@@ -47,7 +47,7 @@ export type DashData = {
   // WSZYSTKICH pojazdów naraz. 2026-11-15, user: "jak klikam wymiana niech mnie
   // przeniesie do wymiany" — klikany, otwiera ekran Wymiany.
   nextMaintenance: { vehicleName: string; label: string; dueLabel: string; overdue: boolean } | null;
-  upcoming: { id: string; when: string; title: string; kind: 'event' | 'deadline' | 'bill'; color: string; minutes?: number; amount?: number; fx?: { amount: number; currency: string } }[];
+  upcoming: { id: string; when: string; title: string; kind: 'event' | 'deadline' | 'bill'; color: string; minutes?: number; amount?: number; fx?: { amount: number; currency: string }; steps?: string }[];
   onOpen: (what: string, id?: string) => void; // otwiera bottom sheet
 };
 
@@ -248,6 +248,7 @@ export function DashboardScreen(d: DashData) {
                       {tag ? <Tag label={tag} kind={tag === 'PUR' || tag === 'UR' ? 'ur' : 'default'} /> : null}
                       <Text style={[T.row, { flex: 1 }, important && { color: C.hi, fontFamily: F.xb }]} numberOfLines={1}>{title}</Text>
                       {x.minutes != null && x.minutes < 60 ? <Tag label={`${x.minutes} MIN`} kind="fr" /> : null}
+                      {x.steps ? <Tag label={x.steps} /> : null}
                       {x.kind === 'deadline' ? <Tag label="TERMIN" kind="warn" /> : null}
                       {x.kind === 'bill' && x.amount != null ? <Price amount={-x.amount} fx={x.fx} /> : null}
                     </Item>
