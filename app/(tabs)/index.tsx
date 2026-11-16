@@ -28,6 +28,8 @@ import { useVehiclesStore } from '@/store/vehiclesStore';
 import { allReplaceRows, rowName } from '@/utils/replacements';
 import { useReplacementsStore } from '@/store/replacementsStore';
 import { useNotesStore } from '@/store/notesStore';
+import { useDeviceBatteries } from '@/hooks/useDeviceBatteries';
+import { useThresholdsStore } from '@/store/thresholdsStore';
 import { openNote, openNewNote } from '@/services/notesNav';
 import { openEventEditor } from '@/services/eventEditor';
 import type { CalendarEvent } from '@/types/calendar';
@@ -50,17 +52,6 @@ import { haptic } from '@/utils/haptics';
 // 2026-11-13: sen USUNIĘTY z Dashboardu (jest w Daily) — w jego miejscu pogoda
 // (hooks/useWeather.ts, components/weather/WeatherSheet.tsx).
 // - Kalendarz/jedzenie/transakcje/saldo/48h — bez zmian, te same store'y/hooki.
-const FACTS = [
-  'Mózg zużywa jedną piątą energii twojego organizmu',
-  'Grafen jest ok. 200× wytrzymalszy od stali przy tej samej masie',
-  'Atom złota ma średnicę ok. 0,3 nm',
-  'GaAs przewodzi elektrony ok. 6× szybciej niż krzem',
-];
-
-function dayOfYear(d: Date): number {
-  const start = new Date(d.getFullYear(), 0, 0);
-  return Math.floor((d.getTime() - start.getTime()) / 86400000);
-}
 
 function eventStart(e: CalendarEvent): Date | null {
   if (!e.startTime) return null;
@@ -103,7 +94,6 @@ function whenLabelDayOnly(d: Date, now: Date): string {
 export default function Dashboard() {
   const [wydatkiOpen, setWydatkiOpen] = useState(false);
   const [wydatkiTab, setWydatkiTab] = useState<'food' | 'fixed' | 'variable'>('food');
-  const [factIndex, setFactIndex] = useState<number | null>(null);
   const [nextOpen, setNextOpen] = useState(false);
   // Tap na konkretną transakcję w "Ostatnie transakcje" (2026-11-04, user: "klikam
   // w wydatek dany to pokazuje mi konkretnie ten wydatek") — wcześniej `onOpen('tx',
@@ -131,7 +121,9 @@ export default function Dashboard() {
   const today = todayISO();
   const now = useMemo(() => new Date(), [today]);
 
-  useEffect(() => { setFactIndex(dayOfYear(now) % FACTS.length); }, [now]);
+  // Baterie telefonu i zegarka (2026-11-16) — kafel w miejscu Ciekawostki (ta jest w Daily).
+  const batteries = useDeviceBatteries();
+  const watchLow = useThresholdsStore((st) => st.t.watchBatteryPct);
 
   // 6 zamiast 4 miesięcy (2026-11-09, user: "jak jest średnia jedzenia z innych
   // miesięcy to możesz tam zrobic zeby bylo ich trochę więcej bo wydluzylismy
@@ -283,7 +275,7 @@ export default function Dashboard() {
 
   const data: DashData = {
     next: upcomingEvent ? { title: upcomingEvent.e.title, start: upcomingEvent.start } : null,
-    fact: FACTS[factIndex ?? 0],
+    batteries: { ...batteries, lowPct: watchLow },
     weather,
     weatherHint,
     foodMonths: foodMonths.map((m) => ({ label: m.label, value: m.value })),
@@ -304,7 +296,7 @@ export default function Dashboard() {
       steps: x.steps,
     })),
     onOpen: (what, id) => {
-      if (what === 'fact') setFactIndex((i) => ((i ?? 0) + 1) % FACTS.length);
+      if (what === 'battery') batteries.refresh();
       else if (what === 'foodMonth') { setWydatkiTab('food'); setWydatkiOpen(true); }
       else if (what === 'note' && id) openNote(id);
       else if (what === 'noteNew') openNewNote('text', true);

@@ -14,7 +14,6 @@ import { useVehiclesStore } from '@/store/vehiclesStore';
 import { useWorkStore } from '@/store/workStore';
 import { useHealthStore } from '@/store/healthStore';
 import { useBalanceStore } from '@/store/balanceStore';
-import { useDayPlanStore } from '@/store/dayPlanStore';
 import { useBudgetsStore } from '@/store/budgetsStore';
 import { useCategoryRulesStore } from '@/store/categoryRulesStore';
 import { useThresholdsStore } from '@/store/thresholdsStore';
@@ -114,11 +113,10 @@ const docBindings: DocBinding[] = [
   },
   {
     name: 'prefs',
-    stores: [S(useBalanceStore), S(useSubscriptionsStore), S(useDayPlanStore), S(useWorkStore), S(useCategoriesStore), S(useThresholdsStore), S(useNotesStore)],
+    stores: [S(useBalanceStore), S(useSubscriptionsStore), S(useWorkStore), S(useCategoriesStore), S(useThresholdsStore), S(useNotesStore)],
     get: () => ({
       balanceOffset: useBalanceStore.getState().offset ?? 0,
       dismissedBills: useSubscriptionsStore.getState().dismissedBills,
-      dayPlanTags: useDayPlanStore.getState().tags,
       activeEmployerId: useWorkStore.getState().activeEmployerId,
       categories: useCategoriesStore.getState().prefs,
       thresholds: useThresholdsStore.getState().t,
@@ -127,13 +125,12 @@ const docBindings: DocBinding[] = [
     set: (v) => {
       if (typeof v.balanceOffset === 'number') useBalanceStore.setState({ offset: v.balanceOffset });
       if (Array.isArray(v.dismissedBills)) useSubscriptionsStore.setState({ dismissedBills: v.dismissedBills });
-      if ('dayPlanTags' in v) useDayPlanStore.setState({ tags: v.dayPlanTags ?? null });
       if ('activeEmployerId' in v) useWorkStore.setState({ activeEmployerId: v.activeEmployerId ?? null });
       if (v.thresholds && typeof v.thresholds === 'object') useThresholdsStore.getState().set(v.thresholds);
       if (Array.isArray(v.notePalette)) useNotesStore.setState({ palette: v.notePalette.filter((c: unknown) => typeof c === 'string') });
       if (v.categories && typeof v.categories === 'object') useCategoriesStore.getState().setPrefs({ added: { food: v.categories.added?.food ?? [], var: v.categories.added?.var ?? [] }, overrides: v.categories.overrides ?? {} });
     },
-    isEmpty: (v) => !v.balanceOffset && !(v.dismissedBills ?? []).length && v.dayPlanTags == null && v.activeEmployerId == null
+    isEmpty: (v) => !v.balanceOffset && !(v.dismissedBills ?? []).length && v.activeEmployerId == null
       && !Object.keys(v.categories?.overrides ?? {}).length && !(v.categories?.added?.food ?? []).length && !(v.categories?.added?.var ?? []).length
       && !(v.notePalette ?? []).length,
     stamp: () => 0,

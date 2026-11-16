@@ -3,13 +3,11 @@ import LazyMount from '@/components/design/LazyMount';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Screen, Row, Tile, Cap, StackBar, FitList } from '@/ui/layout';
 import { router } from 'expo-router';
-import DayPlanTagsSheet from '@/components/daily/DayPlanTagsSheet';
 import MonthPaceSheet, { MonthPaceRows, windowLabel } from '@/components/daily/MonthPace';
 import { useExpensesStore } from '@/store/expensesStore';
-import { useCalendarStore } from '@/store/calendarStore';
-import { useDayPlanStore } from '@/store/dayPlanStore';
-import { useWorkStore } from '@/store/workStore';
-import { dayPlan, daySummary } from '@/utils/dayPlan';
+import { FACTS, factOfDay } from '@/utils/facts';
+import { haptic } from '@/utils/haptics';
+import { Lightbulb } from 'lucide-react-native';
 import { C, T, S } from '@/ui/theme';
 import MoodModal from '@/components/mood/MoodModal';
 import SleepSheet from '@/components/health/SleepSheet';
@@ -26,9 +24,7 @@ import { sleepSummary, sleepWeek, vsAverage, fmtDur, PHASE_META, PHASE_COLOR, PH
 // zadaniami, pod spodem zapowiedź jutra"). Bez scrolla:
 //   1. SEN — kompaktowo: czas, okno, wydajność, fazy. Tap → SleepSheet
 //      (hipnogram, normy faz, 7 nocy, średnie godziny, dług snu).
-//   2. PLAN DNIA (flex) — wydarzenia z wybranych tagów + zadania na dziś,
-//      "teraz"/minione wyszarzone; na dole JUTRO (od–do per tag). Tagi →
-//      DayPlanTagsSheet, tap w kafel → Zadania.
+//   2. CIEKAWOSTKA (flex, od 2026-11-16 zamiast planu dnia) + MIESIĄC DO DZIŚ.
 //   3. KROKI (tap → BodySheet: waga, tętno, woda) | HUMOR (kropki tygodnia).
 // USUNIĘTE (user): wykres 7 dni humoru, trening/streaki, kafle Waga/Woda/Tętno,
 // podsumowanie dnia i "zależności sen↔humor" (świadomie odrzucone).
@@ -49,6 +45,7 @@ export default function DailyScreen() {
   const [moodOpen, setMoodOpen] = useState(false);
   const [sleepOpen, setSleepOpen] = useState(false);
   const [paceOpen, setPaceOpen] = useState(false);
+  const [factIdx, setFactIdx] = useState(() => factOfDay(new Date()));
   const expenses = useExpensesStore((st) => st.expenses);
   const [bodyOpen, setBodyOpen] = useState(false);
   const today = todayISO();
@@ -71,27 +68,6 @@ export default function DailyScreen() {
   }, [history, health]);
   const maxSteps = Math.max(1, ...stepsWeek.map((x) => x.steps ?? 0));
   const stepsToday = health?.date === today ? health.steps : null;
-
-  // Plan dnia + jutro.
-  const calEvents = useCalendarStore((st) => st.events);
-  const gcalEvents = useCalendarStore((st) => st.gcalEvents);
-  const calTasks = useCalendarStore((st) => st.tasks);
-  const planTags = useDayPlanStore((st) => st.tags);
-  // "[JD] 08:00 - 16:00" → nazwa pracodawcy z prefiksem [JD] zamiast gołego "JD".
-  const employers = useWorkStore((st) => st.employers);
-  const employerByTag = useMemo(() => Object.fromEntries(employers
-    .filter((e) => e.workPrefix)
-    .map((e) => [e.workPrefix!.replace(/[\[\]]/g, '').trim().toLowerCase(), e.name])), [employers]);
-  const [tagsOpen, setTagsOpen] = useState(false);
-  const allEvents = useMemo(() => [...calEvents, ...gcalEvents], [calEvents, gcalEvents]);
-  const todayPlan = useMemo(() => dayPlan(allEvents, calTasks, today, planTags), [allEvents, calTasks, today, planTags]);
-  const tomorrowText = useMemo(() => {
-    const d = new Date(); d.setDate(d.getDate() + 1);
-    return daySummary(dayPlan(allEvents, calTasks, keyOf(d), planTags));
-  }, [allEvents, calTasks, planTags, today]);
-  const nowD = new Date();
-  const nowHM = `${String(nowD.getHours()).padStart(2, '0')}:${String(nowD.getMinutes()).padStart(2, '0')}`;
-  const planDayLabel = nowD.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'numeric' });
 
   const todayEntries = useMemo(() => entries.filter((e) => e.date === today), [entries, today]);
   const lastToday = todayEntries[todayEntries.length - 1];
@@ -146,40 +122,17 @@ export default function DailyScreen() {
         </Tile>
       </Row>
 
-      {/* PLAN DNIA (2026-11-13, user: "plan lekcji / pracy na dzień, tylko z
-          tagami, które chcę, i z zadaniami na ten dzień; pod spodem zapowiedź
-          jutra"). Tagi wybierane w DayPlanTagsSheet ("tagi" w nagłówku). */}
+      {/* CIEKAWOSTKA (2026-11-16, user: "ciekawostkę przeniesiemy zamiast DZIŚ —
+          tej górnej części"): plan dnia był dublem "Najbliższych eventów" z
+          Dashboardu; na Dashboardzie w miejscu ciekawostki są baterie. Tap = następna. */}
       <Row flex={1}>
-        <Tile span={4} onPress={() => router.push('/tasks')} style={st.planTile}>
-          <Cap l={`Dziś · ${planDayLabel}`} r={planTags === null ? 'wybierz tagi' : 'tagi'} onR={() => setTagsOpen(true)} />
-          <FitList
-            data={todayPlan}
-            minRowH={30}
-            maxRowH={40}
-            emptyText={planTags === null ? 'Nic na dziś' : 'Nic na dziś z wybranych tagów'}
-            renderItem={(it) => {
-              const past = !!it.end && it.end <= nowHM;
-              const current = !!it.start && it.start <= nowHM && (!it.end || it.end > nowHM) && it.kind === 'event';
-              return (
-                <View style={[st.planRow, past && { opacity: 0.4 }]}>
-                  <Text style={[st.planTime, current && { color: C.hi }]} numberOfLines={1}>
-                    {it.allDay ? (it.kind === 'task' ? 'zadanie' : 'cały dzień') : `${it.start ?? ''}${it.end ? `–${it.end}` : ''}`}
-                  </Text>
-                  {it.kind === 'task'
-                    ? <View style={st.taskRing} />
-                    : <View style={[st.planBar, { backgroundColor: it.color || C.txt }, current && { width: 4 }]} />}
-                  <Text style={[T.row, { flex: 1 }, current && { color: C.hi }]} numberOfLines={1}>{it.kind === 'event' && it.tag && it.title === it.tag ? (employerByTag[it.tag.toLowerCase()] ?? it.title) : it.title}</Text>
-                  {it.tag && it.kind === 'event' && it.title !== it.tag ? <Text style={st.planTag}>{it.tag}</Text> : null}
-                  {it.steps ? <Text style={st.planTag}>{it.steps}</Text> : null}
-                  {current ? <Text style={st.planNow}>teraz</Text> : null}
-                </View>
-              );
-            }}
-          />
-          <View style={st.tomorrow}>
-            <Text style={st.tomorrowLbl}>JUTRO</Text>
-            <Text style={[T.small, { flex: 1, color: C.txt }]} numberOfLines={2}>{tomorrowText || 'wolne — nic z wybranych tagów'}</Text>
+        <Tile span={4} onPress={() => { haptic.tap(); setFactIdx((i) => (i + 1) % FACTS.length); }} style={st.factTile}>
+          <Cap l="Ciekawostka" r={`${factIdx + 1}/${FACTS.length}`} />
+          <View style={st.factBody}>
+            <Lightbulb size={22} color={C.mut} />
+            <Text style={st.factText} numberOfLines={6} adjustsFontSizeToFit minimumFontScale={0.7}>{FACTS[factIdx]}</Text>
           </View>
+          <Text style={T.small}>dotknij, by zobaczyć następną</Text>
         </Tile>
       </Row>
 
@@ -237,29 +190,20 @@ export default function DailyScreen() {
       <LazyMount visible={moodOpen}>
         <MoodModal visible={moodOpen} onClose={() => setMoodOpen(false)} />
       </LazyMount>
-      <LazyMount visible={tagsOpen}>
-        <DayPlanTagsSheet visible={tagsOpen} onClose={() => setTagsOpen(false)} />
-      </LazyMount>
     </Screen>
   );
 }
 
 const st = StyleSheet.create({
+  factTile: { gap: 8 },
+  factBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 4 },
+  factText: { flex: 1, fontSize: 20, lineHeight: 28, fontFamily: 'Inter_800ExtraBold', color: C.hi },
   sleepTop: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 },
   sleepWhen: { textAlign: 'right', marginBottom: 4 },
   phaseLegend: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 4, marginTop: 8 },
   phaseItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   phaseDot: { width: 7, height: 7, borderRadius: 4 },
   phaseMin: { color: C.hi },
-  planTile: { gap: 6 },
-  planRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  planTime: { width: 82, fontSize: 11.5, fontFamily: 'Inter_700Bold', color: C.mut, fontVariant: ['tabular-nums'] },
-  planBar: { width: 3, alignSelf: 'stretch', marginVertical: 6, borderRadius: 2 },
-  taskRing: { width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: C.mut },
-  planTag: { fontSize: 10, fontFamily: 'Inter_800ExtraBold', color: C.mut, letterSpacing: 0.5 },
-  planNow: { fontSize: 9.5, fontFamily: 'Inter_900Black', color: '#000', backgroundColor: C.hi, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, overflow: 'hidden' },
-  tomorrow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderTopWidth: 1, borderTopColor: C.line, paddingTop: 8 },
-  tomorrowLbl: { width: 82, fontSize: 10, fontFamily: 'Inter_900Black', color: C.mut, letterSpacing: 1, marginTop: 2 },
   dotEmpty: { width: 5, height: 5, borderRadius: 3, backgroundColor: C.dim },
   stepsBars: { flexDirection: 'row', gap: 3, height: 26, marginTop: 6, alignItems: 'flex-end' },
   stepCol: { flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' },

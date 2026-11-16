@@ -12,6 +12,7 @@ type Row = { key: keyof Thresholds; label: string; hint: string; step: number; f
 const ROWS: Row[] = [
   { key: 'fuelMin', label: 'Paliwo od kwoty', hint: 'zakup na stacji poniżej tej kwoty to nie tankowanie (kawa, batonik) — appka nie pyta o litry', step: 5, fmt: (v) => `${v} zł` },
   { key: 'budgetWarnPct', label: 'Ostrzeżenie budżetu', hint: 'od ilu procent limitu budżet robi się pomarańczowy i przychodzi powiadomienie', step: 5, fmt: (v) => `${v}%` },
+  { key: 'watchBatteryPct', label: 'Bateria zegarka', hint: 'poniżej ilu procent przychodzi powiadomienie „podładuj zegarek”', step: 5, fmt: (v) => `${v}%` },
   { key: 'reminderHour', label: 'Godzina przypomnień', hint: 'o której przychodzą przypomnienia o stałych opłatach i wymianach', step: 1, fmt: (v) => `${v}:00` },
 ];
 

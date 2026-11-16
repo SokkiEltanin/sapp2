@@ -5,7 +5,7 @@ export type DashSection = 'top' | 'factWeather' | 'food' | 'note' | 'upcoming';
 
 export const DASH_SECTIONS: { id: DashSection; label: string; hint: string }[] = [
   { id: 'top', label: 'Wymiana i następny event', hint: 'najbliższa wymiana w pojeździe + co za chwilę' },
-  { id: 'factWeather', label: 'Ciekawostka i pogoda', hint: 'fakt dnia + pogoda teraz' },
+  { id: 'factWeather', label: 'Baterie i pogoda', hint: 'bateria telefonu i zegarka + pogoda teraz' },
   { id: 'food', label: '#JedzeniePerMiesiąc', hint: 'wydatki na jedzenie, 6 miesięcy' },
   { id: 'note', label: 'Notatka i odliczanie', hint: 'przypięta notatka + odliczanie do eventu' },
   { id: 'upcoming', label: 'Najbliższe eventy', hint: 'kalendarz, terminy zadań, opłaty' },

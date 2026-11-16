@@ -39,6 +39,9 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Bateria → telefon teraz + co 15 min (BatteryReporter.kt).
+        BatteryReporter.report(this)
+        BatteryReporter.schedule(this)
         scroll = ScrollView(this).apply {
             isVerticalScrollBarEnabled = false
             isFocusable = true

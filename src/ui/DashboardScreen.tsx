@@ -2,8 +2,9 @@ import { Fragment } from 'react';
 import { useDashboardLayoutStore } from '@/store/dashboardLayoutStore';
 import { visibleSections, type DashSection } from '@/utils/dashboardLayout';
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Globe, ListTodo, CalendarClock, Wrench, MapPin, StickyNote } from 'lucide-react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
+import { ListTodo, CalendarClock, Wrench, MapPin, StickyNote, Smartphone, Watch, Zap } from 'lucide-react-native';
+import { batteryTone, ageLabel, watchName } from '@/utils/deviceBattery';
 import NotePreview from '@/components/notes/NotePreview';
 import NotePage from '@/components/notes/NotePage';
 import { noteTitle } from '@/utils/notes';
@@ -21,7 +22,12 @@ import { countdownParts, formatCountdown } from '@/utils/countdown';
  */
 export type DashData = {
   next?: { title: string; start: Date } | null;
-  fact: string;
+  // Baterie (2026-11-16, user: "paski naładowania urządzeń zamiast kafelka Ciekawostek").
+  batteries: {
+    phone: { level: number; charging: boolean } | null;
+    watch: { level: number; charging: boolean; model: string; t: number } | null;
+    lowPct: number;
+  };
   // Pogoda ZAMIAST snu (2026-11-13, user: "sen na dashboardzie jest spoko, ale
   // on jest zaraz w zakładce obok") — `null` + `weatherHint` = stan pusty.
   weather: { temp: string; feels: string; label: string; icon: string; tone: string; place: string; rain: string; aqi?: { value: number; color: string } } | null;
@@ -139,9 +145,11 @@ export function DashboardScreen(d: DashData) {
     </>,
     factWeather: <>
           <Row h={96}>
-            <Tile span={2} center onPress={() => d.onOpen('fact')}>
-              <Globe size={12} color={C.dim} style={st.icoL} />
-              <Text style={[T.body, { textAlign: 'center' }]} numberOfLines={3}>{d.fact}</Text>
+            {/* Baterie telefonu i zegarka; stuknięcie = świeży odczyt z zegarka. */}
+            <Tile span={2} onPress={() => d.onOpen('battery')} accessibilityLabel="Baterie urządzeń" style={st.batTile}>
+              <BatteryRow icon="phone" label={Platform.OS === 'web' ? 'Komputer' : 'Telefon'} b={d.batteries.phone} lowPct={d.batteries.lowPct} />
+              <BatteryRow icon="watch" label={d.batteries.watch ? watchName(d.batteries.watch.model) : 'Zegarek'} b={d.batteries.watch} lowPct={d.batteries.lowPct}
+                sub={d.batteries.watch ? ageLabel(d.batteries.watch.t) : Platform.OS === 'web' ? 'na telefonie' : 'otwórz Sapp2 na zegarku'} />
             </Tile>
             <Tile span={2} onPress={() => d.onOpen('weather')} style={{ justifyContent: 'space-between', overflow: 'hidden' }}>
               {d.weather ? (
@@ -267,6 +275,28 @@ export function DashboardScreen(d: DashData) {
   );
 }
 
+const BAT_TONE = { charge: '#4ADE80', low: '#F87171', mid: '#FB923C', ok: C.txt };
+function BatteryRow({ icon, label, b, lowPct, sub }: { icon: 'phone' | 'watch'; label: string; b: { level: number; charging: boolean } | null; lowPct: number; sub?: string }) {
+  const Icon = icon === 'phone' ? Smartphone : Watch;
+  const tone = b ? BAT_TONE[batteryTone(b.level, b.charging, lowPct)] : C.dim;
+  return (
+    <View style={st.batRow}>
+      <Icon size={13} color={b ? C.txt : C.dim} />
+      <View style={{ flex: 1, gap: 3 }}>
+        <View style={st.batHead}>
+          <Text style={st.batLabel} numberOfLines={1}>{label}</Text>
+          {b?.charging ? <Zap size={10} color={BAT_TONE.charge} /> : null}
+          <Text style={[st.batPct, { color: b ? tone : C.dim }]}>{b ? `${b.level}%` : '—'}</Text>
+        </View>
+        <View style={st.batTrack}>
+          {b ? <View style={[st.batFill, { width: `${Math.max(3, b.level)}%`, backgroundColor: tone }]} /> : null}
+        </View>
+        {sub ? <Text style={st.batSub} numberOfLines={1}>{sub}</Text> : null}
+      </View>
+    </View>
+  );
+}
+
 // Ikona warunków (nazwa z utils/weather.ts's weatherCodeInfo → komponent lucide).
 function WeatherIcon({ name, color = C.txt }: { name: string; color?: string }) {
   const Icon = (LucideIcons as any)[name] ?? LucideIcons.Cloud;
@@ -274,6 +304,14 @@ function WeatherIcon({ name, color = C.txt }: { name: string; color?: string }) 
 }
 
 const st = StyleSheet.create({
+  batTile: { justifyContent: 'center', gap: 8, paddingVertical: 10 },
+  batRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
+  batHead: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  batLabel: { flex: 1, fontFamily: F.xb, fontSize: 10, color: C.mut },
+  batPct: { fontFamily: F.xb, fontSize: 11, fontVariant: ['tabular-nums'] },
+  batTrack: { height: 5, borderRadius: 3, backgroundColor: C.in2, overflow: 'hidden' },
+  batFill: { height: '100%', borderRadius: 3 },
+  batSub: { fontFamily: F.b, fontSize: 9, color: C.dim },
   wxFoot: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   wxAqi: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   wxDot: { width: 7, height: 7, borderRadius: 4 },

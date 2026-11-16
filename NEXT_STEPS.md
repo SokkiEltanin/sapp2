@@ -41,6 +41,13 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-16 — bateria Galaxy Watch** (nowy APK + nowa appka na zegarek z wear.yml):
+- [ ] Zainstalować nową wersję appki NA ZEGARKU (raport baterii) i otworzyć ją raz.
+- [ ] Dashboard: kafel Baterie — telefon + zegarek, stuknięcie odświeża.
+- [ ] Powiadomienie poniżej progu (Ustawienia → Progi → Bateria zegarka, domyślnie 20%).
+- [ ] Kopia: na komputerze kafel pokazuje baterię laptopa; zegarek tylko na telefonie
+  (ew. później sync przez chmurę).
+
 **2026-11-16 — kopia robocza zadania**: zamknięcie formularza bez „Dodaj” nie gubi treści.
 - [ ] Na telefonie: wpisz → cofnij/zamknij → „+” (kropka) → szkic wraca.
 - [ ] Ten sam wzorzec dla innych formularzy (wydatek, wydarzenie), jeśli będzie potrzeba.

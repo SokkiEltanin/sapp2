@@ -55,6 +55,7 @@ import { useAutoBackup } from '@/hooks/useAutoBackup';
 import { useCloudSync } from '@/hooks/useCloudSync';
 import { useShareReceiptLaunch } from '@/hooks/useShareReceiptLaunch';
 import { useImportedTagFix } from '@/hooks/useImportedTagFix';
+import { useWatchBatteryCfg } from '@/hooks/useDeviceBatteries';
 import { loadHapticsEnabled, loadHapticStrength } from '@/utils/haptics';
 import { drainBankNotifications } from '@/services/bankNotificationDrain';
 import { useExpensesStore } from '@/store/expensesStore';
@@ -186,6 +187,8 @@ export default function RootLayout() {
   useTaskReminderSync();
   // Tagi ze starej appki (czekolada → Słodycze, chemia → Zmienne…) — 2026-11-16.
   useImportedTagFix();
+  // Próg "podładuj zegarek" dla natywnej usługi (hooks/useDeviceBatteries.ts).
+  useWatchBatteryCfg();
   // Ostrzeżenia budżetowe 80% / 100% po każdej zmianie wydatków (services/budgetAlerts.ts).
   useEffect(() => startBudgetAlerts(), []);
   // Automatyczna kopia zapasowa w chmurze (2026-11-11) — patrz

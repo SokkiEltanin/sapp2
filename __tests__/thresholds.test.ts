@@ -7,7 +7,7 @@ describe('progi z Ustawień', () => {
   afterEach(() => applyThresholds(DEFAULT_THRESHOLDS));
 
   it('przycinanie do rozsądnych zakresów', () => {
-    expect(applyThresholds({ fuelMin: -5, budgetWarnPct: 120, reminderHour: 3 })).toEqual({ fuelMin: 0, budgetWarnPct: 99, reminderHour: 5 });
+    expect(applyThresholds({ fuelMin: -5, budgetWarnPct: 120, reminderHour: 3, watchBatteryPct: 90 })).toEqual({ fuelMin: 0, budgetWarnPct: 99, reminderHour: 5, watchBatteryPct: 50 });
     expect(applyThresholds({ fuelMin: 'x' as any })).toEqual(DEFAULT_THRESHOLDS);
   });
 

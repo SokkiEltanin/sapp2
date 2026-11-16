@@ -20,6 +20,7 @@ class SappTileService : TileService() {
     private val res = "1"
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
+        BatteryReporter.schedule(this)
         val json = getSharedPreferences(Snapshot.PREFS, MODE_PRIVATE).getString(Snapshot.KEY, null)
         val snap = try { if (json != null) JSONObject(json) else null } catch (e: Exception) { null }
 

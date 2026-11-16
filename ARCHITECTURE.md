@@ -1813,6 +1813,24 @@ Zadania z `task`, notatka → edytor, reszta → ich ekrany. Nowy rodzaj danych 
 - **Wejście do listy**: przycisk „Wszystkie notatki” w nagłówku notatki (z Dashboardu
   otwiera się sama notatka).
 
+## BATERIA ZEGARKA I URZĄDZEŃ (2026-11-16)
+
+User: „monitorować baterię Galaxy Watch 6 Classic i wysłać powiadomienie, żeby go
+podładować; paski naładowania zamiast Ciekawostki na Dashboardzie”.
+- Zegarek (`wear/…/BatteryReporter.kt`): DataItem `/sapp2/battery` {level, charging,
+  model, t} — co 15 min (WorkManager), przy otwarciu appki, przy snapshotcie z telefonu
+  i na wiadomość `/sapp2/battery-req` (DataListenerService).
+- Telefon (`plugins/withWearSync.js` → WearListenerService, DATA_CHANGED): zapis
+  `filesDir/wear_battery.json` + powiadomienie „Zegarek: X% baterii” poniżej progu z
+  `wear_battery_cfg.json` (raz na rozładowanie, reset po ładowaniu / +5%). Próg:
+  Ustawienia → Progi → „Bateria zegarka” (`THRESHOLDS.watchBatteryPct`, plik pisze
+  `useWatchBatteryCfg` w _layout). `WearSync.requestBattery()` = prośba o świeży stan.
+- JS: `services/watchBattery.ts` (odczyt pliku), `hooks/useDeviceBatteries.ts` (telefon:
+  expo-battery; web: navigator.getBattery — hooków expo-battery NIE na web), czyste
+  `utils/deviceBattery.ts` (testy). Kafel w rzędzie `factWeather` Dashboardu (tap =
+  prośba do zegarka). Ciekawostki → `utils/facts.ts`, kafel w Daily zamiast planu dnia
+  (plan dnia, DayPlanTagsSheet, dayPlanStore, utils/dayPlan USUNIĘTE).
+
 ## TAGI ZE STAREJ APPKI (2026-11-16)
 
 Import ze sapp brał pierwszy tag pozycji jako `foodSubcat` → duplikaty kategorii

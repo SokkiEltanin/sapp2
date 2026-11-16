@@ -49,4 +49,6 @@ dependencies {
     implementation("androidx.wear.tiles:tiles:1.4.1")
     implementation("androidx.wear.protolayout:protolayout:1.2.1")
     implementation("com.google.guava:guava:33.3.1-android")
+    // Bateria zegarka co 15 min → telefon (BatteryReporter.kt).
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 }
