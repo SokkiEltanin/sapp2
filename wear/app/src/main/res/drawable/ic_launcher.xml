@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Logo Sapp2 (2026-11-16): czarne koło + białe "S" z trzech pasów (assets/logo.svg). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="48dp" android:height="48dp"
-    android:viewportWidth="48" android:viewportHeight="48">
-    <path android:fillColor="#FB923C" android:pathData="M24,2a22,22 0,1 0,0.01 0z" />
-    <path android:strokeColor="#000000" android:strokeWidth="4" android:strokeLineCap="round" android:strokeLineJoin="round"
-        android:fillColor="#00000000" android:pathData="M14,25 L21,32 L34,17" />
+    android:viewportWidth="1024" android:viewportHeight="1024">
+    <path android:fillColor="#000000" android:pathData="M512,0a512,512 0,1 0,0.01 0z" />
+    <path android:fillColor="#D6D6D6" android:pathData="M298,414 A136,136 0,0 1,434 278 H590 A136,136 0,0 1,726 414 Z" />
+    <path android:fillColor="#D6D6D6" android:pathData="M298,442 H590 A136,136 0,0 1,726 578 H434 A136,136 0,0 1,298 442 Z" />
+    <path android:fillColor="#D6D6D6" android:pathData="M298,744 A136,136 0,0 1,434 608 H726 A136,136 0,0 1,590 744 Z" />
 </vector>

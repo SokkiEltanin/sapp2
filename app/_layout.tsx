@@ -1,3 +1,4 @@
+import Logo from '@/ui/Logo';
 import { useEffect, useRef, useState } from 'react';
 import { useCalendarStore } from '@/store/calendarStore';
 import { syncTasksWidget, syncWeatherWidget, syncNoteWidget, applyWidgetAppearance } from '@/services/widgetSync';
@@ -13,7 +14,7 @@ import { syncWear } from '@/services/wearSync';
 import { useWeatherStore } from '@/store/weatherStore';
 import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
 import { drainWidgetToggleQueue } from '@/services/widgetToggleDrain';
-import { View, Text, TouchableOpacity, ActivityIndicator, AppState, Dimensions, Image, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, AppState, Dimensions, Platform, useWindowDimensions } from 'react-native';
 import { WEB_MAX_W } from '@/ui/layout';
 import { desktopLayout } from '@/utils/desktopColumns';
 import { DesktopPanelBackdrop } from '@/ui/DesktopPanelBackdrop';
@@ -299,7 +300,7 @@ export default function RootLayout() {
             {/* 2026-11-08, user: "Dodałem nowe logo dodaj je do appki" — ten ekran
                 (ładowanie fontów/stanu auth, widoczny KRÓTKO przy każdym zimnym
                 starcie, zaraz po natywnym splashu) był dotąd gołym spinnerem. */}
-            <Image source={require('../assets/Logo_Sapp2_OrangeTranspare.png')} style={{ width: 64, height: 64 }} resizeMode="contain" />
+            <Logo size={44} />
             <ActivityIndicator color={colors.text.primary} />
           </View>
         </SafeAreaProvider>

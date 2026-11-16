@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Logo Sapp2 (2026-11-16): trzy zaokrąglone pasy tworzące "S", nasz biały #D6D6D6. -->
+  <g fill="#D6D6D6">
+    <path d="M298 414 A136 136 0 0 1 434 278 H590 A136 136 0 0 1 726 414 Z"/>
+    <path d="M298 442 H590 A136 136 0 0 1 726 578 H434 A136 136 0 0 1 298 442 Z"/>
+    <path d="M298 744 A136 136 0 0 1 434 608 H726 A136 136 0 0 1 590 744 Z"/>
+  </g>
+</svg>

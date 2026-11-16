@@ -11,15 +11,15 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0B0E14"
+      "backgroundColor": "#000000"
     },
     "android": {
-      "backgroundColor": "#0B0E14",
+      "backgroundColor": "#000000",
       "package": "com.sokki.sapp2",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0B0E14"
+        "backgroundColor": "#000000"
       },
       "permissions": [
         "android.permission.INTERNET",

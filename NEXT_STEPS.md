@@ -41,6 +41,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-16 — nowe logo (białe #D6D6D6, SVG)**: `assets/logo.svg` → ikona, adaptive, splash,
+PWA, ekran ładowania/logowania (`src/ui/Logo.tsx`), ikona zegarka (vector). Ikona i splash
+wchodzą tylko z nowym APK (CLAUDE.md zasada 2); launcher może trzymać starą w cache.
+- [ ] Sprawdzić ikonę na pulpicie telefonu i zegarka.
+
 **2026-11-16 — bateria Galaxy Watch** (nowy APK + nowa appka na zegarek z wear.yml):
 - [ ] Zainstalować nową wersję appki NA ZEGARKU (raport baterii) i otworzyć ją raz.
 - [ ] Dashboard: kafel Baterie — telefon + zegarek, stuknięcie odświeża.
