@@ -10,7 +10,7 @@ import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useWeatherStore } from '@/store/weatherStore';
 import { refreshWeather } from '@/hooks/useWeather';
 import { searchCity, type CityHit } from '@/services/weather';
-import { weatherCodeInfo, aqiInfo, rainSummary, cloudSummary, weatherTip, fmtTemp, weatherColor, weatherToneKey, WEATHER_TONES, tempColor, dayStrip } from '@/utils/weather';
+import { weatherCodeInfo, aqiInfo, rainSummary, cloudSummary, weatherTip, fmtTemp, weatherColor, weatherToneKey, WEATHER_TONES, tempColor, dayRainText } from '@/utils/weather';
 import { haptic } from '@/utils/haptics';
 
 // Szczegóły pogody (2026-11-13): teraz (odczuwalna/wilgotność/wiatr/ciśnienie/
@@ -89,7 +89,6 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
     Linking.openURL(`https://www.rainviewer.com/map.html?loc=${coords.lat.toFixed(3)},${coords.lon.toFixed(3)},8&layer=radar&sm=1&sn=1`).catch(() => {});
   };
   // Pozycja "teraz" na pasku doby (0–1).
-  const nowFrac = (() => { const d = new Date(); return (d.getHours() + d.getMinutes() / 60) / 24; })();
 
   const header = (
     <View style={s.head}>
@@ -182,51 +181,35 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
             <Text style={s.note}>Słupek pełny = 100%. Liczba pod spodem = mm opadu w tej godzinie.</Text>
           </SheetCard>
 
-          {/* "7 dni" (2026-11-14, user: "nie rozumiem tego paska"): kolumny podpisane
-              (opady / noc / dzień), pod dniem słowo o pogodzie w jej kolorze, pasek =
-              temperatura od nocy do dnia, kolorem od zimna (niebieski) do ciepła
-              (pomarańczowy), położony na skali całego tygodnia. */}
+          {/* "7 dni" (2026-11-16, user: "paski kolorki nie docierają do mnie"): bez
+              pasków — każdy dzień to dwie linijki zwykłym tekstem: dzień + pogoda +
+              temperatury, pod spodem KIEDY pada (utils/weather.ts's dayRainText). */}
           <SheetCard title="7 dni">
-            <View style={s.dayHead}>
-              <Text style={[s.colHead, { width: 92 }]}>dzień</Text>
-              <Text style={[s.colHead, { width: 40, textAlign: 'right' }]}>opady</Text>
-              <Text style={[s.colHead, { width: 34, textAlign: 'right' }]}>min</Text>
-              {/* Skala doby nad paskiem: 6 / 12 / 18. */}
-              <View style={s.hoursHead}>
-                {[6, 12, 18].map((h) => <Text key={h} style={[s.colHead, s.hourTick, { left: `${(h / 24) * 100}%` }]}>{h}</Text>)}
-              </View>
-              <Text style={[s.colHead, { width: 34 }]}>max</Text>
-            </View>
             {data!.daily.map((d, i) => {
               const tone = WEATHER_TONES[weatherToneKey(d.code)];
+              const rain = dayRainText(d);
               return (
-                <View key={d.date} style={s.dayRow}>
-                  <View style={s.dayNameCol}>
-                    <Icon name={weatherCodeInfo(d.code).icon} size={16} color={tone.color} />
-                    <View style={{ flexShrink: 1 }}>
+                <View key={d.date} style={[s.dayRow, i > 0 && s.dayDivider]}>
+                  <View style={s.dayTop}>
+                    <View style={s.dayNameCol}>
                       <Text style={s.dayName}>{dayName(d.date, i)}</Text>
-                      <Text style={[s.dayKind, { color: tone.color }]} numberOfLines={1}>{tone.label}</Text>
+                      <Text style={s.dayDate}>{Number(d.date.slice(8, 10))}.{d.date.slice(5, 7)}</Text>
                     </View>
+                    <Icon name={weatherCodeInfo(d.code).icon} size={18} color={tone.color} />
+                    <Text style={[s.dayKind, { color: tone.color }]} numberOfLines={1}>{tone.label}</Text>
+                    <Text style={s.dayTemps}>
+                      <Text style={[s.dayMax, { color: tempColor(d.max) }]}>{fmtTemp(d.max)}</Text>
+                      <Text style={s.dayMin}>  {fmtTemp(d.min)}</Text>
+                    </Text>
                   </View>
-                  <View style={s.dayPopCol}>
-                    {d.pop >= 20 && <Droplet size={10} color={colors.accent.blue} />}
-                    <Text style={s.dayPop}>{d.pop >= 20 ? `${d.pop}%` : '–'}</Text>
+                  <View style={s.dayRain}>
+                    <Droplet size={12} color={rain.wet ? colors.accent.blue : colors.text.muted} />
+                    <Text style={[s.dayRainTxt, rain.wet && { color: '#93C5FD' }]} numberOfLines={2}>{rain.text}</Text>
                   </View>
-                  <Text style={[s.dayMin, { color: tempColor(d.min) }]}>{fmtTemp(d.min)}</Text>
-                  {/* Doba 0–24 h: jasne = dzień, ciemne = noc, niebieskie = godziny z deszczem. */}
-                  <View style={s.strip}>
-                    {dayStrip(d).map((x) => (
-                      <View key={x.hour} style={[s.stripHour, { backgroundColor: x.night ? '#0B0B0B' : '#2A2A2A' }]}>
-                        {x.rain > 0 && <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.accent.blue, opacity: 0.25 + x.rain * 0.75 }]} />}
-                      </View>
-                    ))}
-                    {i === 0 && nowFrac != null && <View style={[s.stripNow, { left: `${nowFrac * 100}%` }]} />}
-                  </View>
-                  <Text style={[s.dayMax, { color: tempColor(d.max) }]}>{fmtTemp(d.max)}</Text>
                 </View>
               );
             })}
-            <Text style={s.note}>Pasek = cała doba (0–24 h): jasne = dzień, ciemne = noc, niebieskie = godziny z deszczem (mocniejszy = pewniejszy). Kreska na „dziś” = teraz. Liczby: najniższa i najwyższa temperatura dnia.</Text>
+            <Text style={s.note}>Duża liczba = najcieplej w dzień, mała = najzimniej w nocy. Godziny w nawiasie = kiedy pada; % = szansa, mm = ile spadnie.</Text>
           </SheetCard>
 
           {data!.air && (() => {
@@ -337,21 +320,18 @@ const makeS = themedStyles((c) => StyleSheet.create({
   hourPop: { fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.accent.blue, height: 12 },
 
   nowCard: { backgroundColor: c.ui.in, borderRadius: radius.lg, padding: spacing[3], overflow: 'hidden' },
-  dayHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: c.ui.line, marginBottom: 2 },
-  colHead: { fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.4 },
-  dayRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingVertical: 6 },
-  dayNameCol: { width: 92, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  dayKind: { fontSize: 9.5, fontFamily: 'Inter_700Bold', marginTop: 1 },
-  dayPopCol: { width: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2 },
-  dayName: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
-  dayPop: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.accent.blue, textAlign: 'right' },
-  dayMin: { width: 34, fontSize: 12, fontFamily: 'Inter_800ExtraBold', textAlign: 'right', fontVariant: ['tabular-nums'] },
-  dayMax: { width: 34, fontSize: 12.5, fontFamily: 'Inter_900Black', fontVariant: ['tabular-nums'] },
-  strip: { flex: 1, height: 12, flexDirection: 'row', borderRadius: 4, overflow: 'hidden', gap: 1 },
-  stripHour: { flex: 1 },
-  stripNow: { position: 'absolute', top: -1, bottom: -1, width: 2, marginLeft: -1, backgroundColor: c.text.bright },
-  hoursHead: { flex: 1, height: 12 },
-  hourTick: { position: 'absolute', marginLeft: -6, width: 12, textAlign: 'center' },
+  dayRow: { paddingVertical: 9, gap: 5 },
+  dayDivider: { borderTopWidth: 1, borderTopColor: c.ui.line },
+  dayTop: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  dayNameCol: { width: 64 },
+  dayName: { fontSize: 14, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },
+  dayDate: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
+  dayKind: { flex: 1, fontSize: 12.5, fontFamily: 'Inter_700Bold' },
+  dayTemps: { textAlign: 'right' },
+  dayMax: { fontSize: 18, fontFamily: 'Inter_900Black', fontVariant: ['tabular-nums'] },
+  dayMin: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.muted, fontVariant: ['tabular-nums'] },
+  dayRain: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 64 + spacing[2] },
+  dayRainTxt: { flex: 1, fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.muted },
 
   airHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   airDot: { width: 10, height: 10, borderRadius: 5 },

@@ -212,23 +212,29 @@ export function weatherTip(w: WeatherData): string | null {
 
 export const fmtTemp = (t: number) => `${Math.round(t) === 0 ? 0 : Math.round(t)}°`;
 
-// ── Pasek doby w "7 dni" (2026-11-15, user: "myślałem że to opady deszczu w ciągu dnia
-// ... zaznaczone kiedy jest DZIEŃ i NOC") ─────────────────────────────────────────
-export interface StripHour { hour: number; night: boolean; rain: number } // rain 0–1
+// ── Opady dnia słowami w "7 dni" (2026-11-16, user: "nadal te paski kolorki nie
+// docierają do mnie") — zamiast paska doby zdanie: KIEDY pada, jak pewnie, ile mm.
+// Godzina mokra = szansa ≥ 40% albo ≥ 0,1 mm; okna z przerwą ≤ 1 h są łączone.
+const PART = (mid: number) => (mid < 6 ? 'w nocy' : mid < 12 ? 'rano' : mid < 18 ? 'po południu' : 'wieczorem');
 
-const hourOf = (iso: string): number | null => {
-  const m = /T(\d{2}):(\d{2})/.exec(iso);
-  return m ? Number(m[1]) + Number(m[2]) / 60 : null;
-};
-
-/** 24 godziny dnia: noc (przed wschodem / po zachodzie) i natężenie deszczu. */
-export function dayStrip(d: Pick<WeatherDay, 'sunrise' | 'sunset' | 'hours'>): StripHour[] {
-  const sr = hourOf(d.sunrise) ?? 7, ss = hourOf(d.sunset) ?? 17;
-  return Array.from({ length: 24 }, (_, hh) => {
-    const mid = hh + 0.5;
-    const x = d.hours?.[hh] ?? { pop: 0, precip: 0 };
-    const byPop = x.pop >= 20 ? x.pop / 100 : 0;
-    const byMm = x.precip > 0 ? Math.min(1, 0.45 + x.precip / 2) : 0;
-    return { hour: hh, night: mid < sr || mid > ss, rain: Math.round(Math.max(byPop, byMm) * 100) / 100 };
+export function dayRainText(d: Pick<WeatherDay, 'code' | 'pop' | 'precipSum' | 'hours'>): { text: string; wet: boolean } {
+  const tone = weatherToneKey(d.code);
+  const word = tone === 'snow' ? 'Śnieg' : tone === 'storm' ? 'Burza' : tone === 'drizzle' ? 'Mżawka' : tone === 'freezing' ? 'Marznące opady' : 'Deszcz';
+  const wet = (d.hours ?? []).map((x) => x.pop >= 40 || x.precip >= 0.1);
+  const wins: [number, number][] = [];
+  wet.forEach((w, h) => {
+    if (!w) return;
+    const last = wins[wins.length - 1];
+    if (last && h - last[1] <= 2) last[1] = h; else wins.push([h, h]);
   });
+  const mm = d.precipSum >= 0.1 ? ` · ${String(Math.round(d.precipSum * 10) / 10).replace('.', ',')} mm` : '';
+  const tail = `${d.pop > 0 ? ` · ${d.pop}%` : ''}${mm}`;
+  if (!wins.length) {
+    return d.pop >= 30 ? { text: `Możliwy przelotny ${word.toLowerCase()}${tail}`, wet: true } : { text: 'Bez opadów', wet: false };
+  }
+  const hoursWet = wet.filter(Boolean).length;
+  if (hoursWet >= 18) return { text: `${word} przez cały dzień${tail}`, wet: true };
+  const top = [...wins].sort((x, y) => (y[1] - y[0]) - (x[1] - x[0])).slice(0, 2).sort((x, y) => x[0] - y[0]);
+  const parts = top.map(([a, b]) => `${PART((a + b + 1) / 2)} (${a}–${b + 1})`);
+  return { text: `${word} ${parts.join(' i ')}${tail}`, wet: true };
 }

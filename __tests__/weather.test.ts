@@ -91,23 +91,20 @@ describe('kolory pogody', () => {
   });
 });
 
-import { dayStrip } from '../src/utils/weather';
-describe('dayStrip — pasek doby', () => {
-  const hours = Array.from({ length: 24 }, (_, h) => ({ pop: h >= 14 && h < 17 ? 70 : h === 20 ? 10 : 0, precip: h === 15 ? 1.2 : 0 }));
-  const strip = dayStrip({ sunrise: '2026-11-15T07:01', sunset: '2026-11-15T16:05', hours });
-  it('noc przed wschodem i po zachodzie', () => {
-    expect(strip[6].night).toBe(true);
-    expect(strip[7].night).toBe(false);
-    expect(strip[15].night).toBe(false);
-    expect(strip[16].night).toBe(true);
+import { dayRainText } from '../src/utils/weather';
+describe('dayRainText — opady słowami', () => {
+  const H = (f: (h: number) => { pop: number; precip: number }) => Array.from({ length: 24 }, (_, h) => f(h));
+  it('okno po południu z szansą i mm', () => {
+    const hours = H((h) => ({ pop: h >= 14 && h < 18 ? 70 : 10, precip: h === 15 ? 1.2 : 0 }));
+    expect(dayRainText({ code: 61, pop: 70, precipSum: 4.2, hours }).text).toBe('Deszcz po południu (14–18) · 70% · 4,2 mm');
   });
-  it('deszcz z szansy (od 20%) i z ilości mm', () => {
-    expect(strip[14].rain).toBe(0.7);
-    expect(strip[15].rain).toBe(1);
-    expect(strip[20].rain).toBe(0);
-    expect(strip[3].rain).toBe(0);
+  it('dwa okna, krótka przerwa łączy', () => {
+    const hours = H((h) => ({ pop: [6, 7, 9, 19, 20, 21].includes(h) ? 60 : 0, precip: 0 }));
+    expect(dayRainText({ code: 61, pop: 60, precipSum: 0, hours }).text).toBe('Deszcz rano (6–10) i wieczorem (19–22) · 60%');
   });
-  it('bez danych godzinowych — sama noc/dzień', () => {
-    expect(dayStrip({ sunrise: '', sunset: '' }).every((x) => x.rain === 0)).toBe(true);
+  it('cały dzień, śnieg, bez opadów, przelotny', () => {
+    expect(dayRainText({ code: 73, pop: 90, precipSum: 10, hours: H(() => ({ pop: 80, precip: 0.5 })) }).text).toBe('Śnieg przez cały dzień · 90% · 10 mm');
+    expect(dayRainText({ code: 0, pop: 5, precipSum: 0, hours: H(() => ({ pop: 5, precip: 0 })) })).toEqual({ text: 'Bez opadów', wet: false });
+    expect(dayRainText({ code: 3, pop: 35, precipSum: 0, hours: H(() => ({ pop: 30, precip: 0 })) }).text).toBe('Możliwy przelotny deszcz · 35%');
   });
 });
