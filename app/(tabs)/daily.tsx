@@ -1,3 +1,4 @@
+import FitText from '@/ui/FitText';
 import { useMemo, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
 import { View, Text, StyleSheet, Platform } from 'react-native';
@@ -130,7 +131,7 @@ export default function DailyScreen() {
           <Cap l="Ciekawostka" r={`${factIdx + 1}/${FACTS.length}`} />
           <View style={st.factBody}>
             <Lightbulb size={22} color={C.mut} />
-            <Text style={st.factText} numberOfLines={6} adjustsFontSizeToFit minimumFontScale={0.7}>{FACTS[factIdx]}</Text>
+            <FitText style={st.factText} numberOfLines={6} minimumFontScale={0.7}>{FACTS[factIdx]}</FitText>
           </View>
           <Text style={T.small}>dotknij, by zobaczyć następną</Text>
         </Tile>
@@ -149,7 +150,7 @@ export default function DailyScreen() {
       <Row>
         <Tile span={2} onPress={() => setBodyOpen(true)}>
           <Cap l="Kroki" r="więcej" />
-          <Text style={[T.num, stepsToday == null && { color: C.dim }]} numberOfLines={1} adjustsFontSizeToFit>{stepsToday != null ? stepsToday.toLocaleString('pl-PL') : '0'}</Text>
+          <FitText style={[T.num, stepsToday == null && { color: C.dim }]} numberOfLines={1}>{stepsToday != null ? stepsToday.toLocaleString('pl-PL') : '0'}</FitText>
           <View style={st.stepsBars}>
             {stepsWeek.map((x, i) => (
               <View key={x.key} style={st.stepCol}>

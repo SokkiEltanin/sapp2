@@ -1,3 +1,4 @@
+import FitText from '@/ui/FitText';
 import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Utensils, ChevronRight } from 'lucide-react-native';
@@ -103,7 +104,7 @@ export default function FoodBreakdownCard({
           const isLastMonth = period === 'months' && i === bars.length - 1;
           return (
             <View key={`${period}_${w.label}_${i}`} style={s.weekCol}>
-              {!isDays && <Text style={s.weekValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{money(w.value)}</Text>}
+              {!isDays && <FitText style={s.weekValue} numberOfLines={1} minimumFontScale={0.7}>{money(w.value)}</FitText>}
               <View style={[s.weekBarTrack, isDays && s.dayBarTrack]}>
                 <View style={[
                   s.weekBar,

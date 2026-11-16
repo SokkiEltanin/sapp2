@@ -1,3 +1,4 @@
+import FitText from '@/ui/FitText';
 import { goBack } from '@/services/nav';
 import { removeWithUndo } from '@/services/undo';
 import { useMemo, useRef, useState } from 'react';
@@ -186,7 +187,7 @@ export default function VehiclesScreen() {
             <View style={s.grid}>
               {tiles.map((t) => (
                 <View key={t.k} style={s.gridCell}>
-                  <Text style={[s.gridNum, t.v === '—' && { color: colors.text.muted }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t.v}</Text>
+                  <FitText style={[s.gridNum, t.v === '—' && { color: colors.text.muted }]} numberOfLines={1} minimumFontScale={0.7}>{t.v}</FitText>
                   <Text style={s.gridUnit} numberOfLines={1}>{t.u}</Text>
                   {t.sub ? <Text style={s.gridSub} numberOfLines={1}>{t.sub}</Text> : null}
                 </View>

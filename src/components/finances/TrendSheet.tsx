@@ -1,4 +1,3 @@
-import { INCOME_META } from '@/utils/incomeCategory';
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { colors } from '@/theme/colors';
@@ -8,9 +7,7 @@ import { SheetCard } from '@/components/design/SheetCard';
 import { useExpensesStore } from '@/store/expensesStore';
 import { useCategoriesVersion } from '@/store/categoriesStore';
 import { trendSeries, trendStats, monthShort } from '@/utils/trend';
-import { FOOD_SUBCAT_META } from '@/utils/food';
-import { FIXED_CAT_META, FIXED_OTHER } from '@/utils/fixedCategory';
-import { EXPENSE_CATEGORY_META, UNCATEGORIZED } from '@/utils/expenseCategory';
+import { seriesMeta } from '@/utils/seriesMeta';
 import { haptic } from '@/utils/haptics';
 import { zl } from '@/utils/money';
 
@@ -22,13 +19,7 @@ const BUCKETS: [Bucket, string][] = [['all', 'Wydatki'], ['food', 'Jedzenie'], [
 const PREFIX: Record<Bucket, string> = { all: '', food: 'food:', fixed: 'fixed:', variable: 'cat:', income: 'inc:' };
 const CHART_H = 120;
 
-function metaOf(key: string): { label: string; color: string } {
-  const [p, tag] = [key.slice(0, key.indexOf(':')), key.slice(key.indexOf(':') + 1)];
-  if (p === 'food') return tag === 'inne' ? { label: 'Inne jedzenie', color: '#8A8A8A' } : FOOD_SUBCAT_META[tag] ?? { label: tag, color: '#8A8A8A' };
-  if (p === 'inc') return INCOME_META[tag] ?? { label: tag, color: '#8A8A8A' };
-  if (p === 'fixed') return tag === FIXED_OTHER ? { label: 'Inne stałe', color: '#5A5A5A' } : FIXED_CAT_META[tag] ?? { label: tag, color: '#8A8A8A' };
-  return tag === UNCATEGORIZED ? { label: 'Bez kategorii', color: '#5A5A5A' } : EXPENSE_CATEGORY_META[tag] ?? { label: tag, color: '#8A8A8A' };
-}
+const metaOf = seriesMeta;
 
 export default function TrendSheet({ visible, onClose, initial = 'all' }: { visible: boolean; onClose: () => void; initial?: Bucket }) {
   const s = makeS();

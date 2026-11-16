@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { router } from 'expo-router';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { X, ChevronLeft, ChevronRight, Table2 } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
@@ -64,6 +65,7 @@ export default function WydatkiModal({
   onEditExpense: (expense: Expense) => void;
 }) {
   const s = makeS();
+  const openTable = useRef(false);
   const [tab, setTab] = useState<WydatkiTab>(initialTab);
   // Nawigacja miesiącami (2026-11-09, user: "nie moge... sprawdzać innych
   // miesiecy") — `today` od wołającego to ZAWSZE realne "teraz" (Dashboard/
@@ -143,12 +145,20 @@ export default function WydatkiModal({
           </TouchableOpacity>
         ))}
       </View>
+      {/* Tabela jak w Sheets (2026-11-16) — kategorie × miesiące, app/expense-table.tsx.
+          Nawigacja dopiero po zamknięciu sheeta (onClosed), inaczej zostaje puste okno. */}
+      <TouchableOpacity style={s.tableBtn} onPress={() => { haptic.tap(); openTable.current = true; onClose(); }} activeOpacity={0.8} accessibilityLabel="Tabela wszystkich wydatków">
+        <Table2 size={15} color={colors.text.primary} />
+        <Text style={s.tableBtnLabel}>Tabela wszystkich wydatków</Text>
+        <ChevronRight size={15} color={colors.text.muted} />
+      </TouchableOpacity>
     </>
   );
 
   return (
     <>
-      <AppBottomSheet visible={visible} onClose={onClose} header={header}>
+      <AppBottomSheet visible={visible} onClose={onClose} header={header}
+        onClosed={() => { if (openTable.current) { openTable.current = false; router.push('/expense-table' as any); } }}>
         {tab === 'fixed' && (
           <FixedBreakdownCard
             month={data.month}
@@ -210,6 +220,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
   monthNavBtnDisabled: { opacity: 0.4 },
   monthLabel: { fontSize: 13.5, fontFamily: 'Inter_900Black', color: c.text.primary, minWidth: 130, textAlign: 'center' },
   tabsRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[1] },
+  tableBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[2], marginBottom: spacing[1], paddingHorizontal: spacing[3], paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
+  tableBtnLabel: { flex: 1, fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
   tabBtn: { flex: 1, alignItems: 'center', paddingVertical: spacing[2], borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default },
   tabBtnActive: { backgroundColor: c.text.bright, borderColor: c.text.bright },
   tabBtnLabel: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.muted },

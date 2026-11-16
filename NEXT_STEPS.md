@@ -41,6 +41,10 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-16 — Tabela wydatków (Sheets) + FitText na komputerze**:
+- [ ] Telefon: Finanse → Wydatki → „Tabela wszystkich wydatków”; przewijanie w bok, drill.
+- [ ] Komputer: odliczanie / Praca / saldo nie ucięte.
+
 **2026-11-16 — nowe logo (białe #D6D6D6, SVG)**: `assets/logo.svg` → ikona, adaptive, splash,
 PWA, ekran ładowania/logowania (`src/ui/Logo.tsx`), ikona zegarka (vector). Ikona i splash
 wchodzą tylko z nowym APK (CLAUDE.md zasada 2); launcher może trzymać starą w cache.

@@ -1,3 +1,4 @@
+import FitText from '@/ui/FitText';
 import { incomeByCategory } from '@/utils/incomeCategory';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
@@ -260,7 +261,7 @@ export default function FinancesScreen() {
       <Row>
         <Tile span={3} onPress={openEditBalance}>
           <Cap l="Saldo" r="stuknij, by ustawić" />
-          <Text style={T.numXl} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{fmtBalance(balance)} <Text style={s.balanceCur}>PLN</Text></Text>
+          <FitText style={T.numXl} numberOfLines={1} minimumFontScale={0.6}>{fmtBalance(balance)} <Text style={s.balanceCur}>PLN</Text></FitText>
           <View style={s.balanceSumRow}>
             <Text style={s.balanceIn}>+{fmtAmount(monthIncome)}</Text>
             <Text style={s.balanceOut}>−{fmtAmount(monthExpense)}</Text>
@@ -340,10 +341,10 @@ export default function FinancesScreen() {
             <Text style={[T.small, s.workEmpty]}>Dodaj pracodawcę</Text>
           ) : (
             <>
-              <Text style={[T.num, s.workPay, !work.nextPay && { color: C.dim }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+              <FitText style={[T.num, s.workPay, !work.nextPay && { color: C.dim }]} numberOfLines={1} minimumFontScale={0.45}>
                 {work.nextPay ? `≈${money(work.nextPay.amount)}` : '—'}
                 <Text style={s.workPayCur}> zł</Text>
-              </Text>
+              </FitText>
               <Text style={s.workSub} numberOfLines={1}>
                 {work.nextPay ? `wypłata za ${PAY_MONTHS[Number(work.nextPay.month.slice(5, 7)) - 1]}` : 'brak stawki'}
               </Text>

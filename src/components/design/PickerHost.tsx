@@ -1,3 +1,4 @@
+import FitText from '@/ui/FitText';
 import { useEffect, useState } from 'react';
 import { Modal, View, Text, Pressable, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import { ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react-native';
@@ -74,7 +75,7 @@ export default function PickerHost() {
               </TouchableOpacity>
             </View>
           ) : (
-            <Text style={s.bigDate} numberOfLines={1} adjustsFontSizeToFit>{head}</Text>
+            <FitText style={s.bigDate} numberOfLines={1}>{head}</FitText>
           )}
 
           {isTime ? (

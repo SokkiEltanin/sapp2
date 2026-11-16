@@ -1,3 +1,4 @@
+import FitText from '@/ui/FitText';
 import { Fragment } from 'react';
 import { useDashboardLayoutStore } from '@/store/dashboardLayoutStore';
 import { visibleSections, type DashSection } from '@/utils/dashboardLayout';
@@ -99,9 +100,9 @@ export function DashboardScreen(d: DashData) {
               {d.nextMaintenance ? (
                 <>
                   <Wrench size={12} color={C.dim} style={st.icoL} />
-                  <Text style={[T.num, { fontSize: 20 }, d.nextMaintenance.overdue && { color: C.warn }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                  <FitText style={[T.num, { fontSize: 20 }, d.nextMaintenance.overdue && { color: C.warn }]} numberOfLines={1} minimumFontScale={0.6}>
                     {d.nextMaintenance.dueLabel}
-                  </Text>
+                  </FitText>
                   <Text style={T.unit} numberOfLines={1}>{d.nextMaintenance.vehicleName}</Text>
                   <Text style={[T.lab, { textAlign: 'center' }]} numberOfLines={2}>{d.nextMaintenance.label}</Text>
                 </>
@@ -129,7 +130,7 @@ export function DashboardScreen(d: DashData) {
                     </View>
                   ) : null}
                   <View>
-                    <Text style={[T.num, st.nextNum]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{nextCountdown}</Text>
+                    <FitText style={[T.num, st.nextNum]} numberOfLines={1} minimumFontScale={0.45}>{nextCountdown}</FitText>
                     <Text style={[T.unit, st.nextWhen]} numberOfLines={1}>{whenAt(d.next.start, now)}</Text>
                   </View>
                   <Text style={st.nextTitle} numberOfLines={2} ellipsizeMode="tail">{nextTitle}</Text>
@@ -220,9 +221,9 @@ export function DashboardScreen(d: DashData) {
               )}
             </Tile>
             <Tile onPress={() => d.onOpen('countdown')} center style={{ justifyContent: 'center', paddingHorizontal: 8 }}>
-              <Text style={[T.num, { fontSize: 22 }, !d.countdown && { color: C.dim }]} adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.6}>
+              <FitText style={[T.num, { fontSize: 22 }, !d.countdown && { color: C.dim }]} numberOfLines={1} minimumFontScale={0.4}>
                 {d.countdown ? d.countdown.text : '0'}
-              </Text>
+              </FitText>
               {/* 2026-11-09, user: "ten w czerwonym kółku kafelek... on jest wysoki
                   wiec pozwol tekst zawijać zeby bylo wiadomo do jakiego eventu" —
                   `numberOfLines:1` obcinał tytuł eventu do "…" mimo że ten kafel

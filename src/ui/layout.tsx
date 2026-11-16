@@ -1,3 +1,4 @@
+import FitText from './FitText';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Animated, Easing, useWindowDimensions, StyleSheet, StyleProp, ViewStyle, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -132,14 +133,13 @@ export function StatTile({ value, unit, label, onPress, hot, span = 1 }: {
   return (
     <Tile span={span} onPress={onPress} hot={hot} center style={st.stat}>
       {hot ? <PulseDot /> : null}
-      <Text
+      <FitText
         style={[T.num, String(value ?? '').length > 4 && { fontSize: 24, lineHeight: 32, letterSpacing: -1 }, hot && { color: '#000' }, empty && { color: C.dim }]}
         numberOfLines={1}
-        adjustsFontSizeToFit
         minimumFontScale={0.6}
       >
         {empty ? '0' : String(value)}
-      </Text>
+      </FitText>
       <Text style={[T.unit, hot && { color: 'rgba(0,0,0,.55)' }]} numberOfLines={1}>{empty ? 'brak' : unit}</Text>
       <Text style={[T.lab, hot && { color: '#000' }]} numberOfLines={1}>{label}</Text>
     </Tile>
@@ -261,7 +261,7 @@ export function Bars({ values, labels, active = values.length - 1, height = 44, 
       {showValues ? (
         <View style={st.barsRow}>
           {values.map((v, i) => (
-            <Text key={i} style={[st.barVal, i === active && { color: C.hi }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{money(v)}</Text>
+            <FitText key={i} style={[st.barVal, i === active && { color: C.hi }]} numberOfLines={1} minimumFontScale={0.7}>{money(v)}</FitText>
           ))}
         </View>
       ) : null}

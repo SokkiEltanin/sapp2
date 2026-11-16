@@ -1813,6 +1813,21 @@ Zadania z `task`, notatka → edytor, reszta → ich ekrany. Nowy rodzaj danych 
 - **Wejście do listy**: przycisk „Wszystkie notatki” w nagłówku notatki (z Dashboardu
   otwiera się sama notatka).
 
+## TABELA WYDATKÓW „JAK W SHEETS” (2026-11-16)
+
+`app/expense-table.tsx` (wejście: Finanse → okno Wydatki → „Tabela wszystkich wydatków”,
+nawigacja po `onClosed` sheeta). Wiersze Jedzenie/Stałe/Zmienne + podkategorie
+(zwijane), kolumny miesiące (6/12/24) + śr. (pełne miesiące z wydatkami) + suma; na
+dole Suma, Wpływy, Bilans. Kolor komórki = `heat` względem maksimum wiersza. Stała
+pierwsza kolumna, miesiące w poziomym scrollu (start: bieżący przy prawej krawędzi).
+Komórka → DrillSheet (wydatki z kategorii w miesiącu, `metricAmount`). Logika
+`utils/expenseTable.ts` (na `trendSeries` — te same kubły co Trend/Podział), nazwy
+serii `utils/seriesMeta.ts` (wspólne z TrendSheet). Na komputerze szeroki panel.
+
+**FitText (2026-11-16)** `src/ui/FitText.tsx` — `adjustsFontSizeToFit` nie działa na
+web; FitText na telefonie = natywne, na komputerze mierzy DOM i zmniejsza czcionkę.
+Nowe liczby w kafelkach → FitText, nie goły `adjustsFontSizeToFit`.
+
 ## BATERIA ZEGARKA I URZĄDZEŃ (2026-11-16)
 
 User: „monitorować baterię Galaxy Watch 6 Classic i wysłać powiadomienie, żeby go
