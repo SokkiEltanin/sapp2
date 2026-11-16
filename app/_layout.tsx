@@ -322,7 +322,8 @@ export default function RootLayout() {
                   return {
                     headerShown: false,
                     ...(panel ? { presentation: 'transparentModal' as const, animation: 'slide_from_right' as const } : null),
-                    contentStyle: panel ? DESK_PANEL_STYLE : { backgroundColor: colors.bg.primary },
+                    // Notatka na komputerze szerzej (2026-11-16) — wygodne pisanie/rysowanie.
+                    contentStyle: panel ? (route.name === 'note' ? { ...DESK_PANEL_STYLE, width: Math.min(900, Math.max(WEB_MAX_W, winW * 0.55)) } : DESK_PANEL_STYLE) : { backgroundColor: colors.bg.primary },
                   };
                 }}
               />

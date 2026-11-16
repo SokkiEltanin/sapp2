@@ -1805,6 +1805,11 @@ Zadania z `task`, notatka → edytor, reszta → ich ekrany. Nowy rodzaj danych 
   `components/notes/ColorCreator.tsx`: spektrum (odcień × jasność, SVG gradienty,
   responder), suwak nasycenia, #hex; paleta w kreatorze = biblioteka (stuknij →
   edytuj / usuń). Przeliczenia `utils/colorSpace.ts` (testy).
+- **Komputer (2026-11-16)**: edycja w `components/notes/WebRichField.tsx` (contentEditable
+  zamiast TextInput — RN-web nie pokazuje stylów w polu): formatowanie widać od razu,
+  Ctrl+B/I/U, Enter/wklejanie jako zwykły tekst; model ten sam (tekst + odcinki), DOM
+  tylko wyświetla. Render czeka, aż model dogoni DOM (`typed`), żeby szybkie pisanie
+  nie cofało kursora. Panel `/note` na komputerze szerszy (≤ 900 px).
 - **Wejście do listy**: przycisk „Wszystkie notatki” w nagłówku notatki (z Dashboardu
   otwiera się sama notatka).
 

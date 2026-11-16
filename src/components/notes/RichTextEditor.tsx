@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import ColorPicker from './ColorPicker';
+import WebRichField from './WebRichField';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform, ScrollView } from 'react-native';
 import { runTextStyle } from './richStyle';
 import { Bold, Italic, Underline, Type, Palette, Highlighter, RemoveFormatting, Minus, Plus } from 'lucide-react-native';
@@ -15,8 +16,8 @@ import { haptic } from '@/utils/haptics';
 // wielkość, kolor tekstu i zakreślacz (paleta + własny kolor #hex). Przybornik na
 // dole — na Androidzie ekran kurczy się nad klawiaturą (adjustResize), więc pasek
 // siedzi tuż nad nią. Bez zaznaczenia: styl dotyczy tego, co zaraz napiszesz.
-// Logika odcinków: utils/richText.ts. Web: pole bez podglądu stylów (RN-web nie
-// renderuje stylowanych dzieci w polu), formatowanie widać w podglądzie notatki.
+// Logika odcinków: utils/richText.ts. Komputer (web): od 2026-11-16 pole
+// `WebRichField` (contentEditable) — formatowanie widać od razu, Ctrl+B/I/U.
 const PALETTE = [
   '#F2F2F2', '#A3A3A3', '#F87171', '#FB923C', '#FBBF24', '#A3E635', '#4ADE80', '#2DD4BF',
   '#38BDF8', '#60A5FA', '#818CF8', '#A78BFA', '#E879F9', '#F472B6', '#D6A15E', '#EF4444',
@@ -52,8 +53,11 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus, page, 
 
   const curPx = sizePx(cur.z);
   const shownPx = dragPx ?? curPx;
+  // Komputer: po akcji z paska fokus i zaznaczenie wracają do pola (WebRichField).
+  const [focusTick, setFocusTick] = useState(0);
   const apply = (patch: Partial<RunStyle>) => {
     haptic.tap();
+    if (Platform.OS === 'web') setFocusTick((t) => t + 1);
     const { start, end } = sel.current;
     if (end > start) onChange(text, applyStyle(fitted, start, end, patch));
     else setPending({ at: start, st: clean({ ...cur, ...patch }) });
@@ -84,7 +88,20 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus, page, 
   const segs = segments(text, fitted);
   const web = Platform.OS === 'web';
 
-  const field = (
+  const field = web ? (
+      <WebRichField
+        segs={segs}
+        text={text}
+        onInput={handleText}
+        onSelect={(x) => { sel.current = x; setSelState(x); }}
+        onKey={(k) => toggle(k)}
+        editable={editable}
+        minHeight={page?.minHeight ?? 240}
+        autoFocus={autoFocus}
+        focusTick={focusTick}
+        placeholder="Pisz…"
+      />
+  ) : (
       <TextInput
         {...(web ? { value: text } : {})}
         onChangeText={handleText}
