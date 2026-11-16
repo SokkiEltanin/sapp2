@@ -2,6 +2,7 @@ import { useEffect, useState, type RefObject } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { openPicker } from '@/services/picker';
 import StepsEditor from './StepsEditor';
+import { useTaskDraftStore } from '@/store/taskDraftStore';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { ymd, todayISO } from '@/utils/date';
@@ -89,27 +90,84 @@ export default function AddTaskCard({
   // Kroki / kamienie milowe (2026-11-16) — też edytowalne w szczegółach zadania.
   const [steps, setSteps] = useState<Subtask[]>([]);
 
-  useEffect(() => {
+  // Kopia robocza (2026-11-16, store/taskDraftStore.ts): klucz = id edytowanego
+  // zadania albo 'new'. `ready` dopiero po wczytaniu szkicu — inaczej pierwszy zapis
+  // pustego formularza skasowałby szkic, zanim wróci.
+  const draftKey = editingTask?.id ?? 'new';
+  const [hydrated, setHydrated] = useState(() => useTaskDraftStore.persist.hasHydrated());
+  useEffect(() => useTaskDraftStore.persist.onFinishHydration(() => setHydrated(true)), []);
+  const [ready, setReady] = useState(false);
+  const [restoredAt, setRestoredAt] = useState<string | null>(null);
+
+  const fillFromTask = () => {
     setTitle(editingTask?.title ?? '');
     setTag(editingTask?.tags[0] ?? '');
     setSteps(editingTask?.subtasks ?? []);
     const dl = editingTask?.deadline;
-    if (!dl) {
-      setDeadlineChoice('none');
-      setCustomDeadline(null);
-      setCustomHasTime(false);
-      return;
-    }
+    setCustomDeadline(null);
+    setCustomHasTime(false);
+    if (!dl) { setDeadlineChoice('none'); return; }
     // Date-only dziś/jutro wraca na swój szybki chip, reszta = "Dokładny termin".
     const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-    if (!deadlineHasTime(dl) && dl.slice(0, 10) === todayISO()) { setDeadlineChoice('today'); setCustomDeadline(null); return; }
-    if (!deadlineHasTime(dl) && dl.slice(0, 10) === ymd(tomorrow)) { setDeadlineChoice('tomorrow'); setCustomDeadline(null); return; }
+    if (!deadlineHasTime(dl) && dl.slice(0, 10) === todayISO()) { setDeadlineChoice('today'); return; }
+    if (!deadlineHasTime(dl) && dl.slice(0, 10) === ymd(tomorrow)) { setDeadlineChoice('tomorrow'); return; }
     setDeadlineChoice('custom');
     setCustomDeadline(parseDeadline(dl));
     setCustomHasTime(deadlineHasTime(dl));
-  }, [editingTask]);
+  };
+
+  useEffect(() => {
+    fillFromTask();
+    if (!hydrated) { setReady(false); return; }
+    const d = useTaskDraftStore.getState().drafts[draftKey];
+    if (d) {
+      setTitle(d.title);
+      setTag(d.tag);
+      setSteps(d.steps);
+      setDeadlineChoice(d.deadlineChoice as DeadlineChoice);
+      setCustomDeadline(d.custom ? new Date(d.custom) : null);
+      setCustomHasTime(d.customHasTime);
+      setRestoredAt(d.savedAt);
+    } else setRestoredAt(null);
+    setReady(true);
+  }, [editingTask, hydrated]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const computeDeadline = (): string | undefined => {
+    if (deadlineChoice === 'custom' && customDeadline) {
+      const hh = String(customDeadline.getHours()).padStart(2, '0');
+      const mm = String(customDeadline.getMinutes()).padStart(2, '0');
+      return customHasTime ? `${ymd(customDeadline)}T${hh}:${mm}:00` : ymd(customDeadline);
+    }
+    if (deadlineChoice === 'none' || deadlineChoice === 'custom') return undefined;
+    const d = new Date();
+    if (deadlineChoice === 'tomorrow') d.setDate(d.getDate() + 1);
+    else if (deadlineChoice === 'week') d.setDate(d.getDate() + 7);
+    return deadlineChoice === 'today' ? todayISO() : ymd(d);
+  };
+
+  // Każda zmiana → szkic. Edycja bez zmian względem zadania = brak szkicu.
+  useEffect(() => {
+    if (!ready) return;
+    const st = useTaskDraftStore.getState();
+    if (editingTask) {
+      const unchanged = title === editingTask.title && tag === (editingTask.tags[0] ?? '')
+        && JSON.stringify(steps) === JSON.stringify(editingTask.subtasks ?? [])
+        && (computeDeadline() ?? '') === (editingTask.deadline ?? '');
+      if (unchanged) { st.clear(draftKey); return; }
+    }
+    st.save(draftKey, { title, tag, deadlineChoice, custom: customDeadline ? customDeadline.toISOString() : null, customHasTime, steps });
+  }, [ready, title, tag, deadlineChoice, customDeadline, customHasTime, steps]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const discardDraft = () => {
+    haptic.tap();
+    useTaskDraftStore.getState().clear(draftKey);
+    setRestoredAt(null);
+    fillFromTask();
+  };
 
   const reset = () => {
+    useTaskDraftStore.getState().clear(draftKey);
+    setRestoredAt(null);
     setTitle('');
     setTag('');
     setDeadlineChoice('none');
@@ -150,17 +208,7 @@ export default function AddTaskCard({
     const trimmedTitle = title.trim();
     if (!trimmedTitle) return;
     haptic.success();
-    let deadline: string | undefined;
-    if (deadlineChoice === 'custom' && customDeadline) {
-      const hh = String(customDeadline.getHours()).padStart(2, '0');
-      const mm = String(customDeadline.getMinutes()).padStart(2, '0');
-      deadline = customHasTime ? `${ymd(customDeadline)}T${hh}:${mm}:00` : ymd(customDeadline);
-    } else if (deadlineChoice !== 'none') {
-      const d = new Date();
-      if (deadlineChoice === 'tomorrow') d.setDate(d.getDate() + 1);
-      else if (deadlineChoice === 'week') d.setDate(d.getDate() + 7);
-      deadline = deadlineChoice === 'today' ? todayISO() : ymd(d);
-    }
+    const deadline = computeDeadline();
     const trimmedTag = tag.trim();
     onSave({ title: trimmedTitle, tags: trimmedTag ? [trimmedTag] : [], deadline, subtasks: steps.length ? steps : undefined });
     reset();
@@ -169,6 +217,12 @@ export default function AddTaskCard({
   return (
     <View style={s.card}>
       <Text style={s.title}>{editingTask ? 'Edytuj zadanie' : 'Nowe zadanie'}</Text>
+      {restoredAt && (
+        <View style={s.draftRow}>
+          <Text style={s.draftTxt} numberOfLines={1}>Przywrócono szkic z {new Date(restoredAt).toLocaleString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</Text>
+          <TouchableOpacity onPress={discardDraft} hitSlop={8}><Text style={s.draftBtn}>Wyczyść</Text></TouchableOpacity>
+        </View>
+      )}
       <TextInput
         ref={titleRef}
         value={title}
@@ -250,6 +304,9 @@ export default function AddTaskCard({
 
 const makeS = themedStyles((c) => StyleSheet.create({
   card: { gap: spacing[2] },
+  draftRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingHorizontal: spacing[3], paddingVertical: 8, borderRadius: radius.md, backgroundColor: c.ui.in2 },
+  draftTxt: { flex: 1, fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.secondary },
+  draftBtn: { fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },
   title: { fontSize: 20, fontFamily: 'Inter_800ExtraBold', letterSpacing: -0.4, color: c.text.bright, marginBottom: spacing[1] },
   titleInput: {
     fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.primary,

@@ -668,6 +668,10 @@ krok), `progressLine`, `doneStats` (dziś / tydzień / seria dni), `cheer`.
   segmentami, oś kroków `StepsEditor`, Edytuj / Usuń / Ukończ — edycja i usuwanie
   otwierają się po zamknięciu szczegółów, `onClosed`).
 - `StepsEditor` też w `AddTaskCard` (kroki przy tworzeniu/edycji).
+- **Kopia robocza** (2026-11-16) `store/taskDraftStore.ts` (`task-draft-v1`, tylko to
+  urządzenie): AddTaskCard zapisuje każdą zmianę pod kluczem 'new' / id zadania;
+  zamknięcie okna jej nie kasuje (pasek „Przywrócono szkic · Wyczyść”), kasuje zapis
+  i Anuluj. Kropka na „+” w Zadaniach = czeka szkic.
 - Nagłówek Zadań: „N dziś” + seria; pasek Cofnij pokazuje `cheer`.
 - Widget (`utils/widgetTasks.ts` → `next`, `sub` z „x/y”; plugin: druga linia
   `widget_next{i}`, tap w wiersz → `sapp2://tasks?task=ID` → szczegóły). Zegarek

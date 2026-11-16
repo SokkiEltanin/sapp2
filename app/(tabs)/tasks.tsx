@@ -19,6 +19,7 @@ import WeekMonthCalendar from '@/components/tasks/WeekMonthCalendar';
 import TaskRow from '@/components/tasks/TaskRow';
 import { tagColorMap } from '@/utils/taskTags';
 import TaskDetailSheet from '@/components/tasks/TaskDetailSheet';
+import { useTaskDraftStore } from '@/store/taskDraftStore';
 import { doneStats, cheer } from '@/utils/taskProgress';
 import type { Subtask } from '@/types/calendar';
 import AddTaskCard from '@/components/tasks/AddTaskCard';
@@ -85,6 +86,7 @@ export default function TasksScreen() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const afterDetail = useRef<{ kind: 'edit' | 'delete'; task: Task } | null>(null);
   const stats = useMemo(() => doneStats(tasks), [tasks]);
+  const hasDraft = useTaskDraftStore((st) => !!st.drafts.new);
   useEffect(() => {
     if (!justDone) return;
     const t = setTimeout(() => setJustDone(null), 5000);
@@ -241,8 +243,11 @@ export default function TasksScreen() {
             <TouchableOpacity style={s.searchBtn} onPress={() => { haptic.tap(); setSearchOpen(true); }} activeOpacity={0.8} accessibilityLabel="Szukaj zadań">
               <Search size={16} color={C.txt} />
             </TouchableOpacity>
-            <TouchableOpacity style={s.addBtn} onPress={() => { haptic.tap(); setComposerOpen(true); }} activeOpacity={0.8}>
+            <TouchableOpacity style={s.addBtn} onPress={() => { haptic.tap(); setComposerOpen(true); }} activeOpacity={0.8}
+              accessibilityLabel={hasDraft ? 'Dokończ szkic zadania' : 'Nowe zadanie'}>
               <Plus size={18} color={C.bg} />
+              {/* Niedokończony szkic (store/taskDraftStore.ts) — kropka na "+". */}
+              {hasDraft && <View style={s.draftDot} />}
             </TouchableOpacity>
           </View>
         </Tile>
@@ -337,6 +342,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
     width: 48, height: 48, borderRadius: R.btn, borderWidth: 1, borderColor: C.line,
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
+  draftDot: { position: 'absolute', top: 8, right: 8, width: 9, height: 9, borderRadius: 5, backgroundColor: colors.accent.orange, borderWidth: 1.5, borderColor: C.txt },
   addBtn: {
     width: 48, height: 48, borderRadius: R.btn, backgroundColor: C.hi,
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,

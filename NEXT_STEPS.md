@@ -41,6 +41,10 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-16 — kopia robocza zadania**: zamknięcie formularza bez „Dodaj” nie gubi treści.
+- [ ] Na telefonie: wpisz → cofnij/zamknij → „+” (kropka) → szkic wraca.
+- [ ] Ten sam wzorzec dla innych formularzy (wydatek, wydarzenie), jeśli będzie potrzeba.
+
 **2026-11-16 — notatki: B/I/U wyłącza się ponownym kliknięciem; płynny rozmiar 10–48 px**
 (miejsce edycji z różnicy tekstów, nie z kursora — Android wysyła zaznaczenie przed tekstem).
 - [ ] Na telefonie: podkreślenie → pisz → U jeszcze raz → dalsze litery bez podkreślenia.
