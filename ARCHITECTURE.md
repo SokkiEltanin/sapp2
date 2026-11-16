@@ -1813,6 +1813,16 @@ Zadania z `task`, notatka → edytor, reszta → ich ekrany. Nowy rodzaj danych 
 - **Wejście do listy**: przycisk „Wszystkie notatki” w nagłówku notatki (z Dashboardu
   otwiera się sama notatka).
 
+## TAGI ZE STAREJ APPKI (2026-11-16)
+
+Import ze sapp brał pierwszy tag pozycji jako `foodSubcat` → duplikaty kategorii
+(„czekolada” obok Słodyczy) i niejedzenie w Jedzeniu („chemia”, „leki”). `utils/
+importedTagFix.ts` (testy): `FOOD_ALIASES` → właściwa kategoria jedzenia, `NON_FOOD` →
+`nonFoodCategory` (Zmienne; null = bez kategorii). Działa w imporcie
+(`dataImportFromSapp.mapReceiptItem`) i przy starcie + po każdej zmianie wydatków
+(`hooks/useImportedTagFix.ts`, idempotentne, nowe `updatedAt` → sync). Nowy alias =
+dopisać w tych mapach.
+
 ## ZNIŻKI NA PARAGONIE (2026-11-14)
 
 `ReceiptItem.price` = cena PO rabacie, `discount` = ile odjęto (przed = price + discount).

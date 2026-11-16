@@ -1,3 +1,4 @@
+import { fixItemTag } from '@/utils/importedTagFix';
 import { useExpensesStore } from '@/store/expensesStore';
 import { useMoodStore } from '@/store/moodStore';
 import { useSubscriptionsStore } from '@/store/subscriptionsStore';
@@ -101,10 +102,12 @@ const CATEGORY_TO_TAG: Record<string, string> = {
 };
 
 function mapReceiptItem(it: SappExpense['receiptItems'] extends (infer T)[] | undefined ? T : never): ReceiptItem {
-  return {
+  const item: ReceiptItem = {
     name: it.name, price: it.price, quantity: it.quantity, unitPrice: it.unitPrice,
     discount: it.discount, foodSubcat: it.tags?.[0], kind: it.kind, excluded: it.excluded, weightKg: it.weightKg,
   };
+  // Tagi starej appki → kategorie nowej (utils/importedTagFix.ts, 2026-11-16).
+  return fixItemTag(item) ?? item;
 }
 
 // Heurystyka `payer`: sapp trzyma wolny tekst (np. "Ja"/"Partnerka"), sapp2 ma
