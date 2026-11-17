@@ -41,6 +41,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-17 — Pojazdy: stuknięcie płatności** → `components/vehicles/VehicleExpenseSheet.tsx`:
+edycja (AddExpenseModal w vehicles.tsx), „Nie do <auto>”, „To było na…” (kategoria Zmiennych +
+odpięcie), inny pojazd; wszystko z Cofnij.
+- [ ] Sprawdzić na telefonie (edycja otwiera się po zamknięciu panelu, 280 ms).
+
 **2026-11-16 — Średnia w Tabeli z zerami + kalendarz zakresu w Transakcjach**:
 - Średnia w `utils/expenseTable.ts` = pełne miesiące od pierwszego z danymi, RAZEM z zerami
   (zapasy kupione w przód). Filtr dat: `components/design/RangeCalendar.tsx` + `utils/dateRange.ts`

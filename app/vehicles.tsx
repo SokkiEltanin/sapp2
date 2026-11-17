@@ -7,6 +7,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Plus, Fuel, Gauge, Wrench, Trash2, Star, Pencil, AlertCircle, Link2, X } from 'lucide-react-native';
 import AttachExpenseSheet from '@/components/vehicles/AttachExpenseSheet';
+import VehicleExpenseSheet from '@/components/vehicles/VehicleExpenseSheet';
+import AddExpenseModal from '@/components/finances/AddExpenseModal';
+import LazyMount from '@/components/design/LazyMount';
+import type { Expense } from '@/types/finances';
 import { offerUndo } from '@/services/undo';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -74,6 +78,8 @@ export default function VehiclesScreen() {
   const [maintOpen, setMaintOpen] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
   const [allExp, setAllExp] = useState(false);
+  const [expSheet, setExpSheet] = useState<Expense | null>(null);   // stuknięta płatność pojazdu
+  const [editExp, setEditExp] = useState<Expense | null>(null);     // pełna edycja wydatku
 
   const handleAddVehicle = () => {
     haptic.tap();
@@ -241,7 +247,9 @@ export default function VehiclesScreen() {
           </View>
 
           {/* Wydatki pojazdu (2026-11-15, user: "zobaczyć co podlicza aktualnie / edycji
-              tego") — co się liczy do kosztów i dlaczego; odepnij / podepnij ręcznie. */}
+              tego") — co się liczy do kosztów i dlaczego; odepnij / podepnij ręcznie.
+              Stuknięcie płatności (2026-11-17) → VehicleExpenseSheet: edycja, "nie do
+              tego pojazdu", przeniesienie do kategorii (Transport, Prezenty…) lub auta. */}
           {summary && (
             <View style={s.card}>
               <View style={s.expHead}>
@@ -256,7 +264,7 @@ export default function VehiclesScreen() {
               ) : (allExp ? summary.expenses : summary.expenses.slice(0, 6)).map((e) => {
                 const why = vehicleMatchReason(e, viewing, mainId);
                 return (
-                  <View key={e.id} style={s.logRow}>
+                  <TouchableOpacity key={e.id} style={s.logRow} activeOpacity={0.7} onPress={() => { haptic.tap(); setExpSheet(e); }} accessibilityLabel={`Płatność: ${e.storeName || e.note || 'Wydatek'}`}>
                     <View style={{ flex: 1 }}>
                       <Text style={s.logMain} numberOfLines={1}>{e.storeName || e.note || 'Wydatek'} · {zl(e.amount)}</Text>
                       <Text style={s.logSub}>{ddmm(e.date)}.{e.date.slice(2, 4)} · {why === 'manual' ? 'podpięte ręcznie' : why === 'tag' ? `tag #${viewing.tag}` : 'paliwo (automatycznie)'}</Text>
@@ -271,7 +279,7 @@ export default function VehiclesScreen() {
                       hitSlop={8} style={s.detachBtn} accessibilityLabel="Odepnij od pojazdu">
                       <X size={14} color={colors.text.muted} />
                     </TouchableOpacity>
-                  </View>
+                  </TouchableOpacity>
                 );
               })}
               {summary.expenses.length > 6 && (
@@ -332,6 +340,14 @@ export default function VehiclesScreen() {
 
       {/* ── Sheety ── */}
       <AttachExpenseSheet vehicle={attachOpen ? viewing : null} mainId={mainId} onClose={() => setAttachOpen(false)} />
+      {viewing && (
+        <VehicleExpenseSheet expense={expSheet} vehicle={viewing} vehicles={vehicles} mainId={mainId}
+          onClose={() => setExpSheet(null)}
+          onEdit={(e) => { setExpSheet(null); setTimeout(() => setEditExp(e), 280); }} />
+      )}
+      <LazyMount visible={!!editExp}>
+        <AddExpenseModal visible={!!editExp} onClose={() => setEditExp(null)} editingExpense={editExp} />
+      </LazyMount>
       <FuelSheet vehicle={fuelFor?.vehicle ?? null} prefill={fuelFor?.prefill} onClose={() => setFuelFor(null)} />
 
       <AppBottomSheet visible={odoOpen && !!viewing} onClose={() => setOdoOpen(false)} initialFocusRef={odoRef} scrollable={false}>
