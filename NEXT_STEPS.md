@@ -41,6 +41,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-17 — Widget notatki pokazuje rysunek** (wymaga APK): `utils/widgetNote.ts` `buildNoteWidgetDrawing`
+(kreski przycięte do treści, max 6000 punktów, kolory → format Androida) → `plugins/withNoteWidget.js`
+maluje bitmapę do `note_drawing` (pióro = wygładzona ścieżka, pędzel = odcinki z grubością z nacisku).
+- [ ] Na telefonie: przypięty rysunek widoczny na widgecie; tekst + rysunek → tekst ≤3 linie nad obrazkiem.
+
 **2026-11-17 — Profil + nowe zakładki Ustawień**: `store/profileStore.ts` (`profile-v1`, sync w docu
 `prefs.profile`, w kopii), `utils/profile.ts` (wiek, następne urodziny, BMI), `components/profile/ProfileSheet.tsx`.
 Ustawienia: „Profil i konto” · „Powiadomienia” (progi + testy) · „Wygląd i działanie” · „Aplikacja”

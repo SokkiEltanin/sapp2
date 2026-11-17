@@ -5,6 +5,7 @@
 // (stałe sloty — RemoteViews bez kolekcji). Stuknięcie → sapp2://note?id=… (edytor).
 // Wygląd z Ustawień → Widgety → Notatka: klucze "note_*" w TasksWidgetPrefs, brak →
 // wspólne "bg_*". Formatowanie tekstu w widgecie pominięte (zwykły tekst).
+// Rysunek (2026-11-17): kreski ze snapshotu malowane do bitmapy (`note_drawing`).
 const { withAndroidManifest, withDangerousMod, withMainApplication, AndroidConfig } = require('@expo/config-plugins');
 const { mergeContents } = require('@expo/config-plugins/build/utils/generateCode');
 const path = require('path');
@@ -30,6 +31,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import android.net.Uri
 import android.util.TypedValue
@@ -71,6 +73,59 @@ class ${PROVIDER_CLASS} : AppWidgetProvider() {
       canvas.drawRoundRect(rect, radius, radius, Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = (strokeAlpha shl 24) or 0x00FFFFFF; style = Paint.Style.STROKE; strokeWidth = d
       })
+      return bmp
+    }
+
+    // Rysunek (2026-11-17): kreski ze snapshotu (utils/widgetNote.ts buildNoteWidgetDrawing,
+    // już przycięte do treści) → przezroczysta bitmapa; ImageView skaluje fitCenter.
+    // Zwykłe pióro = wygładzona ścieżka (jak strokePath w appce), pędzel = odcinki o
+    // grubości z mnożników nacisku. Małe bazgroły nie są powiększane ponad ~3×.
+    private fun drawingBitmap(d: JSONObject): Bitmap? {
+      val dw = d.optDouble("w", 0.0).toFloat()
+      val dh = d.optDouble("h", 0.0).toFloat()
+      val strokes = d.optJSONArray("strokes") ?: return null
+      if (dw <= 0f || dh <= 0f || strokes.length() == 0) return null
+      val maxPx = 900f
+      val scale = minOf(maxPx / maxOf(dw, dh), maxPx / 0.35f)
+      val bw = (dw * scale).toInt().coerceIn(1, 1200)
+      val bh = (dh * scale).toInt().coerceIn(1, 1200)
+      val bmp = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888)
+      val canvas = Canvas(bmp)
+      for (i in 0 until strokes.length()) {
+        val st = strokes.optJSONObject(i) ?: continue
+        val p = st.optJSONArray("p") ?: continue
+        val n = p.length() / 2
+        if (n == 0) continue
+        val col = try { Color.parseColor(st.optString("c", "#F2F2F2")) } catch (e: Exception) { Color.WHITE }
+        val base = (st.optDouble("s", 0.01) * scale).toFloat().coerceAtLeast(1f)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+          color = col; style = Paint.Style.STROKE
+          strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND; strokeWidth = base
+        }
+        fun x(j: Int) = (p.optDouble(2 * j) * scale).toFloat()
+        fun y(j: Int) = (p.optDouble(2 * j + 1) * scale).toFloat()
+        val k = st.optJSONArray("k")
+        if (n == 1) {
+          val r = base * (k?.optDouble(0, 1.0)?.toFloat() ?: 1f) / 2f
+          canvas.drawCircle(x(0), y(0), r.coerceAtLeast(0.5f), Paint(paint).apply { style = Paint.Style.FILL })
+        } else if (k != null) {
+          for (j in 1 until n) {
+            val m = ((k.optDouble(j - 1, 1.0) + k.optDouble(j, 1.0)) / 2.0).toFloat()
+            paint.strokeWidth = (base * m).coerceAtLeast(0.8f)
+            canvas.drawLine(x(j - 1), y(j - 1), x(j), y(j), paint)
+          }
+        } else {
+          val path = Path()
+          path.moveTo(x(0), y(0))
+          var j = 1
+          while (j < n - 1) {
+            path.quadTo(x(j), y(j), (x(j) + x(j + 1)) / 2f, (y(j) + y(j + 1)) / 2f)
+            j++
+          }
+          path.lineTo(x(n - 1), y(n - 1))
+          canvas.drawPath(path, paint)
+        }
+      }
       return bmp
     }
 
@@ -117,6 +172,17 @@ class ${PROVIDER_CLASS} : AppWidgetProvider() {
       val text = snap.optString("text", "")
       v.setViewVisibility(R.id.note_text, if (text.isNotEmpty()) View.VISIBLE else View.GONE)
       v.setTextViewText(R.id.note_text, text)
+      val drawing = snap.optJSONObject("drawing")
+      val drawBmp = try { if (drawing != null) drawingBitmap(drawing) else null } catch (e: Throwable) { null }
+      if (drawBmp != null) {
+        v.setViewVisibility(R.id.note_drawing, View.VISIBLE)
+        v.setImageViewBitmap(R.id.note_drawing, drawBmp)
+        // tekst nad rysunkiem tylko na tyle, ile potrzebuje (rysunek bierze resztę)
+        v.setInt(R.id.note_text, "setMaxLines", 3)
+      } else {
+        v.setViewVisibility(R.id.note_drawing, View.GONE)
+        v.setInt(R.id.note_text, "setMaxLines", Int.MAX_VALUE)
+      }
       val rows = snap.optJSONArray("rows") ?: JSONArray()
       for (i in 0 until ROWS) {
         val r = if (i < rows.length()) rows.optJSONObject(i) else null
@@ -259,6 +325,16 @@ function layoutXml() {
             android:textColor="#F2F2F2"
             android:textSize="13sp"
             android:lineSpacingExtra="2dp" />
+
+        <ImageView
+            android:id="@+id/note_drawing"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="2"
+            android:layout_marginTop="4dp"
+            android:scaleType="fitCenter"
+            android:adjustViewBounds="false"
+            android:visibility="gone" />
 
 ${rows}
         <TextView
