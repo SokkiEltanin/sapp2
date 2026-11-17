@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
@@ -71,7 +71,7 @@ function PaceRow({ p }: { p: MonthPace }) {
   );
 }
 
-export default function MonthPaceSheet({ visible, onClose, expenses }: { visible: boolean; onClose: () => void; expenses: Expense[] }) {
+export default function MonthPaceSheet({ visible, onClose, expenses, onOpenCards }: { visible: boolean; onClose: () => void; expenses: Expense[]; onOpenCards?: () => void }) {
   const s = makeS();
   const [tab, setTab] = useState<'month' | 'year'>('month');
   const now = useMemo(() => new Date(), [visible]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -160,11 +160,18 @@ export default function MonthPaceSheet({ visible, onClose, expenses }: { visible
           </>
         ) : <Text style={s.note}>Brak rachunków za prąd. Appka rozpoznaje je po nazwie (PGE, Tauron, Energa, Enea, „prąd”).</Text>}
       </SheetCard>
+      {onOpenCards && (
+        <TouchableOpacity style={s.cardsBtn} onPress={onOpenCards} accessibilityLabel="Karty miesięcy i rekordy">
+          <Text style={s.cardsBtnTxt}>Karty miesięcy i rekordy ›</Text>
+        </TouchableOpacity>
+      )}
     </AppBottomSheet>
   );
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
+  cardsBtn: { marginTop: spacing[3], height: 44, borderRadius: radius.md, backgroundColor: c.text.bright, alignItems: 'center', justifyContent: 'center' },
+  cardsBtnTxt: { fontSize: 13.5, fontFamily: 'Inter_900Black', color: c.bg.primary },
   rows: { gap: 7, marginTop: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], height: 20 },
   label: { width: 70, fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.primary },

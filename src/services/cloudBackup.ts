@@ -27,6 +27,7 @@ import { useThresholdsStore } from '@/store/thresholdsStore';
 import { useDashboardLayoutStore } from '@/store/dashboardLayoutStore';
 import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
 import { useFactsStore } from '@/store/factsStore';
+import { useCollectionStore } from '@/store/collectionStore';
 
 // Kopia zapasowa w chmurze (2026-11-11) — patrz utils/backupSnapshot.ts po
 // "dlaczego". Firestore, ta sama ścieżka per-user co calendarService
@@ -152,6 +153,6 @@ export async function applyEntries(entries: Record<string, string>): Promise<voi
     useExpensesStore, useMoodStore, useCalendarStore, useHabitsStore, useHealthStore,
     useBankQueue, useCountdownStore, useSubscriptionsStore, useVehiclesStore, useWorkStore,
     useReplacementsStore, useBalanceStore, useBudgetsStore, useNotesStore, useCategoriesStore,
-    useWidgetSettingsStore, useCategoryRulesStore, useThresholdsStore, useDashboardLayoutStore, useFactsStore,
+    useWidgetSettingsStore, useCategoryRulesStore, useThresholdsStore, useDashboardLayoutStore, useFactsStore, useCollectionStore,
   ].map((store) => store.persist.rehydrate()));
 }

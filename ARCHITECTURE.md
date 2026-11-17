@@ -1854,6 +1854,21 @@ podładować; paski naładowania zamiast Ciekawostki na Dashboardzie”.
   (telefon pisze przy zmianie / co 10 min, web czyta) → 3 paski: Komputer, Telefon, Zegarek. Ciekawostki → `utils/facts.ts`, kafel w Daily zamiast planu dnia
   (plan dnia, DayPlanTagsSheet, dayPlanStore, utils/dayPlan USUNIĘTE).
 
+## KOLEKCJA: KARTY MIESIĘCY + REKORDY (2026-11-17)
+
+- `utils/monthCards.ts` `buildMonthCards` — każdy ZAKOŃCZONY miesiąc od pierwszego z danymi
+  (trendSeries: stałe/zmienne/jedzenie/słodycze/prąd/wpływy, top kategorie, największy
+  wydatek, vs średnia 3 poprz., odznaki przy ≥3 kartach), zdrowie z `healthLog`.
+- `utils/records.ts` `computeRecords` + `bestRecord` (ręczny wpis wygrywa, dopóki dane go
+  nie pobiją), `recordSig` do potwierdzeń („NOWY REKORD” gdy dane pobiją potwierdzony).
+- `store/collectionStore.ts` (`collection-v1`, doc `collection` w cloudSync, oba piszą,
+  merge sumuje dziennik): `healthLog` (własny dziennik kroków/snu — healthStore trzyma 30 dni;
+  zasila `hooks/useCollectionUpkeep.ts` w _layout), `manual`, `confirmed`, `cardsSeen`.
+- UI `components/daily/CollectionSheet.tsx` (zakładki Karty / Rekordy). Wejście: Cap kafla
+  „Miesiąc” w Daily („karty N · rekordy ›”), przycisk w MonthPaceSheet; nowa karta otwiera się
+  sama raz (Daily: latestCard > cardsSeen → highlight, zamknięcie = markSeen).
+- Dashboard: `hooks/useMinuteClock.ts` — „teraz” co minutę + AppState/visibilitychange.
+
 ## PRZELEW WŁASNY + ROZPOZNAWANIE RACHUNKÓW (2026-11-16)
 
 - Przelew własny = `fvOverride: 'transfer'` (+ `type` wg kierunku: wychodzący 'expense',

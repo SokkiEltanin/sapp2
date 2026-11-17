@@ -10,6 +10,8 @@ import { FACT_BY_ID, CAT_LABEL } from '@/utils/facts';
 import { FACT_LIST } from '@/utils/factsData';
 import { useFactsStore } from '@/store/factsStore';
 import FactSheet from '@/components/daily/FactSheet';
+import CollectionSheet, { useCollectionData } from '@/components/daily/CollectionSheet';
+import { useCollectionStore } from '@/store/collectionStore';
 import { haptic } from '@/utils/haptics';
 import { Check } from 'lucide-react-native';
 import { C, T, S, R } from '@/ui/theme';
@@ -50,6 +52,18 @@ export default function DailyScreen() {
   const [sleepOpen, setSleepOpen] = useState(false);
   const [paceOpen, setPaceOpen] = useState(false);
   const [factOpen, setFactOpen] = useState(false);
+  // Kolekcja: karty miesięcy + rekordy (2026-11-17). Nowa karta (zakończony miesiąc)
+  // otwiera się sama raz — 1. dnia albo przy pierwszym wejściu po końcu miesiąca.
+  const [coll, setColl] = useState<{ open: boolean; highlight: string | null }>({ open: false, highlight: null });
+  const { cards: monthCards } = useCollectionData();
+  const latestCard = monthCards[0]?.key ?? null;
+  useEffect(() => {
+    if (!latestCard) return;
+    const go = () => { if (latestCard > (useCollectionStore.getState().cardsSeen ?? '')) setColl({ open: true, highlight: latestCard }); };
+    if (useCollectionStore.persist.hasHydrated()) go();
+    return useCollectionStore.persist.onFinishHydration(go);
+  }, [latestCard]);
+  const closeColl = () => { if (coll.highlight) useCollectionStore.getState().markSeen(coll.highlight); setColl({ open: false, highlight: null }); };
   const fact = useFactsStore((st) => (st.cur ? FACT_BY_ID[st.cur.id] ?? null : null));
   const factSeen = useFactsStore((st) => st.seen.length);
   const expenses = useExpensesStore((st) => st.expenses);
@@ -161,7 +175,7 @@ export default function DailyScreen() {
           components/daily/MonthPace.tsx, logika utils/monthPace.ts. */}
       <Row>
         <Tile span={4} onPress={() => setPaceOpen(true)}>
-          <Cap l={`Miesiąc · ${windowLabel(paceNow)}`} r="vs te same dni" />
+          <Cap l={`Miesiąc · ${windowLabel(paceNow)}`} r={`karty ${monthCards.length} · rekordy ›`} onR={() => { haptic.tap(); setColl({ open: true, highlight: null }); }} />
           <MonthPaceRows expenses={expenses} now={paceNow} />
         </Tile>
       </Row>
@@ -198,11 +212,15 @@ export default function DailyScreen() {
         </Tile>
       </Row>
 
+      <LazyMount visible={coll.open}>
+        <CollectionSheet visible={coll.open} onClose={closeColl} highlight={coll.highlight} />
+      </LazyMount>
       <LazyMount visible={factOpen}>
         <FactSheet visible={factOpen} onClose={() => setFactOpen(false)} />
       </LazyMount>
       <LazyMount visible={paceOpen}>
-        <MonthPaceSheet visible={paceOpen} onClose={() => setPaceOpen(false)} expenses={expenses} />
+        <MonthPaceSheet visible={paceOpen} onClose={() => setPaceOpen(false)} expenses={expenses}
+          onOpenCards={() => { setPaceOpen(false); setTimeout(() => setColl({ open: true, highlight: null }), 280); }} />
       </LazyMount>
       <LazyMount visible={sleepOpen}>
         <SleepSheet visible={sleepOpen} onClose={() => setSleepOpen(false)} />

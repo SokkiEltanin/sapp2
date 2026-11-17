@@ -15,6 +15,7 @@ import { useWorkStore } from '@/store/workStore';
 import { useHealthStore } from '@/store/healthStore';
 import { useDeviceBatteryStore } from '@/store/deviceBatteryStore';
 import { useFactsStore } from '@/store/factsStore';
+import { useCollectionStore } from '@/store/collectionStore';
 import { todayISO } from '@/utils/date';
 import { useBalanceStore } from '@/store/balanceStore';
 import { useBudgetsStore } from '@/store/budgetsStore';
@@ -149,6 +150,16 @@ const docBindings: DocBinding[] = [
     stamp: () => 0,
     readOnly: () => Platform.OS === 'web',
     keepWhenEmpty: true,
+  },
+  {
+    // Kolekcja (2026-11-17): dziennik kroków/snu, ręczne i potwierdzone rekordy, widziane
+    // karty miesięcy. Piszą oba urządzenia; `merge` sumuje dziennik (store/collectionStore.ts).
+    name: 'collection',
+    stores: [S(useCollectionStore)],
+    get: () => { const c = useCollectionStore.getState(); return { healthLog: c.healthLog, manual: c.manual, confirmed: c.confirmed, cardsSeen: c.cardsSeen }; },
+    set: (v) => useCollectionStore.getState().merge(v),
+    isEmpty: (v) => !Object.keys(v.healthLog ?? {}).length && !Object.keys(v.manual ?? {}).length && !Object.keys(v.confirmed ?? {}).length && !v.cardsSeen,
+    stamp: () => useCollectionStore.getState().t,
   },
   {
     // Ciekawostki (2026-11-16): ta sama na telefonie i komputerze; piszą oba, `merge`
