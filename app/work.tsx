@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChevronLeft, Plus, ChevronDown, ChevronUp, CheckCircle2, EyeOff, Eye, Pencil, Check } from 'lucide-react-native';
+import { ChevronLeft, Plus, ChevronDown, ChevronUp, CheckCircle2, EyeOff, Eye, Pencil, Check, Trash2 } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import Segmented from '@/components/design/Segmented';
@@ -39,6 +39,7 @@ export default function WorkScreen() {
   const addEmployer = useWorkStore((st) => st.addEmployer);
   const updateEmployer = useWorkStore((st) => st.updateEmployer);
   const toggleEmployerHidden = useWorkStore((st) => st.toggleEmployerHidden);
+  const removeEmployer = useWorkStore((st) => st.removeEmployer);
   const setActiveEmployer = useWorkStore((st) => st.setActiveEmployer);
   const events = useCalendarStore((st) => st.events);
   const gcalEvents = useCalendarStore((st) => st.gcalEvents);
@@ -51,11 +52,32 @@ export default function WorkScreen() {
   const viewing = employers.find((e) => e.id === viewingId) ?? null;
   const isCalendar = (viewing?.workMode ?? 'calendar') === 'calendar';
 
+  // Nowy pracodawca = szkic: jeśli zamkniesz edycję bez prefiksu/koloru (tryb kalendarza),
+  // znika sam — żadnych pustych "Nowy pracodawca" w pasku (2026-11-17).
+  const [draftId, setDraftId] = useState<string | null>(null);
   const handleAddEmployer = () => {
     haptic.tap();
     const emp = addEmployer({ name: nextEmployerName(employers.map((x) => x.name)), monthlySalary: 5000, hoursPerMonth: 168, workMode: 'calendar' });
+    setDraftId(emp.id);
     setViewingId(emp.id);
     setEditOpen(true);
+  };
+  const isEmptyEmployer = (e: typeof viewing) => !!e && (e.workMode ?? 'calendar') === 'calendar' && !e.workPrefix?.trim() && !e.workColor && !Object.keys(e.confirmedMonths ?? {}).length;
+  const closeEdit = () => {
+    setEditOpen(false);
+    if (draftId && viewing?.id === draftId && isEmptyEmployer(viewing)) {
+      removeEmployer(draftId);
+      setViewingId(employers.find((e) => e.id !== draftId)?.id ?? null);
+    }
+    setDraftId(null);
+  };
+  const deleteViewing = () => {
+    if (!viewing) return;
+    haptic.warn();
+    removeEmployer(viewing.id);
+    setViewingId(employers.find((e) => e.id !== viewing.id)?.id ?? null);
+    setEditOpen(false);
+    setDraftId(null);
   };
 
   const progress = useMemo(() => (viewing ? workMonthProgress(viewing, allEvents, expenses) : null), [viewing, allEvents, expenses]);
@@ -92,12 +114,10 @@ export default function WorkScreen() {
           <ChevronLeft size={22} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={s.title}>Praca</Text>
-        <TouchableOpacity onPress={handleAddEmployer} style={s.backBtn} hitSlop={8}>
-          <Plus size={20} color={colors.text.primary} />
-        </TouchableOpacity>
+        <View style={s.backBtn} />
       </View>
 
-      {employers.length > 1 && (
+      {employers.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.empRow} style={{ flexGrow: 0, flexShrink: 0 }}>
           {employers.map((e) => (
             <TouchableOpacity
@@ -111,6 +131,10 @@ export default function WorkScreen() {
               {e.id === activeEmployerId && <View style={[s.empDot, e.id === viewingId && s.empDotOn]} />}
             </TouchableOpacity>
           ))}
+          {/* Dodaj pracodawcę — "+" na końcu paska (2026-11-17, user: zamiast chipa "Nowy pracodawca"). */}
+          <TouchableOpacity style={[s.empChip, s.empAdd]} onPress={handleAddEmployer} activeOpacity={0.8} accessibilityLabel="Dodaj pracodawcę">
+            <Plus size={16} color={colors.text.secondary} />
+          </TouchableOpacity>
         </ScrollView>
       )}
 
@@ -213,7 +237,7 @@ export default function WorkScreen() {
         </ScrollView>
       )}
 
-      <AppBottomSheet visible={editOpen && !!viewing} onClose={() => setEditOpen(false)}>
+      <AppBottomSheet visible={editOpen && !!viewing} onClose={closeEdit}>
         {viewing && (
           <>
             <Text style={s.sheetTitle}>Edytuj pracodawcę</Text>
@@ -304,6 +328,13 @@ export default function WorkScreen() {
                 <Text style={s.note}>Zapasowe działają tylko, dopóki nie ma realnych zmian i wypłat.</Text>
               </>
             )}
+            {/* Usunąć można tylko pracodawcę bez wypłat — z danymi zostaje "Ukryty w sumach". */}
+            {payMonths.length === 0 && !Object.keys(viewing.confirmedMonths ?? {}).length && (
+              <TouchableOpacity style={[s.deleteBtn, s.spaced]} onPress={deleteViewing} activeOpacity={0.8}>
+                <Trash2 size={14} color={colors.accent.red} />
+                <Text style={s.deleteTxt}>Usuń pracodawcę</Text>
+              </TouchableOpacity>
+            )}
           </>
         )}
       </AppBottomSheet>
@@ -328,6 +359,9 @@ const makeS = themedStyles((c) => StyleSheet.create({
   empChipLabel: { flexShrink: 1, fontSize: 12, lineHeight: 15, fontFamily: 'Inter_700Bold', color: c.text.secondary, includeFontPadding: false, textAlignVertical: 'center' },
   empDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.accent.green },
   empDotOn: { backgroundColor: c.bg.primary },
+  empAdd: { paddingHorizontal: 10, backgroundColor: 'transparent', borderStyle: 'dashed' },
+  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 40, borderRadius: radius.md, borderWidth: 1, borderColor: c.accent.red + '55' },
+  deleteTxt: { fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: c.accent.red },
   empChipLabelOn: { color: c.bg.primary },
 
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing[4], paddingHorizontal: spacing[6] },

@@ -14,6 +14,7 @@ interface WorkState {
   addEmployer: (input: Omit<Employer, 'id' | 'createdAt'>) => Employer;
   updateEmployer: (id: string, patch: Partial<Employer>) => void;
   toggleEmployerHidden: (id: string) => void;
+  removeEmployer: (id: string) => void;
   setActiveEmployer: (id: string | null) => void;
 }
 
@@ -44,6 +45,12 @@ export const useWorkStore = create<WorkState>()(
         employers: s.employers.map((e) => (e.id === id ? { ...e, hidden: !e.hidden, updatedAt: Date.now() } : e)),
       })),
       setActiveEmployer: (id) => set({ activeEmployerId: id }),
+      // Usuwanie (2026-11-17, user: "zamiast Nowy pracodawca niech będzie plusik") — UI
+      // pozwala TYLKO na pracodawcę bez danych (pusty szkic); z wypłatami zostaje "ukryj".
+      removeEmployer: (id) => set((s) => {
+        const employers = s.employers.filter((e) => e.id !== id);
+        return { employers, activeEmployerId: s.activeEmployerId === id ? employers[0]?.id ?? null : s.activeEmployerId };
+      }),
     }),
     { name: 'work-storage', storage: createJSONStorage(() => AsyncStorage) },
   ),
