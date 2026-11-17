@@ -175,10 +175,10 @@ const docBindings: DocBinding[] = [
     // Baterie telefonu i zegarka (2026-11-16): telefon pisze, komputer czyta (kafel Baterie).
     name: 'devices',
     stores: [S(useDeviceBatteryStore)],
-    get: () => { const d = useDeviceBatteryStore.getState(); return { phone: d.phone, watch: d.watch }; },
-    set: (v) => { if (Platform.OS === 'web') useDeviceBatteryStore.setState({ phone: v.phone ?? null, watch: v.watch ?? null }); },
+    get: () => { const d = useDeviceBatteryStore.getState(); return { phone: d.phone, watch: d.watch, phoneLog: d.phoneLog, watchLog: d.watchLog }; },
+    set: (v) => { if (Platform.OS === 'web') useDeviceBatteryStore.setState({ phone: v.phone ?? null, watch: v.watch ?? null, phoneLog: Array.isArray(v.phoneLog) ? v.phoneLog : [], watchLog: Array.isArray(v.watchLog) ? v.watchLog : [] }); },
     isEmpty: (v) => !v.phone && !v.watch,
-    stamp: () => { const d = useDeviceBatteryStore.getState(); return Math.max(d.phone?.t ?? 0, d.watch?.t ?? 0); },
+    stamp: () => { const d = useDeviceBatteryStore.getState(); return Math.max(d.phone?.t ?? 0, d.watch?.t ?? 0, d.phoneLog.at(-1)?.t ?? 0, d.watchLog.at(-1)?.t ?? 0); },
     readOnly: () => Platform.OS === 'web',
     keepWhenEmpty: true,
   },

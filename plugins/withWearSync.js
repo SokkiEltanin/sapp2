@@ -41,6 +41,13 @@ class WearSyncModule(reactContext: ReactApplicationContext) : ReactContextBaseJa
     } catch (e: Exception) {}
   }
 
+  // Próbka baterii TELEFONU do historii (2026-11-17) — JS woła przy zmianie poziomu, a
+  // WearListenerService przy każdym raporcie zegarka (co ~15 min, też gdy appka zamknięta).
+  @ReactMethod
+  fun samplePhone() {
+    try { BatteryLog.samplePhone(reactApplicationContext) } catch (e: Exception) {}
+  }
+
   // Prośba do zegarka o świeży stan baterii (2026-11-16) — odpowiedź przychodzi jako
   // DataItem "/sapp2/battery" do WearListenerService (zapis do wear_battery.json).
   @ReactMethod
@@ -82,6 +89,9 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.google.android.gms.wearable.DataEvent
@@ -98,6 +108,46 @@ import java.io.File
 // • "/sapp2/battery" (DataItem, 2026-11-16): bateria zegarka → wear_battery.json (JS czyta
 //   go w services/watchBattery.ts) + powiadomienie "podładuj zegarek" poniżej progu
 //   (wear_battery_cfg.json z JS; raz na rozładowanie — reset po ładowaniu).
+// Historia baterii (2026-11-17, user: "ile, kiedy ostatnio ładowane, temperatura, wykresy,
+// zużycie od ostatniego ładowania"): JSON [{t,l,c,tp}] — ostatnie ~4 dni. Telefon dopisuje
+// zegarek przy każdym jego raporcie i przy okazji SIEBIE (temperatura tylko natywnie).
+object BatteryLog {
+  private const val MAX = 400
+  private const val KEEP_MS = 4L * 24 * 3600 * 1000
+
+  @Synchronized
+  fun append(ctx: Context, file: String, level: Int, charging: Boolean, temp: Double?, t: Long) {
+    try {
+      val f = File(ctx.filesDir, file)
+      val arr = if (f.exists()) try { JSONArray(f.readText()) } catch (e: Exception) { JSONArray() } else JSONArray()
+      if (arr.length() > 0) {
+        val last = arr.getJSONObject(arr.length() - 1)
+        // ten sam stan w ciągu 5 min — nie dubluj (zegarek raportuje też na żądanie)
+        if (t - last.optLong("t") < 5 * 60 * 1000 && last.optInt("l") == level && last.optBoolean("c") == charging) return
+      }
+      val o = JSONObject().put("t", t).put("l", level).put("c", charging)
+      if (temp != null) o.put("tp", Math.round(temp * 10) / 10.0)
+      arr.put(o)
+      val out = JSONArray()
+      val from = Math.max(0, arr.length() - MAX)
+      for (i in from until arr.length()) { val x = arr.getJSONObject(i); if (t - x.optLong("t") <= KEEP_MS) out.put(x) }
+      f.writeText(out.toString())
+    } catch (e: Exception) {}
+  }
+
+  fun samplePhone(ctx: Context) {
+    val i = ctx.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)) ?: return
+    val level = i.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+    val scale = i.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
+    if (level < 0 || scale <= 0) return
+    val status = i.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+    val charging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+    val tRaw = i.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE)
+    val temp = if (tRaw == Int.MIN_VALUE) null else tRaw / 10.0
+    append(ctx, "battery_log_phone.json", Math.round(level * 100f / scale), charging, temp, System.currentTimeMillis())
+  }
+}
+
 class WearListenerService : WearableListenerService() {
   override fun onMessageReceived(event: MessageEvent) {
     // Krok zadania odhaczony na zegarku (2026-11-16): "taskId|stepId|1/0" → kolejka,
@@ -134,10 +184,15 @@ class WearListenerService : WearableListenerService() {
         val level = m.getInt("level", -1)
         if (level < 0) continue
         val charging = m.getBoolean("charging", false)
+        val temp = m.getFloat("temp", -100f)
+        val t = m.getLong("t", System.currentTimeMillis())
         val json = JSONObject()
           .put("level", level).put("charging", charging)
-          .put("model", m.getString("model") ?: "").put("t", m.getLong("t", System.currentTimeMillis()))
+          .put("model", m.getString("model") ?: "").put("t", t)
+        if (temp > -50f) json.put("temp", temp.toDouble())
         File(filesDir, "wear_battery.json").writeText(json.toString())
+        BatteryLog.append(this, "battery_log_watch.json", level, charging, if (temp > -50f) temp.toDouble() else null, t)
+        BatteryLog.samplePhone(this)
         maybeNotify(level, charging)
       } catch (ex: Exception) {}
     }

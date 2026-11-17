@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
-import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Text, View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { DashboardScreen, type DashData } from '@/ui/DashboardScreen';
 import { Cap, Tag, splitTag } from '@/ui/layout';
@@ -15,6 +15,7 @@ import { useWeather } from '@/hooks/useWeather';
 import { useWeatherStore } from '@/store/weatherStore';
 import { weatherCodeInfo, rainSummary, aqiInfo, fmtTemp, weatherColor } from '@/utils/weather';
 import WeatherSheet from '@/components/weather/WeatherSheet';
+import BatterySheet from '@/components/battery/BatterySheet';
 import { useMinuteClock } from '@/hooks/useMinuteClock';
 import { useGoogleCalendarSync } from '@/hooks/useGoogleCalendarSync';
 import { todayISO } from '@/utils/date';
@@ -245,6 +246,7 @@ export default function Dashboard() {
   const wxDenied = useWeatherStore((st) => st.gpsDenied);
   const wxError = useWeatherStore((st) => st.error);
   const [weatherOpen, setWeatherOpen] = useState(false);
+  const [batteryOpen, setBatteryOpen] = useState(false); // szczegóły baterii (2026-11-17)
   // Kliknięcie widgetu "Pogoda" na pulpicie → app/weather.tsx → tu z ?weather=1.
   const { weather: weatherParam } = useLocalSearchParams<{ weather?: string }>();
   useEffect(() => {
@@ -298,7 +300,7 @@ export default function Dashboard() {
       steps: x.steps,
     })),
     onOpen: (what, id) => {
-      if (what === 'battery') batteries.refresh();
+      if (what === 'battery') { batteries.refresh(); setBatteryOpen(true); }
       else if (what === 'foodMonth') { setWydatkiTab('food'); setWydatkiOpen(true); }
       else if (what === 'note' && id) openNote(id);
       else if (what === 'noteNew') openNewNote('text', true);
@@ -342,6 +344,12 @@ export default function Dashboard() {
   return (
     <>
       <DashboardScreen {...data} />
+      <LazyMount visible={batteryOpen}>
+        <BatterySheet visible={batteryOpen} onClose={() => setBatteryOpen(false)}
+          phone={Platform.OS === 'web' ? batteries.remotePhone : batteries.phone}
+          watch={batteries.watch}
+          laptop={Platform.OS === 'web' ? batteries.phone : null} />
+      </LazyMount>
       <LazyMount visible={weatherOpen}>
         <WeatherSheet visible={weatherOpen} onClose={() => setWeatherOpen(false)} />
       </LazyMount>

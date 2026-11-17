@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import * as Battery from 'expo-battery';
-import { readWatchBattery, requestWatchBattery, writeWatchBatteryCfg } from '@/services/watchBattery';
+import { readWatchBattery, requestWatchBattery, writeWatchBatteryCfg, readBatteryLogs, samplePhoneBattery } from '@/services/watchBattery';
 import { useThresholdsStore } from '@/store/thresholdsStore';
 import type { WatchBattery } from '@/utils/deviceBattery';
 import { useDeviceBatteryStore } from '@/store/deviceBatteryStore';
@@ -46,7 +46,10 @@ export function useDeviceBatteries() {
   const [watch, setWatch] = useState<WatchBattery | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  const read = useCallback(() => { readWatchBattery().then(setWatch).catch(() => {}); }, []);
+  const read = useCallback(() => {
+    readWatchBattery().then(setWatch).catch(() => {});
+    readBatteryLogs().then((l) => useDeviceBatteryStore.getState().setLogs(l.phone, l.watch)).catch(() => {});
+  }, []);
   const refresh = useCallback(() => {
     requestWatchBattery();
     timers.current.forEach(clearTimeout);
@@ -66,6 +69,14 @@ export function useDeviceBatteries() {
   useEffect(() => {
     if (Platform.OS === 'android') useDeviceBatteryStore.getState().report(phone, watch);
   }, [phone?.level, phone?.charging, watch?.t]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Historia telefonu: próbka przy każdej zmianie poziomu/ładowania (natywnie, z temperaturą).
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !phone) return;
+    samplePhoneBattery();
+    const t = setTimeout(() => readBatteryLogs().then((l) => useDeviceBatteryStore.getState().setLogs(l.phone, l.watch)).catch(() => {}), 800);
+    return () => clearTimeout(t);
+  }, [phone?.level, phone?.charging]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Komputer: telefon i zegarek z chmury (ostatni odczyt telefonu).
   const remote = useDeviceBatteryStore((st) => (Platform.OS === 'web' ? st : null));

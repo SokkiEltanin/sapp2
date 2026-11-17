@@ -24,24 +24,28 @@ import java.util.concurrent.TimeUnit
 object BatteryReporter {
     private const val WORK = "sapp2-battery"
 
-    fun read(ctx: Context): Pair<Int, Boolean>? {
+    // (poziom %, ładowanie, temperatura °C albo null) — temperatura od 2026-11-17 (panel baterii na telefonie)
+    fun read(ctx: Context): Triple<Int, Boolean, Float?>? {
         val i: Intent = ctx.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)) ?: return null
         val level = i.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = i.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
         if (level < 0 || scale <= 0) return null
         val status = i.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
         val charging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
-        return Pair(Math.round(level * 100f / scale), charging)
+        val tRaw = i.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE)
+        val temp = if (tRaw == Int.MIN_VALUE) null else tRaw / 10f
+        return Triple(Math.round(level * 100f / scale), charging, temp)
     }
 
     /** Wysyła stan baterii; `wait` = poczekaj na zapis (z wątku w tle). */
     fun report(ctx: Context, wait: Boolean = false) {
-        val (pct, charging) = read(ctx) ?: return
+        val (pct, charging, temp) = read(ctx) ?: return
         try {
             val req = PutDataMapRequest.create("/sapp2/battery").apply {
                 dataMap.putInt("level", pct)
                 dataMap.putBoolean("charging", charging)
                 dataMap.putString("model", Build.MODEL ?: "")
+                if (temp != null) dataMap.putFloat("temp", temp)
                 dataMap.putLong("t", System.currentTimeMillis())
             }.asPutDataRequest().setUrgent()
             val task = Wearable.getDataClient(ctx).putDataItem(req)
