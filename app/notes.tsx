@@ -119,7 +119,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   newRow: { flexDirection: 'row', gap: spacing[2], paddingHorizontal: spacing[4], marginBottom: spacing[2] },
   newBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing[3], borderRadius: radius.md, backgroundColor: c.bg.card },
   newLabel: { fontSize: 12.5, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
-  folderScroll: { flexGrow: 0, marginBottom: spacing[2] },
+  folderScroll: { flexGrow: 0, flexShrink: 0, marginBottom: spacing[2] },
   folderRow: { paddingHorizontal: spacing[4], gap: 6, alignItems: 'center' },
   fChip: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 32, paddingHorizontal: 12, borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default, maxWidth: 180 },
   fChipOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },

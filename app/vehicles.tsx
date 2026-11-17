@@ -475,7 +475,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, textAlign: 'center', fontSize: 17, fontFamily: 'Inter_900Black', color: c.text.primary },
 
-  chipScroll: { flexGrow: 0 },
+  chipScroll: { flexGrow: 0, flexShrink: 0 }, // web: bez flexShrink pasek ściska się przy długiej treści
   chipRow: { paddingHorizontal: spacing[4], gap: spacing[2], paddingBottom: spacing[2] },
   vehChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing[3], paddingVertical: 7, borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default, backgroundColor: c.bg.elevated },
   vehChipOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },

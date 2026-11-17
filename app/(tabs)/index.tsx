@@ -15,6 +15,7 @@ import { useWeather } from '@/hooks/useWeather';
 import { useWeatherStore } from '@/store/weatherStore';
 import { weatherCodeInfo, rainSummary, aqiInfo, fmtTemp, weatherColor } from '@/utils/weather';
 import WeatherSheet from '@/components/weather/WeatherSheet';
+import { useMinuteClock } from '@/hooks/useMinuteClock';
 import { useGoogleCalendarSync } from '@/hooks/useGoogleCalendarSync';
 import { todayISO } from '@/utils/date';
 import { parseDeadline, deadlineHasTime } from '@/utils/taskDeadline';
@@ -118,8 +119,12 @@ export default function Dashboard() {
   // lagów" znaczy że szybkie przełączanie Dashboard↔Zadania NIE odpala
   // drugiego fetcha zaraz po pierwszym.
   useGoogleCalendarSync();
+  // `now` co minutę i po powrocie do appki (hooks/useMinuteClock.ts) — "Teraz" i
+  // "Najbliższe eventy" chowają zakończone wydarzenia na bieżąco. Cięższe liczenia
+  // (jedzenie, wymiany, rachunki) dalej raz na dzień (`dayNow`).
+  const now = useMinuteClock();
   const today = todayISO();
-  const now = useMemo(() => new Date(), [today]);
+  const dayNow = useMemo(() => new Date(), [today]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Baterie telefonu i zegarka (2026-11-16) — kafel w miejscu Ciekawostki (ta jest w Daily).
   const batteries = useDeviceBatteries();
@@ -132,7 +137,7 @@ export default function Dashboard() {
   // słupków została ta sama co przy wąskim kaflu (span 3), więc zostawiała pustą
   // przestrzeń. `MONTH_SHORT` (foodStats.ts) ma 12 unikalnych etykiet w obrębie
   // roku — 6 nie koliduje (brak przejścia przez Styczeń wstecz), 12 by kolidowało.
-  const foodMonths = useMemo(() => foodByMonth(expenses, 6, now), [expenses, now]);
+  const foodMonths = useMemo(() => foodByMonth(expenses, 6, dayNow), [expenses, dayNow]);
 
   const allEvents = useMemo(() => [...calendarEvents, ...gcalEvents], [calendarEvents, gcalEvents]);
 
@@ -160,11 +165,6 @@ export default function Dashboard() {
   // zwraca `null` dla eventów całodniowych (celowo, zasila "Teraz"/timeline, które
   // dbają o realny czas zegarowy); odliczanie ma sens też dla "Wakacje" bez
   // konkretnej godziny, więc pada tu na północ dnia.
-  const [countdownTick, setCountdownTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setCountdownTick((t) => t + 1), 60000);
-    return () => clearInterval(id);
-  }, []);
   const [countdownPickerOpen, setCountdownPickerOpen] = useState(false);
   const selectedCountdownId = useCountdownStore((st) => st.selectedEventId);
   const setSelectedCountdownId = useCountdownStore((st) => st.setSelectedEventId);
@@ -177,22 +177,22 @@ export default function Dashboard() {
     return d;
   };
   const upcomingCountdownEvents = useMemo(() => {
-    const nowMs = Date.now();
+    const nowMs = now.getTime();
     return allEvents
       .map((e) => ({ e, start: countdownEventStart(e) }))
       .filter((x) => x.start.getTime() > nowMs)
       .sort((a, b) => a.start.getTime() - b.start.getTime())
       .slice(0, 40);
-  }, [allEvents]);
+  }, [allEvents, now]);
   const selectedCountdownEvent = useMemo(
     () => allEvents.find((e) => e.id === selectedCountdownId) ?? null,
     [allEvents, selectedCountdownId],
   );
   const countdown = useMemo(() => {
-    void countdownTick;
+    void now; // przelicz co minutę
     if (!selectedCountdownEvent) return null;
     return { text: formatCountdown(countdownParts(countdownEventStart(selectedCountdownEvent))), eventTitle: selectedCountdownEvent.title };
-  }, [selectedCountdownEvent, countdownTick]);
+  }, [selectedCountdownEvent, now]);
 
   // "Najbliższe eventy" — wcześniej "Najbliższe 48h" z twardym limitem 48h (user:
   // "zamieniamy na najbliższe eventy po prostu i tyle bez ograniczenia bo jak nic
@@ -208,6 +208,11 @@ export default function Dashboard() {
   // wyprzedzeniem, czego lista eventów (z natury bliskich w czasie) nie robi.
   const BILL_WINDOW_DAYS = 14;
   type TimelineEntry = { key: string; at: Date; title: string; color: string; kind: 'event' | 'deadline' | 'bill'; minutes?: number; amount?: number; fx?: PendingFx; dayOnly?: boolean; steps?: string };
+  // Rachunki liczone raz na dzień (wykrywanie z historii wydatków jest cięższe).
+  const billEntries = useMemo<TimelineEntry[]>(() => upcomingPayments(expenses, subscriptions, dayNow, dismissedBills)
+    .filter((p) => p.daysUntil <= BILL_WINDOW_DAYS)
+    .map((p) => ({ key: `b_${p.id}`, at: new Date(`${p.dueDate}T00:00:00`), title: p.name, color: colors.accent.red, kind: 'bill' as const, amount: p.amount, fx: p.fx })),
+  [expenses, subscriptions, dayNow, dismissedBills]);
   const upcomingTimeline = useMemo<TimelineEntry[]>(() => {
     const out: TimelineEntry[] = [];
     for (const e of allEvents) {
@@ -230,12 +235,9 @@ export default function Dashboard() {
     // subskrypcjach łapać" — dolicza też PRZEWIDYWANE terminy rachunków stałych
     // (czynsz/prąd/internet...) rozpoznanych z historii wydatków, nie tylko
     // ręcznie dodane Subskrypcje.
-    for (const p of upcomingPayments(expenses, subscriptions, now, dismissedBills)) {
-      if (p.daysUntil > BILL_WINDOW_DAYS) continue;
-      out.push({ key: `b_${p.id}`, at: new Date(`${p.dueDate}T00:00:00`), title: p.name, color: colors.accent.red, kind: 'bill', amount: p.amount, fx: p.fx });
-    }
+    out.push(...billEntries);
     return out.sort((a, b) => a.at.getTime() - b.at.getTime());
-  }, [allEvents, calendarTasks, subscriptions, expenses, now, dismissedBills]);
+  }, [allEvents, calendarTasks, now, billEntries]);
 
   // Pogoda zamiast snu (2026-11-13) — sen jest w Daily.
   const { data: wx } = useWeather();
@@ -268,10 +270,10 @@ export default function Dashboard() {
   const notesCount = useNotesStore((st) => st.notes.length);
   const replaceItems = useReplacementsStore((st) => st.items);
   const nextMaintenance = useMemo(() => {
-    const [r] = allReplaceRows(replaceItems, vehicles, now);
+    const [r] = allReplaceRows(replaceItems, vehicles, dayNow);
     if (!r) return null;
     return { vehicleName: r.kind === 'car' ? r.car.vehicleName : 'dom', label: rowName(r), dueLabel: r.due.label, overdue: r.due.daysLeft < 0 };
-  }, [vehicles, replaceItems, now]);
+  }, [vehicles, replaceItems, dayNow]);
 
   const data: DashData = {
     next: upcomingEvent ? { title: upcomingEvent.e.title, start: upcomingEvent.start } : null,

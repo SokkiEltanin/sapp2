@@ -98,7 +98,7 @@ export default function WorkScreen() {
       </View>
 
       {employers.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.empRow} style={{ flexGrow: 0 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.empRow} style={{ flexGrow: 0, flexShrink: 0 }}>
           {employers.map((e) => (
             <TouchableOpacity
               key={e.id}
