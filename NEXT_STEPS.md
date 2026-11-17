@@ -41,6 +41,9 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-17 — Ciekawostki paczka 2**: +49 (razem 119, ok. 4 mies. przy 1/dzień). Kolejna paczka
+przed wyczerpaniem — nowe id z sufiksem paczki (`x3-…`).
+
 **2026-11-17 — Kolekcja (karty miesięcy + rekordy), zegar Dashboardu, Praca na web**:
 - [ ] Telefon: popup nowej karty po wejściu w Daily (pierwszy raz pokaże październik).
 - [ ] Rekordy kroków/snu rosną od dziś (dziennik startuje z 30 dni Health Connect) — starsze wpisać ręcznie.

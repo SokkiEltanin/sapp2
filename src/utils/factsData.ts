@@ -809,4 +809,558 @@ export const FACT_LIST: Fact[] = [
     ],
     src: 'IEA, Energy and AI 2025; PSE',
   },
+
+  // ═════════ PACZKA 2 (2026-11-17) ═════════
+  // ───────── ZDROWIE ─────────
+  {
+    id: 'z2-ekran-sen', cat: 'zdrowie', topic: 'Ekran przed snem',
+    teaser: 'Czytanie z tabletu przed snem przesuwa zegar biologiczny tak, że rano czujesz się, jakbyś spał krócej.',
+    nums: [{ v: '−55%', l: 'melatoniny wieczorem (tablet vs książka)' }, { v: '~10 min', l: 'dłużej zasypiali' }],
+    body: [
+      'Chang i in. (PNAS 2015) przez 5 wieczorów dawali badanym do czytania przez 4 godziny przed snem tablet albo papierową książkę.',
+      'Po tablecie wieczorny wyrzut melatoniny był o ok. 55% mniejszy, zasypianie trwało ok. 10 minut dłużej, było mniej snu REM, a rano badani byli mniej czujni.',
+      'Najsilniej działa jasne, niebieskawe światło z bliska. Pomaga tryb nocny, przyciemniony ekran i odłożenie telefonu na ostatnie 30–60 minut.',
+    ],
+    src: 'Chang i in., PNAS 2015',
+  },
+  {
+    id: 'z2-spacer-po-jedzeniu', cat: 'zdrowie', topic: 'Spacer po obiedzie',
+    teaser: 'Już 2–5 minut spaceru po jedzeniu łagodzi skok cukru we krwi.',
+    nums: [{ v: '2–5 min', l: 'lekkiego marszu wystarczy' }, { v: '7', l: 'badań w metaanalizie' }],
+    body: [
+      'Buffey i in. (Sports Medicine 2022) zebrali 7 badań, w których ludzie po posiłku siedzieli, stali albo krótko chodzili.',
+      'Lekki spacer, nawet 2–5 minut w ciągu godziny po jedzeniu, wyraźnie obniżał szczyt glukozy i insuliny w porównaniu z siedzeniem. Samo stanie dawało mniejszy efekt.',
+      'Pracujące mięśnie zużywają glukozę bez dodatkowej insuliny. Najlepiej ruszyć się w ciągu 60–90 minut od posiłku, gdy cukier rośnie najszybciej.',
+    ],
+    src: 'Buffey i in., Sports Medicine 2022',
+  },
+  {
+    id: 'z2-ruch-depresja', cat: 'zdrowie', topic: 'Ruch na nastrój',
+    teaser: 'Największy przegląd badań wyszedł z wnioskiem, że ruch działa na depresję mocniej niż popularne leki czy rozmowa z terapeutą.',
+    nums: [{ v: '1 039', l: 'badań klinicznych' }, { v: '128 tys.', l: 'uczestników' }, { v: '1,5×', l: 'skuteczniej niż leki i terapia' }],
+    body: [
+      'Singh i in. (British Journal of Sports Medicine 2023) zebrali 97 przeglądów obejmujących 1 039 badań i ok. 128 tysięcy osób.',
+      'Aktywność fizyczna zmniejszała objawy depresji, lęku i stresu średnio ok. 1,5 raza skuteczniej niż terapia rozmową czy najczęściej stosowane leki. Najlepsze efekty dawał ruch o średniej i wysokiej intensywności, już po 12 tygodniach.',
+      'To nie znaczy, że trzeba odstawić leczenie — ruch świetnie je uzupełnia. Liczy się każdy rodzaj: marsz, siłownia, joga.',
+    ],
+    src: 'Singh i in., British Journal of Sports Medicine 2023',
+  },
+  {
+    id: 'z2-relacje', cat: 'zdrowie', topic: 'Ludzie przedłużają życie',
+    teaser: 'Silne więzi z ludźmi wpływają na długość życia tak mocno jak rzucenie palenia.',
+    nums: [{ v: '+50%', l: 'większa szansa przeżycia przy silnych relacjach' }, { v: '148', l: 'badań' }, { v: '308 tys.', l: 'osób' }],
+    body: [
+      'Holt-Lunstad i in. (PLoS Medicine 2010) przeanalizowali 148 badań, w których ok. 308 tysięcy osób obserwowano średnio przez 7,5 roku.',
+      'Osoby z silnymi relacjami społecznymi miały o ok. 50% większą szansę przeżycia okresu badania niż osoby osamotnione.',
+      'Efekt był porównywalny z rzuceniem palenia i większy niż z otyłością czy brakiem ruchu. Kontakt z ludźmi to nie dodatek — to czynnik zdrowia.',
+    ],
+    src: 'Holt-Lunstad i in., PLoS Medicine 2010',
+  },
+  {
+    id: 'z2-orzechy', cat: 'zdrowie', topic: 'Garść orzechów',
+    teaser: 'Garść orzechów dziennie wiąże się z niższym ryzykiem przedwczesnej śmierci aż o jedną piątą.',
+    nums: [{ v: '28 g', l: 'czyli mała garść dziennie' }, { v: '−22%', l: 'ryzyka zgonu z dowolnej przyczyny' }, { v: '−21%', l: 'ryzyka chorób serca' }],
+    body: [
+      'Aune i in. (BMC Medicine 2016) zebrali 20 badań obserwacyjnych z ponad 800 tysiącami uczestników.',
+      'Osoby jedzące ok. 28 g orzechów dziennie miały o 22% niższe ryzyko zgonu z dowolnej przyczyny i o 21% niższe ryzyko chorób serca niż te, które ich nie jadły.',
+      'Orzechy mają dużo kalorii (ok. 170 kcal w garści), ale też zdrowe tłuszcze, błonnik i magnez. Najlepiej niesolone.',
+    ],
+    src: 'Aune i in., BMC Medicine 2016',
+  },
+  {
+    id: 'z2-witamina-d', cat: 'zdrowie', topic: 'Zimowa witamina D',
+    teaser: 'Od października do marca słońce w Polsce jest za nisko, żeby skóra wytworzyła witaminę D.',
+    nums: [{ v: '~50° N', l: 'szerokość geograficzna Polski' }, { v: '1000–2000 j.m.', l: 'dziennie dla dorosłych (wytyczne 2023)' }],
+    body: [
+      'Witamina D powstaje w skórze pod wpływem promieni UVB. Zimą na naszej szerokości słońce stoi tak nisko, że UVB prawie nie przechodzi przez atmosferę.',
+      'Dlatego polskie wytyczne (aktualizacja 2023) zalecają dorosłym 1000–2000 j.m. dziennie od września do kwietnia, a przy małej ilości słońca przez cały rok. Przed większymi dawkami warto zbadać poziom 25(OH)D.',
+      'Latem wystarcza ok. 15 minut na słońcu z odkrytymi rękami i nogami między 10 a 15, bez kremu z filtrem.',
+    ],
+    src: 'Płudowski i in., Nutrients 2018 / 2023 (wytyczne dla Polski)',
+  },
+  {
+    id: 'z2-jetlag-spoleczny', cat: 'zdrowie', topic: 'Weekendowy jet lag',
+    teaser: 'Spanie do południa w weekend działa na organizm jak lot przez kilka stref czasowych.',
+    nums: [{ v: '~70%', l: 'ludzi ma ≥1 h „społecznego jet lagu”' }, { v: '+33%', l: 'szansy na nadwagę za każdą godzinę' }],
+    body: [
+      'Roenneberg i in. (Current Biology 2012) porównali godziny snu w dni robocze i wolne u ponad 65 tysięcy osób. Różnicę nazwali „społecznym jet lagiem”.',
+      'Ok. 70% badanych miało co najmniej godzinę przesunięcia. Każda godzina wiązała się z ok. 33% większą szansą nadwagi.',
+      'Zegar biologiczny lubi regularność. Wstawanie w weekend najwyżej godzinę później niż w tygodniu to najprostszy sposób na lepsze poniedziałki.',
+    ],
+    src: 'Roenneberg i in., Current Biology 2012',
+  },
+
+  // ───────── MEDYCYNA ─────────
+  {
+    id: 'm2-narkoza', cat: 'medycyna', topic: 'Pierwsza narkoza',
+    teaser: 'Do 1846 r. operacje robiono na przytomnych pacjentach — chirurg musiał być przede wszystkim szybki.',
+    nums: [{ v: '16.10.1846', l: 'pierwsza publiczna narkoza eterem' }, { v: '< 3 min', l: 'amputacja nogi u najszybszych chirurgów' }],
+    body: [
+      'Przed anestezją pacjentów przytrzymywano siłą, a najlepsi chirurdzy, jak Robert Liston, amputowali nogę w niecałe 3 minuty, żeby skrócić cierpienie.',
+      '16 października 1846 r. w Bostonie dentysta William Morton uśpił eterem pacjenta, któremu chirurg John Warren usunął guz szyi. Pacjent nic nie czuł. Warren powiedział: „Panowie, to nie jest humbug”.',
+      'Sala, w której to się stało, do dziś nazywa się Ether Dome. W ciągu kilku miesięcy narkoza trafiła do szpitali w Europie.',
+    ],
+    src: 'Massachusetts General Hospital, Ether Dome; Wood Library-Museum of Anesthesiology',
+  },
+  {
+    id: 'm2-semmelweis', cat: 'medycyna', topic: 'Lekarz od mycia',
+    teaser: 'Lekarz, który kazał myć ręce przed porodem i zmniejszył śmiertelność matek dziewięć razy, został wyśmiany.',
+    nums: [{ v: '~18% → ~2%', l: 'śmiertelność na oddziale po wprowadzeniu mycia' }, { v: '1847', l: 'Wiedeń' }],
+    body: [
+      'Ignaz Semmelweis w wiedeńskim szpitalu zauważył, że na oddziale prowadzonym przez lekarzy (którzy przychodzili prosto z sekcji zwłok) gorączka połogowa zabijała wielokrotnie więcej matek niż na oddziale położnych.',
+      'W 1847 r. wprowadził mycie rąk w roztworze wapna chlorowanego. Śmiertelność spadła z ok. 18% do ok. 2% w ciągu kilku miesięcy.',
+      'Środowisko lekarskie odrzuciło jego pomysł — nikt jeszcze nie znał bakterii. Semmelweis zmarł w 1865 r. w zakładzie dla psychicznie chorych. Kilkanaście lat później Pasteur i Lister potwierdzili, że miał rację.',
+    ],
+    src: 'Semmelweis, Die Ätiologie… 1861; Best & Neuhauser, BMJ Quality & Safety 2004',
+  },
+  {
+    id: 'm2-genom', cat: 'medycyna', topic: 'Cena twojego genomu',
+    teaser: 'Pierwsze odczytanie ludzkiego DNA kosztowało miliardy dolarów. Dziś to cena dobrego telefonu.',
+    nums: [{ v: '~2,7 mld $', l: 'Projekt Poznania Genomu Człowieka' }, { v: '< 1 000 $', l: 'pełny genom dziś' }, { v: '~3 mld', l: 'par zasad w DNA' }],
+    body: [
+      'Projekt Poznania Genomu Człowieka trwał 13 lat (1990–2003) i kosztował ok. 2,7 mld dolarów. Odczytano ok. 3 miliardy „liter” (par zasad) DNA.',
+      'Dzięki nowym sekwenatorom cena spadła szybciej niż cena układów scalonych w prawie Moore’a — dziś pełny genom kosztuje kilkaset dolarów i trwa ok. doby.',
+      'Według NHGRI wydrukowany ludzki genom zapełniłby ok. 200 tysiącstronicowych książek telefonicznych.',
+    ],
+    src: 'NHGRI, The Cost of Sequencing a Human Genome',
+  },
+  {
+    id: 'm2-polio', cat: 'medycyna', topic: 'Patent na Słońce',
+    teaser: 'Wynalazca szczepionki na polio nie opatentował jej — i dziś tę chorobę prawie wytępiono.',
+    nums: [{ v: '~350 tys.', l: 'przypadków polio w 1988 r.' }, { v: '> 99%', l: 'spadek do dziś' }, { v: '1955', l: 'szczepionka Salka' }],
+    body: [
+      'Polio paraliżowało co roku dziesiątki tysięcy dzieci. W 1955 r. ogłoszono, że szczepionka Jonasa Salka działa — dzwony biły w całych Stanach.',
+      'Zapytany w telewizji, kto ma do niej patent, Salk odpowiedział: „Ludzie. Nie ma patentu. Czy można opatentować Słońce?”.',
+      'W 1988 r., na starcie światowej kampanii, notowano ok. 350 tysięcy przypadków rocznie. Dziś dzikie polio występuje już tylko w Pakistanie i Afganistanie — spadek o ponad 99%.',
+    ],
+    src: 'WHO / Global Polio Eradication Initiative',
+  },
+  {
+    id: 'm2-sluch', cat: 'medycyna', topic: 'Słuch nie odrasta',
+    teaser: 'Komórki, którymi słyszysz, nie odrastają — każdy głośny koncert może zabrać ich trochę na zawsze.',
+    nums: [{ v: '~16 tys.', l: 'komórek rzęsatych w uchu' }, { v: '85 dB', l: 'bezpieczne przez 8 h' }, { v: '+3 dB', l: '= o połowę krócej' }],
+    body: [
+      'W ślimaku każdego ucha jest ok. 16 tysięcy komórek rzęsatych. U ptaków i ryb odrastają, u ssaków — nie.',
+      'Według NIOSH bezpieczny poziom to 85 dB przez 8 godzin. Każde +3 dB skraca bezpieczny czas o połowę: 100 dB (głośny koncert, słuchawki na maksa) to ok. 15 minut.',
+      'Szum w uszach po imprezie to sygnał, że część komórek została uszkodzona. Zatyczki koncertowe obniżają głośność o ok. 15–20 dB, nie psując brzmienia.',
+    ],
+    src: 'NIOSH Criteria for a Recommended Standard: Occupational Noise Exposure 1998',
+  },
+  {
+    id: 'm2-mikrobiom', cat: 'medycyna', topic: 'Bakterie w nas',
+    teaser: 'Słynne „10 razy więcej bakterii niż komórek ciała” to mit — prawdziwy stosunek jest prawie jeden do jednego.',
+    nums: [{ v: '~38 bln', l: 'bakterii w ciele' }, { v: '~30 bln', l: 'ludzkich komórek' }, { v: '~0,2 kg', l: 'waga wszystkich bakterii' }],
+    body: [
+      'Liczba „10 do 1” pochodziła z szacunku z lat 70. Sender, Fuchs i Milo (PLoS Biology 2016) przeliczyli ją dokładnie.',
+      'Wyszło ok. 38 bilionów bakterii (głównie w jelicie grubym) wobec ok. 30 bilionów ludzkich komórek — z czego większość to czerwone krwinki. Bakterie ważą razem ok. 0,2 kg.',
+      'Ciekawostka: przy każdym wypróżnieniu tracimy sporą część bakterii z jelita, więc stosunek zmienia się w ciągu dnia.',
+    ],
+    src: 'Sender, Fuchs & Milo, PLoS Biology 2016',
+  },
+  {
+    id: 'm2-przeszczep-serca', cat: 'medycyna', topic: 'Serce od dawcy',
+    teaser: 'Pierwszy pacjent z przeszczepionym sercem żył 18 dni. Dziś połowa biorców żyje ponad 12 lat.',
+    nums: [{ v: '3.12.1967', l: 'pierwszy przeszczep (Kapsztad)' }, { v: '1985', l: 'pierwszy udany w Polsce (Religa)' }, { v: '~12 lat', l: 'mediana przeżycia dziś' }],
+    body: [
+      'Christiaan Barnard przeszczepił serce 53-letniemu Louisowi Washkansky’emu 3 grudnia 1967 r. Operacja się udała, ale pacjent zmarł po 18 dniach na zapalenie płuc — leki przeciw odrzuceniu osłabiały odporność.',
+      'W Polsce pierwszy udany przeszczep serca przeprowadził zespół Zbigniewa Religi w Zabrzu 5 listopada 1985 r.',
+      'Przełomem była cyklosporyna (lata 80.). Dziś mediana przeżycia po przeszczepie serca to ok. 12 lat, a wielu pacjentów żyje ponad 20.',
+    ],
+    src: 'ISHLT Registry; Śląskie Centrum Chorób Serca',
+  },
+
+  // ───────── MATERIAŁY ─────────
+  {
+    id: 'mat2-szklo-nie-plynie', cat: 'materialy', topic: 'Szkło nie płynie',
+    teaser: 'Stare szyby nie są grubsze u dołu dlatego, że szkło „spływa”. To mit.',
+    nums: [{ v: '~10³² lat', l: 'tyle trwałoby zauważalne „płynięcie” szkła' }, { v: '13,8 mld lat', l: 'wiek wszechświata dla porównania' }],
+    body: [
+      'Popularna teoria mówi, że szkło to bardzo gęsta ciecz i po stuleciach spływa w dół. Zanotto (American Journal of Physics 1998) policzył lepkość szkła katedralnego w temperaturze pokojowej.',
+      'Wyszło, że na widoczne odkształcenie trzeba by czekać ok. 10³² lat — nieporównanie dłużej niż istnieje wszechświat.',
+      'Nierówne szyby to efekt dawnej produkcji (szkło wydmuchiwane i rozkręcane w tarczę miało różną grubość). Szklarze często wstawiali je grubszą krawędzią w dół, bo tak było stabilniej — ale zdarzają się też odwrotnie.',
+    ],
+    src: 'Zanotto, American Journal of Physics 1998',
+  },
+  {
+    id: 'mat2-teflon', cat: 'materialy', topic: 'Teflon z przypadku',
+    teaser: 'Teflon odkryto, bo butla z gazem chłodniczym okazała się „pusta”, choć ważyła tyle co pełna.',
+    nums: [{ v: '1938', l: 'odkrycie PTFE' }, { v: '~0,05', l: 'współczynnik tarcia — jak lód po lodzie' }],
+    body: [
+      'Roy Plunkett z DuPonta pracował nad nowymi gazami do lodówek. Pewnego dnia z butli nic nie wyleciało, a jej waga się zgadzała. Po rozcięciu znalazł w środku biały, śliski proszek.',
+      'Gaz sam spolimeryzował w politetrafluoroetylen (PTFE). Ma jeden z najniższych współczynników tarcia wśród ciał stałych, nie reaguje z prawie niczym i wytrzymuje ok. 260 °C.',
+      'Zanim trafił na patelnie (lata 50.), użyto go w projekcie Manhattan do uszczelek odpornych na żrący sześciofluorek uranu.',
+    ],
+    src: 'American Chemical Society; Science History Institute',
+  },
+  {
+    id: 'mat2-rzepy', cat: 'materialy', topic: 'Rzepy z łopianu',
+    teaser: 'Rzepy na butach wymyślił inżynier, któremu po spacerze z psem trudno było wyczyścić sierść.',
+    nums: [{ v: '1941', l: 'spacer w Alpach' }, { v: '1955', l: 'patent' }],
+    body: [
+      'Szwajcar George de Mestral po spacerze z psem obejrzał pod mikroskopem przyczepione owoce łopianu. Zobaczył setki małych haczyków, które chwytają pętelki w tkaninie i sierści.',
+      'Odtworzenie tego w nylonie zajęło mu ok. 10 lat. Patent dostał w 1955 r., a nazwa Velcro powstała z francuskich słów velours (welur) i crochet (haczyk).',
+      'To klasyczny przykład biomimetyki — kopiowania rozwiązań z natury. Rzepy trafiły m.in. do skafandrów astronautów programu Apollo.',
+    ],
+    src: 'Velcro Companies; Smithsonian Magazine',
+  },
+  {
+    id: 'mat2-nierdzewna', cat: 'materialy', topic: 'Samonaprawiająca się stal',
+    teaser: 'Stal nierdzewna rdzewieje — tyle że jej rdza tworzy niewidzialną zbroję, która sama się odbudowuje.',
+    nums: [{ v: '≥ 10,5%', l: 'chromu w stali nierdzewnej' }, { v: '1–3 nm', l: 'grubość ochronnej warstwy' }, { v: '1913', l: 'Sheffield, Harry Brearley' }],
+    body: [
+      'Gdy w stali jest co najmniej 10,5% chromu, na powierzchni tworzy się warstewka tlenku chromu grubości kilku nanometrów — niewidoczna i szczelna.',
+      'Po zarysowaniu chrom z głębi od razu reaguje z tlenem z powietrza i warstwa odbudowuje się w ciągu chwil. Zwykła rdza żelaza jest za to porowata i odpada płatami, odsłaniając kolejne warstwy.',
+      'Harry Brearley w 1913 r. szukał stali na lufy karabinów. Zauważył, że jego próbki z chromem nie rdzewieją w odpadkach laboratorium — pierwszy zastosował je w nożach.',
+    ],
+    src: 'Outokumpu / British Stainless Steel Association; Royal Society of Chemistry',
+  },
+  {
+    id: 'mat2-perowskity', cat: 'materialy', topic: 'Perowskitowe ogniwa',
+    teaser: 'Nowy materiał na panele słoneczne w 15 lat dogonił krzem, nad którym pracowano pół wieku — a ważną rolę grają w nim Polacy.',
+    nums: [{ v: '3,8% → 26%', l: 'sprawność ogniwa: 2009 → 2024' }, { v: '~34%', l: 'rekord tandemu perowskit + krzem' }],
+    body: [
+      'Perowskity to kryształy o konkretnej strukturze, które świetnie pochłaniają światło. Pierwsze ogniwo (Kojima i in., 2009) miało sprawność 3,8%. Dziś laboratoryjne pojedyncze ogniwa przekraczają 26%, a tandemy z krzemem ok. 34%.',
+      'Można je drukować z roztworu na cienkiej folii, więc panele mogą być lekkie i elastyczne. Olga Malinkiewicz z polskiej firmy Saule Technologies opracowała metodę ich druku atramentowego.',
+      'Największy problem to trwałość — perowskity niszczą się pod wpływem wilgoci i ciepła. Nad tym pracuje dziś większość laboratoriów.',
+    ],
+    src: 'NREL Best Research-Cell Efficiency Chart; Kojima i in., JACS 2009',
+  },
+  {
+    id: 'mat2-wulkanizacja', cat: 'materialy', topic: 'Guma z pieca',
+    teaser: 'Zanim ktoś przypadkiem upuścił kauczuk na gorący piec, gumowe buty topiły się latem i pękały zimą.',
+    nums: [{ v: '1839', l: 'odkrycie wulkanizacji' }, { v: '1844', l: 'patent Goodyeara' }],
+    body: [
+      'Naturalny kauczuk był lepki w upał i kruchy na mrozie. Charles Goodyear latami próbował go „poprawić”, popadając w długi.',
+      'W 1839 r. upuścił mieszankę kauczuku z siarką na rozgrzany piec. Zamiast się stopić, zwęgliła się po brzegach i zrobiła sprężysta. Siarka połączyła łańcuchy polimeru mostkami — to wulkanizacja.',
+      'Goodyear zmarł w długach i nie ma nic wspólnego z firmą oponiarską — nazwano ją na jego cześć 38 lat po jego śmierci.',
+    ],
+    src: 'American Chemical Society; Goodyear Tire & Rubber Company history',
+  },
+  {
+    id: 'mat2-najczarniejsze', cat: 'materialy', topic: 'Najczarniejsza czerń',
+    teaser: 'Istnieje powłoka tak czarna, że pomalowany nią przedmiot wygląda jak dziura w rzeczywistości.',
+    nums: [{ v: '99,965%', l: 'światła pochłania Vantablack' }, { v: '99,995%', l: 'rekord MIT (2019)' }],
+    body: [
+      'Vantablack (2014) to „las” pionowych nanorurek węglowych. Światło wpada między nie, odbija się wiele razy i zostaje pochłonięte — wraca tylko ok. 0,035%.',
+      'Pomalowany przedmiot traci cienie i kształt — wygląda jak płaska, czarna plama. W 2019 r. zespół MIT pokazał materiał pochłaniający ok. 99,995% światła.',
+      'Takie powłoki trafiają do teleskopów i kamer, gdzie zbłąkane światło psuje obraz. Prawa do artystycznego użycia Vantablacku wykupił Anish Kapoor, co wywołało głośny spór artystów.',
+    ],
+    src: 'Surrey NanoSystems; Cui i in., ACS Applied Materials & Interfaces 2019',
+  },
+
+  // ───────── KOSMOS ─────────
+  {
+    id: 'k2-saturn', cat: 'kosmos', topic: 'Saturn by pływał',
+    teaser: 'Saturn jest lżejszy od wody — gdyby znalazła się dość duża wanna, unosiłby się na powierzchni.',
+    nums: [{ v: '0,69 g/cm³', l: 'średnia gęstość (woda: 1,0)' }, { v: '~10 m', l: 'typowa grubość pierścieni' }, { v: '~280 tys. km', l: 'średnica pierścieni' }],
+    body: [
+      'Saturn to głównie wodór i hel. Jego średnia gęstość to ok. 0,69 g/cm³ — najmniejsza w Układzie Słonecznym i mniejsza niż wody.',
+      'Pierścienie mają średnicę ok. 280 tys. km, ale grubość w większości tylko ok. 10 metrów (miejscami do kilometra). W skali kartki papieru byłyby wielokrotnie cieńsze od niej.',
+      'Pierścienie to głównie kawałki lodu — od ziaren pyłu po bryły wielkości domu. Z czasem opadają na planetę, więc za kilkaset milionów lat mogą zniknąć.',
+    ],
+    src: 'NASA Saturn Fact Sheet; NASA Cassini',
+  },
+  {
+    id: 'k2-olympus', cat: 'kosmos', topic: 'Góra na Marsie',
+    teaser: 'Najwyższa góra Układu Słonecznego jest prawie trzy razy wyższa od Everestu i szeroka jak Polska.',
+    nums: [{ v: '~22 km', l: 'wysokość Olympus Mons' }, { v: '~600 km', l: 'średnica podstawy' }, { v: '8,8 km', l: 'Mount Everest' }],
+    body: [
+      'Olympus Mons to wulkan tarczowy na Marsie. Wznosi się ok. 22 km ponad otaczające równiny, a jego podstawa ma średnicę ok. 600 km.',
+      'Mógł urosnąć tak bardzo, bo Mars nie ma przesuwających się płyt tektonicznych — magma przez miliony lat wypływała w tym samym miejscu. Do tego słabsza grawitacja pozwala górom być wyższymi.',
+      'Zbocza są tak łagodne (średnio ok. 5°), że stojąc na nim, nie zauważyłbyś, że jesteś na górze — szczyt kryłby się za horyzontem.',
+    ],
+    src: 'NASA / ESA Mars Express',
+  },
+  {
+    id: 'k2-czarna-dziura', cat: 'kosmos', topic: 'Zdjęcie czarnej dziury',
+    teaser: 'Żeby sfotografować czarną dziurę, trzeba było zamienić całą Ziemię w jeden teleskop.',
+    nums: [{ v: '2019', l: 'pierwsze zdjęcie (M87*)' }, { v: '6,5 mld', l: 'mas Słońca' }, { v: '55 mln', l: 'lat świetlnych od nas' }],
+    body: [
+      'Event Horizon Telescope połączył radioteleskopy na kilku kontynentach. Dzięki zsynchronizowaniu ich zegarami atomowymi działały jak jedna antena wielkości Ziemi.',
+      'W 2019 r. pokazano „cień” czarnej dziury w galaktyce M87: ma masę ok. 6,5 mld Słońc i leży 55 mln lat świetlnych od nas. Dane były tak duże, że dyski z nimi wożono samolotami — szybciej niż przez internet.',
+      'W 2022 r. pokazano Sagittarius A* — czarną dziurę w centrum naszej Galaktyki, o masie ok. 4 mln Słońc.',
+    ],
+    src: 'Event Horizon Telescope Collaboration, ApJ Letters 2019 i 2022',
+  },
+  {
+    id: 'k2-smieci', cat: 'kosmos', topic: 'Śmieci na orbicie',
+    teaser: 'Wokół Ziemi krąży ponad milion kawałków śmieci większych od paznokcia — każdy szybszy od kuli z karabinu.',
+    nums: [{ v: '~36 500', l: 'obiektów > 10 cm' }, { v: '~1 mln', l: 'od 1 do 10 cm' }, { v: '~130 mln', l: 'od 1 mm do 1 cm' }],
+    body: [
+      'Według ESA na orbicie jest ok. 36 500 obiektów większych niż 10 cm (śledzonych radarami), ok. miliona o wielkości 1–10 cm i ok. 130 milionów mniejszych.',
+      'Przy prędkościach ok. 7–8 km/s nawet kawałek farby może wybić dziurę w szybie stacji. ISS kilka razy w roku wykonuje manewry unikania.',
+      'Donald Kessler w 1978 r. ostrzegł przed reakcją łańcuchową: zderzenia tworzą odłamki, które powodują kolejne zderzenia. Dlatego nowe satelity muszą umieć same zejść z orbity.',
+    ],
+    src: 'ESA Space Environment Report; Kessler & Cour-Palais, JGR 1978',
+  },
+  {
+    id: 'k2-merkury', cat: 'kosmos', topic: 'Upalno-mroźny Merkury',
+    teaser: 'Na Merkurym od wschodu do wschodu Słońca mijają dwa jego lata.',
+    nums: [{ v: '176 dni', l: 'od wschodu do wschodu Słońca' }, { v: '88 dni', l: 'rok' }, { v: '430 / −180 °C', l: 'dzień / noc' }],
+    body: [
+      'Merkury obraca się wokół osi raz na 59 ziemskich dni, a okrąża Słońce w 88 dni. Te dwa ruchy razem sprawiają, że doba słoneczna (od wschodu do wschodu) trwa 176 dni — dokładnie dwa jego lata.',
+      'Bez atmosfery, która trzymałaby ciepło, dzień nagrzewa się do ok. 430 °C, a noc schładza do ok. −180 °C.',
+      'Mimo to w kraterach przy biegunach, gdzie nigdy nie dociera światło, sonda MESSENGER znalazła lód wodny.',
+    ],
+    src: 'NASA Mercury Fact Sheet; NASA MESSENGER',
+  },
+  {
+    id: 'k2-lod-ksiezyc', cat: 'kosmos', topic: 'Lód na Księżycu',
+    teaser: 'Na Księżycu są miejsca, gdzie Słońce nie zajrzało od miliardów lat — i właśnie tam jest lód.',
+    nums: [{ v: '2018', l: 'potwierdzenie lodu wodnego' }, { v: '~−240 °C', l: 'w wiecznie zacienionych kraterach' }],
+    body: [
+      'Oś Księżyca jest prawie prostopadła do płaszczyzny jego orbity, więc dna niektórych kraterów przy biegunach są wiecznie w cieniu.',
+      'Sonda LRO zmierzyła tam ok. −240 °C — jedne z najzimniejszych miejsc w Układzie Słonecznym. W 2018 r. dane z indyjskiej sondy Chandrayaan-1 potwierdziły odsłonięty lód wodny (Li i in., PNAS).',
+      'Dlatego program Artemis celuje w biegun południowy: woda to picie, tlen i paliwo rakietowe na miejscu, bez wożenia z Ziemi.',
+    ],
+    src: 'Li i in., PNAS 2018; NASA LRO Diviner',
+  },
+  {
+    id: 'k2-predkosc', cat: 'kosmos', topic: 'Pędzisz przez kosmos',
+    teaser: 'Siedząc w miejscu, lecisz wokół Słońca szybciej niż jakakolwiek rakieta z ludźmi.',
+    nums: [{ v: '~30 km/s', l: 'Ziemia wokół Słońca' }, { v: '~230 km/s', l: 'Słońce wokół centrum Galaktyki' }, { v: '~230 mln lat', l: 'jeden „rok galaktyczny”' }],
+    body: [
+      'Ziemia okrąża Słońce z prędkością ok. 30 km/s, czyli ok. 107 tysięcy km/h. W czasie czytania tego zdania przesunąłeś się o ok. 150 km.',
+      'Słońce z całym Układem krąży wokół środka Drogi Mlecznej z prędkością ok. 230 km/s. Jedno okrążenie trwa ok. 230 milionów lat.',
+      'Poprzednim razem, gdy byliśmy w tym miejscu Galaktyki, na Ziemi pojawiały się pierwsze dinozaury.',
+    ],
+    src: 'NASA; Reid i in., Astrophysical Journal 2014',
+  },
+
+  // ───────── ŚWIAT WOKÓŁ ─────────
+  {
+    id: 's2-pletwal', cat: 'swiat', topic: 'Serce płetwala',
+    teaser: 'Serce płetwala błękitnego potrafi bić tylko dwa razy na minutę.',
+    nums: [{ v: '~2/min', l: 'tętno przy nurkowaniu' }, { v: '~180 kg', l: 'waga serca' }, { v: '~30 m', l: 'długość zwierzęcia' }],
+    body: [
+      'Goldbogen i in. (PNAS 2019) przyczepili czujnik EKG do płetwala błękitnego. Podczas nurkowania jego serce zwalniało do 2 uderzeń na minutę, a przy wynurzeniu przyspieszało do ok. 37.',
+      'Serce płetwala waży ok. 180 kg, a całe zwierzę osiąga ok. 30 m długości i ponad 100 ton. To największe zwierzę, jakie kiedykolwiek żyło — większe od każdego dinozaura.',
+      'Badacze sądzą, że płetwale pracują blisko granicy możliwości serca — dlatego większe zwierzę mogłoby już nie dać rady.',
+    ],
+    src: 'Goldbogen i in., PNAS 2019',
+  },
+  {
+    id: 's2-osmiornica', cat: 'swiat', topic: 'Mózg w ramionach',
+    teaser: 'Większość neuronów ośmiornicy siedzi w jej ramionach — każde ramię „myśli” trochę samo.',
+    nums: [{ v: '~500 mln', l: 'neuronów ośmiornicy' }, { v: '~2/3', l: 'z nich w ramionach' }],
+    body: [
+      'Ośmiornica ma ok. 500 milionów neuronów — mniej więcej tyle co pies. Ale ok. dwóch trzecich z nich jest w ośmiu ramionach, a nie w mózgu.',
+      'Ramiona same smakują przyssawkami, chwytają i mogą wykonywać ruchy nawet po odcięciu od mózgu. Mózg wydaje ogólne polecenia, szczegóły załatwiają ramiona.',
+      'Ośmiornice odkręcają słoiki, uciekają z akwariów i rozpoznają ludzi. Ich ostatni wspólny przodek z nami żył ok. 600 mln lat temu — inteligencja wyewoluowała u nich zupełnie niezależnie.',
+    ],
+    src: 'Hochner, Current Biology 2012; Godfrey-Smith, „Other Minds” 2016',
+  },
+  {
+    id: 's2-ptaki-dinozaury', cat: 'swiat', topic: 'Kura i tyranozaur',
+    teaser: 'Dinozaury nie wymarły całkiem — jesz je na obiad.',
+    nums: [{ v: '~11 tys.', l: 'gatunków ptaków' }, { v: '66 mln lat', l: 'od wymarcia pozostałych dinozaurów' }],
+    body: [
+      'Ptaki wyewoluowały z małych, opierzonych dinozaurów drapieżnych (teropodów) — tej samej grupy, do której należał tyranozaur. W klasyfikacji biologicznej ptaki są dinozaurami.',
+      'W 2007 r. z kości T. rexa wyizolowano fragmenty białka kolagenu. Ich sekwencja najbardziej przypominała białka kury (Asara i in., Science).',
+      'Gdy 66 mln lat temu uderzyła asteroida, przeżyły tylko niektóre linie ptaków. Dziś to ok. 11 tysięcy gatunków — więcej niż ssaków.',
+    ],
+    src: 'Asara i in., Science 2007; Brusatte i in., Current Biology 2015',
+  },
+  {
+    id: 's2-niesporczaki', cat: 'swiat', topic: 'Niezniszczalne niesporczaki',
+    teaser: 'Półmilimetrowe zwierzątko przeżyło lot w otwartym kosmosie bez żadnej ochrony.',
+    nums: [{ v: '~0,5 mm', l: 'długość niesporczaka' }, { v: '2007', l: 'przeżyły próżnię kosmiczną' }, { v: '~5 000 Gy', l: 'dawka promieniowania, którą znoszą' }],
+    body: [
+      'Niesporczaki żyją m.in. w mchu na drzewach i murach. Gdy wysychają, zwijają się w „beczułkę”, zatrzymują metabolizm i potrafią tak przetrwać latami.',
+      'W 2007 r. w misji FOTON-M3 wystawiono je na próżnię i promieniowanie kosmiczne. Po powrocie część się ożywiła i rozmnożyła (Jönsson i in., Current Biology 2008).',
+      'Znoszą promieniowanie ok. 1000 razy silniejsze niż dawka śmiertelna dla człowieka. Pomaga im m.in. białko Dsup, które osłania DNA.',
+    ],
+    src: 'Jönsson i in., Current Biology 2008; Hashimoto i in., Nature Communications 2016',
+  },
+  {
+    id: 's2-dno-oceanu', cat: 'swiat', topic: 'Nieznane dno',
+    teaser: 'Mamy dokładniejsze mapy Marsa niż dna naszych oceanów.',
+    nums: [{ v: '~26%', l: 'dna oceanów zmapowane dokładnie' }, { v: '~11 km', l: 'Rów Mariański' }, { v: '2030', l: 'cel projektu Seabed 2030' }],
+    body: [
+      'Oceany pokrywają ok. 71% Ziemi, ale według projektu Seabed 2030 tylko ok. jednej czwartej ich dna zmapowano w wysokiej rozdzielczości (sonarem ze statku).',
+      'Satelity mierzą dno pośrednio, przez wybrzuszenia powierzchni wody — to daje mapę z dokładnością kilku kilometrów. Mars ma mapy z dokładnością do metrów.',
+      'Na Księżycu stanęło 12 osób, a na dnie Rowu Mariańskiego (ok. 11 km głębokości) bywa niewiele więcej — każda wyprawa przynosi nowe gatunki.',
+    ],
+    src: 'Nippon Foundation–GEBCO Seabed 2030',
+  },
+  {
+    id: 's2-bursztyn', cat: 'swiat', topic: 'Bałtyckie złoto',
+    teaser: 'Bursztyn z polskiej plaży to żywica drzew, które rosły tu, gdy po Ziemi chodziły jeszcze dziwne pierwsze ssaki.',
+    nums: [{ v: '~40 mln lat', l: 'wiek bursztynu bałtyckiego' }, { v: '~90%', l: 'światowych złóż w rejonie Bałtyku' }],
+    body: [
+      'Bursztyn bałtycki to skamieniała żywica drzew iglastych z lasów, które ok. 40–45 milionów lat temu rosły w północnej Europie. Rzeki i lodowce przeniosły ją w rejon dzisiejszego Bałtyku.',
+      'Ok. 90% wydobywalnych złóż bursztynu na świecie jest w rejonie Bałtyku, głównie w obwodzie kaliningradzkim. Po sztormach można go znaleźć na plażach od Helu po Świnoujście.',
+      'W bursztynie zachowały się owady, pająki, a nawet pióra — z detalami widocznymi pod mikroskopem. Prawdziwy bursztyn pływa w mocno osolonej wodzie i elektryzuje się po potarciu.',
+    ],
+    src: 'Muzeum Bursztynu w Gdańsku; Weitschat & Wichard, „Atlas of Plants and Animals in Baltic Amber”',
+  },
+  {
+    id: 's2-platek-sniegu', cat: 'swiat', topic: 'Płatek śniegu',
+    teaser: 'Śnieg jest przezroczysty — biały jest tylko dlatego, że rozprasza światło.',
+    nums: [{ v: '~10¹⁸', l: 'cząsteczek wody w płatku' }, { v: '1885', l: 'pierwsze zdjęcie płatka' }],
+    body: [
+      'Wilson Bentley w 1885 r. jako pierwszy sfotografował płatek śniegu przez mikroskop. Do końca życia zrobił ponad 5 000 zdjęć i nie znalazł dwóch identycznych.',
+      'Płatek ma ok. 10¹⁸ cząsteczek wody, a każdy spada inną drogą przez różną temperaturę i wilgotność. Kształt ramion zależy od warunków — w ok. −15 °C rosną najpiękniejsze gwiazdki.',
+      'Pojedynczy kryształ lodu jest przezroczysty. Śnieg jest biały, bo miliony ścianek kryształów odbijają i rozpraszają wszystkie kolory światła po równo.',
+    ],
+    src: 'Libbrecht, Caltech, SnowCrystals.com; Jericho Historical Society (W. Bentley)',
+  },
+
+  // ───────── LIFEHACKI ─────────
+  {
+    id: 'l2-jesli-to', cat: 'lifehacki', topic: 'Plan „jeśli–to”',
+    teaser: 'Jedno zdanie w formie „jeśli X, to zrobię Y” wyraźnie zwiększa szansę, że naprawdę coś zrobisz.',
+    nums: [{ v: '94', l: 'badań w metaanalizie' }, { v: 'd = 0,65', l: 'średni do dużego efekt' }],
+    body: [
+      'Gollwitzer i Sheeran (2006) zebrali 94 badania z ponad 8 tysiącami uczestników. Porównywali ludzi, którzy tylko mieli cel („będę ćwiczyć”), z tymi, którzy dopisali plan „jeśli–to”.',
+      'Przykład: „Jeśli jest poniedziałek po pracy, to od razu idę na siłownię, zanim usiądę”. Taki plan dawał średni do dużego efekt (d = 0,65) na realizację celu.',
+      'Działa, bo decyzja zapada wcześniej — sytuacja sama uruchamia działanie, bez potrzeby siły woli. Dobrze łączy się z zadaniami z terminem w appce.',
+    ],
+    src: 'Gollwitzer & Sheeran, Advances in Experimental Social Psychology 2006',
+  },
+  {
+    id: 'l2-spacer-kreatywnosc', cat: 'lifehacki', topic: 'Spacer na pomysły',
+    teaser: 'Nie masz pomysłu? Wyjdź na spacer — w badaniu Stanforda dawało to średnio 60% więcej kreatywnych odpowiedzi.',
+    nums: [{ v: '+60%', l: 'kreatywnych pomysłów podczas marszu' }, { v: '4', l: 'eksperymenty' }],
+    body: [
+      'Oppezzo i Schwartz (2014) prosili ludzi o wymyślanie nietypowych zastosowań zwykłych przedmiotów — na siedząco albo w trakcie chodzenia.',
+      'Podczas marszu (nawet na bieżni w pustym pokoju) badani wymyślali średnio ok. 60% więcej kreatywnych pomysłów. Efekt utrzymywał się chwilę po spacerze.',
+      'Chodzenie nie pomagało w zadaniach wymagających jednej poprawnej odpowiedzi — działa na burzę mózgów, nie na rachunki.',
+    ],
+    src: 'Oppezzo & Schwartz, Journal of Experimental Psychology 2014',
+  },
+  {
+    id: 'l2-temperatura-sypialni', cat: 'lifehacki', topic: 'Chłodna sypialnia',
+    teaser: 'Najlepiej śpi się w temperaturze, która w dzień wydawałaby się za zimna.',
+    nums: [{ v: '~18 °C', l: 'zalecana temperatura sypialni' }, { v: '~1 °C', l: 'spadek temp. ciała przy zasypianiu' }],
+    body: [
+      'Żeby zasnąć, ciało musi obniżyć temperaturę wewnętrzną o ok. 1 °C. W ciepłym pokoju jest to trudniejsze, sen jest płytszy i częściej się wybudzamy.',
+      'Specjaliści od snu zalecają ok. 16–19 °C w sypialni. Pomaga też ciepły prysznic 1–2 godziny przed snem — rozszerza naczynia w dłoniach i stopach, przez które ciało potem szybciej oddaje ciepło.',
+      'Haghayegh i in. (2019) w metaanalizie pokazali, że kąpiel w ciepłej wodzie ok. 1–2 h przed snem skracała zasypianie średnio o ok. 10 minut.',
+    ],
+    src: 'Okamoto-Mizuno & Mizuno, J. Physiological Anthropology 2012; Haghayegh i in., Sleep Medicine Reviews 2019',
+  },
+  {
+    id: 'l2-66-dni', cat: 'lifehacki', topic: 'Nawyk: 66 dni',
+    teaser: 'Nawyk nie tworzy się w 21 dni. Średnio trwa to ponad dwa miesiące — i to dobra wiadomość.',
+    nums: [{ v: '66 dni', l: 'mediana do automatycznego nawyku' }, { v: '18–254', l: 'dni — rozrzut między ludźmi' }],
+    body: [
+      'Liczba „21 dni” pochodzi z książki chirurga plastycznego z lat 60., który obserwował przyzwyczajanie się pacjentów do nowego wyglądu — nie z badań nad nawykami.',
+      'Lally i in. (2010) przez 12 tygodni śledzili ludzi wprowadzających jedną nową czynność (np. owoc do lunchu, 15 minut biegania). Do „automatu” potrzebowali średnio 66 dni, a rozrzut wynosił od 18 do 254 dni.',
+      'Pocieszające: pojedynczy pominięty dzień nie psuł postępu. Ważniejsza jest regularność w tym samym kontekście (ta sama pora, to samo miejsce).',
+    ],
+    src: 'Lally i in., European Journal of Social Psychology 2010',
+  },
+  {
+    id: 'l2-drzemka-kawowa', cat: 'lifehacki', topic: 'Drzemka kawowa',
+    teaser: 'Wypij kawę i od razu się zdrzemnij — obudzisz się czujniejszy niż po samej kawie albo samej drzemce.',
+    nums: [{ v: '~20 min', l: 'zanim kofeina zacznie działać' }, { v: '≤ 15 min', l: 'drzemki' }, { v: '150 mg', l: 'kofeiny w badaniu' }],
+    body: [
+      'Kofeina potrzebuje ok. 20 minut, żeby dotrzeć do mózgu. W tym czasie krótka drzemka usuwa część adenozyny — cząsteczki odpowiadającej za senność. Kofeina trafia więc na „oczyszczone” receptory.',
+      'Reyner i Horne (1997) testowali to na senych kierowcach w symulatorze. Kawa (150 mg kofeiny) + drzemka do 15 minut najlepiej zmniejszały liczbę zjechań z pasa — lepiej niż każde z osobna.',
+      'Klucz: drzemka krótka (do 15–20 minut), żeby nie wejść w głęboki sen i nie budzić się otępiałym.',
+    ],
+    src: 'Reyner & Horne, Psychophysiology 1997',
+  },
+  {
+    id: 'l2-lodowka', cat: 'lifehacki', topic: 'Lodówka: 4 stopnie',
+    teaser: 'Większość lodówek jest ustawiona za ciepło — a bakterie w „strefie zagrożenia” podwajają się co 20 minut.',
+    nums: [{ v: '≤ 4 °C', l: 'lodówka' }, { v: '−18 °C', l: 'zamrażarka' }, { v: '~20 min', l: 'podwojenie bakterii w 4–60 °C' }],
+    body: [
+      'Agencje bezpieczeństwa żywności zalecają lodówkę na 4 °C lub mniej i zamrażarkę na −18 °C. W zakresie 4–60 °C wiele bakterii podwaja liczbę nawet co ok. 20 minut.',
+      'Najzimniej jest zwykle na dolnej półce nad szufladami (tam mięso i ryby), najcieplej na drzwiach — tam tylko napoje i sosy, nie mleko.',
+      'Gotowe jedzenie najlepiej schłodzić i schować w ciągu 2 godzin. Tani termometr do lodówki to kilkanaście złotych i często pokazuje, że trzeba przekręcić pokrętło.',
+    ],
+    src: 'FDA / USDA Food Safety; EFSA',
+  },
+  {
+    id: 'l2-pranie-30', cat: 'lifehacki', topic: 'Pranie w trzydziestce',
+    teaser: 'Większość prądu w praniu idzie na grzanie wody — 30 °C zamiast 40 °C to ok. 40% mniej energii.',
+    nums: [{ v: '~40%', l: 'mniej energii: 30 °C zamiast 40 °C' }, { v: '~90%', l: 'energii pralki idzie na grzanie wody' }],
+    body: [
+      'W pralce prawie cała energia (ok. 90%) idzie na podgrzanie wody, a nie na kręcenie bębnem. Obniżenie temperatury z 40 do 30 °C oszczędza ok. 40% prądu na cykl (kampania AISE „I prefer 30°”).',
+      'Współczesne proszki i kapsułki zawierają enzymy, które dobrze działają w niskich temperaturach. Ubrania też się mniej niszczą i mniej farbują.',
+      'Wyższe temperatury (60 °C) zostaw na ręczniki, pościel i ścierki — tam liczy się higiena. Raz w miesiącu pustą pralkę warto przepłukać w 90 °C, żeby nie śmierdziała.',
+    ],
+    src: 'AISE (europejskie stowarzyszenie producentów detergentów); Energy Saving Trust',
+  },
+
+  // ───────── TECHNOLOGIE ─────────
+  {
+    id: 't2-pierwsza-strona', cat: 'tech', topic: 'Pierwsza strona WWW',
+    teaser: 'Pierwsza strona internetowa wciąż działa i wyjaśnia, czym jest… strona internetowa.',
+    nums: [{ v: '1991', l: 'pierwsza strona (info.cern.ch)' }, { v: '30.04.1993', l: 'CERN oddaje WWW za darmo' }],
+    body: [
+      'Tim Berners-Lee w CERN wymyślił WWW, by fizycy mogli łatwo dzielić się dokumentami. Pierwsza strona ruszyła w sierpniu 1991 r. i opisywała sam projekt — można ją dziś otworzyć pod adresem info.cern.ch.',
+      'Jego komputer NeXT służył za pierwszy serwer i miał naklejkę: „Ta maszyna to serwer. NIE WYŁĄCZAĆ!”.',
+      '30 kwietnia 1993 r. CERN udostępnił technologię WWW publicznie, bez opłat licencyjnych. Gdyby ją opatentowano, internet mógłby wyglądać zupełnie inaczej.',
+    ],
+    src: 'CERN, „The birth of the Web”',
+  },
+  {
+    id: 't2-malpa', cat: 'tech', topic: 'Małpa w mailu',
+    teaser: 'Znak @ w adresie mailowym wybrano dlatego, że nikt go wtedy nie używał.',
+    nums: [{ v: '1971', l: 'pierwszy e-mail w sieci' }, { v: '~350 mld', l: 'e-maili wysyłanych dziennie' }],
+    body: [
+      'Ray Tomlinson w 1971 r. wysłał pierwszą wiadomość między dwoma komputerami w sieci ARPANET. Potrzebował znaku, który oddzieli nazwę użytkownika od nazwy komputera.',
+      'Wybrał @, bo był na klawiaturze, a prawie nikt go nie używał w nazwach — i po angielsku czyta się jako „at” (u, przy). Treści pierwszego maila sam nie pamiętał — „coś w stylu QWERTYUIOP”.',
+      'W Polsce mówimy „małpa”, Czesi „zavináč” (śledź w zawijasie), Holendrzy „apenstaartje” (małpi ogonek). Dziś na świecie wysyła się ok. 350 miliardów maili dziennie.',
+    ],
+    src: 'Smithsonian; Radicati Group, Email Statistics Report 2023',
+  },
+  {
+    id: 't2-bluetooth', cat: 'tech', topic: 'Król Sinozęby',
+    teaser: 'Bluetooth nosi imię duńskiego króla z X wieku, a jego logo to inicjały zapisane runami.',
+    nums: [{ v: '~958', l: 'początek panowania Haralda' }, { v: '1998', l: 'powstaje Bluetooth SIG' }],
+    body: [
+      'Harald Sinozęby (Harald Blåtand) zjednoczył skłócone plemiona Danii i Norwegii. Inżynier Intela Jim Kardach zaproponował jego imię jako roboczą nazwę technologii, która miała „zjednoczyć” telefony i komputery.',
+      'Nazwa miała być tymczasowa, ale lepsze propozycje odpadły z powodów prawnych i została na stałe.',
+      'Logo to połączenie dwóch run nordyckich: ᚼ (H) i ᛒ (B) — inicjałów króla.',
+    ],
+    src: 'Bluetooth SIG, „Origin of the Bluetooth name”',
+  },
+  {
+    id: 't2-pierwszy-dysk', cat: 'tech', topic: 'Dysk ważący tonę',
+    teaser: 'Pierwszy dysk twardy ważył około tony i mieścił mniej niż jedno zdjęcie z twojego telefonu.',
+    nums: [{ v: '3,75 MB', l: 'pojemność IBM 350 (1956)' }, { v: '~1 t', l: 'waga' }, { v: '1 TB', l: 'zwykła karta microSD dziś' }],
+    body: [
+      'IBM 350 z 1956 r. miał 50 talerzy o średnicy 61 cm, ważył ok. tony i mieścił 3,75 MB danych. Wypożyczenie kosztowało ok. 3 200 dolarów miesięcznie.',
+      'Do samolotu trzeba go było ładować wózkiem widłowym. Jedno zdjęcie z dzisiejszego telefonu (3–5 MB) ledwo by się na nim zmieściło.',
+      'Karta microSD wielkości paznokcia mieści dziś 1 TB — ok. 270 tysięcy razy więcej przy milion razy mniejszej masie.',
+    ],
+    src: 'IBM Archives, IBM 350 Disk Storage Unit',
+  },
+  {
+    id: 't2-apollo-komputer', cat: 'tech', topic: 'Komputer Apollo',
+    teaser: 'Komputer, który zawiózł ludzi na Księżyc, miał mniej pamięci niż ładowarka do telefonu.',
+    nums: [{ v: '~4 KB', l: 'pamięci RAM' }, { v: '~72 KB', l: 'pamięci stałej (programy)' }, { v: '1969', l: 'lądowanie Apollo 11' }],
+    body: [
+      'Komputer pokładowy Apollo (AGC) miał 2 048 słów pamięci RAM (ok. 4 KB) i 36 864 słowa pamięci stałej (ok. 72 KB). Programy dosłownie tkano — przewlekając druty przez rdzenie magnetyczne.',
+      'Podczas lądowania Apollo 11 komputer zaczął sygnalizować przeciążenie (alarmy 1201 i 1202). Dzięki projektowi zespołu Margaret Hamilton odrzucał mniej ważne zadania i dalej prowadził lądownik.',
+      'Dzisiejsze ładowarki USB-C mają mikrokontrolery szybsze od tamtego komputera.',
+    ],
+    src: 'NASA; MIT Instrumentation Laboratory; Smithsonian National Air and Space Museum',
+  },
+  {
+    id: 't2-enigma', cat: 'tech', topic: 'Polacy i Enigma',
+    teaser: 'Szyfr Enigmy złamali najpierw polscy matematycy — siedem lat przed Brytyjczykami.',
+    nums: [{ v: '1932', l: 'Rejewski łamie Enigmę' }, { v: 'lipiec 1939', l: 'przekazanie sojusznikom (Pyry)' }],
+    body: [
+      'Marian Rejewski, Jerzy Różycki i Henryk Zygalski z Biura Szyfrów w grudniu 1932 r. odtworzyli połączenia wewnątrz niemieckiej Enigmy, korzystając z matematyki permutacji — wcześniej szyfry łamali głównie lingwiści.',
+      'Zbudowali m.in. „bombę kryptologiczną” i płachty Zygalskiego do szybkiego znajdowania ustawień maszyny.',
+      'W lipcu 1939 r. w Pyrach pod Warszawą przekazali Francuzom i Brytyjczykom repliki Enigmy i swoje metody. Na nich oparto prace w Bletchley Park, w tym zespół Alana Turinga.',
+    ],
+    src: 'Muzeum Historii Polski; Bletchley Park Trust',
+  },
+  {
+    id: 't2-kod-kreskowy', cat: 'tech', topic: 'Pierwszy kod kreskowy',
+    teaser: 'Pierwszym zeskanowanym produktem w historii była paczka gumy do żucia — i jest dziś w muzeum.',
+    nums: [{ v: '26.06.1974', l: 'pierwsze skanowanie w sklepie' }, { v: '590', l: 'prefiks kodów z Polski' }],
+    body: [
+      'Kod kreskowy wymyślił Norman Joseph Woodland, rysując w piasku kropki i kreski alfabetu Morse’a i wydłużając je palcami w linie.',
+      '26 czerwca 1974 r. w supermarkecie w Troy (Ohio) jako pierwszy zeskanowano paczkę gumy Wrigley’s Juicy Fruit. Paczka jest dziś w Smithsonian.',
+      'Pierwsze cyfry kodu EAN to prefiks kraju organizacji, która wydała kod: dla Polski to 590. To nie zawsze kraj produkcji — tylko miejsce rejestracji firmy.',
+    ],
+    src: 'Smithsonian National Museum of American History; GS1 Polska',
+  },
 ];
