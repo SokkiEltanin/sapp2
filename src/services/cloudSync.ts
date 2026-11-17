@@ -25,6 +25,7 @@ import { useNotesStore } from '@/store/notesStore';
 import { useCategoriesStore } from '@/store/categoriesStore';
 import { getBalanceOffset } from '@/utils/balance';
 import { gcalMirror } from '@/utils/gcalMirror';
+import { isWorkEvent } from '@/utils/workEvents';
 import { Platform } from 'react-native';
 import {
   planInitialMerge, applyRemote, diffByHash, itemHash, planDocMerge, stripMeta,
@@ -143,8 +144,12 @@ const docBindings: DocBinding[] = [
     // Kalendarz Google (2026-11-14): telefon pobiera natywnym logowaniem i wysyła
     // okno wydarzeń (utils/gcalMirror.ts), komputer tylko czyta — tam nie ma tokenu.
     name: 'gcal',
-    stores: [S(useCalendarStore)],
-    get: () => ({ events: gcalMirror(useCalendarStore.getState().gcalEvents) }),
+    stores: [S(useCalendarStore), S(useWorkStore)],
+    // + starsze zmiany pracy (stawka/średnie na komputerze jak na telefonie, utils/gcalMirror.ts)
+    get: () => {
+      const emps = useWorkStore.getState().employers;
+      return { events: gcalMirror(useCalendarStore.getState().gcalEvents, new Date(), emps.length ? (e) => emps.some((emp) => isWorkEvent(e, emp)) : undefined) };
+    },
     set: (v) => { if (Platform.OS === 'web' && Array.isArray(v.events)) useCalendarStore.getState().setGcalEvents(v.events); },
     isEmpty: (v) => !(v.events ?? []).length,
     stamp: () => 0,

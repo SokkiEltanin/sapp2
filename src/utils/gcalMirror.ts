@@ -8,6 +8,10 @@ import type { CalendarEvent } from '@/types/calendar';
 export const GCAL_MIRROR_DAYS_BACK = 45;
 export const GCAL_MIRROR_DAYS_FORWARD = 180;
 export const GCAL_MIRROR_MAX = 1200;
+// Starsze wydarzenia PRACY (2026-11-17, user: "praca na komputerze źle łapie — kalendarza tak
+// daleko nie ładuje, inne średnie niż na telefonie"): telefon liczy stawkę z 2 lat zmian,
+// komputer dostawał 45 dni. Teraz także wszystkie starsze zmiany (skrócone: bez opisu).
+export const GCAL_MIRROR_WORK_MAX = 1500;
 const DESC_MAX = 300;
 
 const ymdShift = (now: Date, days: number) => {
@@ -15,10 +19,21 @@ const ymdShift = (now: Date, days: number) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-export function gcalMirror(events: CalendarEvent[], now: Date = new Date()): CalendarEvent[] {
+export function gcalMirror(events: CalendarEvent[], now: Date = new Date(), isWork?: (e: CalendarEvent) => boolean): CalendarEvent[] {
   const from = ymdShift(now, -GCAL_MIRROR_DAYS_BACK);
   const to = ymdShift(now, GCAL_MIRROR_DAYS_FORWARD);
-  return events
+  const older = isWork
+    ? events
+      .filter((e) => (e.endDate || e.date || '').slice(0, 10) < from && isWork(e))
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, GCAL_MIRROR_WORK_MAX)
+      .map((e) => {
+        const out: CalendarEvent = { id: e.id, title: (e.title ?? '').slice(0, 80), date: e.date, allDay: e.allDay, priority: e.priority, createdAt: e.createdAt, ...(e.startTime ? { startTime: e.startTime } : {}), ...(e.endTime ? { endTime: e.endTime } : {}), ...(e.endDate ? { endDate: e.endDate } : {}), ...(e.color ? { color: e.color } : {}) } as CalendarEvent;
+        return out;
+      })
+      .reverse()
+    : [];
+  const window = events
     .filter((e) => {
       const start = (e.date || '').slice(0, 10);
       const end = (e.endDate || start).slice(0, 10);
@@ -32,4 +47,5 @@ export function gcalMirror(events: CalendarEvent[], now: Date = new Date()): Cal
       for (const k of Object.keys(out) as (keyof CalendarEvent)[]) if (out[k] === undefined) delete out[k];
       return out;
     });
+  return [...older, ...window];
 }

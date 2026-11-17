@@ -26,3 +26,16 @@ describe('gcalMirror', () => {
     expect(out[0].id).toBe('e0000');
   });
 });
+
+describe('gcalMirror — starsze zmiany pracy', () => {
+  it('dokłada starsze wydarzenia pracy (bez opisu), inne stare pomija', () => {
+    const out = gcalMirror([
+      ev('jd-old', '2025-03-10', { allDay: false, title: 'JD 09:00 - 16:00', startTime: '09:00', endTime: '16:00', description: 'długi opis' }),
+      ev('urodziny', '2025-03-11'),
+      ev('today', '2026-11-14'),
+    ], now, (e) => e.title.startsWith('JD'));
+    expect(out.map((e) => e.id)).toEqual(['jd-old', 'today']);
+    expect(out[0].description).toBeUndefined();
+    expect(out[0].startTime).toBe('09:00');
+  });
+});
