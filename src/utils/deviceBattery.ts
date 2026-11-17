@@ -30,11 +30,3 @@ export function batteryTone(level: number, charging: boolean, lowPct: number): '
   return 'ok';
 }
 
-/** "Galaxy Watch6 Classic" z modelu SM-R9xx; inaczej sam model albo "Zegarek". */
-export function watchName(model: string): string {
-  const m = model.toUpperCase();
-  if (/SM-R9[56]\d/.test(m)) return 'Galaxy Watch6 Classic';
-  if (/SM-R9[34]\d/.test(m)) return 'Galaxy Watch6';
-  if (/SM-R8[6-9]\d/.test(m)) return 'Galaxy Watch4 Classic';
-  return model || 'Zegarek';
-}

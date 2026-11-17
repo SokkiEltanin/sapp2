@@ -5,7 +5,7 @@ import { visibleSections, type DashSection } from '@/utils/dashboardLayout';
 import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { ListTodo, CalendarClock, Wrench, MapPin, StickyNote, Smartphone, Watch, Zap, Laptop } from 'lucide-react-native';
-import { batteryTone, ageLabel, watchName } from '@/utils/deviceBattery';
+import { batteryTone, ageLabel } from '@/utils/deviceBattery';
 import NotePreview from '@/components/notes/NotePreview';
 import NotePage from '@/components/notes/NotePage';
 import { noteTitle } from '@/utils/notes';
@@ -148,21 +148,13 @@ export function DashboardScreen(d: DashData) {
     factWeather: <>
           <Row h={96}>
             {/* Baterie telefonu i zegarka; stuknięcie = świeży odczyt z zegarka. */}
-            <Tile span={2} onPress={() => d.onOpen('battery')} accessibilityLabel="Baterie urządzeń" style={[st.batTile, Platform.OS === 'web' && { gap: 5 }]}>
-              {Platform.OS === 'web' ? (
-                <>
-                  {/* Komputer: własna bateria + telefon i zegarek z chmury (telefon je wysyła). */}
-                  <BatteryRow icon="laptop" label="Komputer" b={d.batteries.phone} lowPct={d.batteries.lowPct} />
-                  <BatteryRow icon="phone" label={d.batteries.remotePhone ? `Telefon · ${ageLabel(d.batteries.remotePhone.t)}` : 'Telefon'} b={d.batteries.remotePhone ?? null} lowPct={d.batteries.lowPct} />
-                  <BatteryRow icon="watch" label={d.batteries.watch ? `${watchName(d.batteries.watch.model).replace('Galaxy ', '')} · ${ageLabel(d.batteries.watch.t)}` : 'Zegarek'} b={d.batteries.watch} lowPct={d.batteries.lowPct} />
-                </>
-              ) : (
-                <>
-                  <BatteryRow icon="phone" label="Telefon" b={d.batteries.phone} lowPct={d.batteries.lowPct} />
-                  <BatteryRow icon="watch" label={d.batteries.watch ? watchName(d.batteries.watch.model) : 'Zegarek'} b={d.batteries.watch} lowPct={d.batteries.lowPct}
-                    sub={d.batteries.watch ? ageLabel(d.batteries.watch.t) : 'otwórz Sapp2 na zegarku'} />
-                </>
-              )}
+            <Tile span={2} onPress={() => d.onOpen('battery')} accessibilityLabel="Baterie urządzeń" style={[st.batTile, Platform.OS === 'web' && { gap: 2 }]}>
+              {/* Same ikony + pasek + % (2026-11-17, user: "bez nazw; czy się ładuje; poniżej 25%
+                  na czerwono, żebym nie wyszedł rano z rozładowanym zegarkiem"). */}
+              {Platform.OS === 'web' && <BatteryRow icon="laptop" b={d.batteries.phone} lowPct={d.batteries.lowPct} />}
+              <BatteryRow icon="phone" b={Platform.OS === 'web' ? d.batteries.remotePhone ?? null : d.batteries.phone} lowPct={d.batteries.lowPct}
+                at={Platform.OS === 'web' ? d.batteries.remotePhone?.t : undefined} />
+              <BatteryRow icon="watch" b={d.batteries.watch} lowPct={d.batteries.lowPct} at={d.batteries.watch?.t} />
             </Tile>
             <Tile span={2} onPress={() => d.onOpen('weather')} style={{ justifyContent: 'space-between', overflow: 'hidden' }}>
               {d.weather ? (
@@ -289,22 +281,23 @@ export function DashboardScreen(d: DashData) {
 }
 
 const BAT_TONE = { charge: '#4ADE80', low: '#F87171', mid: '#FB923C', ok: C.txt };
-function BatteryRow({ icon, label, b, lowPct, sub }: { icon: 'phone' | 'watch' | 'laptop'; label: string; b: { level: number; charging: boolean } | null; lowPct: number; sub?: string }) {
+const BAT_RED_PCT = 25; // czerwień na kaflu najpóźniej od 25% (próg powiadomienia może być niższy)
+function BatteryRow({ icon, b, lowPct, at }: { icon: 'phone' | 'watch' | 'laptop'; b: { level: number; charging: boolean } | null; lowPct: number; at?: number }) {
   const Icon = icon === 'phone' ? Smartphone : icon === 'laptop' ? Laptop : Watch;
-  const tone = b ? BAT_TONE[batteryTone(b.level, b.charging, lowPct)] : C.dim;
+  const kind = b ? batteryTone(b.level, b.charging, Math.max(lowPct, BAT_RED_PCT)) : null;
+  const tone = kind ? BAT_TONE[kind] : C.dim;
+  const low = kind === 'low';
+  const stale = at != null && Date.now() - at > 60 * 60000; // odczyt starszy niż godzina — mały dopisek
   return (
-    <View style={st.batRow}>
-      <Icon size={13} color={b ? C.txt : C.dim} />
-      <View style={{ flex: 1, gap: 3 }}>
-        <View style={st.batHead}>
-          <Text style={st.batLabel} numberOfLines={1}>{label}</Text>
-          {b?.charging ? <Zap size={10} color={BAT_TONE.charge} /> : null}
-          <Text style={[st.batPct, { color: b ? tone : C.dim }]}>{b ? `${b.level}%` : '—'}</Text>
-        </View>
-        <View style={st.batTrack}>
-          {b ? <View style={[st.batFill, { width: `${Math.max(3, b.level)}%`, backgroundColor: tone }]} /> : null}
-        </View>
-        {sub ? <Text style={st.batSub} numberOfLines={1}>{sub}</Text> : null}
+    <View style={[st.batRow, low && st.batRowLow]} accessibilityLabel={`${icon === 'phone' ? 'Telefon' : icon === 'watch' ? 'Zegarek' : 'Komputer'} ${b ? `${b.level}%` : 'brak danych'}${b?.charging ? ', ładuje się' : ''}`}>
+      <Icon size={15} color={low ? BAT_TONE.low : b ? C.txt : C.dim} />
+      <View style={st.batTrack}>
+        {b ? <View style={[st.batFill, { width: `${Math.max(3, b.level)}%`, backgroundColor: tone }]} /> : null}
+      </View>
+      <View style={st.batRight}>
+        {b?.charging ? <Zap size={11} color={BAT_TONE.charge} fill={BAT_TONE.charge} /> : null}
+        <Text style={[st.batPct, { color: b ? tone : C.dim }]}>{b ? `${b.level}%` : '—'}</Text>
+        {stale ? <Text style={st.batAge}>{ageLabel(at!).replace(' temu', '')}</Text> : null}
       </View>
     </View>
   );
@@ -317,14 +310,14 @@ function WeatherIcon({ name, color = C.txt }: { name: string; color?: string }) 
 }
 
 const st = StyleSheet.create({
-  batTile: { justifyContent: 'center', gap: 8, paddingVertical: 10 },
-  batRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
-  batHead: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  batLabel: { flex: 1, fontFamily: F.xb, fontSize: 10, color: C.mut },
-  batPct: { fontFamily: F.xb, fontSize: 11, fontVariant: ['tabular-nums'] },
-  batTrack: { height: 5, borderRadius: 3, backgroundColor: C.in2, overflow: 'hidden' },
-  batFill: { height: '100%', borderRadius: 3 },
-  batSub: { fontFamily: F.b, fontSize: 9, color: C.dim },
+  batTile: { justifyContent: 'center', gap: 6, paddingVertical: 8 },
+  batRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 6, paddingVertical: 4, marginHorizontal: -6, borderRadius: 8 },
+  batRowLow: { backgroundColor: 'rgba(239,68,68,0.16)' },
+  batRight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 3, minWidth: 44 },
+  batPct: { fontFamily: F.xb, fontSize: 13, fontVariant: ['tabular-nums'] },
+  batAge: { fontFamily: F.b, fontSize: 9, color: C.dim },
+  batTrack: { flex: 1, height: 7, borderRadius: 4, backgroundColor: C.in2, overflow: 'hidden' },
+  batFill: { height: '100%', borderRadius: 4 },
   wxFoot: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   wxAqi: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   wxDot: { width: 7, height: 7, borderRadius: 4 },

@@ -1,4 +1,4 @@
-import { parseWatchBattery, ageLabel, batteryTone, watchName } from '@/utils/deviceBattery';
+import { parseWatchBattery, ageLabel, batteryTone } from '@/utils/deviceBattery';
 
 describe('bateria urządzeń', () => {
   test('parsowanie pliku z zegarka', () => {
@@ -16,7 +16,5 @@ describe('bateria urządzeń', () => {
     expect(batteryTone(15, false, 20)).toBe('low');
     expect(batteryTone(30, false, 20)).toBe('mid');
     expect(batteryTone(15, true, 20)).toBe('charge');
-    expect(watchName('SM-R960')).toBe('Galaxy Watch6 Classic');
-    expect(watchName('')).toBe('Zegarek');
   });
 });
