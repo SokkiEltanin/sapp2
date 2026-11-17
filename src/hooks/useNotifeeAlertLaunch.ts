@@ -48,7 +48,7 @@ export function useNotifeeAlertLaunch() {
         // usera z tego co robi w appce w momencie doręczenia.
         const route = (data: Record<string, string | object | number> | undefined, pressed: boolean) => {
           if (typeof data?.route !== 'string') return;
-          if (data.route === 'alert-test') router.replace('/alert-test');
+          if (data.route === 'alert-test') router.replace({ pathname: '/alert-test', params: { test: typeof data.test === 'string' ? data.test : '' } } as any);
           else if (data.route === 'subscriptions' && pressed) router.push('/subscriptions');
           else if (data.route === 'replacements' && pressed) router.push('/replacements' as any);
           else if (data.route === 'finances' && pressed) router.push('/finances' as any);

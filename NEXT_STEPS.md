@@ -41,6 +41,13 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-17 — Testy powiadomień od zera** (`app/notify-test.tsx`, `services/notifyTests.ts`; Ustawienia →
+Alerty → „Testy powiadomień”): 5 testów w kolorach, JEDNO powiadomienie na test (stare wysyłały też
+„natychmiastowe” → podwójne odpalanie). Natywnie (`withFullScreenAlert.js`): `wakeScreen` (wake lock
+ACQUIRE_CAUSES_WAKEUP, uprawnienie WAKE_LOCK), `canUseFullScreenIntent` / ustawienia FSI (Android 14+).
+Kafel baterii: same ikony, czerwień < 25%.
+- [ ] Na telefonie: zgody na górze ekranu testów zielone; „wybudzenie” z 1 min przy zgaszonym ekranie.
+
 **2026-11-17 — Transakcje pogrupowane** (`utils/txGroup.ts`): Dni/Tygodnie/Miesiące/Lata, nagłówek z sumą
 (bez przelewów własnych, przyklejony), wiersz: nazwa wyróżniona, kategorie pozycji paragonu albo
 opis/kategoria/#tagi, godzina; pasek koloru kubła. Ciekawostki: usunięte 22 najbardziej znane (97 zostało).

@@ -10,6 +10,10 @@ type Detail = { pressAction?: { id?: string }; notification?: { id?: string; dat
 export async function handleBackgroundAction(detail: Detail): Promise<boolean> {
   const id = detail.pressAction?.id;
   const data = detail.notification?.data;
+  if (id === 'test-yes' || id === 'test-no') {
+    const { answerTest } = await import('./notifyTests');
+    return answerTest(id, detail.notification?.id);
+  }
   if (id === TASK_SNOOZE_ACTION && typeof data?.taskId === 'string') {
     const { snoozeTaskReminder } = await import('./taskReminders');
     await snoozeTaskReminder(data.taskId, detail.notification?.id);

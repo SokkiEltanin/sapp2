@@ -20,3 +20,20 @@ export function setShowOverLockScreen(enabled: boolean) {
     // brak natywnego modułu — nic nie robimy.
   }
 }
+
+// Wybudzenie ekranu na `ms` (wake lock z ACQUIRE_CAUSES_WAKEUP) — ekran alarmu, 2026-11-17.
+export function wakeScreen(ms = 30000) {
+  try { NativeModules.LockScreen?.wakeScreen?.(ms); } catch { /* brak modułu */ }
+}
+
+/** Android 14+: czy appka ma zgodę na pełnoekranowe powiadomienia (null = brak modułu / web). */
+export async function canUseFullScreenIntent(): Promise<boolean | null> {
+  try {
+    const f = NativeModules.LockScreen?.canUseFullScreenIntent;
+    return f ? !!(await f()) : null;
+  } catch { return null; }
+}
+
+export function openFullScreenIntentSettings() {
+  try { NativeModules.LockScreen?.openFullScreenIntentSettings?.(); } catch { /* brak modułu */ }
+}

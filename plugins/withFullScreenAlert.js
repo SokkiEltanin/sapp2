@@ -29,8 +29,15 @@ const PACKAGE_CLASS = 'LockScreenPackage';
 function moduleKotlin(pkg) {
   return `package ${pkg}
 
+import android.app.NotificationManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import android.view.WindowManager
+import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
@@ -40,6 +47,47 @@ import com.facebook.react.bridge.ReactMethod
 // ustawiać tego na stałe w manifeście (patrz komentarz w withFullScreenAlert.js).
 class ${MODULE_CLASS}(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
   override fun getName(): String = "LockScreen"
+
+  // Wybudzenie ekranu (2026-11-17, user: "nie działa wybudzenie"). setTurnScreenOn z JS
+  // przychodzi PO wznowieniu Activity, a wtedy Android już ekranu nie włącza — wake lock
+  // z ACQUIRE_CAUSES_WAKEUP włącza go zawsze. Puszcza sam po \`ms\` (ON_AFTER_RELEASE =
+  // ekran gaśnie normalnym czasem, nie od razu).
+  @ReactMethod
+  fun wakeScreen(ms: Double) {
+    try {
+      val pm = reactApplicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
+      @Suppress("DEPRECATION")
+      val wl = pm.newWakeLock(
+        PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
+        "sapp2:alarm"
+      )
+      wl.acquire(ms.toLong().coerceIn(1000L, 120000L))
+    } catch (_: Exception) {}
+  }
+
+  // Android 14+: pełnoekranowe powiadomienia to osobna zgoda ("Pełnoekranowe powiadomienia"),
+  // którą system może trzymać wyłączoną dla appek spoza Sklepu — wtedy alert to tylko baner.
+  @ReactMethod
+  fun canUseFullScreenIntent(promise: Promise) {
+    try {
+      if (Build.VERSION.SDK_INT >= 34) {
+        val nm = reactApplicationContext.getSystemService(NotificationManager::class.java)
+        promise.resolve(nm.canUseFullScreenIntent())
+      } else promise.resolve(true)
+    } catch (e: Exception) { promise.resolve(true) }
+  }
+
+  @ReactMethod
+  fun openFullScreenIntentSettings() {
+    try {
+      val i = if (Build.VERSION.SDK_INT >= 34)
+        Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:" + reactApplicationContext.packageName))
+      else
+        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, reactApplicationContext.packageName)
+      i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      reactApplicationContext.startActivity(i)
+    } catch (_: Exception) {}
+  }
 
   @ReactMethod
   fun setShowOverLockScreen(enabled: Boolean) {

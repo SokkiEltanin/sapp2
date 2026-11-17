@@ -27,7 +27,7 @@ import {
   ChevronLeft, ChevronRight, Search, X,
   Info, Stethoscope, Clock, Bell, Copy,
   LogIn, LogOut, User as UserIcon, Database, CalendarDays, AlertTriangle, Rocket,
-  BatteryWarning, AlarmClock, Landmark, Zap, Vibrate, ShieldCheck, History, Watch, Download,
+  Landmark, Zap, Vibrate, ShieldCheck, History, Watch, Download,
   CloudUpload, CloudDownload, LayoutGrid,
   Tags,
 } from 'lucide-react-native';
@@ -221,23 +221,13 @@ function buildSections(
   // Alerty/Ogólne/Diagnostyka przeniesione NA KONIEC (po Finansach), żeby góra ekranu
   // (Konto/Połączenia/Finanse) niosła rzeczy których user faktycznie używa co dzień,
   // a testy/diagnostyka/build-info (rzadko potrzebne) nie zajmowały pierwszego ekranu.
-  // Alerty skondensowane z 6 pozycji do dokładnie 4 presetów + 2 pomocnicze zgody
-  // systemowe, jak user opisał 1:1: "tylko basic, tylko TAK/NIE, tylko fullscreen bez
-  // powiadomienia [= cichy], tylko fullscreen bez powiadomienia z wakeup i muzyką i
-  // wibracjami [= budzik]" — standalone "test OLED za 5 min" USUNIĘTY jako osobny
-  // wiersz UI (funkcja/parametry w `sendNotifeeAlert` zostają, diagnostyka dalej
-  // dostępna z kodu, po prostu nie zaśmieca listy czterema niemal identycznymi
-  // przyciskami).
   {
     id: 'alerty', title: 'Alerty', icon: Bell, group: 'advanced',
-    summary: 'testy powiadomień, bateria, dokładne alarmy',
+    summary: 'testy powiadomień i zgody systemowe',
     items: [
-      { kind: 'action', key: 'alert-expo', label: 'Podstawowy', description: 'zwykłe powiadomienie (max priorytet), bez pełnego ekranu', icon: Bell },
-      { kind: 'action', key: 'alert-notifee-buttons', label: 'Pełny ekran + Tak/Nie', description: 'nad blokadą ekranu, z przyciskami odpowiedzi', icon: AlertTriangle },
-      { kind: 'action', key: 'alert-notifee-quiet', label: 'Pełny ekran (cichy)', description: 'nad blokadą ekranu, bez dźwięku i wibracji', icon: AlertTriangle },
-      { kind: 'action', key: 'alert-notifee', label: 'Pełny ekran + budzik', description: 'nad blokadą ekranu, dźwięk w pętli + wibracje', icon: AlarmClock },
-      { kind: 'action', tier: 'sub', permission: true, key: 'alert-battery', label: 'Optymalizacja baterii', description: 'wyklucz appkę, inaczej alerty mogą przychodzić z opóźnieniem/cicho', icon: BatteryWarning },
-      { kind: 'action', tier: 'sub', permission: true, key: 'alert-exact-alarm', label: 'Dokładne alarmy', description: 'zgoda systemowa wymagana na Androidzie 12+', icon: AlarmClock },
+      // Od 2026-11-17 jeden wpis → osobny ekran testów (app/notify-test.tsx): 5 testów
+      // w kolorach, po JEDNYM powiadomieniu (stare odpalały się podwójnie), zgody na górze.
+      { kind: 'action', key: 'notify-test', label: 'Testy powiadomień', description: 'zwykłe, TAK/NIE, pełny ekran, wybudzenie + zgody systemowe', icon: Bell },
     ],
   },
   // Widget pulpitu "Zadania" (2026-11-13, user: "ma ustawienia przezroczystości?").
@@ -628,285 +618,6 @@ export default function SettingsScreen() {
     }
   };
 
-  // Opcja 1/2 sandboxa alertów: SUFIT tego co daje goły `expo-notifications` (kanał o
-  // najwyższym priorytecie, dźwięk, wibracja, heads-up) — NIE prawdziwy
-  // full-screen-intent blokujący ekran jak budzik (już sprawdzone wcześniej przez
-  // usera — nie przebija blokady ekranu). Zostaje jako punkt odniesienia do porównania
-  // z opcją notifee niżej.
-  const testExpoAlert = async () => {
-    append('Alert (max priorytet)…');
-    try {
-      const Notifications = await import('expo-notifications');
-      Notifications.setNotificationHandler({
-        handleNotification: async () => ({
-          shouldShowBanner: true,
-          shouldShowList: true,
-          shouldPlaySound: true,
-          shouldSetBadge: false,
-        }),
-      });
-      // `-v2` (2026-11-01, user: "nie słychać dźwięku w żadnym" z czterech testów) —
-      // ten kanał NIGDY wcześniej nie był wersjonowany, w odróżnieniu od notifee
-      // niżej (`alerts-fullscreen-v3`, bumpowany dwa razy po dokładnie tym objawie).
-      // Kanały na Androidzie są NIEMUTOWALNE po utworzeniu — jeśli 'alerts-max'
-      // powstał w którejś WCZEŚNIEJSZEJ rundzie testów (przed tym jak `sound`
-      // wylądował w konfiguracji), telefon trzyma się tamtej, cichej rejestracji na
-      // zawsze, niezależnie od aktualnego kodu. Nowe id usuwa tę możliwość.
-      await Notifications.setNotificationChannelAsync('alerts-max-v2', {
-        name: 'Alerty (test) v2',
-        importance: Notifications.AndroidImportance.MAX,
-        sound: 'default',
-        vibrationPattern: [0, 500, 250, 500],
-        lightColor: '#EF4444',
-        bypassDnd: true,
-        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-      });
-      const permResult: any = await Notifications.requestPermissionsAsync();
-      if (!permResult?.granted && permResult?.status !== 'granted') {
-        throw new Error('Brak zgody na powiadomienia');
-      }
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Test alertu',
-          body: 'To sufit zwykłego expo-notifications (max priorytet) — nie prawdziwy full-screen jak budzik.',
-          sound: 'default',
-          priority: Notifications.AndroidNotificationPriority.MAX,
-        },
-        trigger: { channelId: 'alerts-max-v2' },
-      });
-      append('Wysłano — oceń jak wygląda/brzmi na urządzeniu.');
-    } catch (e: any) {
-      const msg = String(e?.message ?? e);
-      if (msg.includes('Native module') || msg.includes('cannot be null') || msg.includes('TurboModule')) {
-        append('Ten natywny moduł nie działa w Expo Go — potrzebny dev-client build.');
-      } else {
-        append(`Błąd alertu: ${msg}`);
-      }
-    }
-  };
-
-  // Opcje 2-3: `notifee` z natywnym `fullScreenAction` (patrz
-  // `plugins/withFullScreenAlert.js` — bez flag `showWhenLocked`/`turnScreenOn` na
-  // docelowej Activity w manifeście, Android pokaże to WYŁĄCZNIE jako zwykłe
-  // heads-up, nie nad blokadą ekranu). Na Androidzie 14+ `USE_FULL_SCREEN_INTENT`
-  // może też wymagać ręcznego włączenia przez usera w ustawieniach systemowych
-  // appki ("Pełnoekranowe powiadomienia") — jeśli test "nic nie robi" mimo sukcesu w
-  // logu, to pierwsze miejsce do sprawdzenia, nie bug w kodzie. Wspólna funkcja dla
-  // dwóch wariantów do porównania (2026-10-28, user: "spróbuj dodać tak i nie [i]
-  // bez przycisku") — `withActions` dokleja dwa przyciski akcji "Tak"/"Nie" na
-  // powiadomieniu (jak odbierz/odrzuć w połączeniu przychodzącym), bez tego
-  // powiadomienie ma tylko domyślną akcję (tap = otwórz appkę).
-  // 2026-10-28 — user po SCHEDULE_EXACT_ALARM fixie: DALEJ kompletnie cicho, nawet z
-  // pełnymi zgodami w systemowych ustawieniach. Zamiast zgadywać CZWARTY fix na ślepo,
-  // test teraz robi DWIE NIEZALEŻNE rzeczy jedną komendą, żeby log sam powiedział gdzie
-  // dokładnie się psuje:
-  //   1. `displayNotification` NATYCHMIAST (zero triggera/AlarmManager/exact-alarm) —
-  //      jeśli TEGO nie widać/słychać od razu (appka wciąż na wierzchu), problem jest w
-  //      zgodzie/kanale/samym notifee, NIE w opóźnionym planowaniu.
-  //   2. `createTriggerNotification` jak dotąd (za 5s, do testu zablokowanego ekranu) +
-  //      `getTriggerNotificationIds()` zaraz po, żeby log pokazał czy system W OGÓLE
-  //      przyjął ten trigger (pusta lista = cicho odrzucony, mimo že `await` nie rzucił).
-  // `delayMs` (2026-10-29, user: "musimy sprawdzić czy np po 5 min ekran się
-  // wybudzi sam... czy będzie ciemny, bo to OLED screen") — domyślnie 5s do
-  // szybkich testów, ale parametryzowane żeby dało się odpalić realny test na
-  // dłuższym opóźnieniu (patrz item "Test alertu za 5 min" w Alerty) — krótki 5s
-  // test nie sprawdza czy ekran FIZYCZNIE się wybudza z głębokiego uśpienia/OLED
-  // całkowicie czarnego ekranu, tylko czy mechanizm w ogóle działa zanim telefon
-  // zdąży zejść w głębszy stan oszczędzania energii.
-  // `includeInstant` (2026-10-29, user: test "za 5 min" odpalał się OD RAZU) — BUG:
-  // funkcja zawsze najpierw wysyłała powiadomienie NATYCHMIASTOWE (część
-  // diagnostyczna z wcześniejszej rundy, do izolowania problemu zgoda/kanał vs
-  // trigger), niezależnie od `delayMs` — to ONO przekierowywało na ekran alarmu
-  // natychmiast, maskując to że prawdziwy test opóźnienia (5 min) w ogóle się nie
-  // wykonał. Test OLED musi iść BEZ instant-części, inaczej nie testuje tego co ma.
-  const sendNotifeeAlert = async (withActions: boolean, quiet = false, delayMs = 5000, includeInstant = true) => {
-    const delayLabel = delayMs >= 60000 ? `${Math.round(delayMs / 60000)} min` : `${Math.round(delayMs / 1000)}s`;
-    append(`Alert notifee (za ${delayLabel}): start…`);
-    try {
-      const notifeeModule = await import('@notifee/react-native');
-      const notifee = notifeeModule.default;
-      const { AndroidImportance, AndroidCategory, AndroidVisibility, AuthorizationStatus, TriggerType } = notifeeModule;
-      const settings = await notifee.requestPermission();
-      append(`Zgoda na powiadomienia: status=${settings.authorizationStatus}`);
-      if (settings.authorizationStatus < AuthorizationStatus.AUTHORIZED) {
-        throw new Error('Brak zgody na powiadomienia');
-      }
-      // Diagnostyka dla długich opóźnień (2026-11-01, user: "ten OLED ni dziala" —
-      // test za 5s działał, test za 5 MIN nie) — `allowWhileIdle` prosi system o
-      // dokładny alarm, ale na Androidzie 12+ to NIE jest automatycznie
-      // gwarantowane: jeśli optymalizacja baterii jest WŁĄCZONA dla appki, system
-      // może cicho zdegradować/opóźnić alarm podczas Doze, zamiast go odrzucić z
-      // błędem — dokładnie taki objaw ("log pokazuje sukces, nic nie przychodzi po
-      // czasie") jak zgłoszony. Tylko LOGUJEMY tutaj (nie blokujemy testu) — fix to
-      // osobne przyciski "Optymalizacja baterii"/"Dokładne alarmy" niżej w Alertach,
-      // bo to decyzja/zgoda usera w systemowych ustawieniach, nie coś co appka może
-      // cicho włączyć sama.
-      if (delayMs >= 60000) {
-        try {
-          const batteryRestricted = await notifee.isBatteryOptimizationEnabled();
-          if (batteryRestricted) {
-            append('UWAGA: optymalizacja baterii WŁĄCZONA dla appki — to najczęstsza przyczyna ciszy po dłuższym opóźnieniu. Użyj "Optymalizacja baterii" w Alertach, potem powtórz ten test.');
-          } else {
-            append('Optymalizacja baterii: appka już wykluczona, ok.');
-          }
-        } catch {
-          // starszy Android (<23) albo niedostępne — pomijamy diagnostykę, nie test.
-        }
-      }
-      // UWAGA: kanał na Androidzie jest NIEMUTOWALNY po utworzeniu — build #29 rzucał
-      // błąd walidacji na starym `vibrationPattern` W TRAKCIE `createChannel`, co mogło
-      // zdążyć zarejestrować kanał z domyślnymi (cichymi) ustawieniami zanim doszło do
-      // walidacji. Każda kolejna zmiana konfiguracji musi iść pod NOWYM id, inaczej
-      // system trzyma się pierwszej (zepsutej) rejestracji — złapane na urządzeniu
-      // (2026-10-28, user: "bez wibracji czy dźwięku" mimo poprawnej konfiguracji w
-      // kodzie). `-v3` (2026-10-29, `loopSound` dalej cicho mimo poprawnego kodu —
-      // ten sam objaw co poprzednio, ten sam fix: nowy id na wszelki wypadek stałej
-      // rejestracji).
-      // `quiet` (2026-11-02, user: jeden z czterech presetów ma być "pełny ekran bez
-      // powiadomienia [dźwięku/wibracji]") — kanał na Androidzie jest NIEMUTOWALNY
-      // (patrz komentarz nad `-v3` niżej), a `sound`/`vibration` ustawione NA
-      // KANALE wygrywają z ewentualnym per-notification override, więc cichy
-      // wariant musi iść pod ZUPEŁNIE OSOBNYM id, nie przez wyzerowanie pól na
-      // notyfikacji w tym samym kanale co głośny wariant.
-      const channelId = quiet
-        ? await notifee.createChannel({
-          id: 'alerts-fullscreen-quiet-v1',
-          name: 'Alerty pełnoekranowe (ciche)',
-          importance: AndroidImportance.HIGH,
-          vibration: false,
-          lights: false,
-          bypassDnd: true,
-        })
-        : await notifee.createChannel({
-          id: 'alerts-fullscreen-v3',
-          name: 'Alerty pełnoekranowe (test) v3',
-          importance: AndroidImportance.HIGH,
-          sound: 'default',
-          vibration: true,
-          vibrationPattern: [300, 500, 300, 500],
-          lights: true,
-          lightColor: '#EF4444',
-          bypassDnd: true,
-        });
-      append(`Kanał gotowy: ${channelId}`);
-
-      // `loopSound: true` (2026-10-29, user: "dodaj na razie domyślny [dźwięk],
-      // żeby potem customowy cały ekran") — zero nowego pliku audio do
-      // zbundlowania: to ustawia `FLAG_INSISTENT`, czyli DOMYŚLNY systemowy dźwięk
-      // kanału (`sound: 'default'`) powtarza się w pętli aż notyfikacja zostanie
-      // otwarta/anulowana, zamiast zagrać raz i ucichnąć (łatwo przegapić
-      // pojedynczy krótki "ding" w trakcie przejścia na pełny ekran — to
-      // prawdopodobnie dlaczego wcześniej wyglądało na "brak dźwięku"). Docelowo
-      // (gdy user poda/wybierze własny plik audio) to miejsce PRZEJDZIE na
-      // zapętlone odtwarzanie customowego dźwięku z poziomu `app/alert-test.tsx`
-      // (tak jak już robi to wibracja tam) zamiast systemowego dźwięku kanału —
-      // rozdzielenie "warstwa notyfikacji" (ten plik) vs "warstwa ekranu alarmu"
-      // (alert-test.tsx) jest już naturalne, więc ta zmiana będzie izolowana, nie
-      // przepisywaniem całości.
-      const android = {
-        channelId,
-        category: AndroidCategory.CALL,
-        importance: AndroidImportance.HIGH,
-        visibility: AndroidVisibility.PUBLIC,
-        fullScreenAction: { id: 'default', launchActivity: 'default' },
-        pressAction: { id: 'default' },
-        ...(!quiet && { sound: 'default', loopSound: true }),
-        ...(withActions && {
-          actions: [
-            { title: 'Nie', pressAction: { id: 'no' } },
-            { title: 'Tak', pressAction: { id: 'yes' } },
-          ],
-        }),
-      };
-
-      // `data: { route: 'alert-test' }` — łapane przez
-      // src/hooks/useNotifeeAlertLaunch.ts, żeby tap/fullScreenAction na TYM alercie
-      // (nie na jakimkolwiek innym powiadomieniu appki) przekierował na dedykowany
-      // ekran alarmu (app/alert-test.tsx), nie zostawiał usera na ostatnim otwartym
-      // ekranie appki (2026-10-29, user po teście: "żeby nie cała apka była tylko
-      // alarm screen testowy").
-      if (includeInstant) {
-        await notifee.displayNotification({
-          title: 'Test NATYCHMIAST (notifee)',
-          body: 'Jeśli TEGO nie widzisz/słyszysz od razu (appka wciąż otwarta), problem jest w zgodzie/kanale, nie w opóźnionym triggerze.',
-          data: { route: 'alert-test' },
-          android,
-        });
-        append('Natychmiastowe wysłane — POWINNO pokazać się OD RAZU, appka wciąż otwarta.');
-      }
-
-      // Opóźnienie przez NATYWNY trigger (AlarmManager), NIE `setTimeout` w JS — przeżywa
-      // zawieszenie JS/tło/zabicie appki, w przeciwieństwie do poprzedniej wersji tego
-      // testu. `allowWhileIdle` = dokładny alarm (`setExactAndAllowWhileIdle`), co od
-      // Androida 12 wymaga `SCHEDULE_EXACT_ALARM` w manifeście (dodane) — bez tego Android
-      // NIE rzuca błędem, tylko cicho degraduje do niedokładnego/odłożonego alarmu.
-      const notifId = await notifee.createTriggerNotification(
-        {
-          title: `Test alertu za ${delayLabel} (notifee)`,
-          body: withActions
-            ? 'Wybudzi ekran i pokaże appkę NAD blokadą, z przyciskami Tak/Nie.'
-            : 'Wybudzi ekran i pokaże appkę NAD blokadą, bez przycisków (sam tap).',
-          data: { route: 'alert-test' },
-          android,
-        },
-        {
-          type: TriggerType.TIMESTAMP,
-          timestamp: Date.now() + delayMs,
-          alarmManager: { allowWhileIdle: true },
-        },
-      );
-      const pending = await notifee.getTriggerNotificationIds();
-      append(`Trigger zaplanowany za ${delayLabel} (id ${String(notifId)}) — system ma ${pending.length} aktywnych triggerów. Zablokuj ekran TERAZ.`);
-    } catch (e: any) {
-      const msg = String(e?.message ?? e);
-      const code = e?.code ? ` [${e.code}]` : '';
-      if (msg.includes('Native module') || msg.includes('cannot be null') || msg.includes('TurboModule')) {
-        append('notifee niedostępny w Expo Go — potrzebny build APK z tego CI.');
-      } else {
-        append(`Błąd notifee${code}: ${msg}`);
-      }
-    }
-  };
-
-  // Dwa jednorazowe przyciski do wykluczenia najczęstszej, device-side przyczyny
-  // "log mówi sukces, nic nie przychodzi po czasie" na Androidzie 12+ (patrz
-  // komentarz w `sendNotifeeAlert` przy diagnostyce `isBatteryOptimizationEnabled`):
-  // obie zgody appka może tylko POPROSIĆ o nie (systemowy dialog/ekran), nie
-  // włączyć sama. `openPowerManagerSettings` (OEM-specific, np. MIUI "autostart")
-  // tylko gdy notifee rozpoznaje DANY telefon (`getPowerManagerInfo().activity` —
-  // na czystym Androidzie/Pixelu zwykle `null`, wtedy nie ma co pokazywać, nie błąd.
-  const checkBatteryOptimization = async () => {
-    append('Optymalizacja baterii: sprawdzam…');
-    try {
-      const notifeeModule = await import('@notifee/react-native');
-      const notifee = notifeeModule.default;
-      const restricted = await notifee.isBatteryOptimizationEnabled();
-      if (restricted) {
-        append('WŁĄCZONA — otwieram systemowy dialog, zgódź się na "Zezwól"/"Nie optymalizuj".');
-        await notifee.openBatteryOptimizationSettings();
-      } else {
-        append('Appka już jest wykluczona z optymalizacji baterii — to nie jest przyczyna.');
-      }
-      const powerInfo = await notifee.getPowerManagerInfo();
-      if (powerInfo.activity) {
-        append(`Ten telefon (${powerInfo.manufacturer}) ma dodatkowy menadżer energii — otwieram jego ustawienia (np. "autostart"), włącz appkę tam też.`);
-        await notifee.openPowerManagerSettings();
-      }
-    } catch (e: any) {
-      append(`Błąd: ${String(e?.message ?? e)}`);
-    }
-  };
-
-  const openExactAlarmSettings = async () => {
-    append('Otwieram systemowe "Alarmy i przypomnienia" — włącz dla Sapp2, jeśli wyłączone.');
-    try {
-      const notifeeModule = await import('@notifee/react-native');
-      await notifeeModule.default.openAlarmPermissionSettings();
-    } catch (e: any) {
-      append(`Błąd: ${String(e?.message ?? e)}`);
-    }
-  };
-
   // Faza 2.5 (2026-11-01) — przełączniki (enabled/autoAll) jako zwykłe 'action' itemy,
   // nie prawdziwy switch — settings.tsx nie ma typu/renderera dla kontrolki switch
   // (tylko 'action'/'value'), a dodawanie go dla jednego miejsca byłoby przerostem
@@ -1011,12 +722,7 @@ export default function SettingsScreen() {
     firestore: testFirestore,
     calendar: testCalendar,
     'calendar-sync': testCalendarSync,
-    'alert-expo': testExpoAlert,
-    'alert-notifee': () => sendNotifeeAlert(false, false),
-    'alert-notifee-buttons': () => sendNotifeeAlert(true, false),
-    'alert-notifee-quiet': () => sendNotifeeAlert(false, true),
-    'alert-battery': checkBatteryOptimization,
-    'alert-exact-alarm': openExactAlarmSettings,
+    'notify-test': leave(() => router.push('/notify-test' as any)),
     'bank-enabled': toggleBankEnabled,
     'bank-notif-access': openNotificationAccess,
     'bank-auto-all': toggleBankAutoAll,
