@@ -215,7 +215,11 @@ export default function AppBottomSheet({
     // scrollować — user: "nadal nie działa scroll np w paragonie... nie da
     // się scrollować" (2026-11-04).
     ? { style: s.scroll, contentContainerStyle: [s.body, !!footer && s.bodyWithFooter], keyboardShouldPersistTaps: 'handled' as const }
-    : { style: [s.body, !!footer && s.bodyWithFooter] };
+    // Web (2026-11-17, user: "na komputerze w wielu miejscach nie działa scroll"): bez
+    // flexShrink ten View rósł do pełnej treści, a sheet ją ucinał (overflow:hidden) —
+    // wewnętrzna lista (FlatList w Transakcjach itp.) nie miała czego przewijać.
+    // Tylko web — na telefonie układ zostaje jak był.
+    : { style: [s.body, !!footer && s.bodyWithFooter, Platform.OS === 'web' && s.webShrink] };
 
   return (
     <Modal visible={modalVisible} transparent animationType="none" onRequestClose={onClose} onShow={focusInitial} statusBarTranslucent>
@@ -299,6 +303,7 @@ const makeS = (maxHeightRatio: number) => StyleSheet.create({
   // `maxHeight`, więc treść dłuższa niż to miejsce faktycznie scrolluje
   // zamiast rozpychać `sheet` w nieskończoność.
   scroll: { flexShrink: 1 },
+  webShrink: { flexShrink: 1, minHeight: 0 },
   body: { paddingHorizontal: spacing[4], paddingTop: spacing[1], paddingBottom: spacing[4] },
   bodyWithFooter: { paddingBottom: spacing[2] },
   footer: {

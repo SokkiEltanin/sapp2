@@ -1,6 +1,7 @@
 import Logo from '@/ui/Logo';
 import { useEffect, useRef, useState } from 'react';
 import { useCollectionUpkeep } from '@/hooks/useCollectionUpkeep';
+import { installWheelToHorizontal } from '@/services/webWheel';
 import { useCalendarStore } from '@/store/calendarStore';
 import { syncTasksWidget, syncWeatherWidget, syncNoteWidget, applyWidgetAppearance } from '@/services/widgetSync';
 import { useNotesStore } from '@/store/notesStore';
@@ -188,6 +189,7 @@ export default function RootLayout() {
   useReplaceReminderSync();
   useTaskReminderSync();
   useCollectionUpkeep();
+  useEffect(() => (Platform.OS === 'web' ? installWheelToHorizontal() : undefined), []);
   // Tagi ze starej appki (czekolada → Słodycze, chemia → Zmienne…) — 2026-11-16.
   useImportedTagFix();
   // Próg "podładuj zegarek" dla natywnej usługi (hooks/useDeviceBatteries.ts).

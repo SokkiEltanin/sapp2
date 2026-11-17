@@ -41,6 +41,15 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-17 — Bateria (panel), Praca na web, scroll na web**:
+- Bateria: natywny BatteryLog (withWearSync.js: `battery_log_phone.json` / `battery_log_watch.json`,
+  ~4 dni), temperatura z zegarka; `components/battery/BatterySheet.tsx` (tap w kafel). Historia
+  na komputer przez doc `devices`. Wykresy zapełnią się po kilku godzinach działania nowego APK.
+- Praca na web: gcalMirror dokłada starsze zmiany pracy (doc `gcal`), stawka jak na telefonie.
+- Web scroll: AppBottomSheet (scrollable=false) `webShrink`; `services/webWheel.ts` — kółko →
+  poziomo dla pasków przewijanych tylko w poziomie.
+- [ ] Zegarek: nowy `sapp2-wear-N.apk` (temperatura w raporcie baterii).
+
 **2026-11-17 — Testy powiadomień od zera** (`app/notify-test.tsx`, `services/notifyTests.ts`; Ustawienia →
 Alerty → „Testy powiadomień”): 5 testów w kolorach, JEDNO powiadomienie na test (stare wysyłały też
 „natychmiastowe” → podwójne odpalanie). Natywnie (`withFullScreenAlert.js`): `wakeScreen` (wake lock
