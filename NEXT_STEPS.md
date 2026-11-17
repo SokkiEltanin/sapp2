@@ -41,6 +41,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-17 — Transakcje pogrupowane** (`utils/txGroup.ts`): Dni/Tygodnie/Miesiące/Lata, nagłówek z sumą
+(bez przelewów własnych, przyklejony), wiersz: nazwa wyróżniona, kategorie pozycji paragonu albo
+opis/kategoria/#tagi, godzina; pasek koloru kubła. Ciekawostki: usunięte 22 najbardziej znane (97 zostało).
+- [ ] Pierwszy push z EXPO_TOKEN — sprawdzić, czy CI poszło ścieżką OTA (job „decide” → mode=ota).
+
 **2026-11-17 — Ciekawostki paczka 2**: +49 (razem 119, ok. 4 mies. przy 1/dzień). Kolejna paczka
 przed wyczerpaniem — nowe id z sufiksem paczki (`x3-…`).
 

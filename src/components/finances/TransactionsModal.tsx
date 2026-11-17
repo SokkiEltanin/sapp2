@@ -15,6 +15,7 @@ import { filterTransactions, summarize, activeFilterCount, datePreset, EMPTY_FIL
 import { EXPENSE_CATEGORIES } from '@/utils/expenseCategory';
 import { toDisplayDate } from '@/utils/dateInput';
 import RangeCalendar from '@/components/design/RangeCalendar';
+import { groupTransactions, txDetail, txColor, type GroupMode } from '@/utils/txGroup';
 import { zl } from '@/utils/money';
 
 // Pełna lista transakcji (Faza 2.4, 2026-11-01) — "Ostatnie transakcje" na ekranie
@@ -52,6 +53,17 @@ export default function TransactionsModal({
   const set = (patch: Partial<TxFilter>) => setF((cur) => ({ ...cur, ...patch }));
 
   const hits = useMemo(() => filterTransactions(expenses, f), [expenses, f]);
+  // Grupy (2026-11-17): domyślnie dni; nagłówek grupy z sumą, wiersz z detalami paragonu.
+  const [mode, setMode] = useState<GroupMode>('day');
+  const rows = useMemo(() => {
+    const out: ({ t: 'h'; key: string; label: string; out: number; in: number; n: number } | { t: 'r'; key: string; hit: (typeof hits)[number] })[] = [];
+    for (const g of groupTransactions(hits, mode)) {
+      out.push({ t: 'h', key: `h_${g.key}`, label: g.label, out: g.out, in: g.in, n: g.hits.length });
+      for (const h of g.hits) out.push({ t: 'r', key: h.e.id, hit: h });
+    }
+    return out;
+  }, [hits, mode]);
+  const sticky = useMemo(() => rows.flatMap((r, i) => (r.t === 'h' ? [i] : [])), [rows]);
   const sum = useMemo(() => summarize(hits), [hits]);
   const [exporting, setExporting] = useState(false);
   const [exported, setExported] = useState<string | null>(null);
@@ -167,6 +179,14 @@ export default function TransactionsModal({
         </View>
       )}
 
+      <View style={s.modeRow}>
+        {([['day', 'Dni'], ['week', 'Tygodnie'], ['month', 'Miesiące'], ['year', 'Lata']] as const).map(([k, l]) => (
+          <TouchableOpacity key={k} style={[s.modeChip, mode === k && s.modeChipOn]} onPress={() => { haptic.tap(); setMode(k); }}>
+            <Text style={[s.modeTxt, mode === k && s.modeTxtOn]}>{l}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       {narrowed && (
         <View style={s.sumRow}>
           <Text style={s.sumText} numberOfLines={1}>
@@ -184,8 +204,9 @@ export default function TransactionsModal({
     <AppBottomSheet visible={visible} onClose={onClose} header={header} scrollable={false} maxHeightRatio={0.9}>
       <FlatList
         style={s.list}
-        data={hits}
-        keyExtractor={(h) => h.e.id}
+        data={rows}
+        keyExtractor={(r) => r.key}
+        stickyHeaderIndices={sticky}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         initialNumToRender={20}
@@ -193,13 +214,30 @@ export default function TransactionsModal({
         ListEmptyComponent={
           <Text style={s.empty}>{expenses.length === 0 ? 'Brak transakcji — dodaj pierwszą przyciskiem +.' : 'Brak wyników.'}</Text>
         }
-        renderItem={({ item: { e, match } }) => (
+        renderItem={({ item }) => {
+          if (item.t === 'h') return (
+            <View style={s.gHead}>
+              <Text style={s.gLabel} numberOfLines={1}>{item.label.charAt(0).toUpperCase() + item.label.slice(1)}</Text>
+              <Text style={s.gSum} numberOfLines={1}>
+                {item.out > 0 ? `−${zl(item.out)}` : ''}{item.in > 0 ? <Text style={s.gIn}>{`  +${zl(item.in)}`}</Text> : null}
+                <Text style={s.gN}>{`  · ${item.n}`}</Text>
+              </Text>
+            </View>
+          );
+          const { e, match } = item.hit;
+          const detail = txDetail(e);
+          const time = (e.date ?? '').length > 10 ? e.date.slice(11, 16) : '';
+          const when = mode === 'day' ? time : `${toDisplayDate(e.date.slice(0, 10)).slice(0, 5)}${time ? ` ${time}` : ''}`;
+          const meta = [when, e.fvOverride === 'transfer' ? 'przelew własny' : '', match ? `„${match}”` : ''].filter(Boolean).join(' · ');
+          return (
           <TouchableOpacity style={s.row} onPress={() => { haptic.tap(); onSelect(e); }} activeOpacity={0.7}>
+            <View style={[s.rowBar, { backgroundColor: txColor(e) }]} />
             <View style={s.rowInfo}>
               <Text style={s.rowNote} numberOfLines={1}>
                 {e.storeName || e.note || (e.fvOverride === 'transfer' ? 'Przelew własny' : e.type === 'income' ? 'Przychód' : 'Wydatek')}
               </Text>
-              <Text style={s.rowDate} numberOfLines={1}>{toDisplayDate(e.date.slice(0, 10))}{e.fvOverride === 'transfer' ? ' · przelew własny' : ''}{match ? ` · ${match}` : ''}</Text>
+              {detail ? <Text style={s.rowDetail} numberOfLines={1}>{detail}</Text> : null}
+              {meta ? <Text style={s.rowDate} numberOfLines={1}>{meta}</Text> : null}
             </View>
             {pendingFxOf(e) ? (
               <View style={s.fxCol}>
@@ -207,12 +245,13 @@ export default function TransactionsModal({
                 <Text style={s.fxHint}>wpisz PLN</Text>
               </View>
             ) : (
-              <Text style={[s.rowAmount, e.type === 'income' && s.rowAmountIncome]}>
+              <Text style={[s.rowAmount, e.type === 'income' && s.rowAmountIncome, e.fvOverride === 'transfer' && { color: colors.text.muted }]}>
                 {e.type === 'income' ? '+' : '−'}{zl(Math.abs(e.amount))}
               </Text>
             )}
           </TouchableOpacity>
-        )}
+          );
+        }}
       />
     </AppBottomSheet>
   );
@@ -278,8 +317,20 @@ const makeS = themedStyles((c) => StyleSheet.create({
     paddingVertical: spacing[3], borderBottomWidth: 1, borderBottomColor: c.border.subtle,
   },
   rowInfo: { flex: 1, marginRight: spacing[2] },
-  rowNote: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary },
-  rowDate: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 2 },
+  rowNote: { fontSize: 14, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },
+  rowDetail: { fontSize: 11.5, fontFamily: 'Inter_600SemiBold', color: c.text.secondary, marginTop: 2 },
+  rowDate: { fontSize: 10.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 1 },
+  rowBar: { width: 3, alignSelf: 'stretch', borderRadius: 2, marginRight: spacing[3] },
+  gHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2], paddingTop: spacing[3], paddingBottom: 6, backgroundColor: c.bg.card, borderBottomWidth: 1, borderBottomColor: c.ui.line },
+  gLabel: { flex: 1, fontSize: 12, fontFamily: 'Inter_900Black', color: c.text.primary },
+  gSum: { fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary, fontVariant: ['tabular-nums'] },
+  gIn: { color: c.accent.green },
+  gN: { color: c.text.muted, fontFamily: 'Inter_600SemiBold' },
+  modeRow: { flexDirection: 'row', gap: 6, marginBottom: spacing[2] },
+  modeChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
+  modeChipOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
+  modeTxt: { fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary },
+  modeTxtOn: { color: c.bg.primary },
   rowAmount: { fontSize: 14, fontFamily: 'Inter_900Black', color: c.text.bright },
   rowAmountIncome: { color: c.accent.green },
   fxCol: { alignItems: 'flex-end' },

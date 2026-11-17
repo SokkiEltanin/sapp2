@@ -3,6 +3,9 @@
 // medycyna, materiały, kosmos, otaczający nas świat, lifehacki, elektronika i technologie).
 // Każda pokazuje się RAZ (utils/facts.ts) — dopisując nowe, dawaj NOWE `id` (nigdy nie
 // zmieniaj istniejących: id są w historii przeczytanych na obu urządzeniach).
+// 2026-11-17 (user: "sporo znam — wywal oczywiste, jak grafen z taśmą i 8 min światła"):
+// usunięte 22 najbardziej znane (Fleming, lód pływa, niebo, 16 wschodów na ISS, pomodoro…).
+// Nowe dawać MNIEJ oczywiste — liczba/szczegół, którego nie ma w każdym quizie.
 export type FactCat = 'zdrowie' | 'medycyna' | 'materialy' | 'kosmos' | 'swiat' | 'lifehacki' | 'tech';
 
 export interface Fact {
@@ -37,28 +40,6 @@ export const FACT_LIST: Fact[] = [
       'Wniosek praktyczny: zarwana noc przed egzaminem odbiera to, co miało się utrwalić. Lepiej przerwać naukę i się wyspać.',
     ],
     src: 'Yoo i in., Nature Neuroscience 2007; American Academy of Sleep Medicine',
-  },
-  {
-    id: 'z-kroki', cat: 'zdrowie', topic: 'Mit dziesięciu tysięcy',
-    teaser: 'Magiczne 10 tysięcy kroków wymyślił dział marketingu — badania pokazują inną granicę.',
-    nums: [{ v: '4 400', l: 'kroków dziennie: już −41% ryzyka zgonu' }, { v: '~7 500', l: 'powyżej efekt się wypłaszcza' }],
-    body: [
-      'W 1965 r. w Japonii sprzedawano krokomierz „manpo-kei” — dosłownie „licznik 10 000 kroków”. Liczba była okrągła i łatwa do zapamiętania, nie wynikała z badań.',
-      'W badaniu Lee i in. (JAMA Internal Medicine 2019, ~16 tys. kobiet) już 4 400 kroków dziennie wiązało się z ok. 41% niższą śmiertelnością niż 2 700. Korzyść rosła do ok. 7 500 kroków, potem stała w miejscu.',
-      'Metaanaliza z Lancet Public Health (2022, 15 badań, ~47 tys. osób) wskazała próg ok. 6–8 tys. kroków dla osób po 60. i 8–10 tys. dla młodszych. Każde dodatkowe 1 000 kroków ma znaczenie — liczy się trend, nie magiczna liczba.',
-    ],
-    src: 'Lee i in., JAMA Intern Med 2019; Paluch i in., Lancet Public Health 2022',
-  },
-  {
-    id: 'z-woda', cat: 'zdrowie', topic: 'Osiem szklanek wody',
-    teaser: 'Słynne „8 szklanek dziennie” to źle przeczytane zalecenie sprzed 80 lat.',
-    nums: [{ v: '2,0 / 2,5 L', l: 'wody dziennie (K / M) — ze wszystkich źródeł' }, { v: '20–30%', l: 'wody dostarcza samo jedzenie' }],
-    body: [
-      'W 1945 r. amerykańska Rada ds. Żywności zaleciła ok. 2,5 L wody dziennie, dodając: „większość tej ilości jest zawarta w przygotowanych posiłkach”. Druga część zdania z czasem zniknęła z obiegu.',
-      'Europejski Urząd ds. Bezpieczeństwa Żywności (EFSA) podaje ok. 2,0 L dla kobiet i 2,5 L dla mężczyzn — ale łącznie z wodą z jedzenia (zupy, owoce, warzywa) oraz kawy i herbaty, które przy umiarkowanych ilościach nie odwadniają.',
-      'Najprostszy wskaźnik: jasnosłomkowy kolor moczu. W upał i przy wysiłku potrzeba wyraźnie więcej.',
-    ],
-    src: 'EFSA, Dietary Reference Values for water (2010); US Food and Nutrition Board 1945',
   },
   {
     id: 'z-siedzenie', cat: 'zdrowie', topic: 'Antidotum na siedzenie',
@@ -126,30 +107,8 @@ export const FACT_LIST: Fact[] = [
     ],
     src: 'WHO Guideline: Sugars intake 2015',
   },
-  {
-    id: 'z-drzemka', cat: 'zdrowie', topic: 'Drzemka NASA',
-    teaser: 'Piloci NASA po krótkiej drzemce byli o ponad połowę czujniejsi.',
-    nums: [{ v: '26 min', l: 'średnia drzemka w badaniu' }, { v: '+34%', l: 'sprawności' }, { v: '+54%', l: 'czujności' }],
-    body: [
-      'W badaniu NASA (Rosekind i in., 1995) piloci długodystansowi dostawali 40 minut na drzemkę w kokpicie. Zasypiali średnio na 26 minut.',
-      'W porównaniu z grupą bez drzemki ich sprawność wzrosła o 34%, a fizjologiczna czujność o 54% — mniej było mikrozaśnięć w końcówce lotu.',
-      'Klucz to krótka drzemka (10–26 min), zanim mózg wejdzie w głęboki sen — wtedy nie ma „zamulenia” po przebudzeniu.',
-    ],
-    src: 'Rosekind i in., NASA Technical Memorandum 108839, 1995',
-  },
 
   // ───────── MEDYCYNA ─────────
-  {
-    id: 'm-penicylina', cat: 'medycyna', topic: 'Pleśń Fleminga',
-    teaser: 'Najważniejszy lek XX wieku wyrósł na brudnej szalce, której ktoś nie umył przed urlopem.',
-    nums: [{ v: '1928', l: 'odkrycie penicyliny' }, { v: '2,3 mln', l: 'dawek gotowych na D-Day (1944)' }],
-    body: [
-      'Alexander Fleming wrócił z wakacji we wrześniu 1928 r. i zauważył, że wokół pleśni Penicillium na szalce z gronkowcami bakterie zniknęły.',
-      'Przez ponad 10 lat nikt nie umiał tego wyprodukować. Dopiero Howard Florey i Ernst Chain w Oksfordzie (1940) oczyścili penicylinę i pokazali, że leczy zakażenia. Na lądowanie w Normandii w 1944 r. przygotowano ok. 2,3 mln dawek.',
-      'W 1945 r. cała trójka dostała Nagrodę Nobla. Przed antybiotykami zwykłe zadrapanie czy zapalenie płuc potrafiło zabić.',
-    ],
-    src: 'Nobel Prize 1945; American Chemical Society, National Historic Chemical Landmark',
-  },
   {
     id: 'm-ospa', cat: 'medycyna', topic: 'Koniec ospy',
     teaser: 'Choroba, która w XX wieku zabiła więcej ludzi niż wszystkie wojny razem, dziś istnieje tylko w dwóch zamrażarkach.',
@@ -193,17 +152,6 @@ export const FACT_LIST: Fact[] = [
       'Placebo nie zmniejsza guzów ani nie zabija bakterii, ale realnie wpływa na odczuwanie bólu, zmęczenia czy dolegliwości jelitowych.',
     ],
     src: 'Kaptchuk i in., PLoS ONE 2010; Carvalho i in., Pain 2016',
-  },
-  {
-    id: 'm-watroba', cat: 'medycyna', topic: 'Wątroba odrasta',
-    teaser: 'Możesz oddać ponad połowę wątroby — a po kilku tygodniach będzie prawie jak nowa.',
-    nums: [{ v: '~30%', l: 'wątroby wystarczy, by odrosła' }, { v: '~8 tyg.', l: 'do niemal pełnej objętości' }],
-    body: [
-      'Wątroba to jedyny narząd wewnętrzny człowieka, który odbudowuje utraconą masę. Po usunięciu nawet ok. 70% zdrowej wątroby pozostałe komórki zaczynają się dzielić w ciągu dni.',
-      'Na tym opiera się przeszczep od żywego dawcy: dawca oddaje część narządu, a u obojga — dawcy i biorcy — wątroba w ciągu kilku tygodni wraca do niemal pełnej objętości.',
-      'Grecy jakby to przeczuwali: w micie orzeł codziennie wyjadał Prometeuszowi wątrobę, a ta w nocy odrastała.',
-    ],
-    src: 'Michalopoulos, Hepatology 2017',
   },
   {
     id: 'm-opornosc', cat: 'medycyna', topic: 'Bakterie oporne',
@@ -252,17 +200,6 @@ export const FACT_LIST: Fact[] = [
 
   // ───────── MATERIAŁY ─────────
   {
-    id: 'mat-grafen', cat: 'materialy', topic: 'Grafen z taśmy',
-    teaser: 'Najmocniejszy znany materiał odkryto przy pomocy zwykłej taśmy klejącej.',
-    nums: [{ v: '0,34 nm', l: 'grubość — jeden atom' }, { v: '~130 GPa', l: 'wytrzymałość na rozciąganie' }, { v: '2010', l: 'Nobel z fizyki' }],
-    body: [
-      'Andre Geim i Konstantin Novoselov w 2004 r. odrywali taśmą warstwy z grafitu (jak w ołówku), aż zostawała pojedyncza warstwa atomów węgla ułożonych w sześciokąty.',
-      'Grafen ma wytrzymałość ok. 130 GPa — kilkadziesiąt do kilkuset razy więcej niż stal (zależnie od gatunku) — i świetnie przewodzi ciepło i prąd. Nobel przyszedł już w 2010 r.',
-      'Geim jest jedynym człowiekiem z Noblem i satyrycznym Ig Noblem: ten drugi dostał w 2000 r. za lewitującą w polu magnetycznym żabę.',
-    ],
-    src: 'Lee i in., Science 2008; Nobel Prize 2010',
-  },
-  {
     id: 'mat-beton-rzymski', cat: 'materialy', topic: 'Samoleczący się beton',
     teaser: 'Rzymski beton sam łata swoje pęknięcia — dlatego Panteon stoi od prawie 1900 lat.',
     nums: [{ v: '43,3 m', l: 'średnica kopuły Panteonu' }, { v: '~1900 lat', l: 'bez zbrojenia' }],
@@ -294,17 +231,6 @@ export const FACT_LIST: Fact[] = [
       'Dlatego szkło telefonu częściej pęka od uderzenia w krawędź niż od nacisku na środek.',
     ],
     src: 'Corning Inc., historia Gorilla Glass; Varshneya, Int. J. Applied Glass Science 2010',
-  },
-  {
-    id: 'mat-aluminium', cat: 'materialy', topic: 'Metal dla cesarza',
-    teaser: 'Aluminium było kiedyś tak cenne, że najważniejsi goście Napoleona III jedli aluminiowymi sztućcami, a reszta złotymi.',
-    nums: [{ v: '1886', l: 'tania metoda elektrolizy' }, { v: '~5%', l: 'energii potrzeba na recykling' }],
-    body: [
-      'Aluminium to najczęstszy metal w skorupie ziemskiej, ale trudno go oddzielić od tlenu. W XIX w. było droższe od złota — w 1884 r. czubek pomnika Waszyngtona odlano z ok. 2,8 kg aluminium jako symbolu luksusu.',
-      'W 1886 r. Charles Hall i Paul Héroult niezależnie wymyślili elektrolizę tlenku glinu w stopionym kriolicie. Cena spadła tak bardzo, że aluminium stało się materiałem na puszki.',
-      'Recykling aluminium wymaga tylko ok. 5% energii potrzebnej do produkcji z rudy — dlatego zbieranie puszek naprawdę ma sens.',
-    ],
-    src: 'American Chemical Society; International Aluminium Institute',
   },
   {
     id: 'mat-pajeczyna', cat: 'materialy', topic: 'Najmocniejsza pajęczyna',
@@ -364,39 +290,6 @@ export const FACT_LIST: Fact[] = [
 
   // ───────── KOSMOS ─────────
   {
-    id: 'k-swiatlo-slonca', cat: 'kosmos', topic: 'Stare światło Słońca',
-    teaser: 'Światło Słońca leci do nas 8 minut — ale wydostanie się z jego wnętrza zajęło mu dziesiątki tysięcy lat.',
-    nums: [{ v: '8 min 20 s', l: 'lot światła ze Słońca do Ziemi' }, { v: '10–170 tys. lat', l: 'droga energii z jądra na powierzchnię' }],
-    body: [
-      'Ze Słońca do Ziemi jest średnio 150 mln km, więc światło leci ok. 8 minut i 20 sekund.',
-      'Ale energia powstaje w jądrze Słońca. Tam materia jest tak gęsta, że foton przelatuje ułamek milimetra, jest pochłaniany i wysyłany w losowym kierunku. Takie „błądzenie” trwa według różnych szacunków od 10 do 170 tysięcy lat.',
-      'Ciepło, które czujesz dziś na twarzy, powstało w jądrze Słońca jeszcze przed wynalezieniem rolnictwa.',
-    ],
-    src: 'NASA; Mitalas & Sills, Astrophysical Journal 1992',
-  },
-  {
-    id: 'k-iss', cat: 'kosmos', topic: '16 wschodów dziennie',
-    teaser: 'Astronauci na ISS widzą 16 wschodów i 16 zachodów Słońca w ciągu jednej doby.',
-    nums: [{ v: '~28 000 km/h', l: 'prędkość ISS' }, { v: '~92 min', l: 'jedno okrążenie Ziemi' }, { v: '~400 km', l: 'wysokość orbity' }],
-    body: [
-      'Międzynarodowa Stacja Kosmiczna leci z prędkością ok. 7,7 km/s, czyli ok. 28 000 km/h. Z Warszawy do Krakowa doleciałaby w ok. 35 sekund.',
-      'Jedno okrążenie zajmuje ok. 92 minuty, więc w ciągu doby wypada ok. 16 wschodów i zachodów. Załoga żyje według czasu Greenwich i zasłania okna do snu.',
-      'ISS jest tylko ok. 400 km nad Ziemią — mniej niż z Warszawy do Szczecina w linii prostej. W dobrych warunkach widać ją gołym okiem jako szybko lecącą jasną kropkę.',
-    ],
-    src: 'NASA, ISS Facts and Figures',
-  },
-  {
-    id: 'k-wenus', cat: 'kosmos', topic: 'Najdłuższa doba Wenus',
-    teaser: 'Na Wenus szybciej mija rok niż jedna doba — a Słońce wschodzi na zachodzie.',
-    nums: [{ v: '243 dni', l: 'jeden obrót wokół osi' }, { v: '225 dni', l: 'jeden rok' }, { v: '465 °C', l: 'temperatura powierzchni' }],
-    body: [
-      'Wenus obraca się wokół osi raz na 243 ziemskie dni, a wokół Słońca okrąża w 225 dni. Do tego kręci się „do tyłu” niż prawie wszystkie planety, więc Słońce wschodzi tam na zachodzie.',
-      'To najgorętsza planeta Układu Słonecznego (ok. 465 °C) — gorętsza niż Merkury, choć jest dwa razy dalej od Słońca. Gęsta atmosfera z CO₂ działa jak ekstremalna szklarnia.',
-      'Ciśnienie na powierzchni to ok. 92 atmosfery — jak na głębokości 900 m w oceanie. Radzieckie lądowniki Wenera przetrwały tam najwyżej ok. 2 godziny.',
-    ],
-    src: 'NASA Venus Fact Sheet',
-  },
-  {
     id: 'k-voyager', cat: 'kosmos', topic: 'Dzień świetlny Voyagera',
     teaser: 'Właśnie teraz sonda z 1977 r. staje się pierwszym obiektem ludzi oddalonym od Ziemi o cały dzień świetlny.',
     nums: [{ v: '1977', l: 'start Voyagera 1' }, { v: '~17 km/s', l: 'prędkość względem Słońca' }, { v: '~25,9 mld km', l: 'jeden dzień świetlny' }],
@@ -417,17 +310,6 @@ export const FACT_LIST: Fact[] = [
       'Niektóre gwiazdy neutronowe wirują jak bąki. Rekordzista PSR J1748−2446ad obraca się 716 razy na sekundę — jego równik pędzi z prędkością ponad 40 000 km/s.',
     ],
     src: 'NASA Goddard; Hessels i in., Science 2006',
-  },
-  {
-    id: 'k-ksiezyc', cat: 'kosmos', topic: 'Księżyc odpływa',
-    teaser: 'Księżyc co roku oddala się od nas mniej więcej o tyle, ile rosną twoje paznokcie.',
-    nums: [{ v: '3,8 cm', l: 'oddalania się rocznie' }, { v: '1969', l: 'pierwsze lustra na Księżycu (Apollo 11)' }],
-    body: [
-      'Astronauci Apollo 11, 14 i 15 zostawili na Księżycu lustra-retroreflektory. Obserwatoria na Ziemi strzelają w nie laserem i mierzą czas powrotu światła z dokładnością do milimetrów.',
-      'Pomiary pokazują, że Księżyc oddala się ok. 3,8 cm rocznie. Przyczyną są pływy: Księżyc spowalnia obrót Ziemi, a ona w zamian „wypycha” go na wyższą orbitę.',
-      'Za kilkaset milionów lat Księżyc będzie za mały na niebie, żeby całkowicie zasłonić Słońce — skończą się całkowite zaćmienia.',
-    ],
-    src: 'NASA Lunar Laser Ranging; Williams & Boggs, J. Geodesy 2016',
   },
   {
     id: 'k-mars', cat: 'kosmos', topic: 'Niebieski zachód Marsa',
@@ -487,17 +369,6 @@ export const FACT_LIST: Fact[] = [
     src: 'NOAA Ocean Service; Chisholm i in., Nature 1988',
   },
   {
-    id: 's-piorun', cat: 'swiat', topic: 'Gorętszy niż Słońce',
-    teaser: 'Kanał błyskawicy nagrzewa się 5 razy bardziej niż powierzchnia Słońca.',
-    nums: [{ v: '~30 000 °C', l: 'temperatura kanału pioruna' }, { v: '~5 500 °C', l: 'powierzchnia Słońca' }, { v: '~44/s', l: 'wyładowań na całej Ziemi' }],
-    body: [
-      'Powietrze w kanale pioruna nagrzewa się w ułamku sekundy do ok. 30 000 °C. Gwałtownie się rozszerza i tworzy falę uderzeniową — to grzmot.',
-      'Satelity NASA liczą ok. 44 wyładowania na sekundę na całej Ziemi, czyli ok. 1,4 mld rocznie. Najwięcej nad jeziorem Maracaibo w Wenezueli.',
-      'Lifehack: dźwięk leci ok. 1 km w 3 sekundy. Policz sekundy od błysku do grzmotu i podziel przez 3 — masz odległość w km.',
-    ],
-    src: 'NOAA National Severe Storms Laboratory; NASA LIS/OTD',
-  },
-  {
     id: 's-drzewa', cat: 'swiat', topic: 'Trzy biliony drzew',
     teaser: 'Na Ziemi rośnie ok. 400 drzew na każdego człowieka — i jest ich prawie połowę mniej niż na początku rolnictwa.',
     nums: [{ v: '~3 bln', l: 'drzew na Ziemi (3 × 10¹²)' }, { v: '~422', l: 'drzew na człowieka' }, { v: '−46%', l: 'od początku rolnictwa' }],
@@ -518,17 +389,6 @@ export const FACT_LIST: Fact[] = [
       'Największym znanym organizmem na Ziemi jest opieńka ciemna (Armillaria ostoyae) w Oregonie: jeden osobnik zajmuje pod ziemią ok. 9,6 km² — więcej niż 1 300 boisk piłkarskich.',
     ],
     src: 'Baldauf & Palmer, PNAS 1993; Ferguson i in., Can. J. Forest Research 2003',
-  },
-  {
-    id: 's-lod', cat: 'swiat', topic: 'Dlaczego lód pływa',
-    teaser: 'Gdyby woda zachowywała się jak prawie każda inna substancja, jeziora zamarzałyby od dna i ryby by nie przeżyły.',
-    nums: [{ v: '~4 °C', l: 'woda jest wtedy najgęstsza' }, { v: '~9%', l: 'lód jest lżejszy od wody' }],
-    body: [
-      'Większość substancji w stanie stałym jest gęstsza niż w ciekłym. Woda jest wyjątkiem: cząsteczki w lodzie ustawiają się w ażurową sieć wiązań wodorowych, która zajmuje więcej miejsca.',
-      'Dlatego lód jest o ok. 9% mniej gęsty i pływa. Najgęstsza jest woda w ok. 4 °C — opada na dno, a lód tworzy się od góry jak izolująca pokrywa.',
-      'Ta sama rozszerzalność rozsadza butelki w zamrażarce i kruszy skały, gdy woda zamarza w szczelinach.',
-    ],
-    src: 'USGS Water Science School',
   },
   {
     id: 's-sahara', cat: 'swiat', topic: 'Sahara nawozi Amazonię',
@@ -574,17 +434,6 @@ export const FACT_LIST: Fact[] = [
     ],
     src: 'Meyers & Malinverno, PNAS 2018; Stephenson i in., Proc. Royal Society A 2016',
   },
-  {
-    id: 's-niebo', cat: 'swiat', topic: 'Błękit nieba',
-    teaser: 'Niebo powinno być fioletowe — ratują je nasze oczy.',
-    nums: [{ v: '~5,8×', l: 'mocniej rozpraszane jest niebieskie (450 nm) niż czerwone (700 nm)' }, { v: '1/λ⁴', l: 'prawo Rayleigha' }],
-    body: [
-      'Cząsteczki powietrza rozpraszają światło tym mocniej, im krótsza fala — proporcjonalnie do 1/λ⁴. Niebieskie (450 nm) rozprasza się ok. 5,8 raza mocniej niż czerwone (700 nm).',
-      'Fiolet rozprasza się jeszcze mocniej, ale Słońce wysyła go mniej, część pochłania atmosfera, a nasze czopki są na niego słabo czułe. Mózg sumuje wszystko i widzi błękit.',
-      'O zachodzie światło przechodzi przez dużo grubszą warstwę powietrza — niebieskie zostaje rozproszone po drodze, a do oczu dociera pomarańczowe i czerwone.',
-    ],
-    src: 'Rayleigh, Philosophical Magazine 1871; NASA Space Place',
-  },
 
   // ───────── LIFEHACKI ─────────
   {
@@ -599,17 +448,6 @@ export const FACT_LIST: Fact[] = [
     src: 'Allen, Getting Things Done 2001; Masicampo & Baumeister, JPSP 2011',
   },
   {
-    id: 'l-pomodoro', cat: 'lifehacki', topic: 'Pomidorowy timer',
-    teaser: 'Jedna z najpopularniejszych metod produktywności wzięła nazwę od kuchennego minutnika w kształcie pomidora.',
-    nums: [{ v: '25 + 5', l: 'minut pracy + przerwy' }, { v: '4', l: 'cykle, potem dłuższa przerwa' }],
-    body: [
-      'Francesco Cirillo pod koniec lat 80. jako student mierzył czas nauki minutnikiem w kształcie pomidora (wł. „pomodoro”). Schemat: 25 minut skupienia, 5 minut przerwy, po 4 cyklach 15–30 minut przerwy.',
-      'Metaanaliza Albulescu i in. (PLoS ONE 2022) pokazała, że nawet krótkie mikroprzerwy (do 10 min) wyraźnie zwiększają energię i zmniejszają zmęczenie.',
-      'Najlepsza przerwa jest „analogowa”: wstań, przejdź się, popatrz w dal — nie scrolluj telefonu.',
-    ],
-    src: 'Cirillo, The Pomodoro Technique; Albulescu i in., PLoS ONE 2022',
-  },
-  {
     id: 'l-chlodzenie', cat: 'lifehacki', topic: 'Napój zimny błyskawicznie',
     teaser: 'Zapomniałeś schłodzić napój? Lód, woda i sól zrobią to szybciej niż zamrażarka.',
     nums: [{ v: 'do −10 °C', l: 'może osiągnąć woda z lodem i solą' }, { v: '~5 min', l: 'zamiast ok. 30 w zamrażarce' }],
@@ -619,17 +457,6 @@ export const FACT_LIST: Fact[] = [
       'Zanurz puszkę lub butelkę w misce z lodem, wodą i 2–3 garściami soli i co chwilę nią obracaj. Po kilku minutach napój jest zimny.',
     ],
     src: 'Zasady termodynamiki (obniżenie temperatury topnienia roztworu)',
-  },
-  {
-    id: 'l-cykle-snu', cat: 'lifehacki', topic: 'Cykle snu',
-    teaser: 'Pobudka po 7,5 godzinach może dać lepsze samopoczucie niż po 8.',
-    nums: [{ v: '~90 min', l: 'średni cykl snu (zakres 70–120)' }, { v: '5', l: 'cykli to 7,5 h' }, { v: '~15 min', l: 'na zaśnięcie' }],
-    body: [
-      'Sen składa się z cykli: lekki sen, głęboki, potem REM. Jeden trwa średnio ok. 90 minut, w nocy jest ich 4–6.',
-      'Przebudzenie w głębokim śnie daje „inercję snu” — ciężką głowę i otępienie na kilkanaście minut. Pod koniec cyklu sen jest płytszy, a wstać łatwiej.',
-      'Licz wstecz od pobudki w krokach po 90 min i dodaj ok. 15 min na zaśnięcie. Twój zegarek w zakładce Sen pokazuje, jak wyglądają twoje własne cykle.',
-    ],
-    src: 'Carskadon & Dement, Principles and Practice of Sleep Medicine; Tassi & Muzet, Sleep Medicine Reviews 2000',
   },
   {
     id: 'l-bateria', cat: 'lifehacki', topic: 'Bateria 20–80%',
@@ -665,17 +492,6 @@ export const FACT_LIST: Fact[] = [
     src: 'Ebbinghaus, Über das Gedächtnis 1885; Murre & Dros, PLoS ONE 2015 (replikacja)',
   },
   {
-    id: 'l-20-20-20', cat: 'lifehacki', topic: 'Reguła 20-20-20',
-    teaser: 'Przy ekranie mrugasz nawet 3 razy rzadziej — stąd suche, zmęczone oczy.',
-    nums: [{ v: '20-20-20', l: 'co 20 min, 6 m dalej, przez 20 s' }, { v: '~15 → 5', l: 'mrugnięć na minutę przy ekranie' }],
-    body: [
-      'Normalnie mrugamy ok. 15 razy na minutę. Przy skupieniu na ekranie liczba potrafi spaść do ok. 5–7, więc film łzowy wysycha.',
-      'Amerykańska Akademia Okulistyki zaleca regułę 20-20-20: co 20 minut popatrz przez 20 sekund na coś oddalonego o 20 stóp (ok. 6 m).',
-      'Mięsień rzęskowy, który ustawia ostrość z bliska, wtedy się rozluźnia. Pomaga też kilka świadomych, pełnych mrugnięć.',
-    ],
-    src: 'American Academy of Ophthalmology; Patel i in., Optometry and Vision Science 1991',
-  },
-  {
     id: 'l-telefon-obok', cat: 'lifehacki', topic: 'Telefon za drzwi',
     teaser: 'Sam widok telefonu na biurku — nawet wyciszonego i ekranem w dół — obniża twoją pamięć roboczą.',
     nums: [{ v: '~800', l: 'badanych w eksperymentach' }, { v: '3', l: 'warunki: biurko, kieszeń, inny pokój' }],
@@ -685,17 +501,6 @@ export const FACT_LIST: Fact[] = [
       'Hipoteza „drenażu mózgu”: część uwagi cały czas zajmuje pilnowanie, żeby nie sięgnąć po telefon. Do nauki i głębokiej pracy — telefon za drzwi.',
     ],
     src: 'Ward i in., Journal of the Association for Consumer Research 2017',
-  },
-  {
-    id: 'l-mycie-rak', cat: 'lifehacki', topic: 'Śpiewaj „Sto lat”',
-    teaser: 'Mydło niszczy wirusy mechanicznie — ale potrzebuje na to 20 sekund.',
-    nums: [{ v: '20 s', l: 'minimalny czas mycia' }, { v: '2×', l: '„Sto lat” od początku do końca' }],
-    body: [
-      'Cząsteczki mydła mają jeden koniec lubiący wodę, a drugi tłuszcz. Wbijają się w tłuszczową otoczkę wielu wirusów (grypy, koronawirusów) i rozrywają ją.',
-      'To trwa — dlatego CDC i WHO zalecają co najmniej 20 sekund pocierania, łącznie z kciukami, przestrzeniami między palcami i pod paznokciami.',
-      'Dwa razy zaśpiewane „Sto lat” to mniej więcej 20 sekund. Potem dokładnie osusz ręce — mokre łatwiej przenoszą bakterie.',
-    ],
-    src: 'CDC, Handwashing; WHO Hand Hygiene Guidelines 2009',
   },
 
   // ───────── TECHNOLOGIE ─────────
@@ -786,17 +591,6 @@ export const FACT_LIST: Fact[] = [
       'Denso nie egzekwowało patentu, więc każdy mógł używać QR za darmo.',
     ],
     src: 'Denso Wave, QRcode.com; ISO/IEC 18004',
-  },
-  {
-    id: 't-bug', cat: 'tech', topic: 'Pierwszy prawdziwy bug',
-    teaser: 'Pierwszy „bug” w komputerze był prawdziwym owadem — przyklejonym taśmą do dziennika.',
-    nums: [{ v: '9.09.1947', l: 'ćma w komputerze Mark II' }, { v: '15:45', l: 'godzina wpisu w dzienniku' }],
-    body: [
-      'Zespół Harvardu, w którym pracowała Grace Hopper, szukał usterki w komputerze Mark II. W przekaźniku nr 70 znaleźli ćmę.',
-      'Przykleili ją do dziennika z dopiskiem „First actual case of bug being found” — pierwszy prawdziwy przypadek znalezienia robaka. Słowo „bug” na usterki było już w użyciu (używał go Edison), stąd żart.',
-      'Strona dziennika z ćmą jest dziś w Smithsonian National Museum of American History w Waszyngtonie.',
-    ],
-    src: 'Smithsonian National Museum of American History',
   },
   {
     id: 't-centra-danych', cat: 'tech', topic: 'Głodne centra danych',
@@ -1050,17 +844,6 @@ export const FACT_LIST: Fact[] = [
 
   // ───────── KOSMOS ─────────
   {
-    id: 'k2-saturn', cat: 'kosmos', topic: 'Saturn by pływał',
-    teaser: 'Saturn jest lżejszy od wody — gdyby znalazła się dość duża wanna, unosiłby się na powierzchni.',
-    nums: [{ v: '0,69 g/cm³', l: 'średnia gęstość (woda: 1,0)' }, { v: '~10 m', l: 'typowa grubość pierścieni' }, { v: '~280 tys. km', l: 'średnica pierścieni' }],
-    body: [
-      'Saturn to głównie wodór i hel. Jego średnia gęstość to ok. 0,69 g/cm³ — najmniejsza w Układzie Słonecznym i mniejsza niż wody.',
-      'Pierścienie mają średnicę ok. 280 tys. km, ale grubość w większości tylko ok. 10 metrów (miejscami do kilometra). W skali kartki papieru byłyby wielokrotnie cieńsze od niej.',
-      'Pierścienie to głównie kawałki lodu — od ziaren pyłu po bryły wielkości domu. Z czasem opadają na planetę, więc za kilkaset milionów lat mogą zniknąć.',
-    ],
-    src: 'NASA Saturn Fact Sheet; NASA Cassini',
-  },
-  {
     id: 'k2-olympus', cat: 'kosmos', topic: 'Góra na Marsie',
     teaser: 'Najwyższa góra Układu Słonecznego jest prawie trzy razy wyższa od Everestu i szeroka jak Polska.',
     nums: [{ v: '~22 km', l: 'wysokość Olympus Mons' }, { v: '~600 km', l: 'średnica podstawy' }, { v: '8,8 km', l: 'Mount Everest' }],
@@ -1149,17 +932,6 @@ export const FACT_LIST: Fact[] = [
       'Ośmiornice odkręcają słoiki, uciekają z akwariów i rozpoznają ludzi. Ich ostatni wspólny przodek z nami żył ok. 600 mln lat temu — inteligencja wyewoluowała u nich zupełnie niezależnie.',
     ],
     src: 'Hochner, Current Biology 2012; Godfrey-Smith, „Other Minds” 2016',
-  },
-  {
-    id: 's2-ptaki-dinozaury', cat: 'swiat', topic: 'Kura i tyranozaur',
-    teaser: 'Dinozaury nie wymarły całkiem — jesz je na obiad.',
-    nums: [{ v: '~11 tys.', l: 'gatunków ptaków' }, { v: '66 mln lat', l: 'od wymarcia pozostałych dinozaurów' }],
-    body: [
-      'Ptaki wyewoluowały z małych, opierzonych dinozaurów drapieżnych (teropodów) — tej samej grupy, do której należał tyranozaur. W klasyfikacji biologicznej ptaki są dinozaurami.',
-      'W 2007 r. z kości T. rexa wyizolowano fragmenty białka kolagenu. Ich sekwencja najbardziej przypominała białka kury (Asara i in., Science).',
-      'Gdy 66 mln lat temu uderzyła asteroida, przeżyły tylko niektóre linie ptaków. Dziś to ok. 11 tysięcy gatunków — więcej niż ssaków.',
-    ],
-    src: 'Asara i in., Science 2007; Brusatte i in., Current Biology 2015',
   },
   {
     id: 's2-niesporczaki', cat: 'swiat', topic: 'Niezniszczalne niesporczaki',
@@ -1307,17 +1079,6 @@ export const FACT_LIST: Fact[] = [
       'W Polsce mówimy „małpa”, Czesi „zavináč” (śledź w zawijasie), Holendrzy „apenstaartje” (małpi ogonek). Dziś na świecie wysyła się ok. 350 miliardów maili dziennie.',
     ],
     src: 'Smithsonian; Radicati Group, Email Statistics Report 2023',
-  },
-  {
-    id: 't2-bluetooth', cat: 'tech', topic: 'Król Sinozęby',
-    teaser: 'Bluetooth nosi imię duńskiego króla z X wieku, a jego logo to inicjały zapisane runami.',
-    nums: [{ v: '~958', l: 'początek panowania Haralda' }, { v: '1998', l: 'powstaje Bluetooth SIG' }],
-    body: [
-      'Harald Sinozęby (Harald Blåtand) zjednoczył skłócone plemiona Danii i Norwegii. Inżynier Intela Jim Kardach zaproponował jego imię jako roboczą nazwę technologii, która miała „zjednoczyć” telefony i komputery.',
-      'Nazwa miała być tymczasowa, ale lepsze propozycje odpadły z powodów prawnych i została na stałe.',
-      'Logo to połączenie dwóch run nordyckich: ᚼ (H) i ᛒ (B) — inicjałów króla.',
-    ],
-    src: 'Bluetooth SIG, „Origin of the Bluetooth name”',
   },
   {
     id: 't2-pierwszy-dysk', cat: 'tech', topic: 'Dysk ważący tonę',
