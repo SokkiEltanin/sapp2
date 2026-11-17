@@ -31,6 +31,7 @@ import { workMonthProgress } from '@/utils/workMonth';
 import { upcomingPayments } from '@/utils/recurringBills';
 import { accountBalance, affectsBalance } from '@/utils/balance';
 import { isOwnTransfer } from '@/utils/fixedVariable';
+import { txDetail, txColor } from '@/utils/txGroup';
 import { useBalanceStore } from '@/store/balanceStore';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
 import { haptic } from '@/utils/haptics';
@@ -73,6 +74,23 @@ import type { Expense } from '@/types/finances';
 function parseZl(s: string): number {
   const v = parseFloat(s.replace(/[^\d,−-]/g, '').replace(',', '.').replace('−', '-'));
   return Number.isFinite(v) ? v : 0;
+}
+// Pasek kategorii: 6 największych + reszta szarą "inne" (było kilkanaście kolorów naraz).
+function topParts(bars: { label: string; amount: number; color: string }[]) {
+  const sorted = [...bars].sort((a, b) => b.amount - a.amount);
+  const top = sorted.slice(0, 6).map((c) => ({ label: c.label, value: c.amount, color: c.color }));
+  const rest = sorted.slice(6).reduce((a, c) => a + c.amount, 0);
+  return rest > 0 ? [...top, { label: 'Inne', value: rest, color: '#3A3A3A' }] : top;
+}
+// "dziś 12:23" / "wczoraj 14:58" / "16.11" — data na liście ostatnich transakcji.
+function txWhen(iso: string): string {
+  const d = iso.slice(0, 10);
+  const t = iso.length > 10 ? iso.slice(11, 16) : '';
+  const now = new Date();
+  const ymd = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+  const y = new Date(now); y.setDate(y.getDate() - 1);
+  const day = d === ymd(now) ? 'dziś' : d === ymd(y) ? 'wczoraj' : `${d.slice(8, 10)}.${d.slice(5, 7)}`;
+  return t ? `${day} ${t}` : day;
 }
 function fmtAmount(n: number): string {
   return money(Math.abs(n));
@@ -350,7 +368,7 @@ export default function FinancesScreen() {
             <Text style={[T.small, s.emptyInline]}>Brak w tym miesiącu</Text>
           ) : (
             <TouchableOpacity onPress={() => { if (catTab === 'income') setTrendOpen(true); else { setWydatkiTab(catTab); setWydatkiOpen(true); } }} activeOpacity={0.7} style={s.barSpace}>
-              <StackBar parts={catBars.map((c) => ({ label: c.label, value: c.amount, color: c.color }))} height={10} legendMax={3} />
+              <StackBar parts={topParts(catBars)} height={10} legendMax={3} />
             </TouchableOpacity>
           )}
         </Tile>
@@ -442,12 +460,19 @@ export default function FinancesScreen() {
             data={recent}
             emptyText="Brak transakcji — dodaj pierwszą przyciskiem +"
             renderItem={(e) => (
+              // Wiersz jak w liście Transakcji (2026-11-17, user: "coś mi nie gra z Finansami"):
+              // bez białej pigułki i surowej daty ISO — pasek kubła, nazwa, co w środku, kwota.
               <Item onPress={() => setEditingExpense(e)}>
-                <Price amount={e.type === 'income' ? e.amount : -e.amount} fx={pendingFxOf(e)} />
+                <View style={[s.txBar, { backgroundColor: txColor(e) }]} />
                 <View style={s.txTextCol}>
                   <Text style={T.row} numberOfLines={1}>{e.storeName || e.note || (isOwnTransfer(e) ? 'Przelew własny' : e.type === 'income' ? 'Przychód' : 'Wydatek')}</Text>
-                  <Text style={T.rowSub} numberOfLines={1}>{e.date}</Text>
+                  <Text style={T.rowSub} numberOfLines={1}>{[txWhen(e.date), txDetail(e)].filter(Boolean).join(' · ')}</Text>
                 </View>
+                {pendingFxOf(e) ? <Price amount={0} fx={pendingFxOf(e)} /> : (
+                  <Text style={[s.txAmt, e.type === 'income' && { color: C.ok }, isOwnTransfer(e) && { color: C.mut }]}>
+                    {e.type === 'income' ? '+' : '−'}{money(e.amount)}
+                  </Text>
+                )}
               </Item>
             )}
           />
@@ -569,6 +594,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
   workHoursText: { fontSize: 10, fontFamily: 'Inter_700Bold', color: C.txt, fontVariant: ['tabular-nums'] },
 
   txTextCol: { flex: 1, minWidth: 0 },
+  txBar: { width: 3, alignSelf: 'stretch', borderRadius: 2, marginVertical: 2 },
+  txAmt: { fontSize: 13, fontFamily: 'Inter_900Black', color: C.hi, fontVariant: ['tabular-nums'] },
 
   fab: {
     position: 'absolute', right: spacing[4], bottom: spacing[4],

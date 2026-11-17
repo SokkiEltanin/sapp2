@@ -13,7 +13,7 @@ import { computeRecords, bestRecord, recordSig, RECORD_DEFS, type RecordDef, typ
 import { fmtDur } from '@/utils/sleepStats';
 import { openPicker } from '@/services/picker';
 import { haptic } from '@/utils/haptics';
-import { zl } from '@/utils/money';
+import { zl, money } from '@/utils/money';
 
 // Kolekcja (2026-11-17): Karty miesięcy (utils/monthCards.ts) i Rekordy (utils/records.ts).
 // Otwierana z kafla "Miesiąc" w Daily (przycisk "karty") i SAMA 1. dnia miesiąca, gdy
@@ -62,73 +62,60 @@ export default function CollectionSheet({ visible, onClose, highlight }: { visib
   );
 }
 
+// Karta w stylu kafla "Miesiąc" z Daily (2026-11-17, user: "za duży kontrast, nieczytelne —
+// zobacz, jak ładnie wygląda Daily"): jedna duża liczba, cienkie paski z wartościami po
+// prawej, wszystko poza liczbami w szarościach, kolor tylko jako akcent (delta, bilans).
 export function MonthCardView({ card: c, fresh }: { card: MonthCard; fresh?: boolean }) {
   const s = makeS();
-  const accent = c.income > 0 ? (c.balance >= 0 ? colors.accent.green : colors.accent.red) : colors.text.muted;
-  const parts = [
-    { l: 'Stałe', v: c.fixed, col: '#60A5FA' },
-    { l: 'Zmienne', v: c.variable, col: '#C084FC' },
-    { l: 'Jedzenie', v: c.food, col: '#FBBF24' },
+  const max = Math.max(c.fixed, c.variable, c.food, 1);
+  const rows: { l: string; v: number; col: string; show: boolean }[] = [
+    { l: 'Stałe', v: c.fixed, col: '#60A5FA', show: true },
+    { l: 'Zmienne', v: c.variable, col: '#A78BFA', show: true },
+    { l: 'Jedzenie', v: c.food, col: '#FBBF24', show: true },
+    { l: 'Słodycze', v: c.sweets, col: '#FB7185', show: c.sweets > 0 },
+    { l: 'Prąd', v: c.prad, col: '#FACC15', show: c.prad > 0 },
   ];
+  const delta = c.vsAvg == null ? null : { text: `${c.vsAvg > 0 ? '+' : ''}${c.vsAvg}% vs średnia`, color: Math.abs(c.vsAvg) < 5 ? colors.text.secondary : c.vsAvg < 0 ? colors.accent.green : colors.accent.orange };
+  const extra = [
+    c.income > 0 ? `wpływy ${money(c.income)}` : null,
+    c.steps != null ? `${c.steps.toLocaleString('pl-PL')} kroków/dzień` : null,
+    c.sleepMin != null ? `sen ${fmtDur(c.sleepMin)}` : null,
+  ].filter(Boolean).join(' · ');
   return (
-    <View style={[s.card, { borderColor: fresh ? colors.text.bright : accent + '66' }]}>
+    <View style={[s.card, fresh && s.cardFresh]}>
       <View style={s.cardHead}>
-        <Text style={s.cardMonth}>{c.label}</Text>
-        {fresh && <Text style={s.freshTag}>NOWA</Text>}
+        <Text style={s.cardMonth}>{c.label.charAt(0).toUpperCase() + c.label.slice(1)}</Text>
+        {fresh ? <Text style={s.freshTag}>nowa</Text> : c.badges[0] ? (
+          <View style={s.badge}><Trophy size={11} color="#FBBF24" /><Text style={s.badgeTxt}>{c.badges[0]}</Text></View>
+        ) : null}
       </View>
-      {c.badges.length > 0 && (
-        <View style={s.badges}>
-          {c.badges.map((b) => (
-            <View key={b} style={s.badge}><Trophy size={11} color="#FBBF24" /><Text style={s.badgeTxt}>{b}</Text></View>
-          ))}
-        </View>
-      )}
       <View style={s.bigRow}>
-        <FitText style={s.big} numberOfLines={1}>{zl(c.spent)}</FitText>
-        {c.vsAvg != null && (
-          <Text style={[s.vs, { color: c.vsAvg <= 0 ? colors.accent.green : colors.accent.orange }]}>{c.vsAvg > 0 ? '+' : ''}{c.vsAvg}% vs śr.</Text>
-        )}
+        <FitText style={s.big} numberOfLines={1}>{money(c.spent)}<Text style={s.bigUnit}> zł</Text></FitText>
+        {delta && <Text style={[s.vs, { color: delta.color }]}>{delta.text}</Text>}
       </View>
       <Text style={s.cap}>wydatki · {c.count} płatności</Text>
 
-      <View style={s.bar}>
-        {parts.filter((p) => p.v > 0).map((p) => <View key={p.l} style={{ flex: p.v, backgroundColor: p.col }} />)}
-      </View>
-      <View style={s.partsRow}>
-        {parts.map((p) => (
-          <View key={p.l} style={s.part}>
-            <View style={[s.dot, { backgroundColor: p.col }]} />
-            <Text style={s.partL}>{p.l}</Text>
-            <Text style={s.partV}>{zl(p.v)}</Text>
+      <View style={s.rowsBox}>
+        {rows.filter((r) => r.show).map((r) => (
+          <View key={r.l} style={s.prow}>
+            <Text style={s.plabel}>{r.l}</Text>
+            <View style={s.ptrack}><View style={[s.pfill, { width: `${Math.min(100, (r.v / max) * 100)}%`, backgroundColor: r.col }]} /></View>
+            <Text style={s.pvalue}>{money(r.v)}</Text>
           </View>
         ))}
+        {c.income > 0 && (
+          <View style={s.prow}>
+            <Text style={s.plabel}>Bilans</Text>
+            <View style={{ flex: 1 }} />
+            <Text style={[s.pvalue, { color: c.balance >= 0 ? colors.accent.green : colors.accent.orange }]}>{c.balance >= 0 ? '+' : '−'}{money(Math.abs(c.balance))}</Text>
+          </View>
+        )}
       </View>
 
-      <View style={s.grid}>
-        <Cell l="Wpływy" v={c.income > 0 ? zl(c.income) : '—'} />
-        <Cell l="Bilans" v={c.income > 0 ? `${c.balance >= 0 ? '+' : ''}${zl(c.balance)}` : '—'} color={c.income > 0 ? accent : undefined} />
-        <Cell l="Słodycze" v={zl(c.sweets)} />
-        <Cell l="Prąd" v={c.prad > 0 ? zl(c.prad) : '—'} />
-        <Cell l="Kroki / dzień" v={c.steps != null ? c.steps.toLocaleString('pl-PL') : '—'} />
-        <Cell l="Sen / noc" v={c.sleepMin != null ? fmtDur(c.sleepMin) : '—'} />
-      </View>
-
-      {c.top.length > 0 && (
-        <Text style={s.line}><Text style={s.lineL}>Najwięcej na: </Text>{c.top.map((t) => `${t.label} ${zl(t.v)}`).join(' · ')}</Text>
-      )}
-      {c.biggest && (
-        <Text style={s.line}><Text style={s.lineL}>Największy wydatek: </Text>{c.biggest.name} · {zl(c.biggest.amount)} · {c.biggest.date.slice(8, 10)}.{c.biggest.date.slice(5, 7)}</Text>
-      )}
-    </View>
-  );
-}
-
-function Cell({ l, v, color }: { l: string; v: string; color?: string }) {
-  const s = makeS();
-  return (
-    <View style={s.cell}>
-      <FitText style={[s.cellV, color ? { color } : null]} numberOfLines={1}>{v}</FitText>
-      <Text style={s.cellL} numberOfLines={1}>{l}</Text>
+      {extra ? <Text style={s.foot}>{extra}</Text> : null}
+      {c.top.length > 0 && <Text style={s.foot}>najwięcej: <Text style={s.footHi}>{c.top.map((t) => t.label).join(', ')}</Text></Text>}
+      {c.biggest && <Text style={s.foot} numberOfLines={1}>największy: <Text style={s.footHi}>{c.biggest.name} {money(c.biggest.amount)} zł</Text></Text>}
+      {c.badges.length > 1 && <Text style={s.foot}>🏆 {c.badges.slice(1).join(' · ')}</Text>}
     </View>
   );
 }
@@ -142,7 +129,7 @@ function RecordsView({ data }: { data: Partial<Record<RecordKey, Rec>> }) {
   const [edit, setEdit] = useState<RecordKey | null>(null);
 
   return (
-    <View>
+    <View style={s.recBox}>
       <Text style={s.note}>Liczone z Twoich danych. Pamiętasz lepszy wynik, którego appka nie zna? Stuknij ołówek i wpisz go — zostanie, dopóki go nie pobijesz.</Text>
       {RECORD_DEFS.map((def) => {
         const best = bestRecord(def, data[def.key], manual[def.key]);
@@ -170,13 +157,13 @@ function RecordsView({ data }: { data: Partial<Record<RecordKey, Rec>> }) {
                   )}
                 </View>
                 {best && (
-                  <TouchableOpacity style={[s.icon, isConfirmed && s.iconOn]} accessibilityLabel="Potwierdź rekord"
+                  <TouchableOpacity style={s.icon} hitSlop={6} accessibilityLabel="Potwierdź rekord"
                     onPress={() => { haptic.tap(); confirm(def.key, isConfirmed ? null : sig); }}>
-                    <Check size={15} color={isConfirmed ? colors.bg.primary : colors.text.secondary} />
+                    <Check size={16} color={isConfirmed ? colors.accent.green : colors.text.muted} />
                   </TouchableOpacity>
                 )}
-                <TouchableOpacity style={s.icon} onPress={() => { haptic.tap(); setEdit(def.key); }} accessibilityLabel="Edytuj rekord">
-                  <Pencil size={14} color={colors.text.secondary} />
+                <TouchableOpacity style={s.icon} hitSlop={6} onPress={() => { haptic.tap(); setEdit(def.key); }} accessibilityLabel="Edytuj rekord">
+                  <Pencil size={14} color={colors.text.muted} />
                 </TouchableOpacity>
               </View>
             )}
@@ -234,41 +221,38 @@ const makeS = themedStyles((c) => StyleSheet.create({
   tabTxt: { fontSize: 12.5, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary },
   tabTxtOn: { color: c.bg.primary },
   empty: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.muted, textAlign: 'center', paddingVertical: spacing[5] },
-  note: { fontSize: 11.5, lineHeight: 16, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginBottom: spacing[2] },
+  note: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_500Medium', color: c.text.muted, marginBottom: spacing[2], marginTop: spacing[1] },
 
-  card: { borderWidth: 1.5, borderRadius: radius.lg, padding: spacing[4], marginBottom: spacing[3], backgroundColor: c.bg.primary, gap: 6 },
-  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardMonth: { fontSize: 20, fontFamily: 'Inter_900Black', color: c.text.bright, textTransform: 'capitalize', letterSpacing: -0.4 },
-  freshTag: { fontSize: 10, fontFamily: 'Inter_900Black', color: c.bg.primary, backgroundColor: c.text.bright, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, overflow: 'hidden' },
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: '#FBBF2422' },
-  badgeTxt: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: '#FBBF24' },
-  bigRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing[2], marginTop: 4 },
-  big: { flex: 1, fontSize: 32, fontFamily: 'Inter_900Black', color: c.text.bright, letterSpacing: -1 },
-  vs: { fontSize: 12.5, fontFamily: 'Inter_800ExtraBold', paddingBottom: 6 },
-  cap: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: -4 },
-  bar: { flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: c.ui.in, marginTop: 6 },
-  partsRow: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 4 },
-  part: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  dot: { width: 7, height: 7, borderRadius: 4 },
-  partL: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
-  partV: { fontSize: 11.5, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
-  cell: { flexGrow: 1, flexBasis: '30%', minWidth: 90, backgroundColor: c.ui.in, borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 10 },
-  cellV: { fontSize: 15, fontFamily: 'Inter_900Black', color: c.text.bright, fontVariant: ['tabular-nums'] },
-  cellL: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 2 },
-  line: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_700Bold', color: c.text.primary, marginTop: 4 },
-  lineL: { fontFamily: 'Inter_600SemiBold', color: c.text.muted },
+  card: { backgroundColor: c.ui.in, borderRadius: 18, padding: spacing[4], marginBottom: spacing[3] },
+  cardFresh: { borderWidth: 1, borderColor: c.text.muted },
+  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2] },
+  cardMonth: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  freshTag: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  badgeTxt: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: '#D4B062' },
+  bigRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing[2], marginTop: 6 },
+  big: { flex: 1, fontSize: 34, fontFamily: 'Inter_900Black', color: c.text.bright, letterSpacing: -1.2, fontVariant: ['tabular-nums'] },
+  bigUnit: { fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.muted, letterSpacing: 0 },
+  vs: { fontSize: 11.5, fontFamily: 'Inter_800ExtraBold', paddingBottom: 7 },
+  cap: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
+  rowsBox: { gap: 8, marginTop: spacing[3], marginBottom: spacing[2] },
+  prow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], height: 18 },
+  plabel: { width: 70, fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  ptrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: c.ui.in2, overflow: 'hidden' },
+  pfill: { height: '100%', borderRadius: 3, opacity: 0.85 },
+  pvalue: { width: 74, textAlign: 'right', fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.text.bright, fontVariant: ['tabular-nums'] },
+  foot: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
+  footHi: { color: c.text.secondary },
 
-  rec: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.ui.line, gap: 4 },
+  recBox: { backgroundColor: c.ui.in, borderRadius: 18, paddingHorizontal: spacing[4], paddingVertical: spacing[2] },
+  rec: { paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.ui.line, gap: 2 },
   recHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  recLabel: { flex: 1, fontSize: 11.5, fontFamily: 'Inter_800ExtraBold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.4 },
-  newTag: { fontSize: 9.5, fontFamily: 'Inter_900Black', color: '#FBBF24' },
+  recLabel: { flex: 1, fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  newTag: { fontSize: 10, fontFamily: 'Inter_800ExtraBold', color: '#D4B062' },
   recRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  recValue: { fontSize: 20, fontFamily: 'Inter_900Black', color: c.text.bright, fontVariant: ['tabular-nums'] },
+  recValue: { fontSize: 17, fontFamily: 'Inter_900Black', color: c.text.bright, fontVariant: ['tabular-nums'] },
   recMeta: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
-  icon: { width: 34, height: 34, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, alignItems: 'center', justifyContent: 'center' },
-  iconOn: { backgroundColor: c.accent.green, borderColor: c.accent.green },
+  icon: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
   editor: { gap: spacing[2] },
   edRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   edUnit: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.muted },
