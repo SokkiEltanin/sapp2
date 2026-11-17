@@ -2,7 +2,7 @@ import FitText from '@/ui/FitText';
 import { incomeByCategory } from '@/utils/incomeCategory';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Plus, Package, Car, ChevronRight, RefreshCw, TrendingUp } from 'lucide-react-native';
 import TrendSheet from '@/components/finances/TrendSheet';
@@ -15,9 +15,9 @@ import { useQuickAdd, takeQuickAdd } from '@/services/quickAdd';
 import ProductsModal from '@/components/finances/ProductsModal';
 import TransactionsModal from '@/components/finances/TransactionsModal';
 import WydatkiModal from '@/components/dashboard/WydatkiModal';
-import BudgetSheet, { BudgetBar, budgetLine, levelColor } from '@/components/budgets/BudgetSheet';
+import BudgetSheet, { budgetLine } from '@/components/budgets/BudgetSheet';
 import { useBudgetsStore } from '@/store/budgetsStore';
-import { budgetStatuses, scopeLabel } from '@/utils/budgets';
+import { budgetStatuses, scopeLabel, type BudgetLevel } from '@/utils/budgets';
 import { variableByCategory } from '@/utils/expenseCategory';
 import { fixedByCategory } from '@/utils/fixedCategory';
 import { useCategoriesVersion } from '@/store/categoriesStore';
@@ -231,6 +231,8 @@ export default function FinancesScreen() {
   const budgets = useBudgetsStore((st) => st.budgets);
   const budgetStats = useMemo(() => budgetStatuses(budgets, expenses, now), [budgets, expenses, now]);
   const [budgetOpen, setBudgetOpen] = useState(false);
+  const [budgetSelId, setBudgetSelId] = useState<string | null>(null);
+  const budSel = budgetStats.find((b) => b.budget.id === budgetSelId) ?? budgetStats[0] ?? null;
   // Zakładka popupu Wydatki: "Podział" → Stałe, kafel Zmienne · kategorie → Zmienne.
   const [wydatkiTab, setWydatkiTab] = useState<'fixed' | 'variable' | 'food'>('fixed');
 
@@ -292,21 +294,40 @@ export default function FinancesScreen() {
         </Tile>
       </Row>
 
+      {/* Budżety (2026-11-17, user: "jak kategorie niżej — przełączam między limitami,
+          wypełnienie pigułki kolorem, czy przekroczyłem; szczegóły dopiero po wejściu; teraz
+          każdy kolejny limit wypycha Ostatnie transakcje w dół, a czerwony za bardzo krzyczy").
+          Stała wysokość: pigułki (tło = % limitu) + jedna linijka wybranego. */}
       <Row>
         <Tile span={4} onPress={() => { haptic.tap(); setBudgetOpen(true); }}>
-          <Cap l="Budżet" r={budgetStats.length ? `${budgetStats[0].daysLeft} dni do końca mies.${budgetStats.length > 3 ? ` · +${budgetStats.length - 3}` : ''}` : 'ustaw limit'} />
           {budgetStats.length === 0 ? (
-            <Text style={[T.small, s.emptyInline]}>Limit na jedzenie, słodycze, zmienne albo kategorię — ile zostało na dzień</Text>
-          ) : budgetStats.slice(0, 3).map((st) => (
-            <View key={st.budget.id} style={s.budgetRow}>
-              <View style={s.budgetHead}>
-                <Text style={s.budgetName} numberOfLines={1}>{scopeLabel(st.budget.scope)}</Text>
-                <Text style={[s.budgetAmt, { color: levelColor(st) }]}>{money(st.spent)}<Text style={s.budgetOf}> / {money(st.budget.limit)} zł</Text></Text>
-              </View>
-              <BudgetBar s={st} height={5} />
-              <Text style={[s.budgetLine, st.left < 0 && { color: C.warn }]} numberOfLines={1}>{budgetLine(st)}</Text>
-            </View>
-          ))}
+            <>
+              <Cap l="Budżet" r="ustaw limit" />
+              <Text style={[T.small, s.emptyInline]}>Limit na jedzenie, słodycze, zmienne albo kategorię — ile zostało na dzień</Text>
+            </>
+          ) : (
+            <>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.budChips} style={{ flexGrow: 0, flexShrink: 0 }}>
+                {budgetStats.map((b) => {
+                  const on = b.budget.id === budSel?.budget.id;
+                  return (
+                    <TouchableOpacity key={b.budget.id} onPress={() => { haptic.tap(); setBudgetSelId(b.budget.id); }} style={[s.budChip, on && s.budChipOn]} activeOpacity={0.8}>
+                      <View style={[s.budFill, { width: `${Math.min(100, b.pct * 100)}%`, backgroundColor: budTint(b.level) }]} />
+                      <Text style={[s.budChipTxt, on && s.budChipTxtOn]} numberOfLines={1}>{scopeLabel(b.budget.scope)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              {budSel && (
+                <View style={s.budLine}>
+                  <Text style={s.budAmt}>{money(budSel.spent)}<Text style={s.budgetOf}> / {money(budSel.budget.limit)} zł</Text></Text>
+                  <Text style={[s.budgetLine, { flex: 1, textAlign: 'right' }, budSel.left < 0 && { color: C.warnTxt }]} numberOfLines={1}>
+                    {budgetLine(budSel)} · {budSel.daysLeft} dni
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
         </Tile>
       </Row>
 
@@ -508,6 +529,9 @@ export default function FinancesScreen() {
   );
 }
 
+// Wypełnienie pigułki budżetu = % limitu, stonowane (user: "czerwony za bardzo się rzuca").
+const budTint = (level: BudgetLevel) => (level === 'over' ? 'rgba(239,68,68,0.30)' : level === 'warn' || level === 'pace' ? 'rgba(251,146,60,0.26)' : 'rgba(214,214,214,0.14)');
+
 const makeS = themedStyles((c) => StyleSheet.create({
   capRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   seeAllRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
@@ -521,10 +545,14 @@ const makeS = themedStyles((c) => StyleSheet.create({
 
   barSpace: { marginTop: spacing[3] },
   sideCol: { gap: S.gap },
-  budgetRow: { marginTop: 8, gap: 4 },
-  budgetHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
-  budgetName: { flexShrink: 1, fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: C.txt },
-  budgetAmt: { fontSize: 12.5, fontFamily: 'Inter_900Black', fontVariant: ['tabular-nums'] },
+  budChips: { gap: 6, paddingRight: 4 },
+  budChip: { overflow: 'hidden', paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999, backgroundColor: C.in, borderWidth: 1, borderColor: 'transparent' },
+  budChipOn: { borderColor: C.txt },
+  budFill: { position: 'absolute', left: 0, top: 0, bottom: 0 },
+  budChipTxt: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: C.mut },
+  budChipTxtOn: { color: C.hi },
+  budLine: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 10 },
+  budAmt: { fontSize: 15, fontFamily: 'Inter_900Black', color: C.hi, fontVariant: ['tabular-nums'] },
   budgetOf: { fontSize: 11, fontFamily: 'Inter_700Bold', color: C.mut },
   budgetLine: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: C.mut },
   sideBtn: { flex: 1, padding: 4, gap: 2 },
