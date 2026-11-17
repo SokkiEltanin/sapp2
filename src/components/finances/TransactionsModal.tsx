@@ -215,40 +215,43 @@ export default function TransactionsModal({
           <Text style={s.empty}>{expenses.length === 0 ? 'Brak transakcji — dodaj pierwszą przyciskiem +.' : 'Brak wyników.'}</Text>
         }
         renderItem={({ item }) => {
+          // Nagłówek grupy (2026-11-17, user: "kwoty się zlewają, nieczytelne"): osobny jaśniejszy
+          // pasek — etykieta + liczba po lewej, sumy po prawej; wiersze pod nim lżejsze.
           if (item.t === 'h') return (
             <View style={s.gHead}>
-              <Text style={s.gLabel} numberOfLines={1}>{item.label.charAt(0).toUpperCase() + item.label.slice(1)}</Text>
-              <Text style={s.gSum} numberOfLines={1}>
-                {item.out > 0 ? `−${zl(item.out)}` : ''}{item.in > 0 ? <Text style={s.gIn}>{`  +${zl(item.in)}`}</Text> : null}
-                <Text style={s.gN}>{`  · ${item.n}`}</Text>
-              </Text>
+              <View style={s.gBox}>
+                <Text style={s.gLabel} numberOfLines={1}>
+                  {item.label.charAt(0).toUpperCase() + item.label.slice(1)}
+                  <Text style={s.gN}>{`  ${item.n} ${plTx(item.n)}`}</Text>
+                </Text>
+                {item.in > 0 ? <Text style={[s.gSum, s.gIn]} numberOfLines={1}>+{zl(item.in)}</Text> : null}
+                {item.out > 0 ? <Text style={s.gSum} numberOfLines={1}>−{zl(item.out)}</Text> : null}
+              </View>
             </View>
           );
           const { e, match } = item.hit;
           const detail = txDetail(e);
           const time = (e.date ?? '').length > 10 ? e.date.slice(11, 16) : '';
           const when = mode === 'day' ? time : `${toDisplayDate(e.date.slice(0, 10)).slice(0, 5)}${time ? ` ${time}` : ''}`;
-          const meta = [when, e.fvOverride === 'transfer' ? 'przelew własny' : '', match ? `„${match}”` : ''].filter(Boolean).join(' · ');
+          const sub = [when, detail, e.fvOverride === 'transfer' ? 'przelew własny' : '', match ? `„${match}”` : ''].filter(Boolean).join(' · ');
           return (
           <TouchableOpacity style={s.row} onPress={() => { haptic.tap(); onSelect(e); }} activeOpacity={0.7}>
-            <View style={[s.rowBar, { backgroundColor: txColor(e) }]} />
+            <View style={[s.rowDot, { backgroundColor: txColor(e) }]} />
             <View style={s.rowInfo}>
-              <Text style={s.rowNote} numberOfLines={1}>
-                {e.storeName || e.note || (e.fvOverride === 'transfer' ? 'Przelew własny' : e.type === 'income' ? 'Przychód' : 'Wydatek')}
-              </Text>
-              {detail ? <Text style={s.rowDetail} numberOfLines={1}>{detail}</Text> : null}
-              {meta ? <Text style={s.rowDate} numberOfLines={1}>{meta}</Text> : null}
-            </View>
-            {pendingFxOf(e) ? (
-              <View style={s.fxCol}>
-                <Text style={s.fxAmount}>{formatFx(pendingFxOf(e)!)}</Text>
-                <Text style={s.fxHint}>wpisz PLN</Text>
+              <View style={s.rowTop}>
+                <Text style={s.rowNote} numberOfLines={1}>
+                  {e.storeName || e.note || (e.fvOverride === 'transfer' ? 'Przelew własny' : e.type === 'income' ? 'Przychód' : 'Wydatek')}
+                </Text>
+                {pendingFxOf(e) ? (
+                  <Text style={s.fxAmount}>{formatFx(pendingFxOf(e)!)} · wpisz PLN</Text>
+                ) : (
+                  <Text style={[s.rowAmount, e.type === 'income' && s.rowAmountIncome, e.fvOverride === 'transfer' && { color: colors.text.muted }]}>
+                    {e.type === 'income' ? '+' : '−'}{zl(Math.abs(e.amount))}
+                  </Text>
+                )}
               </View>
-            ) : (
-              <Text style={[s.rowAmount, e.type === 'income' && s.rowAmountIncome, e.fvOverride === 'transfer' && { color: colors.text.muted }]}>
-                {e.type === 'income' ? '+' : '−'}{zl(Math.abs(e.amount))}
-              </Text>
-            )}
+              {sub ? <Text style={s.rowSub} numberOfLines={1}>{sub}</Text> : null}
+            </View>
           </TouchableOpacity>
           );
         }}
@@ -256,6 +259,8 @@ export default function TransactionsModal({
     </AppBottomSheet>
   );
 }
+
+const plTx = (n: number) => (n === 1 ? 'transakcja' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'transakcje' : 'transakcji');
 
 const makeS = themedStyles((c) => StyleSheet.create({
   header: {
@@ -312,28 +317,24 @@ const makeS = themedStyles((c) => StyleSheet.create({
   list: { flexShrink: 1 },
   empty: { fontSize: 12.5, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', paddingVertical: spacing[6] },
 
-  row: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: spacing[3], borderBottomWidth: 1, borderBottomColor: c.border.subtle,
-  },
-  rowInfo: { flex: 1, marginRight: spacing[2] },
-  rowNote: { fontSize: 14, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },
-  rowDetail: { fontSize: 11.5, fontFamily: 'Inter_600SemiBold', color: c.text.secondary, marginTop: 2 },
-  rowDate: { fontSize: 10.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 1 },
-  rowBar: { width: 3, alignSelf: 'stretch', borderRadius: 2, marginRight: spacing[3] },
-  gHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2], paddingTop: spacing[3], paddingBottom: 6, backgroundColor: c.bg.card, borderBottomWidth: 1, borderBottomColor: c.ui.line },
-  gLabel: { flex: 1, fontSize: 12, fontFamily: 'Inter_900Black', color: c.text.primary },
-  gSum: { fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary, fontVariant: ['tabular-nums'] },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: 9, paddingHorizontal: 4 },
+  rowInfo: { flex: 1, minWidth: 0 },
+  rowTop: { flexDirection: 'row', alignItems: 'baseline', gap: spacing[3] },
+  rowNote: { flex: 1, fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  rowSub: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 2 },
+  rowDot: { width: 8, height: 8, borderRadius: 4 },
+  gHead: { paddingTop: spacing[3], paddingBottom: 4, backgroundColor: c.bg.card },
+  gBox: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], backgroundColor: c.ui.in2, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 9 },
+  gLabel: { flex: 1, fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },
+  gSum: { fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: c.text.bright, fontVariant: ['tabular-nums'] },
   gIn: { color: c.accent.green },
-  gN: { color: c.text.muted, fontFamily: 'Inter_600SemiBold' },
+  gN: { fontSize: 11.5, color: c.text.muted, fontFamily: 'Inter_600SemiBold' },
   modeRow: { flexDirection: 'row', gap: 6, marginBottom: spacing[2] },
   modeChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
   modeChipOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
   modeTxt: { fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary },
   modeTxtOn: { color: c.bg.primary },
-  rowAmount: { fontSize: 14, fontFamily: 'Inter_900Black', color: c.text.bright },
+  rowAmount: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: c.text.secondary, fontVariant: ['tabular-nums'] },
   rowAmountIncome: { color: c.accent.green },
-  fxCol: { alignItems: 'flex-end' },
-  fxAmount: { fontSize: 13, fontFamily: 'Inter_900Black', color: c.accent.red },
-  fxHint: { fontSize: 10, fontFamily: 'Inter_700Bold', color: c.accent.red, opacity: 0.8 },
+  fxAmount: { fontSize: 12.5, fontFamily: 'Inter_800ExtraBold', color: c.accent.red },
 }));

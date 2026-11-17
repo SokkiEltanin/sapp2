@@ -323,8 +323,10 @@ const makeS = themedStyles((c) => StyleSheet.create({
   hourPop: { fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.accent.blue, height: 12 },
 
   nowCard: { backgroundColor: c.ui.in, borderRadius: radius.lg, padding: spacing[3], overflow: 'hidden' },
-  dayRow: { backgroundColor: c.bg.primary, borderRadius: radius.md, padding: spacing[3], gap: 6, marginBottom: spacing[2], borderWidth: 1, borderColor: c.ui.line },
-  dayToday: { borderColor: c.text.muted },
+  // Kafelki dni jak mini-kafelki wyżej (2026-11-17, user: "czarne kafelki — za duży kontrast,
+  // wyłamują się ze stylu"): jaśniejsze tło karty zamiast czarnego, bez obwódek; dziś = cienka ramka.
+  dayRow: { backgroundColor: c.ui.in2, borderRadius: radius.md, padding: spacing[3], gap: 6, marginBottom: 6, borderWidth: 1, borderColor: 'transparent' },
+  dayToday: { borderColor: c.border.default },
   dayTop: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   dayNameCol: { width: 64 },
   dayName: { fontSize: 14, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },
