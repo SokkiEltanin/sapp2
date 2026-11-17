@@ -16,6 +16,7 @@ import { useHealthStore } from '@/store/healthStore';
 import { useDeviceBatteryStore } from '@/store/deviceBatteryStore';
 import { useFactsStore } from '@/store/factsStore';
 import { useCollectionStore } from '@/store/collectionStore';
+import { useProfileStore } from '@/store/profileStore';
 import { todayISO } from '@/utils/date';
 import { useBalanceStore } from '@/store/balanceStore';
 import { useBudgetsStore } from '@/store/budgetsStore';
@@ -118,7 +119,7 @@ const docBindings: DocBinding[] = [
   },
   {
     name: 'prefs',
-    stores: [S(useBalanceStore), S(useSubscriptionsStore), S(useWorkStore), S(useCategoriesStore), S(useThresholdsStore), S(useNotesStore)],
+    stores: [S(useBalanceStore), S(useSubscriptionsStore), S(useWorkStore), S(useCategoriesStore), S(useThresholdsStore), S(useNotesStore), S(useProfileStore)],
     get: () => ({
       balanceOffset: useBalanceStore.getState().offset ?? 0,
       dismissedBills: useSubscriptionsStore.getState().dismissedBills,
@@ -126,18 +127,20 @@ const docBindings: DocBinding[] = [
       categories: useCategoriesStore.getState().prefs,
       thresholds: useThresholdsStore.getState().t,
       notePalette: useNotesStore.getState().palette,
+      profile: (({ name, birthDate, heightCm }) => ({ name, birthDate, heightCm }))(useProfileStore.getState()),
     }),
     set: (v) => {
       if (typeof v.balanceOffset === 'number') useBalanceStore.setState({ offset: v.balanceOffset });
       if (Array.isArray(v.dismissedBills)) useSubscriptionsStore.setState({ dismissedBills: v.dismissedBills });
       if ('activeEmployerId' in v) useWorkStore.setState({ activeEmployerId: v.activeEmployerId ?? null });
       if (v.thresholds && typeof v.thresholds === 'object') useThresholdsStore.getState().set(v.thresholds);
+      if (v.profile && typeof v.profile === 'object') useProfileStore.setState({ name: typeof v.profile.name === 'string' ? v.profile.name : '', birthDate: typeof v.profile.birthDate === 'string' ? v.profile.birthDate : null, heightCm: typeof v.profile.heightCm === 'number' ? v.profile.heightCm : null });
       if (Array.isArray(v.notePalette)) useNotesStore.setState({ palette: v.notePalette.filter((c: unknown) => typeof c === 'string') });
       if (v.categories && typeof v.categories === 'object') useCategoriesStore.getState().setPrefs({ added: { food: v.categories.added?.food ?? [], var: v.categories.added?.var ?? [] }, overrides: v.categories.overrides ?? {} });
     },
     isEmpty: (v) => !v.balanceOffset && !(v.dismissedBills ?? []).length && v.activeEmployerId == null
       && !Object.keys(v.categories?.overrides ?? {}).length && !(v.categories?.added?.food ?? []).length && !(v.categories?.added?.var ?? []).length
-      && !(v.notePalette ?? []).length,
+      && !(v.notePalette ?? []).length && !v.profile?.name && !v.profile?.birthDate,
     stamp: () => 0,
   },
   {

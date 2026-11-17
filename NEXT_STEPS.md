@@ -41,6 +41,13 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-17 — Profil + nowe zakładki Ustawień**: `store/profileStore.ts` (`profile-v1`, sync w docu
+`prefs.profile`, w kopii), `utils/profile.ts` (wiek, następne urodziny, BMI), `components/profile/ProfileSheet.tsx`.
+Ustawienia: „Profil i konto” · „Powiadomienia” (progi + testy) · „Wygląd i działanie” · „Aplikacja”
+(aktualizacja, wersja, paczka JS, PWA) · zaawansowane „Diagnostyka” (dziennik błędów, commit, testy).
+Urodziny ≤14 dni → wpis w „Najbliższych eventach”; BMI/wiek w panelu wagi.
+- [ ] Na telefonie: wpisać imię/datę/wzrost, sprawdzić, czy przechodzą na komputer.
+
 **2026-11-17 — Bateria (panel), Praca na web, scroll na web**:
 - Bateria: natywny BatteryLog (withWearSync.js: `battery_log_phone.json` / `battery_log_watch.json`,
   ~4 dni), temperatura z zegarka; `components/battery/BatterySheet.tsx` (tap w kafel). Historia

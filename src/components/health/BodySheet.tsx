@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { useProfileStore } from '@/store/profileStore';
+import { bmi, bmiLabel, ageOn } from '@/utils/profile';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { Footprints, Trash2 } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
@@ -48,6 +50,9 @@ export default function BodySheet({ visible, onClose }: { visible: boolean; onCl
   const monthAgo = keyOf(new Date(Date.now() - 30 * 86400000));
   const older = sortedManual.find((w) => w.date <= monthAgo);
   const trend = weight != null && older ? Math.round((weight - older.kg) * 10) / 10 : null;
+  const profile = useProfileStore();
+  const bmiVal = bmi(weight, profile.heightCm);
+  const age = ageOn(profile.birthDate);
 
   const kgVal = parseFloat(kg.replace(',', '.'));
   const canAdd = kgVal > 20 && kgVal < 400;
@@ -85,6 +90,8 @@ export default function BodySheet({ visible, onClose }: { visible: boolean; onCl
         <Text style={s.weightVal}>{weight != null ? `${pl(weight, 1)} kg` : '—'}</Text>
         {trend != null && <Text style={[s.trend, { color: trend > 0 ? colors.accent.orange : colors.accent.green }]}>{trend > 0 ? '+' : ''}{pl(trend, 1)} kg / 30 dni</Text>}
       </View>
+      {/* BMI i wiek z profilu (2026-11-17, Ustawienia → Profil i konto). */}
+      {bmiVal != null && <Text style={s.bmi}>BMI {pl(bmiVal, 1)} · {bmiLabel(bmiVal)}{age != null ? ` · ${age} lat` : ''}{profile.heightCm ? ` · ${profile.heightCm} cm` : ''}</Text>}
       <View style={s.inputRow}>
         <TextInput value={kg} onChangeText={setKg} style={s.input} placeholder="dzisiejsza waga, np. 78,4" placeholderTextColor={colors.text.muted}
           keyboardType="decimal-pad" onSubmitEditing={submit} returnKeyType="done" />
@@ -127,6 +134,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   weekNone: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.border.default },
   weekDay: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
   section: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: spacing[5], marginBottom: spacing[2] },
+  bmi: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.secondary, marginTop: 4 },
   weightRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing[3] },
   weightVal: { fontSize: 24, fontFamily: 'Inter_900Black', color: c.text.primary },
   trend: { fontSize: 12, fontFamily: 'Inter_800ExtraBold' },

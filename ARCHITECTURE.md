@@ -2287,3 +2287,11 @@ więc nie ma nic do migracji/zachowania.
     Każdy przyszły serwis (kalendarz, finanse) idzie przez to, nie przez gołe
     `collection(db, ...)`.
   - "Konto" w Ustawieniach (e-mail + Wyloguj) — żeby logowanie nie było dead-endem.
+
+### Profil (2026-11-17)
+- `store/profileStore.ts` (`profile-v1`: name, birthDate `YYYY-MM-DD`, heightCm, `t`) — sync w docu
+  `prefs` (pole `profile`, newer-wins), rehydrate w `cloudBackup`. Helpery: `utils/profile.ts`
+  (`ageOn`, `nextBirthday` — 29.02 → 28.02 w roku nieprzestępnym, `bmi`, `bmiLabel`).
+- Edycja: `components/profile/ProfileSheet.tsx` (Ustawienia → Profil i konto). Konsumenci: Dashboard
+  (urodziny w osi eventów, ≤14 dni), `BodySheet` (BMI + wiek). Nowe pole profilu → dodać tu i w
+  `prefs.isEmpty` w cloudSync.

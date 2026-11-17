@@ -17,6 +17,8 @@ import { weatherCodeInfo, rainSummary, aqiInfo, fmtTemp, weatherColor } from '@/
 import WeatherSheet from '@/components/weather/WeatherSheet';
 import BatterySheet from '@/components/battery/BatterySheet';
 import { useMinuteClock } from '@/hooks/useMinuteClock';
+import { useProfileStore } from '@/store/profileStore';
+import { nextBirthday } from '@/utils/profile';
 import { useGoogleCalendarSync } from '@/hooks/useGoogleCalendarSync';
 import { todayISO } from '@/utils/date';
 import { parseDeadline, deadlineHasTime } from '@/utils/taskDeadline';
@@ -124,6 +126,7 @@ export default function Dashboard() {
   // "Najbliższe eventy" chowają zakończone wydarzenia na bieżąco. Cięższe liczenia
   // (jedzenie, wymiany, rachunki) dalej raz na dzień (`dayNow`).
   const now = useMinuteClock();
+  const birthDate = useProfileStore((st) => st.birthDate);
   const today = todayISO();
   const dayNow = useMemo(() => new Date(), [today]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -236,9 +239,12 @@ export default function Dashboard() {
     // subskrypcjach łapać" — dolicza też PRZEWIDYWANE terminy rachunków stałych
     // (czynsz/prąd/internet...) rozpoznanych z historii wydatków, nie tylko
     // ręcznie dodane Subskrypcje.
+    // Urodziny z profilu (2026-11-17) — w oknie 14 dni, jak rachunki.
+    const bd = nextBirthday(birthDate, now);
+    if (bd && bd.days <= 14) out.push({ key: 'birthday', at: new Date(`${bd.date}T00:00:00`), title: `🎂 Twoje urodziny — ${bd.turns} lat`, color: '#F472B6', kind: 'event', dayOnly: true });
     out.push(...billEntries);
     return out.sort((a, b) => a.at.getTime() - b.at.getTime());
-  }, [allEvents, calendarTasks, now, billEntries]);
+  }, [allEvents, calendarTasks, now, billEntries, birthDate]);
 
   // Pogoda zamiast snu (2026-11-13) — sen jest w Daily.
   const { data: wx } = useWeather();

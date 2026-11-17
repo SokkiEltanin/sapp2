@@ -4,6 +4,9 @@ import { useCalendarStore } from '@/store/calendarStore';
 import DashboardLayoutSheet from '@/components/settings/DashboardLayoutSheet';
 import AppHealthSheet from '@/components/settings/AppHealthSheet';
 import ThresholdsSheet from '@/components/settings/ThresholdsSheet';
+import ProfileSheet from '@/components/profile/ProfileSheet';
+import { useProfileStore } from '@/store/profileStore';
+import { ageOn } from '@/utils/profile';
 import { appHealth, healthSummary } from '@/utils/appHealth';
 import { useThresholdsStore } from '@/store/thresholdsStore';
 import { plural, nWydatkow } from '@/utils/plural';
@@ -120,12 +123,18 @@ function buildSections(
   appStatus: string,
   thresholds: string,
   pwa: string | null,
+  profile: string,
 ): SettingsSection[] {
   return [
+  // Zakładki (2026-11-17, user: "popraw ustawienia, zrób lepsze zakładki — czemu w
+  // diagnostyce jest aktualizacja aplikacji; dodaj profil: imię, data urodzenia"):
+  // Profil i konto → Połączenia → Finanse → Dane → Powiadomienia → Widgety → Wygląd i
+  // działanie → Aplikacja (wersja, aktualizacje) | zaawansowane: Diagnostyka (testy, logi).
   {
-    id: 'konto', title: 'Konto', icon: UserIcon, group: 'main',
-    summary: email ?? 'niezalogowany',
+    id: 'konto', title: 'Profil i konto', icon: UserIcon, group: 'main',
+    summary: profile || email || 'niezalogowany',
     items: [
+      { kind: 'action', key: 'profile-edit', label: 'Profil', description: profile || 'imię, data urodzenia, wzrost', icon: UserIcon },
       { kind: 'value', key: 'account-email', label: 'Zalogowano jako', description: 'konto google', icon: UserIcon, value: email ?? '—' },
       { kind: 'action', key: 'account-logout', label: 'Wyloguj', description: 'wyloguj z konta google', icon: LogOut },
     ],
@@ -222,11 +231,12 @@ function buildSections(
   // (Konto/Połączenia/Finanse) niosła rzeczy których user faktycznie używa co dzień,
   // a testy/diagnostyka/build-info (rzadko potrzebne) nie zajmowały pierwszego ekranu.
   {
-    id: 'alerty', title: 'Alerty', icon: Bell, group: 'advanced',
-    summary: 'testy powiadomień i zgody systemowe',
+    id: 'alerty', title: 'Powiadomienia', icon: Bell, group: 'main',
+    summary: `${thresholds} · testy`,
     items: [
       // Od 2026-11-17 jeden wpis → osobny ekran testów (app/notify-test.tsx): 5 testów
       // w kolorach, po JEDNYM powiadomieniu (stare odpalały się podwójnie), zgody na górze.
+      { kind: 'action', key: 'thresholds', label: 'Progi i przypomnienia', description: thresholds, icon: Clock },
       { kind: 'action', key: 'notify-test', label: 'Testy powiadomień', description: 'zwykłe, TAK/NIE, pełny ekran, wybudzenie + zgody systemowe', icon: Bell },
     ],
   },
@@ -242,14 +252,22 @@ function buildSections(
     ],
   },
   {
-    id: 'ogolne', title: 'Ogólne', icon: Vibrate, group: 'main',
-    summary: `wibracje ${hapticsEnabled ? HAPTIC_STRENGTH_LABEL[hapticStrength] : 'wyłączone'} · ${thresholds}`,
+    id: 'ogolne', title: 'Wygląd i działanie', icon: Vibrate, group: 'main',
+    summary: `wibracje ${hapticsEnabled ? HAPTIC_STRENGTH_LABEL[hapticStrength] : 'wyłączone'} · układ Dashboardu`,
     items: [
       { kind: 'switch', key: 'haptics-enabled', label: 'Wibracje', description: 'kliknięcie przy tapach w appce', icon: Vibrate, value: hapticsEnabled },
       ...(hapticsEnabled ? [{ kind: 'action' as const, key: 'haptics-strength', label: 'Siła wibracji', description: `${HAPTIC_STRENGTH_LABEL[hapticStrength]} · stuknij, żeby zmienić`, icon: Vibrate }] : []),
-      // Progi (2026-11-14) — liczby wcześniej zaszyte w kodzie.
-      { kind: 'action', key: 'thresholds', label: 'Progi i przypomnienia', description: thresholds, icon: Clock },
       { kind: 'action', key: 'dash-layout', label: 'Układ Dashboardu', description: 'kolejność rzędów i ukrywanie', icon: LayoutGrid },
+    ],
+  },
+  {
+    id: 'aplikacja', title: 'Aplikacja', icon: Rocket, group: 'main',
+    summary: `wersja ${BUILD_INFO.version} · ${update}`,
+    items: [
+      { kind: 'action', key: 'update-check', label: 'Sprawdź aktualizacje', description: update, icon: Download },
+      { kind: 'value', key: 'info-version', label: 'Wersja', description: `build ${BUILD_INFO.buildNumber} · ${BUILD_INFO.buildDate}`, icon: Info, value: BUILD_INFO.version },
+      { kind: 'value', key: 'info-ota', label: 'Paczka JS', description: 'wbudowana w APK czy z szybkiej aktualizacji', icon: Info, value: runningUpdateLabel() },
+      { kind: 'action', key: 'app-health', label: 'Stan appki', description: appStatus, icon: Stethoscope },
       // Tylko na komputerze (services/pwaInstall.ts).
       ...(pwa ? [{ kind: 'action' as const, key: 'pwa-install', label: 'Zainstaluj na komputerze', description: pwa, icon: Download }] : []),
     ],
@@ -259,17 +277,10 @@ function buildSections(
   // build"), osobna sekcja dla czterech statycznych wierszy była przerostem.
   {
     id: 'diagnostyka', title: 'Diagnostyka', icon: Stethoscope, group: 'advanced',
-    summary: `${appStatus} · build ${BUILD_INFO.buildNumber}`,
+    summary: `${errors} · testy połączeń`,
     items: [
-      // Stan appki (2026-11-14) — synchronizacja, kopie, błędy, aktualizacje w jednym miejscu.
-      { kind: 'action', key: 'app-health', label: 'Stan appki', description: appStatus, icon: Stethoscope },
-      { kind: 'value', key: 'info-version', label: 'Wersja', description: 'numer wersji appki', icon: Info, value: BUILD_INFO.version },
-      { kind: 'value', key: 'info-build', label: 'Build', description: 'numer builda CI', icon: Info, value: BUILD_INFO.buildNumber },
-      { kind: 'value', key: 'info-date', label: 'Data builda', description: 'kiedy zbudowano ten APK', icon: Clock, value: BUILD_INFO.buildDate },
-      { kind: 'value', key: 'info-commit', label: 'Commit', description: 'hash commita z którego zbudowano', icon: Copy, value: BUILD_INFO.commit },
-      { kind: 'value', key: 'info-ota', label: 'Paczka JS', description: 'wbudowana w APK czy z aktualizacji OTA', icon: Info, value: runningUpdateLabel() },
-      { kind: 'action', key: 'update-check', label: 'Sprawdź aktualizacje', description: update, icon: Download },
       { kind: 'action', key: 'error-log', label: 'Dziennik błędów', description: errors, icon: AlertTriangle },
+      { kind: 'value', key: 'info-commit', label: 'Commit', description: 'z którego zbudowano ten APK', icon: Copy, value: BUILD_INFO.commit },
       // Testy logowania Google z Androida — na komputerze nie mają sensu (inne logowanie).
       ...(Platform.OS === 'web' ? [] : [{ kind: 'action' as const, tier: 'sub' as const, key: 'google', label: 'Zaloguj przez Google (test)', description: 'sprawdź czy Google Sign-In działa', icon: LogIn }]),
       { kind: 'action', tier: 'sub', key: 'firestore', label: 'Firestore (test)', description: 'zapis/odczyt testowego dokumentu', icon: Database },
@@ -404,6 +415,10 @@ export default function SettingsScreen() {
     if (upd.apk) { Linking.openURL(upd.apk.url).catch(() => {}); return; }
     checkForAppUpdate(true);
   };
+  const prof = useProfileStore();
+  const profAge = ageOn(prof.birthDate);
+  const profileLabel = [prof.name, profAge != null ? `${profAge} lat` : null, prof.heightCm ? `${prof.heightCm} cm` : null].filter(Boolean).join(' · ');
+  const [profileOpen, setProfileOpen] = useState(false);
   const sections = useMemo(
     () => buildSections(
       user?.email ?? null,
@@ -420,8 +435,9 @@ export default function SettingsScreen() {
       healthText,
       thresholdsText,
       pwaLabel,
+      profileLabel,
     ),
-    [pwaLabel, healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, hapticStrength, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, widgetNote, syncLabel],
+    [profileLabel, pwaLabel, healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, hapticStrength, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, widgetNote, syncLabel],
   );
 
   const backupNow = async () => {
@@ -747,6 +763,7 @@ export default function SettingsScreen() {
     'app-health': leave(() => setHealthOpen(true)),
     thresholds: leave(() => setThresholdsOpen(true)),
     'dash-layout': leave(() => setLayoutOpen(true)),
+    'profile-edit': leave(() => setProfileOpen(true)),
     'pwa-install': () => { if (pwaState.canInstall) promptPwaInstall().catch(() => {}); },
     'error-log': leave(() => setErrorsOpen(true)),
     'health-diag': leave(() => router.push('/health-debug' as any)),
@@ -971,6 +988,7 @@ export default function SettingsScreen() {
       <CategoryRulesSheet visible={rulesOpen} onClose={() => setRulesOpen(false)} />
       <AppHealthSheet visible={healthOpen} onClose={() => setHealthOpen(false)} rows={healthRows} />
       <ThresholdsSheet visible={thresholdsOpen} onClose={() => setThresholdsOpen(false)} />
+      <ProfileSheet visible={profileOpen} onClose={() => setProfileOpen(false)} />
       <DashboardLayoutSheet visible={layoutOpen} onClose={() => setLayoutOpen(false)} />
       <ErrorLogSheet visible={errorsOpen} onClose={() => setErrorsOpen(false)} header={`sapp2 ${BUILD_INFO.version} · build ${BUILD_INFO.buildNumber} · ${BUILD_INFO.commit} · ${runningUpdateLabel()}`} />
     </SafeAreaView>
