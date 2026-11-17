@@ -31,7 +31,7 @@ import { workMonthProgress } from '@/utils/workMonth';
 import { upcomingPayments } from '@/utils/recurringBills';
 import { accountBalance, affectsBalance } from '@/utils/balance';
 import { isOwnTransfer } from '@/utils/fixedVariable';
-import { txDetail, txColor } from '@/utils/txGroup';
+import { txDetail, txColor, BUCKET_COLOR } from '@/utils/txGroup';
 import { useBalanceStore } from '@/store/balanceStore';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
 import { haptic } from '@/utils/haptics';
@@ -239,9 +239,11 @@ export default function FinancesScreen() {
     // przez `value` — zero zniknęłoby zamiast dać 3px minimum z DESIGN.md), NIE
     // dla `splitTotal` wyżej (ten pokazuje PRAWDZIWĄ sumę, nie podłogę 0,001 ×3).
     return [
-      { value: Math.max(fixed, 0.001), color: C.txt, label: 'Stałe' },
-      { value: Math.max(food, 0.001), color: '#8A8A8A', label: 'Jedzenie' },
-      { value: Math.max(variable, 0.001), color: '#3F3F3F', label: 'Zmienne' },
+      // Kolory kubłów jak w Ostatnich transakcjach i kartach miesięcy (2026-11-17, user:
+      // "Finanse off style vs Daily") — wcześniej szarości, niespójne z paskami wierszy.
+      { value: Math.max(fixed, 0.001), color: BUCKET_COLOR.fixed, label: 'Stałe' },
+      { value: Math.max(food, 0.001), color: BUCKET_COLOR.food, label: 'Jedzenie' },
+      { value: Math.max(variable, 0.001), color: BUCKET_COLOR.variable, label: 'Zmienne' },
     ];
   }, [wydatkiData]);
 
@@ -476,6 +478,8 @@ export default function FinancesScreen() {
               </Item>
             )}
           />
+          {/* miejsce pod pływający „+" — inaczej zasłaniał kwotę ostatniego wiersza */}
+          <View style={s.fabSpace} />
         </Tile>
       </Row>
 
@@ -595,6 +599,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
 
   txTextCol: { flex: 1, minWidth: 0 },
   txBar: { width: 3, alignSelf: 'stretch', borderRadius: 2, marginVertical: 2 },
+  fabSpace: { height: 40 },
   txAmt: { fontSize: 13, fontFamily: 'Inter_900Black', color: C.hi, fontVariant: ['tabular-nums'] },
 
   fab: {

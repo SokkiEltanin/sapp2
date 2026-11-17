@@ -89,9 +89,12 @@ export function txDetail(e: Expense): string {
 }
 
 /** Kolor paska przy wierszu: kubeł (jedzenie / stałe / zmienne), przychód, przelew własny. */
+/** Kolory kubłów — wspólne dla wierszy transakcji i paska „Podział” w Finansach. */
+export const BUCKET_COLOR = { fixed: '#60A5FA', food: '#FBBF24', variable: '#C084FC', income: '#22C55E', own: '#6E6E6E' } as const;
+
 export function txColor(e: Expense): string {
-  if (isOwnTransfer(e)) return '#6E6E6E';
-  if (e.type === 'income') return '#22C55E';
+  if (isOwnTransfer(e)) return BUCKET_COLOR.own;
+  if (e.type === 'income') return BUCKET_COLOR.income;
   const b = bucketOf(e);
-  return b === 'food' ? '#FBBF24' : b === 'fixed' ? '#60A5FA' : '#C084FC';
+  return b === 'food' ? BUCKET_COLOR.food : b === 'fixed' ? BUCKET_COLOR.fixed : BUCKET_COLOR.variable;
 }
