@@ -64,7 +64,8 @@ Wydatkowe rekordy i „najdroższe” w kartach miesięcy liczone BEZ stałych o
 fingerprint po prebuildzie), a joby decide/OTA publikowały pod `3e8af9de…` → telefon: „aktualna”. Teraz:
 build APK przypina `runtimeVersion` = FP z decide; OTA publikuje pod runtime z `.github/ota-runtime-map`
 (stare APK) albo FP. Ustawienia → Aplikacja → „Paczka JS” pokazuje runtime APK.
-- [ ] Po następnym APK (natywna zmiana) usunąć wiersz #278 z `.github/ota-runtime-map` — nowe APK mają runtime = FP.
+- [ ] Gdy user zainstaluje #285: wiersz #278 w `.github/ota-runtime-map` jest już martwy (FP się zmienił) — można usunąć.
+  UWAGA: dopóki telefon ma #278, NIE dostaje OTA po 22fd5d6 (runtime cac0c1a6 ≠ 5670c3ec).
 
 **2026-11-17 — Widget notatki pokazuje rysunek** (wymaga APK): `utils/widgetNote.ts` `buildNoteWidgetDrawing`
 (kreski przycięte do treści, max 6000 punktów, kolory → format Androida) → `plugins/withNoteWidget.js`
@@ -97,7 +98,7 @@ Kafel baterii: same ikony, czerwień < 25%.
 **2026-11-17 — Transakcje pogrupowane** (`utils/txGroup.ts`): Dni/Tygodnie/Miesiące/Lata, nagłówek z sumą
 (bez przelewów własnych, przyklejony), wiersz: nazwa wyróżniona, kategorie pozycji paragonu albo
 opis/kategoria/#tagi, godzina; pasek koloru kubła. Ciekawostki: usunięte 22 najbardziej znane (97 zostało).
-- [ ] Pierwszy push z EXPO_TOKEN — sprawdzić, czy CI poszło ścieżką OTA (job „decide” → mode=ota).
+- [x] Pierwszy push z EXPO_TOKEN — CI idzie ścieżką OTA (2026-11-18, po naprawie runtime).
 
 **2026-11-17 — Ciekawostki paczka 2**: +49 (razem 119, ok. 4 mies. przy 1/dzień). Kolejna paczka
 przed wyczerpaniem — nowe id z sufiksem paczki (`x3-…`).
@@ -199,8 +200,7 @@ sesją bez faz (np. tryb snu telefonu), o ile ma ≥ 60 % jej długości (`pickS
   Ustawienia → test Health Connect → SleepSession: które źródła (origins) zapisały noc.
 
 **2026-11-14 — do sprawdzenia na telefonie / do zrobienia przez usera:**
-- [ ] **Dodać sekret `EXPO_TOKEN`** w repo sapp2 (MAINTENANCE.md §3) — bez niego każdy
-  push = pełny APK zamiast OTA. Potem zainstalować pierwszy APK z expo-updates (≥ #189).
+- [x] Sekret `EXPO_TOKEN` dodany (2026-11-17); OTA działa od APK #285 (przypięty runtime).
 - [ ] Banner "Nowy APK · Pobierz" po kolejnym natywnym buildzie; "Aktualizacja gotowa" po OTA.
 - [ ] Ustawienia → Dane → Kopia do pliku: wybór folderu, plik w Download, wczytanie.
 - [ ] Dziennik błędów: czy coś się pojawia przy normalnym użyciu (sync, widgety).
