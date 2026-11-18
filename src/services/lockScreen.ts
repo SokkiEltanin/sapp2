@@ -37,3 +37,13 @@ export async function canUseFullScreenIntent(): Promise<boolean | null> {
 export function openFullScreenIntentSettings() {
   try { NativeModules.LockScreen?.openFullScreenIntentSettings?.(); } catch { /* brak modułu */ }
 }
+
+// Natywny ekran alarmu (2026-11-18, plugins/withFullScreenAlert.js → AlarmActivity): dane
+// zapisane PRZED zaplanowaniem — Activity startuje bez JS (zgaszony ekran / zabita appka).
+export const ALARM_ACTIVITY = 'com.sokki.sapp2.AlarmActivity';
+export function hasAlarmActivity(): boolean {
+  return !!NativeModules.LockScreen?.setAlarmPayload;
+}
+export function setAlarmPayload(p: { title: string; body?: string; color?: string; sound: boolean; vibrate: boolean; notifId?: string }) {
+  try { NativeModules.LockScreen?.setAlarmPayload?.(JSON.stringify(p)); } catch { /* brak modułu */ }
+}

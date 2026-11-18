@@ -13,16 +13,19 @@ export type NotifyTestKey = 'basic' | 'basicActions' | 'fsVibe' | 'fsSound' | 'f
 export const NOTIFY_TESTS: { k: NotifyTestKey; label: string; desc: string; color: string; fullScreen: boolean }[] = [
   { k: 'basic', label: 'Zwykłe', desc: 'baner z dźwiękiem, bez pełnego ekranu', color: '#60A5FA', fullScreen: false },
   { k: 'basicActions', label: 'Zwykłe TAK / NIE', desc: 'baner z przyciskami — odpowiedź przyjdzie jako drugie powiadomienie', color: '#A78BFA', fullScreen: false },
-  { k: 'fsVibe', label: 'Pełny ekran · wibracja', desc: 'ekran alarmu nad blokadą, sama wibracja (bez dźwięku)', color: '#FB923C', fullScreen: true },
-  { k: 'fsSound', label: 'Pełny ekran · wibracja + dźwięk', desc: 'ekran alarmu, dźwięk w pętli i wibracja', color: '#EF4444', fullScreen: true },
-  { k: 'fsWake', label: 'Pełny ekran · wybudzenie', desc: 'jak budzik: wybudza zgaszony ekran (zablokuj i odłóż telefon)', color: '#22C55E', fullScreen: true },
+  { k: 'fsVibe', label: 'Pełny ekran · wibracja', desc: 'ekran alarmu nad blokadą (też przy zgaszonym ekranie), sama wibracja', color: '#FB923C', fullScreen: true },
+  { k: 'fsSound', label: 'Pełny ekran · wibracja + dźwięk', desc: 'ekran alarmu, dźwięk budzika (słychać też w trybie wibracji) i wibracja', color: '#EF4444', fullScreen: true },
+  { k: 'fsWake', label: 'Pełny ekran · wybudzenie', desc: 'jak budzik (kategoria alarm): zablokuj i odłóż telefon, ustaw 1 min', color: '#22C55E', fullScreen: true },
 ];
 export const testMeta = (k: string) => NOTIFY_TESTS.find((t) => t.k === k);
 
+// v2 (2026-11-18): kanały pełnego ekranu BEZ dźwięku — dźwięk i wibrację alarmu robi natywny
+// AlarmActivity (strumień budzika, słychać też w trybie wibracji). Kanał dźwięku powiadomień
+// w trybie wibracji milczał ("nie słychać dźwięku").
 const CH = {
   basic: 'test-basic-v1',
-  fsVibe: 'test-fs-vibe-v1',
-  fsSound: 'test-fs-sound-v1',
+  fsVibe: 'test-fs-vibe-v2',
+  fsSound: 'test-fs-sound-v2',
 } as const;
 
 export interface NotifyStatus {
@@ -65,8 +68,8 @@ async function channels() {
   const { AndroidImportance } = m;
   await n.createChannel({ id: CH.basic, name: 'Test: zwykłe', importance: AndroidImportance.HIGH, sound: 'default', vibration: true });
   // bez `sound` = kanał bez dźwięku (notifee: domyślnie cisza), tylko wibracja
-  await n.createChannel({ id: CH.fsVibe, name: 'Test: pełny ekran (wibracja)', importance: AndroidImportance.HIGH, vibration: true, vibrationPattern: [300, 600, 300, 600], bypassDnd: true });
-  await n.createChannel({ id: CH.fsSound, name: 'Test: pełny ekran (dźwięk)', importance: AndroidImportance.HIGH, sound: 'default', vibration: true, vibrationPattern: [300, 600, 300, 600], bypassDnd: true });
+  await n.createChannel({ id: CH.fsVibe, name: 'Test: pełny ekran (wibracja)', importance: AndroidImportance.HIGH, vibration: true, vibrationPattern: [300, 400], bypassDnd: true });
+  await n.createChannel({ id: CH.fsSound, name: 'Test: pełny ekran (alarm)', importance: AndroidImportance.HIGH, vibration: true, vibrationPattern: [300, 400], bypassDnd: true });
 }
 
 /** Wysyła JEDNO powiadomienie testu (od razu albo za `delayMs` przez AlarmManager). */
@@ -90,14 +93,23 @@ export async function runNotifyTest(k: NotifyTestKey, delayMs: number): Promise<
   if (k === 'basicActions') android.actions = [{ title: 'NIE', pressAction: { id: 'test-no' } }, { title: 'TAK', pressAction: { id: 'test-yes' } }];
   if (full) {
     android.category = k === 'fsWake' ? AndroidCategory.ALARM : AndroidCategory.CALL;
-    android.fullScreenAction = { id: 'default', launchActivity: 'default' };
     android.ongoing = true;
-    if (k !== 'fsVibe') { android.sound = 'default'; android.loopSound = true; }
+    const { hasAlarmActivity, setAlarmPayload, ALARM_ACTIVITY } = await import('./lockScreen');
+    if (hasAlarmActivity()) {
+      // Natywny ekran alarmu: od razu nad blokadą, dźwięk budzika, wibracja (bez JS).
+      setAlarmPayload({ title: meta.label, body: 'Test alarmu', color: meta.color, sound: k !== 'fsVibe', vibrate: true, notifId: id });
+      android.fullScreenAction = { id: 'default', launchActivity: ALARM_ACTIVITY };
+      android.pressAction = { id: 'default', launchActivity: ALARM_ACTIVITY };
+    } else {
+      // stary APK: ekran alarmu w JS (app/alert-test.tsx)
+      android.fullScreenAction = { id: 'default', launchActivity: 'default' };
+      if (k !== 'fsVibe') { android.sound = 'default'; android.loopSound = true; }
+    }
   }
   const notification = {
     id,
     title: meta.label,
-    body: full ? 'Test alarmu — stuknij, jeśli ekran się nie otworzył sam.' : meta.desc,
+    body: full ? 'Test alarmu — stuknij, jeśli ekran alarmu nie otworzył się sam.' : meta.desc,
     data: { test: k, ...(full ? { route: 'alert-test' } : {}) },
     android,
   };

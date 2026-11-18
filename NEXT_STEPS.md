@@ -41,6 +41,15 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-18 — Natywny ekran alarmu (wymaga APK)**: user: „przy zgaszonym ekranie wybudza, ale nie ma
+alertu, ekran blokady się podświetla i gaśnie; brak dźwięku”. Przyczyna: pełny ekran otwierał MainActivity,
+a „nad blokadą” włączał JS — za późno. Teraz `AlarmActivity` (withFullScreenAlert.js, bez RN):
+showWhenLocked/turnScreenOn w manifeście (TYLKO ta Activity), dźwięk MediaPlayer USAGE_ALARM, wibracja z
+atrybutami alarmu, „Wyłącz” / „Otwórz appkę” (prosi o odblokowanie), bezpiecznik 2 min. Dane:
+`LockScreen.setAlarmPayload` (SharedPreferences) przed zaplanowaniem. Kanały testów v2 bez dźwięku.
+- [ ] Na telefonie: 3 testy pełnego ekranu z 1 min przy zgaszonym ekranie; dźwięk w trybie wibracji.
+- [ ] Jeśli działa — przenieść prawdziwe przypomnienia (zadania/rachunki) na ten sam ekran (opcja „jak budzik”).
+
 **2026-11-18 — S-Pen i widget rysunku (wymaga APK)**:
 - `plugins/withStylus.js`: MainActivity.dispatchTouchEvent → StylusState (BUTTON_STYLUS_PRIMARY), StylusModule.isButtonDown()
   (sync). DrawingCanvas: trzymany przycisk = gumka na kreskę (Ustawienia → Notatki i S-Pen).
