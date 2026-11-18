@@ -2298,3 +2298,11 @@ więc nie ma nic do migracji/zachowania.
 - Edycja: `components/profile/ProfileSheet.tsx` (Ustawienia → Profil i konto). Konsumenci: Dashboard
   (urodziny w osi eventów, ≤14 dni), `BodySheet` (BMI + wiek). Nowe pole profilu → dodać tu i w
   `prefs.isEmpty` w cloudSync.
+
+### Humor — statystyki (2026-11-18)
+- `utils/moodStats.ts` (czyste, `__tests__/moodStats.test.ts`): `dailyMood` (dzień = średnia wpisów),
+  `moodSummary` (30 dni vs poprzednie 30), `lastDays`, `weekdayMood`, `yearPixels`, `moodLinks`
+  (sen ≥7 h, kroki ≥8000, wydatki > mediana, dzień bez wydatków, słodycze, weekend — min. 3 dni
+  po obu stronach; wydatki bez stałych i przelewów własnych), `tagMood`.
+- Widok: `components/mood/MoodStatsSheet.tsx` — mini przycisk (ikona wykresu) w kaflu Humor w Daily;
+  reszta kafla dalej otwiera MoodModal. Dane: moodStore, expenses (prop z Daily), collectionStore.healthLog.

@@ -902,21 +902,21 @@ export default function AddExpenseModal({
             <Plus size={14} color={colors.bg.primary} />
           </TouchableOpacity>
         </View>
+        {tags.length > 0 && (
+          <View style={[s.chips, tagSuggestions.length > 0 && s.tagSelRow]}>
+            {tags.map((t) => (
+              <TouchableOpacity key={t} style={s.tagRemoveChip} onPress={() => removeTag(t)} activeOpacity={0.7}>
+                <Text style={s.tagRemoveLabel}>{t}</Text>
+                <X size={10} color={colors.bg.primary} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         {tagSuggestions.length > 0 && (
           <View style={s.chips}>
             {tagSuggestions.map((t) => (
               <TouchableOpacity key={t} style={s.chip} onPress={() => addSuggestedTag(t)} activeOpacity={0.7}>
                 <Text style={s.chipLabel}>+ {t}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-        {tags.length > 0 && (
-          <View style={s.chips}>
-            {tags.map((t) => (
-              <TouchableOpacity key={t} style={s.tagRemoveChip} onPress={() => removeTag(t)} activeOpacity={0.7}>
-                <Text style={s.tagRemoveLabel}>{t}</Text>
-                <X size={10} color={colors.bg.primary} />
               </TouchableOpacity>
             ))}
           </View>
@@ -1038,11 +1038,15 @@ const makeS = themedStyles((c) => StyleSheet.create({
   tagAddBtn: {
     width: 40, borderRadius: radius.md, backgroundColor: c.text.bright, alignItems: 'center', justifyContent: 'center',
   },
+  // Wybrane tagi (2026-11-18, user: "białe tagi nie mają odstępu"): nad podpowiedziami, z
+  // odstępem, ten sam rozmiar co podpowiedzi (ramka w kolorze tła = równa wysokość).
+  tagSelRow: { marginBottom: spacing[2] },
   tagRemoveChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: c.text.bright, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: c.text.bright, borderRadius: radius.sm, borderWidth: 1, borderColor: c.text.bright,
+    paddingHorizontal: spacing[3], paddingVertical: spacing[1] + 2,
   },
-  tagRemoveLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.bg.primary },
+  tagRemoveLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.bg.primary },
 
   // `footerRoot` = wrapper dla `footer`+`pasteFab` razem (2026-11-02) — `AppBottomSheet`
   // dostaje JEDEN `footer` prop, a FAB musi mieć wspólnego rodzica z rzędem

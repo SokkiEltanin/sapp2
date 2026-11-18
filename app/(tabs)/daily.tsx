@@ -1,7 +1,7 @@
 import FitText from '@/ui/FitText';
 import { useEffect, useMemo, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
-import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Platform, TouchableOpacity, Pressable } from 'react-native';
 import { Screen, Row, Tile, Cap, StackBar, FitList } from '@/ui/layout';
 import { router } from 'expo-router';
 import MonthPaceSheet, { MonthPaceRows, windowLabel } from '@/components/daily/MonthPace';
@@ -13,9 +13,10 @@ import FactSheet from '@/components/daily/FactSheet';
 import CollectionSheet, { useCollectionData } from '@/components/daily/CollectionSheet';
 import { useCollectionStore } from '@/store/collectionStore';
 import { haptic } from '@/utils/haptics';
-import { Check } from 'lucide-react-native';
+import { Check, BarChart3 } from 'lucide-react-native';
 import { C, T, S, R } from '@/ui/theme';
 import MoodModal from '@/components/mood/MoodModal';
+import MoodStatsSheet from '@/components/mood/MoodStatsSheet';
 import SleepSheet from '@/components/health/SleepSheet';
 import BodySheet from '@/components/health/BodySheet';
 import { moodColor, energyGlow, MOOD_LABELS, ENERGY_LABELS, roundLevel } from '@/types/mood';
@@ -49,6 +50,7 @@ export default function DailyScreen() {
   const connected = useHealthStore((st) => st.connected);
   useHealthSync();
   const [moodOpen, setMoodOpen] = useState(false);
+  const [moodStatsOpen, setMoodStatsOpen] = useState(false);
   const [sleepOpen, setSleepOpen] = useState(false);
   const [paceOpen, setPaceOpen] = useState(false);
   const [factOpen, setFactOpen] = useState(false);
@@ -195,7 +197,14 @@ export default function DailyScreen() {
           </View>
         </Tile>
         <Tile span={2} onPress={() => setMoodOpen(true)}>
-          <Cap l="Humor" r="+" />
+          {/* Mini przycisk → zakładka humoru (2026-11-18): średnia, rok w pikselach, zależności.
+              Reszta kafla dalej = zapisz humor. */}
+          <View style={st.moodCap}>
+            <Text style={T.cap} numberOfLines={1}>Humor</Text>
+            <Pressable style={st.moodStatsBtn} hitSlop={10} onPress={() => { haptic.tap(); setMoodStatsOpen(true); }} accessibilityLabel="Statystyki humoru">
+              <BarChart3 size={13} color={C.txt} />
+            </Pressable>
+          </View>
           <Text style={[T.rowHi, lastToday && { color: moodColor(lastToday.mood) }]} numberOfLines={1}>
             {lastToday ? MOOD_LABELS[roundLevel(lastToday.mood)] : 'nie zapisano'}
           </Text>
@@ -228,6 +237,10 @@ export default function DailyScreen() {
       <LazyMount visible={bodyOpen}>
         <BodySheet visible={bodyOpen} onClose={() => setBodyOpen(false)} />
       </LazyMount>
+      <LazyMount visible={moodStatsOpen}>
+        <MoodStatsSheet visible={moodStatsOpen} onClose={() => setMoodStatsOpen(false)} expenses={expenses}
+          onAdd={() => { setMoodStatsOpen(false); setTimeout(() => setMoodOpen(true), 280); }} />
+      </LazyMount>
       <LazyMount visible={moodOpen}>
         <MoodModal visible={moodOpen} onClose={() => setMoodOpen(false)} />
       </LazyMount>
@@ -253,6 +266,8 @@ const st = StyleSheet.create({
   stepsBars: { flexDirection: 'row', gap: 3, height: 26, marginTop: 6, alignItems: 'flex-end' },
   stepCol: { flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' },
   stepBar: { width: '75%', borderRadius: 2, backgroundColor: C.mut },
+  moodCap: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8, marginTop: -6 },
+  moodStatsBtn: { width: 26, height: 26, borderRadius: 8, backgroundColor: C.in2, alignItems: 'center', justifyContent: 'center' },
   moodDots: { flexDirection: 'row', marginTop: 8, height: 14, alignItems: 'center' },
   moodDotCol: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   moodDot: { borderRadius: 7 },
