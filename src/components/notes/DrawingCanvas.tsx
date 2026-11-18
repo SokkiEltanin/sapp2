@@ -1,6 +1,7 @@
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, type LayoutChangeEvent } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { View, StyleSheet, NativeModules, type LayoutChangeEvent } from 'react-native';
+import { Gesture, GestureDetector, PointerType } from 'react-native-gesture-handler';
+import { usePenStore } from '@/store/penStore';
 import Svg, { Path } from 'react-native-svg';
 import type { NoteStroke } from '@/types/notes';
 import { addPoint, strokePath, strokesHit, brushFactor, smoothFactor, brushOutline } from '@/utils/notes';
@@ -31,12 +32,21 @@ export interface DrawTool { color: string; width: number; eraser: boolean; brush
 /** Odczyt nacisku na żywo (test S-Pen): pressure 0..1 albo null = palec. */
 export type PressureInfo = { stylus: boolean; pressure: number | null; factor: number };
 
-export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPressure }: {
+// S-Pen (2026-11-18): `fingerScroll` — palec nie rysuje (gest odpada → przewija strona pod
+// spodem), rysuje tylko rysik; `buttonEraser` — trzymany przycisk S-Pena = gumka na tę kreskę
+// (stan przycisku z natywnego StylusModule, plugins/withStylus.js; stary APK = brak).
+const stylusButtonDown = (): boolean => {
+  try { return !!NativeModules.Stylus?.isButtonDown?.(); } catch { return false; }
+};
+
+export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPressure, fingerScroll = false, buttonEraser = false }: {
   strokes: NoteStroke[];
   onChange: (strokes: NoteStroke[]) => void;
   tool: DrawTool;
   onRatio?: (ratio: number) => void; // wysokość / szerokość płótna (do miniatur)
   onPressure?: (info: PressureInfo | null) => void;
+  fingerScroll?: boolean;
+  buttonEraser?: boolean;
 }) {
   const [size, setSize] = useState({ w: 0, h: 0 });
   const current = useRef<number[] | null>(null);
@@ -49,8 +59,9 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
   // Gest tworzony RAZ (2026-11-15): wcześniej zależał od `onChange`/`tool`, które
   // zmieniają się przy każdym odświeżeniu ekranu notatki — gest podpinał się na nowo
   // w trakcie rysowania i potrafił uciąć kreskę. Aktualne wartości czytamy z refów.
-  const live = useRef({ size: { w: 0, h: 0 }, tool, onChange, onPressure });
-  live.current = { size: live.current.size, tool, onChange, onPressure };
+  const live = useRef({ size: { w: 0, h: 0 }, tool, onChange, onPressure, fingerScroll, buttonEraser });
+  live.current = { size: live.current.size, tool, onChange, onPressure, fingerScroll, buttonEraser };
+  const stroke = useRef({ reject: false, erase: false }); // bieżąca kreska: odrzucona (palec) / gumka z przycisku
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -90,11 +101,23 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
   const gesture = useMemo(() => Gesture.Pan()
     .minDistance(0)
     .runOnJS(true)
+    .manualActivation(true)
+    .onTouchesDown((e, mgr) => {
+      const stylus = e.pointerType === PointerType.STYLUS;
+      if (stylus && !usePenStore.getState().stylusSeen) usePenStore.getState().set({ stylusSeen: true });
+      if (live.current.fingerScroll && !stylus) { stroke.current.reject = true; mgr.fail(); return; }
+      mgr.activate();
+    })
     .onBegin((e) => {
       const { size: sz, tool: tl } = live.current;
-      if (sz.w <= 0) return;
+      const stylus = e.pointerType === PointerType.STYLUS;
+      stroke.current = {
+        reject: live.current.fingerScroll && !stylus,
+        erase: stylus && live.current.buttonEraser && stylusButtonDown(),
+      };
+      if (sz.w <= 0 || stroke.current.reject) return;
       const x = e.x / sz.w, y = e.y / sz.w;
-      if (tl.eraser) { fns.current.erase(x, y); return; }
+      if (tl.eraser || stroke.current.erase) { fns.current.erase(x, y); return; }
       current.current = [];
       widths.current = [];
       addPoint(current.current, x, y, 0);
@@ -103,9 +126,9 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
     })
     .onUpdate((e) => {
       const { size: sz, tool: tl } = live.current;
-      if (sz.w <= 0) return;
+      if (sz.w <= 0 || stroke.current.reject) return;
       const x = e.x / sz.w, y = e.y / sz.w;
-      if (tl.eraser) { fns.current.erase(x, y); return; }
+      if (tl.eraser || stroke.current.erase) { fns.current.erase(x, y); return; }
       if (current.current && addPoint(current.current, x, y)) {
         if (tl.brush) widths.current.push(smoothFactor(widths.current[widths.current.length - 1], fns.current.factorOf(e)));
         redraw();
@@ -113,7 +136,8 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
     })
     .onFinalize(() => {
       const tl = live.current.tool;
-      const p = current.current;
+      const p = stroke.current.reject || stroke.current.erase ? null : current.current;
+      stroke.current = { reject: false, erase: false };
       current.current = null;
       if (p && p.length >= 2) fns.current.commit([...latest.current, tl.brush
         ? { color: tl.color, width: tl.width, p, w: widths.current.slice(0, p.length / 2) }

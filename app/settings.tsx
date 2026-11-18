@@ -32,7 +32,7 @@ import {
   LogIn, LogOut, User as UserIcon, Database, CalendarDays, AlertTriangle, Rocket,
   Landmark, Zap, Vibrate, ShieldCheck, History, Watch, Download,
   CloudUpload, CloudDownload, LayoutGrid,
-  Tags,
+  Tags, PenLine, Eraser,
 } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -48,6 +48,7 @@ import { useBankQueue } from '@/store/bankQueueStore';
 import { useHealthStore } from '@/store/healthStore';
 import { isHealthConnectAvailable, ensureHealthConnect, openHealthConnectSettings, readHealthDay } from '@/services/healthConnectService';
 import { isHapticsEnabled, setHapticsEnabled, haptic, getHapticStrength, setHapticStrength, HAPTIC_STRENGTH_LABEL, type HapticStrength } from '@/utils/haptics';
+import { usePenStore } from '@/store/penStore';
 import Toggle from '@/components/design/Toggle';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import WidgetAppearanceSheet from '@/components/settings/WidgetAppearanceSheet';
@@ -124,6 +125,7 @@ function buildSections(
   thresholds: string,
   pwa: string | null,
   profile: string,
+  pen: { fingerScroll: boolean; buttonEraser: boolean; stylusSeen: boolean },
 ): SettingsSection[] {
   return [
   // Zakładki (2026-11-17, user: "popraw ustawienia, zrób lepsze zakładki — czemu w
@@ -258,6 +260,15 @@ function buildSections(
       { kind: 'switch', key: 'haptics-enabled', label: 'Wibracje', description: 'kliknięcie przy tapach w appce', icon: Vibrate, value: hapticsEnabled },
       ...(hapticsEnabled ? [{ kind: 'action' as const, key: 'haptics-strength', label: 'Siła wibracji', description: `${HAPTIC_STRENGTH_LABEL[hapticStrength]} · stuknij, żeby zmienić`, icon: Vibrate }] : []),
       { kind: 'action', key: 'dash-layout', label: 'Układ Dashboardu', description: 'kolejność rzędów i ukrywanie', icon: LayoutGrid },
+    ],
+  },
+  // Notatki i S-Pen (2026-11-18) — store/penStore.ts, lokalnie na tym urządzeniu.
+  {
+    id: 'notatki', title: 'Notatki i S-Pen', icon: PenLine, group: 'main',
+    summary: `${pen.fingerScroll ? 'palec przewija' : 'palec rysuje'} · przycisk ${pen.buttonEraser ? '= gumka' : 'wyłączony'}`,
+    items: [
+      { kind: 'switch', key: 'pen-finger-scroll', label: 'Palcem przewijam, S-Penem rysuję', description: pen.stylusSeen ? 'S-Pen wykryty — palec przesuwa stronę, rysuje tylko rysik' : 'zadziała, gdy appka pierwszy raz wykryje S-Pen', icon: PenLine, value: pen.fingerScroll },
+      { kind: 'switch', key: 'pen-button-eraser', label: 'Przycisk S-Pena = gumka', description: 'trzymaj przycisk na rysiku i przeciągnij po kresce', icon: Eraser, value: pen.buttonEraser },
     ],
   },
   {
@@ -419,6 +430,10 @@ export default function SettingsScreen() {
   const profAge = ageOn(prof.birthDate);
   const profileLabel = [prof.name, profAge != null ? `${profAge} lat` : null, prof.heightCm ? `${prof.heightCm} cm` : null].filter(Boolean).join(' · ');
   const [profileOpen, setProfileOpen] = useState(false);
+  const penFinger = usePenStore((st) => st.fingerScroll);
+  const penButton = usePenStore((st) => st.buttonEraser);
+  const penSeen = usePenStore((st) => st.stylusSeen);
+  const pen = useMemo(() => ({ fingerScroll: penFinger, buttonEraser: penButton, stylusSeen: penSeen }), [penFinger, penButton, penSeen]);
   const sections = useMemo(
     () => buildSections(
       user?.email ?? null,
@@ -436,8 +451,9 @@ export default function SettingsScreen() {
       thresholdsText,
       pwaLabel,
       profileLabel,
+      pen,
     ),
-    [profileLabel, pwaLabel, healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, hapticStrength, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, widgetNote, syncLabel],
+    [pen, profileLabel, pwaLabel, healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, hapticStrength, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, widgetNote, syncLabel],
   );
 
   const backupNow = async () => {
@@ -747,6 +763,8 @@ export default function SettingsScreen() {
     'bank-history': leave(() => router.push('/bank-history' as any)),
     'import-sapp': leave(() => router.push('/import-sapp' as any)),
     'haptics-enabled': toggleHaptics,
+    'pen-finger-scroll': () => { haptic.tap(); usePenStore.getState().set({ fingerScroll: !usePenStore.getState().fingerScroll }); },
+    'pen-button-eraser': () => { haptic.tap(); usePenStore.getState().set({ buttonEraser: !usePenStore.getState().buttonEraser }); },
     'haptics-strength': cycleHapticStrength,
     'backup-auto': toggleBackupAuto,
     'backup-now': backupNow,

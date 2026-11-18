@@ -19,6 +19,8 @@ import DrawingCanvas, { type DrawTool, type PressureInfo } from '@/components/no
 import RichTextEditor from '@/components/notes/RichTextEditor';
 import { hasFormatting, type TextRun } from '@/utils/richText';
 import { haptic } from '@/utils/haptics';
+import { ScrollView as GHScrollView } from 'react-native-gesture-handler';
+import { usePenStore } from '@/store/penStore';
 
 // Edytor notatki (2026-11-14). Pełny ekran (rysowanie potrzebuje miejsca).
 // Zapis: tekst/lista lokalnie w stanie, do store'a z opóźnieniem 400 ms (pisanie
@@ -62,6 +64,11 @@ export default function NoteScreen() {
   // Tekst + rysunek w jednej notatce (2026-11-15, user: "połączyć TEKST RYSUNEK... po
   // prostu narzędzie wybrać tekst albo rysunek"): przełącznik narzędzia na dole, kreski
   // leżą na tej samej "stronie" co tekst i przewijają się razem z nim.
+  // S-Pen (2026-11-18): palec przewija dopiero, gdy appka wykryła rysik (inaczej bez rysika
+  // nie dałoby się rysować); "+ strona" dokłada wysokość ekranu pod rysunkiem.
+  const penScroll = usePenStore((st) => st.fingerScroll && st.stylusSeen);
+  const penButton = usePenStore((st) => st.buttonEraser);
+  const [extraPages, setExtraPages] = useState(0);
   const [mode, setMode] = useState<'text' | 'draw'>(note?.kind === 'drawing' || (!!note && !note.text && note.strokes.length > 0) ? 'draw' : 'text');
   const [viewH, setViewH] = useState(0);
   const [pageW, setPageW] = useState(0);
@@ -164,9 +171,12 @@ export default function NoteScreen() {
                 editable={mode === 'text'}
                 toolbar={mode === 'text'}
                 page={{
-                  minHeight: Math.max(viewH - 54, strokesBottom(note.strokes, pageW) + 160),
+                  // Nieskończona strona (2026-11-18): "+ strona" na dole dokłada wysokość ekranu.
+                  minHeight: Math.max(viewH - 54, strokesBottom(note.strokes, pageW) + 160) + extraPages * Math.max(1, viewH - 54),
                   wrap: (field) => (
-                    <ScrollView style={{ flex: 1 }} scrollEnabled={mode === 'text'} keyboardShouldPersistTaps="handled">
+                    // GH ScrollView: rysik aktywuje gest kreski (scroll się nie rusza), palec przy
+                    // `fingerScroll` odpada z gestu i przewija stronę.
+                    <GHScrollView style={{ flex: 1 }} scrollEnabled={mode === 'text' || penScroll} keyboardShouldPersistTaps="handled">
                       <View onLayout={(e: LayoutChangeEvent) => { setPageW(e.nativeEvent.layout.width); setStorePageW(e.nativeEvent.layout.width); }}>
                         {field}
                         {guide && cutY != null && (
@@ -176,7 +186,7 @@ export default function NoteScreen() {
                         )}
                         {mode === 'draw' ? (
                           <View style={StyleSheet.absoluteFill}>
-                            <DrawingCanvas strokes={note.strokes} onChange={strokesChange} tool={tool} onPressure={setPressure} />
+                            <DrawingCanvas strokes={note.strokes} onChange={strokesChange} tool={tool} onPressure={setPressure} fingerScroll={penScroll} buttonEraser={penButton} />
                           </View>
                         ) : note.strokes.length > 0 && pageW > 0 ? (
                           <View style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -184,7 +194,13 @@ export default function NoteScreen() {
                           </View>
                         ) : null}
                       </View>
-                    </ScrollView>
+                      {mode === 'draw' && (
+                        <TouchableOpacity style={s.addPage} onPress={() => { haptic.tap(); setExtraPages((n) => n + 1); }} accessibilityLabel="Dodaj stronę">
+                          <Plus size={16} color={colors.text.secondary} />
+                          <Text style={s.addPageTxt}>strona niżej</Text>
+                        </TouchableOpacity>
+                      )}
+                    </GHScrollView>
                   ),
                 }}
               />
@@ -325,6 +341,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
   clearDone: { alignSelf: 'flex-start', marginTop: spacing[2] },
   clearDoneLabel: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.muted, textDecorationLine: 'underline' },
 
+  addPage: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginHorizontal: spacing[3], marginVertical: spacing[3], paddingVertical: 12, borderRadius: radius.lg, borderWidth: 1, borderStyle: 'dashed', borderColor: c.border.default },
+  addPageTxt: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   canvasBox: { flex: 1, marginHorizontal: spacing[3], borderRadius: radius.lg, backgroundColor: c.bg.card, overflow: 'hidden' },
   modeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing[3], paddingTop: spacing[2] },
   modeBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing[3], height: 32, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },

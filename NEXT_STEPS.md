@@ -41,6 +41,16 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-18 — S-Pen i widget rysunku (wymaga APK)**:
+- `plugins/withStylus.js`: MainActivity.dispatchTouchEvent → StylusState (BUTTON_STYLUS_PRIMARY), StylusModule.isButtonDown()
+  (sync). DrawingCanvas: trzymany przycisk = gumka na kreskę (Ustawienia → Notatki i S-Pen).
+- Palec przewija, rysik rysuje: `store/penStore.ts` (`fingerScroll`, aktywne dopiero po wykryciu rysika — `stylusSeen`
+  z pointerType gestu). Pan `manualActivation` + `mgr.fail()` dla palca; app/note.tsx: GH ScrollView + „strona niżej”.
+- Widget notatki: kadr rysunku wg rozmiaru widgetu (getAppWidgetOptions, onAppWidgetOptionsChanged) — za niski
+  widget = górna część rysunku na pełną szerokość.
+- [ ] Na telefonie: przycisk S-Pena przy dotyku (Samsung może przechwytywać go dla Air Command — wtedy wyłączyć
+  „Air actions” dla appki); palec przewija po pierwszym użyciu rysika; widget po zmianie rozmiaru.
+
 **2026-11-18 — Zakładka humoru** (`components/mood/MoodStatsSheet.tsx`, `utils/moodStats.ts`): średnia 30 dni,
 wykres 30 dni, rok w pikselach, dni tygodnia, „Co wpływa na humor” (sen/kroki/wydatki/słodycze/weekend), tagi.
 Tagi w edycji wydatku: wybrane nad podpowiedziami z odstępem.

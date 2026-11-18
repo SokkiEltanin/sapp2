@@ -2311,3 +2311,9 @@ więc nie ma nic do migracji/zachowania.
 - `Rec.ids` (transakcje, które dały wynik) i `Rec.detail` (opis źródła) w `utils/records.ts`; CollectionSheet
   pokazuje je w szczegółach kafla, transakcje otwierają AddExpenseModal (LazyMount w RecordsView).
 - `bigExpense`, `daySpend` i `MonthCard.biggest` (top 3) liczone z food+variable — bez stałych opłat.
+
+### S-Pen (2026-11-18)
+- `store/penStore.ts` (`pen-v1`, lokalnie): fingerScroll, buttonEraser, stylusSeen. Ustawienia → „Notatki i S-Pen”.
+- `plugins/withStylus.js` → StylusState/StylusModule/StylusPackage + override dispatchTouchEvent w MainActivity.
+  JS: `NativeModules.Stylus?.isButtonDown?.()` w DrawingCanvas (onBegin kreski).
+- Uwaga: komentarze w szablonach Kotlina w pluginach NIE mogą mieć backticków (to template stringi JS).
