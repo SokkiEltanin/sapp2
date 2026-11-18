@@ -1,15 +1,16 @@
 import FitText from '@/ui/FitText';
 import { useEffect, useState } from 'react';
 import { Modal, View, Text, Pressable, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
-import { ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { usePicker, resolvePicker, monthGrid, dayAllowed } from '@/services/picker';
 import { haptic } from '@/utils/haptics';
+import WheelColumn from './WheelColumn';
 
 // Własny picker daty/godziny (services/picker.ts) — zamiast systemowego dialogu
-// Androida. Data: kalendarz miesiąca od poniedziałku; godzina: siatka 24 h + minuty
-// co 5 z dokładnym ±1. Po polsku, w czarnym motywie appki.
+// Androida. Data: kalendarz miesiąca od poniedziałku; godzina: dwa kółka (WheelColumn)
+// jak w zegarze Samsunga. Po polsku, w czarnym motywie appki.
 const MONTHS = ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień'];
 const WD = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -43,7 +44,6 @@ export default function PickerHost() {
     haptic.tap();
     setView((v) => { const d = new Date(v.y, v.m + k, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
   };
-  const setHM = (h: number, m: number) => { const n = new Date(val); n.setHours(h, ((m % 60) + 60) % 60, 0, 0); setVal(n); };
   const jumpNow = () => {
     haptic.tap();
     const n = new Date(val);
@@ -64,46 +64,17 @@ export default function PickerHost() {
       <Pressable style={s.backdrop} onPress={cancel}>
         <Pressable style={[s.card, { width: cardW }]} onPress={() => {}}>
           <Text style={s.kicker}>{req.title ?? (isTime ? 'Wybierz godzinę' : `Wybierz datę · ${val.getFullYear()}`)}</Text>
-          {isTime ? (
-            <View style={s.timeHead}>
-              <TouchableOpacity style={s.fine} onPress={() => { haptic.tap(); setHM(val.getHours(), val.getMinutes() - 1); }} accessibilityLabel="Minuta wcześniej">
-                <Minus size={16} color={colors.text.primary} />
-              </TouchableOpacity>
-              <Text style={s.bigTime}>{head}</Text>
-              <TouchableOpacity style={s.fine} onPress={() => { haptic.tap(); setHM(val.getHours(), val.getMinutes() + 1); }} accessibilityLabel="Minuta później">
-                <Plus size={16} color={colors.text.primary} />
-              </TouchableOpacity>
-            </View>
-          ) : (
+          {isTime ? null : (
             <FitText style={s.bigDate} numberOfLines={1}>{head}</FitText>
           )}
 
           {isTime ? (
-            <>
-              <Text style={s.label}>Godzina</Text>
-              <View style={s.grid}>
-                {Array.from({ length: 24 }, (_, h) => {
-                  const on = val.getHours() === h;
-                  return (
-                    <TouchableOpacity key={h} style={[s.tchip, on && s.on]} onPress={() => { haptic.tap(); setHM(h, val.getMinutes()); }}>
-                      <Text style={[s.tchipTxt, on && s.onTxt]}>{pad(h)}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-              <Text style={s.label}>Minuty</Text>
-              <View style={s.grid}>
-                {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => {
-                  const on = val.getMinutes() === m;
-                  const near = !on && Math.floor(val.getMinutes() / 5) * 5 === m;
-                  return (
-                    <TouchableOpacity key={m} style={[s.tchip, on && s.on, near && s.near]} onPress={() => { haptic.tap(); setHM(val.getHours(), m); }}>
-                      <Text style={[s.tchipTxt, on && s.onTxt]}>{pad(m)}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </>
+            // Kółka jak w zegarze Samsunga (2026-11-18): godziny 00–23 i minuty 00–59, zapętlone.
+            <View style={s.wheels}>
+              <WheelColumn count={24} value={val.getHours()} onChange={(h) => setVal((p) => { const n = new Date(p); n.setHours(h, p.getMinutes(), 0, 0); return n; })} />
+              <Text style={s.colon}>:</Text>
+              <WheelColumn count={60} value={val.getMinutes()} onChange={(m) => setVal((p) => { const n = new Date(p); n.setHours(p.getHours(), m, 0, 0); return n; })} />
+            </View>
           ) : (
             <>
               <View style={s.monthRow}>
@@ -158,13 +129,12 @@ export default function PickerHost() {
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
+  wheels: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginVertical: spacing[3] },
+  colon: { fontSize: 30, fontFamily: 'Inter_900Black', color: c.text.bright, marginBottom: 4 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center' },
   card: { backgroundColor: c.bg.card, borderRadius: radius.sheet, borderWidth: 1, borderColor: c.border.subtle, padding: spacing[4] },
   kicker: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.8 },
   bigDate: { fontSize: 24, fontFamily: 'Inter_900Black', color: c.text.bright, marginTop: 4, marginBottom: spacing[3] },
-  timeHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, marginBottom: spacing[2] },
-  bigTime: { fontSize: 48, fontFamily: 'Inter_900Black', color: c.text.bright, fontVariant: ['tabular-nums'] },
-  fine: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: c.border.default, alignItems: 'center', justifyContent: 'center' },
   label: { fontSize: 10.5, fontFamily: 'Inter_800ExtraBold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: spacing[3], marginBottom: spacing[2] },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tchip: { width: '15.1%', paddingVertical: 9, borderRadius: radius.md, backgroundColor: c.bg.primary, alignItems: 'center' },

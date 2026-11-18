@@ -41,6 +41,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-18 — Godzina jako kółka** (`components/design/WheelColumn.tsx`, PickerHost): godziny 00–23 i minuty
+00–59, zapętlone, przyciąganie, ząbek wibracji (`haptic.tick`), stuknięcie w pozycję. Dotyczy wszystkich
+pickerów godziny (Zadania, wydarzenia). Łańcuch data → godzina bez zmian.
+- [ ] Na telefonie: płynność przewijania, czy szybki rzut kończy na właściwej pozycji.
+
 **2026-11-18 — Natywny ekran alarmu (wymaga APK)**: user: „przy zgaszonym ekranie wybudza, ale nie ma
 alertu, ekran blokady się podświetla i gaśnie; brak dźwięku”. Przyczyna: pełny ekran otwierał MainActivity,
 a „nad blokadą” włączał JS — za późno. Teraz `AlarmActivity` (withFullScreenAlert.js, bez RN):

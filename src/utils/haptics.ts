@@ -58,6 +58,8 @@ const MEDIUM: Record<HapticStrength, Haptics.ImpactFeedbackStyle> = { light: I.M
 
 export const haptic = {
   tap: () => ok() && Haptics.impactAsync(TAP[strength]),
+  // Ząbek kółka wyboru (WheelColumn) — najlżejszy, niezależnie od siły.
+  tick: () => ok() && Haptics.selectionAsync(),
   medium: () => ok() && Haptics.impactAsync(MEDIUM[strength]),
   success: () => ok() && Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
   error: () => ok() && Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
