@@ -18,7 +18,8 @@ export interface MonthCard {
   income: number; balance: number;
   vsAvg: number | null;        // wydatki vs średnia 3 poprzednich miesięcy z danymi, %
   top: { label: string; color: string; v: number }[];
-  biggest: { name: string; amount: number; date: string } | null;
+  // Najdroższe wydatki BEZ stałych (2026-11-18, user: "mieszkanie to stała, bez sensu w karcie")
+  biggest: { id: string; name: string; amount: number; date: string }[];
   count: number;
   steps: number | null;        // średnio dziennie
   sleepMin: number | null;     // średnio na noc
@@ -58,14 +59,17 @@ export function buildMonthCards(expenses: Expense[], log: HealthLog, now: Date =
       .filter((k) => (k.startsWith('cat:') || k.startsWith('food:')) && k !== 'cat:__none' && k !== 'food:inne')
       .map((k) => ({ ...seriesMeta(k), v: get(k, i) }))
       .filter((x) => x.v > 0).sort((a, b) => b.v - a.v).slice(0, 3);
-    let biggest: MonthCard['biggest'] = null, count = 0;
+    let count = 0;
+    const pool: MonthCard['biggest'] = [];
     for (const e of expenses) {
       if (e.type !== 'expense' || isOwnTransfer(e) || !(e.date ?? '').startsWith(key)) continue;
-      const s = fvSplitOf(e); const amt = s.fixed + s.food + s.variable;
-      if (amt <= 0) continue;
+      const s = fvSplitOf(e);
+      if (s.fixed + s.food + s.variable <= 0) continue;
       count++;
-      if (!biggest || amt > biggest.amount) biggest = { name: e.storeName || e.note || 'Wydatek', amount: round2(amt), date: e.date.slice(0, 10) };
+      const amt = s.food + s.variable;            // bez stałych opłat (czynsz, prąd…)
+      if (amt > 0) pool.push({ id: e.id, name: e.storeName || e.note || 'Wydatek', amount: round2(amt), date: e.date.slice(0, 10) });
     }
+    const biggest = pool.sort((a, b) => b.amount - a.amount).slice(0, 3);
     const h = healthAvg(log, key);
     cards.push({
       key, label: monthLabel(key),

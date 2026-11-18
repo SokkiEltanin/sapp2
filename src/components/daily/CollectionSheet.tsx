@@ -1,6 +1,10 @@
 import { useMemo, useState, useEffect } from 'react';
+import AddExpenseModal from '@/components/finances/AddExpenseModal';
+import LazyMount from '@/components/design/LazyMount';
+import { txDetail, txColor } from '@/utils/txGroup';
+import type { Expense } from '@/types/finances';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
-import { Check, Trophy, X, CalendarDays, Footprints, Moon, ListChecks, Candy, PiggyBank, TrendingDown, ArrowDownLeft, Receipt } from 'lucide-react-native';
+import { Check, Pencil, Trophy, X, CalendarDays, Footprints, Moon, ListChecks, Candy, PiggyBank, TrendingDown, ArrowDownLeft, Receipt } from 'lucide-react-native';
 import FitText from '@/ui/FitText';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -114,7 +118,7 @@ export function MonthCardView({ card: c, fresh }: { card: MonthCard; fresh?: boo
 
       {extra ? <Text style={s.foot}>{extra}</Text> : null}
       {c.top.length > 0 && <Text style={s.foot}>najwięcej: <Text style={s.footHi}>{c.top.map((t) => t.label).join(', ')}</Text></Text>}
-      {c.biggest && <Text style={s.foot} numberOfLines={1}>największy: <Text style={s.footHi}>{c.biggest.name} {money(c.biggest.amount)} zł</Text></Text>}
+      {c.biggest.length > 0 && <Text style={s.foot} numberOfLines={2}>najdroższe (bez stałych): <Text style={s.footHi}>{c.biggest.map((b) => `${b.name} ${money(b.amount)} zł`).join(', ')}</Text></Text>}
       {c.badges.length > 1 && <Text style={s.foot}>🏆 {c.badges.slice(1).join(' · ')}</Text>}
     </View>
   );
@@ -146,7 +150,11 @@ function RecordsView({ data }: { data: Partial<Record<RecordKey, Rec>> }) {
   const confirmed = useCollectionStore((st) => st.confirmed);
   const setManual = useCollectionStore((st) => st.setManual);
   const confirm = useCollectionStore((st) => st.confirm);
-  const [edit, setEdit] = useState<RecordKey | null>(null);
+  const expenses = useExpensesStore((st) => st.expenses);
+  const byId = useMemo(() => new Map(expenses.map((e) => [e.id, e])), [expenses]);
+  const [open, setOpen] = useState<RecordKey | null>(null);   // szczegóły: skąd rekord
+  const [edit, setEdit] = useState<RecordKey | null>(null);   // ręczny wpis
+  const [editExp, setEditExp] = useState<Expense | null>(null);
 
   return (
     <View style={{ gap: spacing[3] }}>
@@ -162,39 +170,88 @@ function RecordsView({ data }: { data: Partial<Record<RecordKey, Rec>> }) {
               const sig = best ? recordSig(best.rec) : null;
               const isConfirmed = !!sig && confirmed[k] === sig;
               const isNew = best?.source === 'data' && !isConfirmed && !!confirmed[k];
+              const v = best ? fmtValue(def, best.rec.value) : '—';
+              const m = k !== 'sleep' ? /^(.*\d)\s(\D+)$/.exec(v) : null;
+              const value = (
+                <FitText style={[s.recValue, !best && { color: colors.text.muted }]} numberOfLines={1}>
+                  {m ? m[1] : v}{m ? <Text style={s.recUnit}>{` ${m[2]}`}</Text> : null}
+                </FitText>
+              );
+              const head = (wide: boolean) => (
+                <View style={s.recHead}>
+                  <View style={[s.recIcon, { backgroundColor: ui.color + '22' }]}><Icon size={13} color={ui.color} /></View>
+                  <Text style={s.recLabel} numberOfLines={2}>{wide ? def.label : ui.short}</Text>
+                  {wide ? (
+                    <TouchableOpacity hitSlop={10} accessibilityLabel="Zamknij" onPress={() => { setOpen(null); setEdit(null); }}>
+                      <X size={15} color={colors.text.muted} />
+                    </TouchableOpacity>
+                  ) : best ? (
+                    <TouchableOpacity hitSlop={10} accessibilityLabel="Potwierdź rekord" onPress={() => { haptic.tap(); confirm(k, isConfirmed ? null : sig); }}>
+                      <Check size={14} color={isConfirmed ? colors.accent.green : colors.text.muted} />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              );
+
               if (edit === k) return (
                 <View key={k} style={[s.recTile, s.recTileWide]}>
-                  <View style={s.recHead}>
-                    <View style={[s.recIcon, { backgroundColor: ui.color + '22' }]}><Icon size={13} color={ui.color} /></View>
-                    <Text style={s.recLabel}>{def.label}</Text>
-                  </View>
+                  {head(true)}
                   <RecordEditor def={def} initial={manual[k] ?? best?.rec} hasManual={!!manual[k]}
                     onCancel={() => setEdit(null)}
                     onSave={(r) => { haptic.success(); setManual(k, r); confirm(k, r ? recordSig(r) : null); setEdit(null); }} />
                 </View>
               );
-              return (
-                <TouchableOpacity key={k} style={s.recTile} activeOpacity={0.8} accessibilityLabel="Edytuj rekord"
-                  onPress={() => { haptic.tap(); setEdit(k); }}>
-                  <View style={s.recHead}>
-                    <View style={[s.recIcon, { backgroundColor: ui.color + '22' }]}><Icon size={13} color={ui.color} /></View>
-                    <Text style={s.recLabel} numberOfLines={2}>{ui.short}</Text>
-                    {best && (
-                      <TouchableOpacity hitSlop={10} accessibilityLabel="Potwierdź rekord" onPress={() => { haptic.tap(); confirm(k, isConfirmed ? null : sig); }}>
-                        <Check size={14} color={isConfirmed ? colors.accent.green : colors.text.muted} />
+
+              // Szczegóły (2026-11-18, user: "musi pisać datę i konkretny event, kiedy to wyłapało,
+              // żebym mógł zobaczyć i edytować"): kiedy, skąd, powiązane transakcje (stuknij = edycja).
+              if (open === k) {
+                const linked = (best?.source === 'data' ? best.rec.ids ?? [] : []).map((id) => byId.get(id)).filter(Boolean) as Expense[];
+                return (
+                  <View key={k} style={[s.recTile, s.recTileWide]}>
+                    {head(true)}
+                    {value}
+                    {best ? (
+                      <>
+                        <Text style={s.srcLine}>
+                          {best.source === 'manual' ? 'Wpisane ręcznie' : 'Złapane z danych'} · {fmtDate(best.rec.date)}{best.rec.note ? ` · ${best.rec.note}` : ''}
+                        </Text>
+                        {best.source === 'data' && best.rec.detail ? <Text style={s.srcDetail}>{best.rec.detail}</Text> : null}
+                        {best.source === 'manual' && data[k] ? <Text style={s.srcDetail}>{`Z danych: ${fmtValue(def, data[k]!.value)} (${fmtDate(data[k]!.date)}) — Twój wpis jest lepszy.`}</Text> : null}
+                        {linked.map((e) => (
+                          <TouchableOpacity key={e.id} style={s.srcTx} activeOpacity={0.75} onPress={() => { haptic.tap(); setEditExp(e); }} accessibilityLabel={`Edytuj ${e.storeName || e.note || 'transakcję'}`}>
+                            <View style={[s.srcDot, { backgroundColor: txColor(e) }]} />
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <Text style={s.srcTxName} numberOfLines={1}>{e.storeName || e.note || (e.type === 'income' ? 'Przychód' : 'Wydatek')}</Text>
+                              <Text style={s.srcTxSub} numberOfLines={1}>{[fmtDate(e.date.slice(0, 10)), txDetail(e)].filter(Boolean).join(' · ')}</Text>
+                            </View>
+                            <Text style={[s.srcTxAmt, e.type === 'income' && { color: colors.accent.green }]}>{e.type === 'income' ? '+' : '−'}{money(e.amount)} zł</Text>
+                            <Pencil size={12} color={colors.text.muted} />
+                          </TouchableOpacity>
+                        ))}
+                        {best.source === 'data' && (best.rec.ids?.length ?? 0) > linked.length ? <Text style={s.srcDetail}>Część transakcji została usunięta.</Text> : null}
+                      </>
+                    ) : <Text style={s.srcDetail}>Brak danych — wpisz swój wynik ręcznie.</Text>}
+                    <View style={s.srcBtns}>
+                      {best && (
+                        <TouchableOpacity style={[s.srcBtn, isConfirmed && s.srcBtnOn]} onPress={() => { haptic.tap(); confirm(k, isConfirmed ? null : sig); }}>
+                          <Check size={13} color={isConfirmed ? colors.accent.green : colors.text.secondary} />
+                          <Text style={[s.srcBtnTxt, isConfirmed && { color: colors.accent.green }]}>{isConfirmed ? 'Potwierdzone' : 'Potwierdź'}</Text>
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity style={s.srcBtn} onPress={() => { haptic.tap(); setEdit(k); }}>
+                        <Pencil size={12} color={colors.text.secondary} />
+                        <Text style={s.srcBtnTxt}>{manual[k] ? 'Zmień ręczny wpis' : 'Wpisz ręcznie'}</Text>
                       </TouchableOpacity>
-                    )}
+                    </View>
                   </View>
-                  {(() => {
-                    // liczba duża, jednostka mała obok ("15 300 kroków" się nie mieściło)
-                    const v = best ? fmtValue(def, best.rec.value) : '—';
-                    const m = k !== 'sleep' ? /^(.*\d)\s(\D+)$/.exec(v) : null;
-                    return (
-                      <FitText style={[s.recValue, !best && { color: colors.text.muted }]} numberOfLines={1}>
-                        {m ? m[1] : v}{m ? <Text style={s.recUnit}>{` ${m[2]}`}</Text> : null}
-                      </FitText>
-                    );
-                  })()}
+                );
+              }
+
+              return (
+                <TouchableOpacity key={k} style={s.recTile} activeOpacity={0.8} accessibilityLabel="Szczegóły rekordu"
+                  onPress={() => { haptic.tap(); setEdit(null); setOpen(k); }}>
+                  {head(false)}
+                  {value}
                   <Text style={[s.recMeta, isNew && { color: '#D4B062' }]} numberOfLines={1}>
                     {isNew ? 'nowy rekord · ' : ''}{best ? `${fmtDate(best.rec.date)}${best.rec.note ? ` · ${best.rec.note}` : ''}${best.source === 'manual' ? ' · ręcznie' : ''}` : 'stuknij, by wpisać'}
                   </Text>
@@ -204,7 +261,10 @@ function RecordsView({ data }: { data: Partial<Record<RecordKey, Rec>> }) {
           </View>
         </View>
       ))}
-      <Text style={s.note}>Liczone z Twoich danych. Pamiętasz lepszy wynik? Stuknij kafel i wpisz go — zostanie, dopóki go nie pobijesz. Ptaszek = potwierdzony.</Text>
+      <Text style={s.note}>Liczone z Twoich danych (wydatki bez stałych opłat). Stuknij kafel: zobaczysz, skąd jest wynik i które transakcje go dały — możesz je poprawić albo wpisać własny lepszy wynik. Ptaszek = potwierdzony.</Text>
+      <LazyMount visible={!!editExp}>
+        <AddExpenseModal visible={!!editExp} onClose={() => setEditExp(null)} editingExpense={editExp} />
+      </LazyMount>
     </View>
   );
 }
@@ -288,6 +348,17 @@ const makeS = themedStyles((c) => StyleSheet.create({
   recIcon: { width: 22, height: 22, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
   recLabel: { flex: 1, fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   recValue: { fontSize: 19, fontFamily: 'Inter_900Black', color: c.text.bright, fontVariant: ['tabular-nums'] },
+  srcLine: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.secondary },
+  srcDetail: { fontSize: 11.5, lineHeight: 16, fontFamily: 'Inter_500Medium', color: c.text.muted },
+  srcTx: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], backgroundColor: c.ui.in, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 8 },
+  srcDot: { width: 8, height: 8, borderRadius: 4 },
+  srcTxName: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  srcTxSub: { fontSize: 10.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 1 },
+  srcTxAmt: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.secondary, fontVariant: ['tabular-nums'] },
+  srcBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
+  srcBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: c.border.default, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 7 },
+  srcBtnOn: { borderColor: c.accent.green },
+  srcBtnTxt: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   recUnit: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.muted },
   recMeta: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
   icon: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },

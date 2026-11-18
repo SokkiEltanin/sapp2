@@ -2306,3 +2306,8 @@ więc nie ma nic do migracji/zachowania.
   po obu stronach; wydatki bez stałych i przelewów własnych), `tagMood`.
 - Widok: `components/mood/MoodStatsSheet.tsx` — mini przycisk (ikona wykresu) w kaflu Humor w Daily;
   reszta kafla dalej otwiera MoodModal. Dane: moodStore, expenses (prop z Daily), collectionStore.healthLog.
+
+### Rekordy — źródło (2026-11-18)
+- `Rec.ids` (transakcje, które dały wynik) i `Rec.detail` (opis źródła) w `utils/records.ts`; CollectionSheet
+  pokazuje je w szczegółach kafla, transakcje otwierają AddExpenseModal (LazyMount w RecordsView).
+- `bigExpense`, `daySpend` i `MonthCard.biggest` (top 3) liczone z food+variable — bez stałych opłat.

@@ -21,7 +21,8 @@ describe('karty miesięcy', () => {
     expect(oct.balance).toBe(2400);
     expect(oct.steps).toBe(15000);
     expect(oct.sleepMin).toBe(450);
-    expect(oct.biggest?.name).toBe('PGE');
+    // najdroższe BEZ stałych — PGE (prąd, 2000) pominięte
+    expect(oct.biggest.map((b) => b.amount)).toEqual([600]);
   });
   it('odznaki przy ≥3 kartach', () => {
     expect(cards.find((c) => c.key === '2026-09')!.badges).toContain('Najtańszy miesiąc');
@@ -29,8 +30,11 @@ describe('karty miesięcy', () => {
   });
   it('rekordy: kroki z dziennika, ręczny wpis wygrywa dopóki dane go nie pobiją', () => {
     const r = computeRecords(ex, log, [], cards, NOW);
-    expect(r.steps).toEqual({ value: 20000, date: '2026-10-02' });
-    expect(r.bigExpense!.value).toBe(2000);
+    expect(r.steps).toMatchObject({ value: 20000, date: '2026-10-02' });
+    expect(r.bigExpense!.value).toBe(1000); // bez stałych (PGE 2000 pominięte)
+    expect(r.bigExpense!.ids).toHaveLength(1);
+    expect(r.daySpend!.ids!.length).toBeGreaterThan(0);
+    expect(r.steps!.detail).toMatch(/Health Connect/);
     expect(r.cheapMonth!.value).toBe(800);
     const def = RECORD_DEFS.find((d) => d.key === 'steps')!;
     expect(bestRecord(def, r.steps, { value: 43000, date: '2025-06-01' })!.source).toBe('manual');

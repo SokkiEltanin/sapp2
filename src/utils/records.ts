@@ -10,7 +10,9 @@ import type { HealthLog, MonthCard } from './monthCards';
 // dzień"). Liczone z danych; ręczny wpis wygrywa, dopóki dane go nie pobiją.
 export type RecordKey = 'steps' | 'sleep' | 'bigExpense' | 'daySpend' | 'cheapMonth' | 'saveMonth' | 'income' | 'noSweets' | 'tasksDay';
 export interface RecordDef { key: RecordKey; label: string; unit: string; better: 'max' | 'min'; money?: boolean }
-export interface Rec { value: number; date: string; note?: string }
+// `ids` / `detail` (2026-11-18, user: "jeśli nie nadpisuję, musi pisać datę i konkretny event,
+// kiedy to wyłapało — żebym mógł zobaczyć i edytować"): skąd rekord z danych. ids = transakcje.
+export interface Rec { value: number; date: string; note?: string; ids?: string[]; detail?: string }
 
 export const RECORD_DEFS: RecordDef[] = [
   { key: 'steps', label: 'Najwięcej kroków w dzień', unit: 'kroków', better: 'max' },
@@ -29,56 +31,73 @@ const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 
 export function computeRecords(expenses: Expense[], log: HealthLog, tasks: Task[], cards: MonthCard[], now: Date = new Date()): Partial<Record<RecordKey, Rec>> {
   const out: Partial<Record<RecordKey, Rec>> = {};
-  const better = (k: RecordKey, value: number, date: string, note?: string) => {
+  const better = (k: RecordKey, value: number, date: string, note?: string, extra?: { ids?: string[]; detail?: string }) => {
     const def = RECORD_DEFS.find((d) => d.key === k)!;
     const cur = out[k];
-    if (!cur || (def.better === 'max' ? value > cur.value : value < cur.value)) out[k] = { value, date, note };
+    if (!cur || (def.better === 'max' ? value > cur.value : value < cur.value)) {
+      const r: Rec = { value, date };
+      if (note) r.note = note;
+      if (extra?.ids?.length) r.ids = extra.ids;
+      if (extra?.detail) r.detail = extra.detail;
+      out[k] = r;
+    }
   };
+  const dmy = (d: string) => `${d.slice(8, 10)}.${d.slice(5, 7)}`;
 
   for (const [d, [steps, sleep]] of Object.entries(log)) {
-    if (steps && steps > 0) better('steps', steps, d);
-    if (sleep && sleep > 0) better('sleep', sleep, d);
+    if (steps && steps > 0) better('steps', steps, d, undefined, { detail: 'kroki z zegarka (Health Connect)' });
+    if (sleep && sleep > 0) better('sleep', sleep, d, undefined, { detail: 'sen z zegarka (Health Connect), noc kończąca się tego dnia' });
   }
 
-  const byDay = new Map<string, number>();
-  const sweetDays = new Set<string>();
+  const byDay = new Map<string, { v: number; ids: string[] }>();
+  const sweetDays = new Map<string, string[]>();
   let first: string | null = null;
   for (const e of expenses) {
     if (isOwnTransfer(e)) continue;
     const d = (e.date ?? '').slice(0, 10);
     if (!d) continue;
-    if (e.type === 'income') { if (e.amount > 0) better('income', round2(e.amount), d, e.storeName || e.note || undefined); continue; }
-    const s = fvSplitOf(e); const amt = s.fixed + s.food + s.variable;
-    if (amt <= 0) continue;
+    const name = e.storeName || e.note || undefined;
+    if (e.type === 'income') { if (e.amount > 0) better('income', round2(e.amount), d, name, { ids: [e.id] }); continue; }
+    const s = fvSplitOf(e);
+    if (s.fixed + s.food + s.variable <= 0) continue;
     if (!first || d < first) first = d;
-    better('bigExpense', round2(amt), d, e.storeName || e.note || undefined);
-    // Najdroższy dzień bez stałych opłat (czynsz zawyżałby każdy 10. dzień miesiąca).
-    if (s.food + s.variable > 0) byDay.set(d, (byDay.get(d) ?? 0) + s.food + s.variable);
-    if ((foodSplitOf(e).get('słodycze') ?? 0) > 0) sweetDays.add(d);
+    // Bez stałych opłat (2026-11-18): czynsz wygrywałby zawsze — rekord ma mówić o zakupach.
+    const own = s.food + s.variable;
+    if (own > 0) {
+      better('bigExpense', round2(own), d, name, { ids: [e.id] });
+      const day = byDay.get(d) ?? { v: 0, ids: [] };
+      day.v += own; day.ids.push(e.id); byDay.set(d, day);
+    }
+    if ((foodSplitOf(e).get('słodycze') ?? 0) > 0) sweetDays.set(d, [...(sweetDays.get(d) ?? []), e.id]);
   }
-  for (const [d, v] of byDay) better('daySpend', round2(v), d);
+  for (const [d, day] of byDay) better('daySpend', round2(day.v), d, `${day.ids.length} ${day.ids.length === 1 ? 'transakcja' : day.ids.length < 5 ? 'transakcje' : 'transakcji'}`, { ids: day.ids, detail: 'suma zakupów dnia, bez stałych opłat' });
 
   // Najdłuższa przerwa między zakupami słodyczy (do dziś włącznie).
   if (sweetDays.size) {
-    const days = [...sweetDays].sort();
+    const days = [...sweetDays.keys()].sort();
     const today = ymd(now);
     let prev = days[0];
     for (const d of [...days.slice(1), today]) {
       const gap = Math.round((Date.parse(`${d}T12:00:00`) - Date.parse(`${prev}T12:00:00`)) / DAY) - 1;
-      // data = dzień, w którym seria się skończyła (albo dziś, gdy trwa)
-      if (gap > 0) better('noSweets', gap, d, d === today ? 'trwa' : undefined);
+      // data = dzień, w którym seria się skończyła (albo dziś, gdy trwa); ids = zakupy słodyczy
+      // na początku i końcu przerwy
+      if (gap > 0) better('noSweets', gap, d, d === today ? 'trwa' : undefined, {
+        ids: [...(sweetDays.get(prev) ?? []), ...(sweetDays.get(d) ?? [])],
+        detail: d === today ? `od ostatnich słodyczy ${dmy(prev)} do dziś` : `przerwa od ${dmy(prev)} do ${dmy(d)} (zakupy słodyczy poniżej)`,
+      });
       prev = d;
     }
   }
 
   for (const c of cards) {
-    if (c.spent > 0) better('cheapMonth', c.spent, c.key);
-    if (c.income > 0) better('saveMonth', c.balance, c.key);
+    const detail = `wydatki ${c.spent.toFixed(2).replace('.', ',')} zł · wpływy ${c.income.toFixed(2).replace('.', ',')} zł`;
+    if (c.spent > 0) better('cheapMonth', c.spent, c.key, undefined, { detail });
+    if (c.income > 0) better('saveMonth', c.balance, c.key, undefined, { detail });
   }
 
-  const doneBy = new Map<string, number>();
-  for (const t of tasks) if (t.status === 'done' && t.completedAt) { const d = t.completedAt.slice(0, 10); doneBy.set(d, (doneBy.get(d) ?? 0) + 1); }
-  for (const [d, n] of doneBy) better('tasksDay', n, d);
+  const doneBy = new Map<string, string[]>();
+  for (const t of tasks) if (t.status === 'done' && t.completedAt) { const d = t.completedAt.slice(0, 10); doneBy.set(d, [...(doneBy.get(d) ?? []), t.title]); }
+  for (const [d, titles] of doneBy) better('tasksDay', titles.length, d, undefined, { detail: titles.slice(0, 4).join(', ') + (titles.length > 4 ? ` +${titles.length - 4}` : '') });
   return out;
 }
 
