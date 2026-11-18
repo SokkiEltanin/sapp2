@@ -1,8 +1,8 @@
 import { saveTextFile } from '@/services/localBackup';
 import { transactionsCsv, csvFileName } from '@/utils/csvExport';
 import { logError } from '@/services/errorLog';
-import { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, ScrollView } from 'react-native';
+import { useMemo, useState, useRef, useCallback, memo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, ScrollView, type ViewToken } from 'react-native';
 import { X, Search, SlidersHorizontal, FileDown } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -11,7 +11,7 @@ import AppBottomSheet from '@/components/design/AppBottomSheet';
 import NumberInput from '@/components/design/NumberInput';
 import { haptic } from '@/utils/haptics';
 import { pendingFxOf, formatFx } from '@/utils/fx';
-import { filterTransactions, summarize, activeFilterCount, datePreset, EMPTY_FILTER, type TxFilter, type TxKind, type TxBucket } from '@/utils/txFilter';
+import { filterTransactions, summarize, activeFilterCount, datePreset, EMPTY_FILTER, type TxFilter, type TxKind, type TxBucket, type TxHit } from '@/utils/txFilter';
 import { EXPENSE_CATEGORIES } from '@/utils/expenseCategory';
 import { toDisplayDate } from '@/utils/dateInput';
 import RangeCalendar from '@/components/design/RangeCalendar';
@@ -63,7 +63,31 @@ export default function TransactionsModal({
     }
     return out;
   }, [hits, mode]);
-  const sticky = useMemo(() => rows.flatMap((r, i) => (r.t === 'h' ? [i] : [])), [rows]);
+  // Nagłówek "przyklejony" (2026-11-18, user: "przy szybkim scrollu miga data na pasku, a pod
+  // spodem pusto"): stickyHeaderIndices z setkami nagłówków na Androidzie dławi listę (każdy
+  // nagłówek to animowany transform) i wirtualizacja nie nadąża — zostawał sam pasek nad
+  // pustką. Teraz JEDEN nakładany pasek nad listą, podmieniany wg pierwszego widocznego wiersza.
+  const headOf = useMemo(() => {
+    const out: number[] = []; let h = -1;
+    rows.forEach((r, i) => { if (r.t === 'h') h = i; out.push(h); });
+    return out;
+  }, [rows]);
+  const [topHead, setTopHead] = useState<number>(-1);
+  const rowsRef = useRef(rows); rowsRef.current = rows;
+  const headOfRef = useRef(headOf); headOfRef.current = headOf;
+  const onViewable = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    const first = viewableItems.find((v) => v.index != null);
+    if (first?.index == null) return;
+    const i = first.index;
+    // nagłówek grupy sam jest na górze → bez nakładki (nie dublujemy)
+    // …albo ostatni wiersz grupy (zaraz wjedzie następny nagłówek — dwa paski jeden pod drugim)
+    const r = rowsRef.current;
+    const h = r[i]?.t === 'h' || r[i + 1]?.t === 'h' ? -1 : headOfRef.current[i] ?? -1;
+    setTopHead((cur) => (cur === h ? cur : h));
+  }).current;
+  const viewCfg = useRef({ itemVisiblePercentThreshold: 50, minimumViewTime: 0 }).current;
+  const onSelectRef = useRef(onSelect); onSelectRef.current = onSelect;
+  const select = useCallback((e: Expense) => onSelectRef.current(e), []);
   const sum = useMemo(() => summarize(hits), [hits]);
   const [exporting, setExporting] = useState(false);
   const [exported, setExported] = useState<string | null>(null);
@@ -202,63 +226,81 @@ export default function TransactionsModal({
 
   return (
     <AppBottomSheet visible={visible} onClose={onClose} header={header} scrollable={false} maxHeightRatio={0.9}>
+      <View style={s.listWrap}>
       <FlatList
         style={s.list}
         data={rows}
         keyExtractor={(r) => r.key}
-        stickyHeaderIndices={sticky}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        initialNumToRender={20}
-        windowSize={7}
+        initialNumToRender={30}
+        maxToRenderPerBatch={30}
+        updateCellsBatchingPeriod={16}
+        windowSize={15}
+        removeClippedSubviews={false}
+        onViewableItemsChanged={onViewable}
+        viewabilityConfig={viewCfg}
         ListEmptyComponent={
           <Text style={s.empty}>{expenses.length === 0 ? 'Brak transakcji — dodaj pierwszą przyciskiem +.' : 'Brak wyników.'}</Text>
         }
-        renderItem={({ item }) => {
-          // Nagłówek grupy (2026-11-17, user: "kwoty się zlewają, nieczytelne"): osobny jaśniejszy
-          // pasek — etykieta + liczba po lewej, sumy po prawej; wiersze pod nim lżejsze.
-          if (item.t === 'h') return (
-            <View style={s.gHead}>
-              <View style={s.gBox}>
-                <Text style={s.gLabel} numberOfLines={1}>
-                  {item.label.charAt(0).toUpperCase() + item.label.slice(1)}
-                  <Text style={s.gN}>{`  ${item.n} ${plTx(item.n)}`}</Text>
-                </Text>
-                {item.in > 0 ? <Text style={[s.gSum, s.gIn]} numberOfLines={1}>+{zl(item.in)}</Text> : null}
-                {item.out > 0 ? <Text style={s.gSum} numberOfLines={1}>−{zl(item.out)}</Text> : null}
-              </View>
-            </View>
-          );
-          const { e, match } = item.hit;
-          const detail = txDetail(e);
-          const time = (e.date ?? '').length > 10 ? e.date.slice(11, 16) : '';
-          const when = mode === 'day' ? time : `${toDisplayDate(e.date.slice(0, 10)).slice(0, 5)}${time ? ` ${time}` : ''}`;
-          const sub = [when, detail, e.fvOverride === 'transfer' ? 'przelew własny' : '', match ? `„${match}”` : ''].filter(Boolean).join(' · ');
-          return (
-          <TouchableOpacity style={s.row} onPress={() => { haptic.tap(); onSelect(e); }} activeOpacity={0.7}>
-            <View style={[s.rowDot, { backgroundColor: txColor(e) }]} />
-            <View style={s.rowInfo}>
-              <View style={s.rowTop}>
-                <Text style={s.rowNote} numberOfLines={1}>
-                  {e.storeName || e.note || (e.fvOverride === 'transfer' ? 'Przelew własny' : e.type === 'income' ? 'Przychód' : 'Wydatek')}
-                </Text>
-                {pendingFxOf(e) ? (
-                  <Text style={s.fxAmount}>{formatFx(pendingFxOf(e)!)} · wpisz PLN</Text>
-                ) : (
-                  <Text style={[s.rowAmount, e.type === 'income' && s.rowAmountIncome, e.fvOverride === 'transfer' && { color: colors.text.muted }]}>
-                    {e.type === 'income' ? '+' : '−'}{zl(Math.abs(e.amount))}
-                  </Text>
-                )}
-              </View>
-              {sub ? <Text style={s.rowSub} numberOfLines={1}>{sub}</Text> : null}
-            </View>
-          </TouchableOpacity>
-          );
-        }}
+        renderItem={({ item }) => (item.t === 'h' ? <GroupHead item={item} /> : <TxRow hit={item.hit} mode={mode} onSelect={select} />)}
       />
+      {topHead >= 0 && rows[topHead]?.t === 'h' && (
+        <View style={s.overlay} pointerEvents="none"><GroupHead item={rows[topHead] as GroupItem} /></View>
+      )}
+      </View>
     </AppBottomSheet>
   );
 }
+
+type GroupItem = { t: 'h'; key: string; label: string; out: number; in: number; n: number };
+
+// Nagłówek grupy (2026-11-17, user: "kwoty się zlewają, nieczytelne"): osobny jaśniejszy
+// pasek — etykieta + liczba po lewej, sumy po prawej; wiersze pod nim lżejsze.
+const GroupHead = memo(function GroupHead({ item }: { item: GroupItem }) {
+  const s = makeS();
+  return (
+    <View style={s.gHead}>
+      <View style={s.gBox}>
+        <Text style={s.gLabel} numberOfLines={1}>
+          {item.label.charAt(0).toUpperCase() + item.label.slice(1)}
+          <Text style={s.gN}>{`  ${item.n} ${plTx(item.n)}`}</Text>
+        </Text>
+        {item.in > 0 ? <Text style={[s.gSum, s.gIn]} numberOfLines={1}>+{zl(item.in)}</Text> : null}
+        {item.out > 0 ? <Text style={s.gSum} numberOfLines={1}>−{zl(item.out)}</Text> : null}
+      </View>
+    </View>
+  );
+});
+
+const TxRow = memo(function TxRow({ hit, mode, onSelect }: { hit: TxHit; mode: GroupMode; onSelect: (e: Expense) => void }) {
+  const s = makeS();
+  const { e, match } = hit;
+  const detail = txDetail(e);
+  const time = (e.date ?? '').length > 10 ? e.date.slice(11, 16) : '';
+  const when = mode === 'day' ? time : `${toDisplayDate(e.date.slice(0, 10)).slice(0, 5)}${time ? ` ${time}` : ''}`;
+  const sub = [when, detail, e.fvOverride === 'transfer' ? 'przelew własny' : '', match ? `„${match}”` : ''].filter(Boolean).join(' · ');
+  return (
+    <TouchableOpacity style={s.row} onPress={() => { haptic.tap(); onSelect(e); }} activeOpacity={0.7}>
+      <View style={[s.rowDot, { backgroundColor: txColor(e) }]} />
+      <View style={s.rowInfo}>
+        <View style={s.rowTop}>
+          <Text style={s.rowNote} numberOfLines={1}>
+            {e.storeName || e.note || (e.fvOverride === 'transfer' ? 'Przelew własny' : e.type === 'income' ? 'Przychód' : 'Wydatek')}
+          </Text>
+          {pendingFxOf(e) ? (
+            <Text style={s.fxAmount}>{formatFx(pendingFxOf(e)!)} · wpisz PLN</Text>
+          ) : (
+            <Text style={[s.rowAmount, e.type === 'income' && s.rowAmountIncome, e.fvOverride === 'transfer' && { color: colors.text.muted }]}>
+              {e.type === 'income' ? '+' : '−'}{zl(Math.abs(e.amount))}
+            </Text>
+          )}
+        </View>
+        {sub ? <Text style={s.rowSub} numberOfLines={1}>{sub}</Text> : null}
+      </View>
+    </TouchableOpacity>
+  );
+});
 
 const plTx = (n: number) => (n === 1 ? 'transakcja' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'transakcje' : 'transakcji');
 
@@ -314,7 +356,9 @@ const makeS = themedStyles((c) => StyleSheet.create({
   sumIn: { color: c.accent.green },
   clear: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.muted, textDecorationLine: 'underline' },
 
+  listWrap: { flexShrink: 1, minHeight: 0 },
   list: { flexShrink: 1 },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0 },
   empty: { fontSize: 12.5, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', paddingVertical: spacing[6] },
 
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: 9, paddingHorizontal: 4 },
