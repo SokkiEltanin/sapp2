@@ -17,6 +17,7 @@ import { Check, BarChart3 } from 'lucide-react-native';
 import { C, T, S, R } from '@/ui/theme';
 import MoodModal from '@/components/mood/MoodModal';
 import MoodStatsSheet from '@/components/mood/MoodStatsSheet';
+import { useConfirmTap } from '@/hooks/useConfirmTap';
 import SleepSheet from '@/components/health/SleepSheet';
 import BodySheet from '@/components/health/BodySheet';
 import { moodColor, energyGlow, MOOD_LABELS, ENERGY_LABELS, roundLevel } from '@/types/mood';
@@ -51,6 +52,7 @@ export default function DailyScreen() {
   useHealthSync();
   const [moodOpen, setMoodOpen] = useState(false);
   const [moodStatsOpen, setMoodStatsOpen] = useState(false);
+  const [knowArmed, knowTap] = useConfirmTap();
   const [sleepOpen, setSleepOpen] = useState(false);
   const [paceOpen, setPaceOpen] = useState(false);
   const [factOpen, setFactOpen] = useState(false);
@@ -163,9 +165,9 @@ export default function DailyScreen() {
           <View style={st.factFoot}>
             <Text style={[T.small, { flex: 1 }]}>{fact ? 'dotknij, by czytać dalej' : ''}</Text>
             {fact && (
-              <TouchableOpacity onPress={() => { haptic.tap(); useFactsStore.getState().knowIt(today); }} style={st.factKnow} hitSlop={8} accessibilityLabel="Znam to — pokaż następną">
-                <Check size={13} color={C.mut} />
-                <Text style={st.factKnowTxt}>Znam to</Text>
+              <TouchableOpacity onPress={() => { haptic.tap(); knowTap(() => useFactsStore.getState().knowIt(today)); }} style={[st.factKnow, knowArmed && st.factKnowArmed]} hitSlop={8} accessibilityLabel={knowArmed ? 'Na pewno? Stuknij jeszcze raz' : 'Znam to — pokaż następną'}>
+                <Check size={13} color={knowArmed ? C.hi : C.mut} />
+                <Text style={[st.factKnowTxt, knowArmed && { color: C.hi }]}>{knowArmed ? 'Na pewno? Stuknij' : 'Znam to'}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -255,6 +257,7 @@ const st = StyleSheet.create({
   factTeaser: { fontSize: 15, lineHeight: 22, fontFamily: 'Inter_600SemiBold', color: C.txt },
   factFoot: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   factKnow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: R.chip, borderWidth: 1, borderColor: C.line },
+  factKnowArmed: { borderColor: C.hi, backgroundColor: C.in2 },
   factKnowTxt: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: C.mut },
   sleepTop: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 },
   sleepWhen: { textAlign: 'right', marginBottom: 4 },

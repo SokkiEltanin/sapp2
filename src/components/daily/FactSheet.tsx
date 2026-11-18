@@ -10,6 +10,7 @@ import { FACT_BY_ID, CAT_LABEL, factsLeft } from '@/utils/facts';
 import { FACT_CATS } from '@/utils/factsData';
 import { todayISO } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
+import { useConfirmTap } from '@/hooks/useConfirmTap';
 
 // Pełna ciekawostka (2026-11-16): temat → zajawka → liczby (duże kafelki) → wyjaśnienie
 // → źródło. "Znam to" chowa ją na zawsze i od razu pokazuje następną. Niżej: dziedziny
@@ -21,6 +22,7 @@ export default function FactSheet({ visible, onClose }: { visible: boolean; onCl
   const known = useFactsStore((st) => st.known);
   const off = useFactsStore((st) => st.off);
   const knowIt = useFactsStore((st) => st.knowIt);
+  const [knowArmed, knowTap] = useConfirmTap();
   const toggleCat = useFactsStore((st) => st.toggleCat);
   const restart = useFactsStore((st) => st.restart);
   const [view, setView] = useState<string | null>(null);   // przeczytana z historii
@@ -60,9 +62,9 @@ export default function FactSheet({ visible, onClose }: { visible: boolean; onCl
           <Text style={s.src}>Źródło: {f.src}</Text>
           {isCur && (
             <View style={s.actions}>
-              <TouchableOpacity style={s.ghost} onPress={() => { haptic.tap(); knowIt(todayISO()); }} accessibilityLabel="Znam to — pokaż następną">
-                <Check size={15} color={colors.text.secondary} />
-                <Text style={s.ghostTxt}>Znam to — następna</Text>
+              <TouchableOpacity style={[s.ghost, knowArmed && s.ghostArmed]} onPress={() => { haptic.tap(); knowTap(() => knowIt(todayISO())); }} accessibilityLabel={knowArmed ? 'Na pewno? Stuknij jeszcze raz' : 'Znam to — pokaż następną'}>
+                <Check size={15} color={knowArmed ? colors.text.bright : colors.text.secondary} />
+                <Text style={[s.ghostTxt, knowArmed && { color: colors.text.bright }]}>{knowArmed ? 'Na pewno? Stuknij jeszcze raz' : 'Znam to — następna'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.ok} onPress={() => { haptic.success(); onClose(); }}>
                 <Text style={s.okTxt}>Przeczytane</Text>
@@ -124,6 +126,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   src: { fontSize: 11, lineHeight: 15, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: spacing[3] },
   actions: { flexDirection: 'row', gap: spacing[2], marginTop: spacing[4] },
   ghost: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 42, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
+  ghostArmed: { borderColor: c.text.bright },
   ghostTxt: { fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary },
   ok: { paddingHorizontal: spacing[5], height: 42, borderRadius: radius.md, backgroundColor: c.text.bright, alignItems: 'center', justifyContent: 'center' },
   okTxt: { fontSize: 13, fontFamily: 'Inter_900Black', color: c.bg.primary },
