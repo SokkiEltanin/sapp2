@@ -24,6 +24,7 @@ jobs:
     outputs:
       mode: ${{ steps.mode.outputs.mode }}
       fp: ${{ steps.mode.outputs.fp }}
+      rt: ${{ steps.mode.outputs.rt }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -44,7 +45,16 @@ jobs:
           MODE=apk
           if [ "$EVENT" = "push" ] && [ -n "$EXPO_TOKEN" ] && [ -n "$URL" ] && [ "$FP" = "$LAST" ]; then MODE=ota; fi
           echo "fingerprint=$FP last=$LAST url=${URL:+set} token=${EXPO_TOKEN:+set} → $MODE"
+          # Runtime, pod który publikujemy OTA (2026-11-18): APK #278 zbudowany przed
+          # przypięciem runtime ma w środku inny fingerprint (liczony przez gradle po
+          # prebuildzie) niż ten tutaj → OTA szły "obok" telefonu. Mapa .github/ota-runtime-map
+          # (`<fingerprint> <runtime z APK>`) kieruje OTA do takich starych APK. Nowe APK
+          # mają runtime przypięty = FP (krok "Przypnij runtimeVersion" niżej).
+          RT=$(awk -v f="$FP" '$1==f{print $2}' .github/ota-runtime-map 2>/dev/null | head -1)
+          RT=${RT:-$FP}
+          echo "runtime=$RT"
           echo "fp=$FP" >> "$GITHUB_OUTPUT"
+          echo "rt=$RT" >> "$GITHUB_OUTPUT"
           echo "mode=$MODE" >> "$GITHUB_OUTPUT"
 
   ota:
@@ -68,7 +78,9 @@ jobs:
           EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
           EXPO_PUBLIC_BUILD_NUMBER: ${{ github.run_number }}
           EXPO_PUBLIC_BUILD_COMMIT: ${{ github.sha }}
+          RT: ${{ needs.decide.outputs.rt }}
         run: |
+          node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('app.json','utf8'));j.expo.runtimeVersion=process.env.RT;fs.writeFileSync('app.json',JSON.stringify(j,null,2))"
           export EXPO_PUBLIC_BUILD_DATE="$(date -u +'%Y-%m-%d %H:%M UTC') (OTA)"
           export EXPO_PUBLIC_BUILD_COMMIT="${EXPO_PUBLIC_BUILD_COMMIT:0:7}"
           npx eas-cli@latest update --channel production --platform android --message "$(echo "$UPDATE_MESSAGE" | head -1)" --non-interactive
@@ -105,6 +117,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # Runtime APK = fingerprint z joba decide, na sztywno (2026-11-18). Z policy
+      # "fingerprint" gradle liczył go sam po prebuildzie i wychodził INNY (#278: cac0c1a6…
+      # zamiast 3e8af9de…) → OTA publikowane pod FP nigdy nie trafiały do telefonu.
+      - name: Przypnij runtimeVersion
+        env:
+          FP: ${{ needs.decide.outputs.fp }}
+        run: node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('app.json','utf8'));j.expo.runtimeVersion=process.env.FP;fs.writeFileSync('app.json',JSON.stringify(j,null,2))"
 
       - name: Expo prebuild
         run: npx expo prebuild --platform android --no-install

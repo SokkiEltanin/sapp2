@@ -41,6 +41,12 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-18 — OTA nie docierało (naprawione w CI)**: APK #278 ma w środku runtime `cac0c1a6…` (gradle liczy
+fingerprint po prebuildzie), a joby decide/OTA publikowały pod `3e8af9de…` → telefon: „aktualna”. Teraz:
+build APK przypina `runtimeVersion` = FP z decide; OTA publikuje pod runtime z `.github/ota-runtime-map`
+(stare APK) albo FP. Ustawienia → Aplikacja → „Paczka JS” pokazuje runtime APK.
+- [ ] Po następnym APK (natywna zmiana) usunąć wiersz #278 z `.github/ota-runtime-map` — nowe APK mają runtime = FP.
+
 **2026-11-17 — Widget notatki pokazuje rysunek** (wymaga APK): `utils/widgetNote.ts` `buildNoteWidgetDrawing`
 (kreski przycięte do treści, max 6000 punktów, kolory → format Androida) → `plugins/withNoteWidget.js`
 maluje bitmapę do `note_drawing` (pióro = wygładzona ścieżka, pędzel = odcinki z grubością z nacisku).

@@ -72,6 +72,13 @@ export function applyOtaUpdate(): void {
   Updates.reloadAsync().catch(() => {});
 }
 
+/** Skrót runtimeVersion zainstalowanego APK (2026-11-18: OTA trafia tylko do APK z tym
+ *  samym runtime — tu widać, czy się zgadza z opisem release'u / mapą w CI). */
+export function runtimeShort(): string {
+  if (Platform.OS === 'web') return '—';
+  return (Updates.runtimeVersion ?? '?').slice(0, 8);
+}
+
 /** Opis aktualnie działającej paczki JS — do Diagnostyki. */
 export function runningUpdateLabel(): string {
   if (Platform.OS === 'web') return 'web';

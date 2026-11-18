@@ -1694,6 +1694,9 @@ telefonie, auto-roll po realnym upływie czasu.
 
 - **OTA**: `expo-updates`, `runtimeVersion: fingerprint`, kanał `production`. CI
   (`build.yml` job `decide`) wybiera OTA albo APK — szczegóły MAINTENANCE.md §3.
+  Runtime (2026-11-18): APK przypina `runtimeVersion` = FP z decide (gradle liczył własny,
+  inny fingerprint → OTA nie trafiały); OTA publikuje pod runtime z `.github/ota-runtime-map`
+  (`<FP> <runtime starego APK>`) albo FP. Runtime APK widać w Ustawieniach → Aplikacja.
   `services/appUpdate.ts` (OTA + GitHub Releases `build-N` vs `EXPO_PUBLIC_BUILD_NUMBER`,
   co 30 min / przy powrocie do appki), `components/UpdateBanner.tsx` (pasek na górze,
   w `app/_layout.tsx`), Ustawienia → Diagnostyka: "Paczka JS", "Sprawdź aktualizacje".

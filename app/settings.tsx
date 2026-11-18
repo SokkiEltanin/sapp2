@@ -19,7 +19,7 @@ import { logError } from '@/services/errorLog';
 import { useErrorLog } from '@/services/errorLog';
 import { entryTime } from '@/utils/errorLog';
 import ErrorLogSheet from '@/components/settings/ErrorLogSheet';
-import { useAppUpdateStore, checkForAppUpdate, applyOtaUpdate, runningUpdateLabel } from '@/services/appUpdate';
+import { useAppUpdateStore, checkForAppUpdate, applyOtaUpdate, runningUpdateLabel, runtimeShort } from '@/services/appUpdate';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, BackHandler, Platform, Linking } from 'react-native';
@@ -266,7 +266,7 @@ function buildSections(
     items: [
       { kind: 'action', key: 'update-check', label: 'Sprawdź aktualizacje', description: update, icon: Download },
       { kind: 'value', key: 'info-version', label: 'Wersja', description: `build ${BUILD_INFO.buildNumber} · ${BUILD_INFO.buildDate}`, icon: Info, value: BUILD_INFO.version },
-      { kind: 'value', key: 'info-ota', label: 'Paczka JS', description: 'wbudowana w APK czy z szybkiej aktualizacji', icon: Info, value: runningUpdateLabel() },
+      { kind: 'value', key: 'info-ota', label: 'Paczka JS', description: `runtime ${runtimeShort()} — OTA musi mieć ten sam`, icon: Info, value: runningUpdateLabel() },
       { kind: 'action', key: 'app-health', label: 'Stan appki', description: appStatus, icon: Stethoscope },
       // Tylko na komputerze (services/pwaInstall.ts).
       ...(pwa ? [{ kind: 'action' as const, key: 'pwa-install', label: 'Zainstaluj na komputerze', description: pwa, icon: Download }] : []),
