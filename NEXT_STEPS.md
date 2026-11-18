@@ -44,6 +44,7 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 **2026-11-18 — Zakładka humoru** (`components/mood/MoodStatsSheet.tsx`, `utils/moodStats.ts`): średnia 30 dni,
 wykres 30 dni, rok w pikselach, dni tygodnia, „Co wpływa na humor” (sen/kroki/wydatki/słodycze/weekend), tagi.
 Tagi w edycji wydatku: wybrane nad podpowiedziami z odstępem.
+Rekordy (CollectionSheet): kafelki w dwóch grupach (Ty / Pieniądze), ikona w kolorze, stuknięcie = edycja.
 - [ ] Na telefonie: czy zależności mają sens na prawdziwych danych (progi 7 h / 8000 / mediana wydatków).
 
 **2026-11-18 — OTA nie docierało (naprawione w CI)**: APK #278 ma w środku runtime `cac0c1a6…` (gradle liczy

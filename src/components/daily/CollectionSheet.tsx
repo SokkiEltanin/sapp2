@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
-import { Check, Pencil, Trophy, X, CalendarDays } from 'lucide-react-native';
+import { Check, Trophy, X, CalendarDays, Footprints, Moon, ListChecks, Candy, PiggyBank, TrendingDown, ArrowDownLeft, Receipt } from 'lucide-react-native';
 import FitText from '@/ui/FitText';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -120,6 +120,26 @@ export function MonthCardView({ card: c, fresh }: { card: MonthCard; fresh?: boo
   );
 }
 
+// Rekordy jako kafelki (2026-11-18, user: "ogarnąłeś wizualnie lepiej rekordy?" — była długa,
+// jednolita lista): dwie grupy (Ty / Pieniądze), siatka 2 kolumn, ikona w kolorze rekordu,
+// duża wartość, data pod spodem. Stuknięcie kafla = edycja (edytowany kafel na całą szerokość),
+// ptaszek w rogu = potwierdź.
+const REC_UI: Record<RecordKey, { short: string; icon: typeof Check; color: string }> = {
+  steps: { short: 'Kroki w dzień', icon: Footprints, color: '#4ADE80' },
+  sleep: { short: 'Najdłuższy sen', icon: Moon, color: '#A78BFA' },
+  tasksDay: { short: 'Zadania w dzień', icon: ListChecks, color: '#60A5FA' },
+  noSweets: { short: 'Bez słodyczy', icon: Candy, color: '#FB7185' },
+  saveMonth: { short: 'Odłożone w mies.', icon: PiggyBank, color: '#22C55E' },
+  cheapMonth: { short: 'Najtańszy mies.', icon: TrendingDown, color: '#60A5FA' },
+  income: { short: 'Największy wpływ', icon: ArrowDownLeft, color: '#22C55E' },
+  bigExpense: { short: 'Największy wydatek', icon: Receipt, color: '#FBBF24' },
+  daySpend: { short: 'Najdroższy dzień', icon: CalendarDays, color: '#FB923C' },
+};
+const REC_GROUPS: { title: string; keys: RecordKey[] }[] = [
+  { title: 'Ty', keys: ['steps', 'sleep', 'tasksDay', 'noSweets'] },
+  { title: 'Pieniądze', keys: ['saveMonth', 'cheapMonth', 'income', 'bigExpense', 'daySpend'] },
+];
+
 function RecordsView({ data }: { data: Partial<Record<RecordKey, Rec>> }) {
   const s = makeS();
   const manual = useCollectionStore((st) => st.manual);
@@ -129,47 +149,62 @@ function RecordsView({ data }: { data: Partial<Record<RecordKey, Rec>> }) {
   const [edit, setEdit] = useState<RecordKey | null>(null);
 
   return (
-    <View style={s.recBox}>
-      <Text style={s.note}>Liczone z Twoich danych. Pamiętasz lepszy wynik, którego appka nie zna? Stuknij ołówek i wpisz go — zostanie, dopóki go nie pobijesz.</Text>
-      {RECORD_DEFS.map((def) => {
-        const best = bestRecord(def, data[def.key], manual[def.key]);
-        const sig = best ? recordSig(best.rec) : null;
-        const isConfirmed = !!sig && confirmed[def.key] === sig;
-        const isNew = best?.source === 'data' && !isConfirmed && !!confirmed[def.key];
-        return (
-          <View key={def.key} style={s.rec}>
-            <View style={s.recHead}>
-              <Text style={s.recLabel}>{def.label}</Text>
-              {isNew && <Text style={s.newTag}>NOWY REKORD</Text>}
-            </View>
-            {edit === def.key ? (
-              <RecordEditor def={def} initial={manual[def.key] ?? best?.rec} hasManual={!!manual[def.key]}
-                onCancel={() => setEdit(null)}
-                onSave={(r) => { haptic.success(); setManual(def.key, r); confirm(def.key, r ? recordSig(r) : null); setEdit(null); }} />
-            ) : (
-              <View style={s.recRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.recValue, !best && { color: colors.text.muted }]}>{best ? fmtValue(def, best.rec.value) : 'brak danych'}</Text>
-                  {best && (
-                    <Text style={s.recMeta} numberOfLines={1}>
-                      {fmtDate(best.rec.date)}{best.rec.note ? ` · ${best.rec.note}` : ''} · {best.source === 'manual' ? 'wpisane ręcznie' : 'z danych'}{isConfirmed ? ' · potwierdzone' : ''}
-                    </Text>
-                  )}
+    <View style={{ gap: spacing[3] }}>
+      {REC_GROUPS.map((g) => (
+        <View key={g.title} style={s.recBox}>
+          <Text style={s.recGroup}>{g.title}</Text>
+          <View style={s.recGrid}>
+            {g.keys.map((k) => {
+              const def = RECORD_DEFS.find((d) => d.key === k)!;
+              const ui = REC_UI[k];
+              const Icon = ui.icon;
+              const best = bestRecord(def, data[k], manual[k]);
+              const sig = best ? recordSig(best.rec) : null;
+              const isConfirmed = !!sig && confirmed[k] === sig;
+              const isNew = best?.source === 'data' && !isConfirmed && !!confirmed[k];
+              if (edit === k) return (
+                <View key={k} style={[s.recTile, s.recTileWide]}>
+                  <View style={s.recHead}>
+                    <View style={[s.recIcon, { backgroundColor: ui.color + '22' }]}><Icon size={13} color={ui.color} /></View>
+                    <Text style={s.recLabel}>{def.label}</Text>
+                  </View>
+                  <RecordEditor def={def} initial={manual[k] ?? best?.rec} hasManual={!!manual[k]}
+                    onCancel={() => setEdit(null)}
+                    onSave={(r) => { haptic.success(); setManual(k, r); confirm(k, r ? recordSig(r) : null); setEdit(null); }} />
                 </View>
-                {best && (
-                  <TouchableOpacity style={s.icon} hitSlop={6} accessibilityLabel="Potwierdź rekord"
-                    onPress={() => { haptic.tap(); confirm(def.key, isConfirmed ? null : sig); }}>
-                    <Check size={16} color={isConfirmed ? colors.accent.green : colors.text.muted} />
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity style={s.icon} hitSlop={6} onPress={() => { haptic.tap(); setEdit(def.key); }} accessibilityLabel="Edytuj rekord">
-                  <Pencil size={14} color={colors.text.muted} />
+              );
+              return (
+                <TouchableOpacity key={k} style={s.recTile} activeOpacity={0.8} accessibilityLabel="Edytuj rekord"
+                  onPress={() => { haptic.tap(); setEdit(k); }}>
+                  <View style={s.recHead}>
+                    <View style={[s.recIcon, { backgroundColor: ui.color + '22' }]}><Icon size={13} color={ui.color} /></View>
+                    <Text style={s.recLabel} numberOfLines={2}>{ui.short}</Text>
+                    {best && (
+                      <TouchableOpacity hitSlop={10} accessibilityLabel="Potwierdź rekord" onPress={() => { haptic.tap(); confirm(k, isConfirmed ? null : sig); }}>
+                        <Check size={14} color={isConfirmed ? colors.accent.green : colors.text.muted} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  {(() => {
+                    // liczba duża, jednostka mała obok ("15 300 kroków" się nie mieściło)
+                    const v = best ? fmtValue(def, best.rec.value) : '—';
+                    const m = k !== 'sleep' ? /^(.*\d)\s(\D+)$/.exec(v) : null;
+                    return (
+                      <FitText style={[s.recValue, !best && { color: colors.text.muted }]} numberOfLines={1}>
+                        {m ? m[1] : v}{m ? <Text style={s.recUnit}>{` ${m[2]}`}</Text> : null}
+                      </FitText>
+                    );
+                  })()}
+                  <Text style={[s.recMeta, isNew && { color: '#D4B062' }]} numberOfLines={1}>
+                    {isNew ? 'nowy rekord · ' : ''}{best ? `${fmtDate(best.rec.date)}${best.rec.note ? ` · ${best.rec.note}` : ''}${best.source === 'manual' ? ' · ręcznie' : ''}` : 'stuknij, by wpisać'}
+                  </Text>
                 </TouchableOpacity>
-              </View>
-            )}
+              );
+            })}
           </View>
-        );
-      })}
+        </View>
+      ))}
+      <Text style={s.note}>Liczone z Twoich danych. Pamiętasz lepszy wynik? Stuknij kafel i wpisz go — zostanie, dopóki go nie pobijesz. Ptaszek = potwierdzony.</Text>
     </View>
   );
 }
@@ -190,7 +225,7 @@ function RecordEditor({ def, initial, hasManual, onSave, onCancel }: { def: Reco
     <View style={s.editor}>
       <View style={s.edRow}>
         <TextInput value={val} onChangeText={setVal} keyboardType="decimal-pad" placeholder={isSleep ? 'godziny, np. 11,5' : def.unit}
-          placeholderTextColor={colors.text.muted} style={[s.input, { flex: 1 }]} autoFocus />
+          placeholderTextColor={colors.text.muted} style={[s.input, { flex: 1, minWidth: 0 }]} autoFocus />
         <Text style={s.edUnit}>{isSleep ? 'h' : def.unit}</Text>
       </View>
       <View style={s.edRow}>
@@ -198,8 +233,8 @@ function RecordEditor({ def, initial, hasManual, onSave, onCancel }: { def: Reco
           <CalendarDays size={14} color={colors.text.secondary} />
           <Text style={s.dateTxt}>{fmtDate(date)}</Text>
         </TouchableOpacity>
-        <TextInput value={note} onChangeText={setNote} placeholder="notatka, np. Kraków pieszo" placeholderTextColor={colors.text.muted} style={[s.input, { flex: 1 }]} />
       </View>
+      <TextInput value={note} onChangeText={setNote} placeholder="notatka, np. Kraków pieszo" placeholderTextColor={colors.text.muted} style={[s.input, { minWidth: 0 }]} />
       <View style={s.edRow}>
         {hasManual && <TouchableOpacity onPress={() => onSave(null)}><Text style={s.edDel}>Usuń ręczny wpis</Text></TouchableOpacity>}
         <View style={{ flex: 1 }} />
@@ -244,14 +279,17 @@ const makeS = themedStyles((c) => StyleSheet.create({
   foot: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
   footHi: { color: c.text.secondary },
 
-  recBox: { backgroundColor: c.ui.in, borderRadius: 18, paddingHorizontal: spacing[4], paddingVertical: spacing[2] },
-  rec: { paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.ui.line, gap: 2 },
-  recHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  recLabel: { flex: 1, fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted },
-  newTag: { fontSize: 10, fontFamily: 'Inter_800ExtraBold', color: '#D4B062' },
-  recRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  recValue: { fontSize: 17, fontFamily: 'Inter_900Black', color: c.text.bright, fontVariant: ['tabular-nums'] },
-  recMeta: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
+  recBox: { backgroundColor: c.ui.in, borderRadius: 18, padding: spacing[3], gap: spacing[2] },
+  recGroup: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5, paddingHorizontal: 4 },
+  recGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  recTile: { flexGrow: 1, flexBasis: '45%', minWidth: 0, backgroundColor: c.ui.in2, borderRadius: 14, padding: 12, gap: 6 },
+  recTileWide: { flexBasis: '100%' },
+  recHead: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 22 },
+  recIcon: { width: 22, height: 22, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
+  recLabel: { flex: 1, fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.secondary },
+  recValue: { fontSize: 19, fontFamily: 'Inter_900Black', color: c.text.bright, fontVariant: ['tabular-nums'] },
+  recUnit: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  recMeta: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
   icon: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
   editor: { gap: spacing[2] },
   edRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
