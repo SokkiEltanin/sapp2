@@ -39,7 +39,7 @@ const stylusButtonDown = (): boolean => {
   try { return !!NativeModules.Stylus?.isButtonDown?.(); } catch { return false; }
 };
 
-export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPressure, fingerScroll = false, buttonEraser = false }: {
+export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPressure, fingerScroll = false, buttonEraser = false, onScrollStart, onScrollBy }: {
   strokes: NoteStroke[];
   onChange: (strokes: NoteStroke[]) => void;
   tool: DrawTool;
@@ -47,6 +47,8 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
   onPressure?: (info: PressureInfo | null) => void;
   fingerScroll?: boolean;
   buttonEraser?: boolean;
+  onScrollStart?: () => void;              // przewijanie palcami: zapamiętaj pozycję strony
+  onScrollBy?: (dyFromStart: number) => void; // …i przesuń o tyle od początku gestu
 }) {
   const [size, setSize] = useState({ w: 0, h: 0 });
   const current = useRef<number[] | null>(null);
@@ -59,13 +61,16 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
   // Gest tworzony RAZ (2026-11-15): wcześniej zależał od `onChange`/`tool`, które
   // zmieniają się przy każdym odświeżeniu ekranu notatki — gest podpinał się na nowo
   // w trakcie rysowania i potrafił uciąć kreskę. Aktualne wartości czytamy z refów.
-  const live = useRef({ size: { w: 0, h: 0 }, tool, onChange, onPressure, fingerScroll, buttonEraser });
-  live.current = { size: live.current.size, tool, onChange, onPressure, fingerScroll, buttonEraser };
+  const live = useRef({ size: { w: 0, h: 0 }, tool, onChange, onPressure, fingerScroll, buttonEraser, onScrollStart, onScrollBy });
+  live.current = { size: live.current.size, tool, onChange, onPressure, fingerScroll, buttonEraser, onScrollStart, onScrollBy };
   const stroke = useRef({ reject: false, erase: false }); // bieżąca kreska: odrzucona (palec) / gumka z przycisku
-  // Palec bez S-Pena (2026-11-18, user: "a jak nie ma S-Pena, to dwa palce przesuwają?"):
-  // kreska palcem startuje dopiero po lekkim ruchu (6 px) albo 80 ms — jeśli wcześniej dojdzie
-  // drugi palec, gest odpada i stronę przewija ScrollView pod spodem. Rysik startuje od razu.
-  const pending = useRef<{ at: number; x: number; y: number } | null>(null);
+  // Przewijanie strony w trybie rysunku (2026-11-18, user: "rysowanie nie działa, zawsze jest
+  // przesuwanie, tylko kropki się stawiają"): oddanie gestu ScrollView przegrywało wyścig —
+  // teraz ScrollView w trybie rysunku jest wyłączony, a przewijaniem steruje ten gest:
+  // dwa palce (zawsze) albo jeden palec, gdy rysuje tylko S-Pen (`fingerScroll`).
+  // Kreska startuje od razu (jak przed zmianą); drugi palec ją anuluje i przechodzi w scroll.
+  const scroll = useRef<{ on: boolean; y0: number; last: number }>({ on: false, y0: 0, last: 0 });
+  const avgY = (ts: { absoluteY: number }[]) => (ts.length ? ts.reduce((a, t) => a + t.absoluteY, 0) / ts.length : 0);
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -102,35 +107,50 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
   const fns = useRef({ erase, factorOf, commit });
   fns.current = { erase, factorOf, commit };
 
+  const startScroll = (y: number) => {
+    // trwająca kreska przepada — to był początek przewijania
+    stroke.current.reject = true;
+    current.current = null;
+    widths.current = [];
+    scroll.current = { on: true, y0: y, last: y };
+    live.current.onScrollStart?.();
+    redraw();
+  };
+
+  // zmiana liczby palców w trakcie przewijania: zachowaj dotychczasowe przesunięcie
+  const rebase = (y: number) => {
+    const sc = scroll.current;
+    sc.y0 = y - (sc.last - sc.y0);
+    sc.last = y;
+  };
+
   const gesture = useMemo(() => Gesture.Pan()
     .minDistance(0)
     .runOnJS(true)
-    .manualActivation(true)
-    .onTouchesDown((e, mgr) => {
+    .onTouchesDown((e) => {
       const stylus = e.pointerType === PointerType.STYLUS;
       if (stylus && !usePenStore.getState().stylusSeen) usePenStore.getState().set({ stylusSeen: true });
-      if (live.current.fingerScroll && !stylus) { stroke.current.reject = true; mgr.fail(); return; }
-      if (stylus) { pending.current = null; mgr.activate(); return; }
-      if (e.numberOfTouches >= 2) { stroke.current.reject = true; pending.current = null; mgr.fail(); return; }
-      if (!pending.current) {
-        const t = e.allTouches[0];
-        pending.current = { at: Date.now(), x: t?.x ?? 0, y: t?.y ?? 0 };
-      }
+      if (scroll.current.on) { rebase(avgY(e.allTouches)); return; }
+      if (e.numberOfTouches >= 2 || (live.current.fingerScroll && !stylus)) startScroll(avgY(e.allTouches));
     })
-    .onTouchesMove((e, mgr) => {
-      const pd = pending.current;
-      if (!pd) return;
-      if (e.numberOfTouches >= 2) { stroke.current.reject = true; pending.current = null; mgr.fail(); return; }
-      const t = e.allTouches[0];
-      if (!t) return;
-      const moved = Math.hypot(t.x - pd.x, t.y - pd.y);
-      if (moved >= 6 || Date.now() - pd.at >= 80) { pending.current = null; mgr.activate(); }
+    .onTouchesMove((e) => {
+      if (!scroll.current.on) return;
+      const y = avgY(e.allTouches);
+      scroll.current.last = y;
+      live.current.onScrollBy?.(y - scroll.current.y0);
+    })
+    .onTouchesUp((e) => {
+      // jeden z palców podniesiony — średnia skacze, przesuń punkt odniesienia
+      if (scroll.current.on && e.allTouches.length > e.changedTouches.length) {
+        const rest = e.allTouches.filter((t) => !e.changedTouches.some((c) => c.id === t.id));
+        if (rest.length) rebase(avgY(rest));
+      }
     })
     .onBegin((e) => {
       const { size: sz, tool: tl } = live.current;
       const stylus = e.pointerType === PointerType.STYLUS;
       stroke.current = {
-        reject: live.current.fingerScroll && !stylus,
+        reject: scroll.current.on || (live.current.fingerScroll && !stylus),
         erase: stylus && live.current.buttonEraser && stylusButtonDown(),
       };
       if (sz.w <= 0 || stroke.current.reject) return;
@@ -156,7 +176,7 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
       const tl = live.current.tool;
       const p = stroke.current.reject || stroke.current.erase ? null : current.current;
       stroke.current = { reject: false, erase: false };
-      pending.current = null;
+      scroll.current = { on: false, y0: 0, last: 0 };
       current.current = null;
       if (p && p.length >= 2) fns.current.commit([...latest.current, tl.brush
         ? { color: tl.color, width: tl.width, p, w: widths.current.slice(0, p.length / 2) }

@@ -69,6 +69,9 @@ export default function NoteScreen() {
   const penScroll = usePenStore((st) => st.fingerScroll && st.stylusSeen);
   const penButton = usePenStore((st) => st.buttonEraser);
   const [extraPages, setExtraPages] = useState(0);
+  const pageScroll = useRef<any>(null);
+  const pageY = useRef(0);
+  const pageY0 = useRef(0);
   const [mode, setMode] = useState<'text' | 'draw'>(note?.kind === 'drawing' || (!!note && !note.text && note.strokes.length > 0) ? 'draw' : 'text');
   const [viewH, setViewH] = useState(0);
   const [pageW, setPageW] = useState(0);
@@ -176,8 +179,10 @@ export default function NoteScreen() {
                   wrap: (field) => (
                     // GH ScrollView: rysik aktywuje gest kreski (scroll się nie rusza), palec przy
                     // `fingerScroll` odpada z gestu i przewija stronę.
-                    // Rysunek bez S-Pena: dwoma palcami (gest kreski odpada przy drugim palcu).
-                    <GHScrollView style={{ flex: 1 }} scrollEnabled keyboardShouldPersistTaps="handled">
+                    // W trybie rysunku przewija gest płótna (dwa palce / palec przy S-Penie) przez
+                    // scrollTo — natywny scroll wyłączony, bo wygrywał z kreską (2026-11-18).
+                    <GHScrollView ref={pageScroll} style={{ flex: 1 }} scrollEnabled={mode === 'text'} keyboardShouldPersistTaps="handled"
+                      scrollEventThrottle={16} onScroll={(e) => { pageY.current = e.nativeEvent.contentOffset.y; }}>
                       <View onLayout={(e: LayoutChangeEvent) => { setPageW(e.nativeEvent.layout.width); setStorePageW(e.nativeEvent.layout.width); }}>
                         {field}
                         {guide && cutY != null && (
@@ -187,7 +192,9 @@ export default function NoteScreen() {
                         )}
                         {mode === 'draw' ? (
                           <View style={StyleSheet.absoluteFill}>
-                            <DrawingCanvas strokes={note.strokes} onChange={strokesChange} tool={tool} onPressure={setPressure} fingerScroll={penScroll} buttonEraser={penButton} />
+                            <DrawingCanvas strokes={note.strokes} onChange={strokesChange} tool={tool} onPressure={setPressure} fingerScroll={penScroll} buttonEraser={penButton}
+                              onScrollStart={() => { pageY0.current = pageY.current; }}
+                              onScrollBy={(dy) => pageScroll.current?.scrollTo({ y: Math.max(0, pageY0.current - dy), animated: false })} />
                           </View>
                         ) : note.strokes.length > 0 && pageW > 0 ? (
                           <View style={StyleSheet.absoluteFill} pointerEvents="none">

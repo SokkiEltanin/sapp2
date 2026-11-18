@@ -64,7 +64,8 @@ atrybutami alarmu, „Wyłącz” / „Otwórz appkę” (prosi o odblokowanie),
   widget = górna część rysunku na pełną szerokość.
 - [ ] Na telefonie: przycisk S-Pena przy dotyku (Samsung może przechwytywać go dla Air Command — wtedy wyłączyć
   „Air actions” dla appki); palec przewija po pierwszym użyciu rysika; widget po zmianie rozmiaru.
-- Bez S-Pena: jeden palec rysuje (start po 6 px / 80 ms), dwa palce przewijają (drugi palec = gest kreski odpada).
+- Przewijanie w trybie rysunku (poprawka 2026-11-18, „tylko kropki”): natywny scroll wyłączony, gest płótna
+  sam przewija stronę (scrollTo) — dwa palce zawsze, jeden palec gdy rysuje tylko S-Pen. Kreska startuje od razu.
 
 **2026-11-18 — Zakładka humoru** (`components/mood/MoodStatsSheet.tsx`, `utils/moodStats.ts`): średnia 30 dni,
 wykres 30 dni, rok w pikselach, dni tygodnia, „Co wpływa na humor” (sen/kroki/wydatki/słodycze/weekend), tagi.
