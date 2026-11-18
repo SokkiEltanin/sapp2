@@ -62,6 +62,10 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
   const live = useRef({ size: { w: 0, h: 0 }, tool, onChange, onPressure, fingerScroll, buttonEraser });
   live.current = { size: live.current.size, tool, onChange, onPressure, fingerScroll, buttonEraser };
   const stroke = useRef({ reject: false, erase: false }); // bieżąca kreska: odrzucona (palec) / gumka z przycisku
+  // Palec bez S-Pena (2026-11-18, user: "a jak nie ma S-Pena, to dwa palce przesuwają?"):
+  // kreska palcem startuje dopiero po lekkim ruchu (6 px) albo 80 ms — jeśli wcześniej dojdzie
+  // drugi palec, gest odpada i stronę przewija ScrollView pod spodem. Rysik startuje od razu.
+  const pending = useRef<{ at: number; x: number; y: number } | null>(null);
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -106,7 +110,21 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
       const stylus = e.pointerType === PointerType.STYLUS;
       if (stylus && !usePenStore.getState().stylusSeen) usePenStore.getState().set({ stylusSeen: true });
       if (live.current.fingerScroll && !stylus) { stroke.current.reject = true; mgr.fail(); return; }
-      mgr.activate();
+      if (stylus) { pending.current = null; mgr.activate(); return; }
+      if (e.numberOfTouches >= 2) { stroke.current.reject = true; pending.current = null; mgr.fail(); return; }
+      if (!pending.current) {
+        const t = e.allTouches[0];
+        pending.current = { at: Date.now(), x: t?.x ?? 0, y: t?.y ?? 0 };
+      }
+    })
+    .onTouchesMove((e, mgr) => {
+      const pd = pending.current;
+      if (!pd) return;
+      if (e.numberOfTouches >= 2) { stroke.current.reject = true; pending.current = null; mgr.fail(); return; }
+      const t = e.allTouches[0];
+      if (!t) return;
+      const moved = Math.hypot(t.x - pd.x, t.y - pd.y);
+      if (moved >= 6 || Date.now() - pd.at >= 80) { pending.current = null; mgr.activate(); }
     })
     .onBegin((e) => {
       const { size: sz, tool: tl } = live.current;
@@ -138,6 +156,7 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
       const tl = live.current.tool;
       const p = stroke.current.reject || stroke.current.erase ? null : current.current;
       stroke.current = { reject: false, erase: false };
+      pending.current = null;
       current.current = null;
       if (p && p.length >= 2) fns.current.commit([...latest.current, tl.brush
         ? { color: tl.color, width: tl.width, p, w: widths.current.slice(0, p.length / 2) }

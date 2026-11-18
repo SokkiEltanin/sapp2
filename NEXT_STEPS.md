@@ -50,6 +50,7 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
   widget = górna część rysunku na pełną szerokość.
 - [ ] Na telefonie: przycisk S-Pena przy dotyku (Samsung może przechwytywać go dla Air Command — wtedy wyłączyć
   „Air actions” dla appki); palec przewija po pierwszym użyciu rysika; widget po zmianie rozmiaru.
+- Bez S-Pena: jeden palec rysuje (start po 6 px / 80 ms), dwa palce przewijają (drugi palec = gest kreski odpada).
 
 **2026-11-18 — Zakładka humoru** (`components/mood/MoodStatsSheet.tsx`, `utils/moodStats.ts`): średnia 30 dni,
 wykres 30 dni, rok w pikselach, dni tygodnia, „Co wpływa na humor” (sen/kroki/wydatki/słodycze/weekend), tagi.

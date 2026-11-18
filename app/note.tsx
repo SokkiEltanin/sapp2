@@ -176,7 +176,8 @@ export default function NoteScreen() {
                   wrap: (field) => (
                     // GH ScrollView: rysik aktywuje gest kreski (scroll się nie rusza), palec przy
                     // `fingerScroll` odpada z gestu i przewija stronę.
-                    <GHScrollView style={{ flex: 1 }} scrollEnabled={mode === 'text' || penScroll} keyboardShouldPersistTaps="handled">
+                    // Rysunek bez S-Pena: dwoma palcami (gest kreski odpada przy drugim palcu).
+                    <GHScrollView style={{ flex: 1 }} scrollEnabled keyboardShouldPersistTaps="handled">
                       <View onLayout={(e: LayoutChangeEvent) => { setPageW(e.nativeEvent.layout.width); setStorePageW(e.nativeEvent.layout.width); }}>
                         {field}
                         {guide && cutY != null && (
