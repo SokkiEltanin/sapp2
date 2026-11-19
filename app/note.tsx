@@ -5,7 +5,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, type L
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Pin, PinOff, Trash2, Check, X, Plus, Undo2, Eraser, Pencil, Folder, Brush, PenLine, Type, NotebookText, Eye, EyeOff } from 'lucide-react-native';
+import { ChevronLeft, Pin, PinOff, Trash2, Check, X, Plus, Undo2, Eraser, Pencil, Folder, Brush, PenLine, Type, NotebookText, Eye, EyeOff, Hand } from 'lucide-react-native';
 import ColorPicker from '@/components/notes/ColorPicker';
 import { StrokesLayer } from '@/components/notes/DrawingCanvas';
 import { useNoteViewStore, tileCutY } from '@/store/noteViewStore';
@@ -66,7 +66,9 @@ export default function NoteScreen() {
   // leżą na tej samej "stronie" co tekst i przewijają się razem z nim.
   // S-Pen (2026-11-18): palec przewija dopiero, gdy appka wykryła rysik (inaczej bez rysika
   // nie dałoby się rysować); "+ strona" dokłada wysokość ekranu pod rysunkiem.
-  const penScroll = usePenStore((st) => st.fingerScroll && st.stylusSeen);
+  const penFinger = usePenStore((st) => st.fingerScroll);
+  const penSeen = usePenStore((st) => st.stylusSeen);
+  const penScroll = penFinger && penSeen;
   const penButton = usePenStore((st) => st.buttonEraser);
   const [extraPages, setExtraPages] = useState(0);
   const pageScroll = useRef<any>(null);
@@ -227,6 +229,16 @@ export default function NoteScreen() {
                     </TouchableOpacity>
                   );
                 })}
+                {/* Palec rysuje / przewija (2026-11-18, user: "rysowanie jednym palcem nie działa, cały
+                    czas przesuwa") — szybki przełącznik zamiast szukania w Ustawieniach. Widoczny,
+                    gdy appka wykryła S-Pena (bez niego palec zawsze rysuje, dwa palce przewijają). */}
+                {penSeen && (
+                  <TouchableOpacity onPress={() => { haptic.tap(); usePenStore.getState().set({ fingerScroll: !penFinger }); }}
+                    style={[s.modeBtn, !penFinger && s.toolOn]} accessibilityLabel={penFinger ? 'Palec przewija — stuknij, żeby rysował' : 'Palec rysuje — stuknij, żeby przewijał'}>
+                    <Hand size={14} color={!penFinger ? colors.bg.primary : colors.text.primary} />
+                    <Text style={[s.modeLabel, !penFinger && { color: colors.bg.primary }]}>{penFinger ? 'Palec: przewija' : 'Palec: rysuje'}</Text>
+                  </TouchableOpacity>
+                )}
                 <Text style={s.pressure} numberOfLines={1}>
                   {pressure
                     ? (pressure.stylus ? `Nacisk rysika ${Math.round((pressure.pressure ?? 0) * 100)}% · ×${pressure.factor.toFixed(2).replace('.', ',')}` : `Palec · grubość z szybkości ×${pressure.factor.toFixed(2).replace('.', ',')}`)
