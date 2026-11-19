@@ -1,4 +1,5 @@
 import { goBack } from '@/services/nav';
+import { create } from 'zustand';
 import { removeWithUndo } from '@/services/undo';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, type LayoutChangeEvent } from 'react-native';
@@ -53,13 +54,14 @@ export default function NoteScreen() {
   const [runs, setRuns] = useState<TextRun[] | undefined>(note?.runs);
   const [items, setItems] = useState<NoteItem[]>(note?.items ?? []);
   const [tool, setTool] = useState<DrawTool>({ color: PEN_COLORS[0], width: PEN_WIDTHS[1], eraser: false });
-  const [pressure, setPressureState] = useState<PressureInfo | null>(null);
-  // Ostatni odczyt zostaje 2 s po podniesieniu rysika (żeby dało się go przeczytać).
+  // Odczyt nacisku (2026-11-18, user: "rysowanie laguje"): stan w małym store poza ekranem —
+  // wcześniej useState tutaj przerysowywał CAŁY ekran notatki (edytor tekstu!) 10×/s w trakcie
+  // rysowania. Teraz odświeża się tylko <PressureLabel>. Ostatni odczyt zostaje 2 s.
   const pressureTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const setPressure = useCallback((p: PressureInfo | null) => {
     if (pressureTimer.current) clearTimeout(pressureTimer.current);
-    if (p) setPressureState(p);
-    else pressureTimer.current = setTimeout(() => setPressureState(null), 2000);
+    if (p) usePressureLive.setState({ p });
+    else pressureTimer.current = setTimeout(() => usePressureLive.setState({ p: null }), 2000);
   }, []);
   // Tekst + rysunek w jednej notatce (2026-11-15, user: "połączyć TEKST RYSUNEK... po
   // prostu narzędzie wybrać tekst albo rysunek"): przełącznik narzędzia na dole, kreski
@@ -239,11 +241,7 @@ export default function NoteScreen() {
                     <Text style={[s.modeLabel, !penFinger && { color: colors.bg.primary }]}>{penFinger ? 'Palec: przewija' : 'Palec: rysuje'}</Text>
                   </TouchableOpacity>
                 )}
-                <Text style={s.pressure} numberOfLines={1}>
-                  {pressure
-                    ? (pressure.stylus ? `Nacisk rysika ${Math.round((pressure.pressure ?? 0) * 100)}% · ×${pressure.factor.toFixed(2).replace('.', ',')}` : `Palec · grubość z szybkości ×${pressure.factor.toFixed(2).replace('.', ',')}`)
-                    : tool.brush ? 'Rysuj S-Penem — mocniej = grubiej' : ''}
-                </Text>
+                <PressureLabel brush={!!tool.brush} style={s.pressure} />
               </View>
               <View style={s.toolbar}>
                 {PEN_COLORS.slice(0, 4).map((c) => (
@@ -386,3 +384,15 @@ const makeS = themedStyles((c) => StyleSheet.create({
   modeTabLabel: { fontSize: 12.5, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
   hint: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: c.text.muted, paddingHorizontal: spacing[4], paddingBottom: spacing[2] },
 }));
+
+const usePressureLive = create<{ p: PressureInfo | null }>(() => ({ p: null }));
+function PressureLabel({ brush, style }: { brush: boolean; style: any }) {
+  const pressure = usePressureLive((st) => st.p);
+  return (
+    <Text style={style} numberOfLines={1}>
+      {pressure
+        ? (pressure.stylus ? `Nacisk rysika ${Math.round((pressure.pressure ?? 0) * 100)}% · ×${pressure.factor.toFixed(2).replace('.', ',')}` : `Palec · grubość z szybkości ×${pressure.factor.toFixed(2).replace('.', ',')}`)
+        : brush ? 'Rysuj S-Penem — mocniej = grubiej' : ''}
+    </Text>
+  );
+}

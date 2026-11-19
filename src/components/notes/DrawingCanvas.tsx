@@ -35,6 +35,7 @@ export type PressureInfo = { stylus: boolean; pressure: number | null; factor: n
 // S-Pen (2026-11-18): `fingerScroll` — palec nie rysuje (gest odpada → przewija strona pod
 // spodem), rysuje tylko rysik; `buttonEraser` — trzymany przycisk S-Pena = gumka na tę kreskę
 // (stan przycisku z natywnego StylusModule, plugins/withStylus.js; stary APK = brak).
+const ERASE_R = 0.035; // promień gumki w jednostkach szerokości płótna (strokesHit + wskaźnik)
 const stylusButtonDown = (): boolean => {
   try { return !!NativeModules.Stylus?.isButtonDown?.(); } catch { return false; }
 };
@@ -90,8 +91,13 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
     live.current.onChange(next);
   };
 
+  // Wskaźnik gumki (2026-11-18, user: "gumka musi się pokazywać malutka, żeby było widać, że
+  // jest włączona"): kółko o promieniu trafienia gumki pod palcem/rysikiem w trakcie ścierania.
+  const eraserAt = useRef<{ x: number; y: number } | null>(null);
   const erase = (x: number, y: number) => {
-    const hit = strokesHit(latest.current, x, y, 0.035);
+    eraserAt.current = { x, y };
+    redraw();
+    const hit = strokesHit(latest.current, x, y, ERASE_R);
     if (hit.length) commit(latest.current.filter((_, i) => !hit.includes(i)));
   };
 
@@ -177,6 +183,7 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
       const p = stroke.current.reject || stroke.current.erase ? null : current.current;
       stroke.current = { reject: false, erase: false };
       scroll.current = { on: false, y0: 0, last: 0 };
+      eraserAt.current = null;
       current.current = null;
       if (p && p.length >= 2) fns.current.commit([...latest.current, tl.brush
         ? { color: tl.color, width: tl.width, p, w: widths.current.slice(0, p.length / 2) }
@@ -187,6 +194,8 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
     }), [redraw]);
 
   const cur = current.current;
+  const er = eraserAt.current;
+  const erR = ERASE_R * size.w;
   return (
     <GestureDetector gesture={gesture}>
       <View style={styles.canvas} onLayout={onLayout} collapsable={false}>
@@ -198,6 +207,9 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
               : <Path d={strokePath(cur, size.w)} stroke={tool.color} strokeWidth={tool.width * (size.w / 360)} strokeLinecap="round" strokeLinejoin="round" fill="none" />}
           </Svg>
         )}
+        {er && size.w > 0 && (
+          <View pointerEvents="none" style={[styles.eraser, { left: er.x * size.w - erR, top: er.y * size.w - erR, width: erR * 2, height: erR * 2, borderRadius: erR }]} />
+        )}
       </View>
     </GestureDetector>
   );
@@ -205,4 +217,5 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
 
 const styles = StyleSheet.create({
   canvas: { flex: 1, overflow: 'hidden' },
+  eraser: { position: 'absolute', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.85)', backgroundColor: 'rgba(255,255,255,0.12)' },
 });
