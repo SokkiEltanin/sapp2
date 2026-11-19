@@ -100,6 +100,10 @@ export interface Expense {
   // Patrz `utils/expenseCategory.ts`. Nie wpływa na `fvSplitOf`/kubły Stałe/
   // Zmienne/Jedzenie — czysto etykieta do rozbicia w zakładce Zmienne.
   expenseCategory?: string;
+  // Rodzaj jedzenia CAŁEGO wydatku (2026-11-18, user: "Dobre Precle → Jedzenie, a tam fast food
+  // albo gotowe dania"): dla kwoty jedzenia NIE rozpisanej na pozycje paragonu (zamiast
+  // "Inne jedzenie"). Klucz z FOOD_SUBCATS (utils/food.ts). foodSplitOf/foodByCategory.
+  foodSubcat?: string;
   // Kategoria PRZYCHODU (2026-11-14, utils/incomeCategory.ts): pensja / zwrot /
   // sprzedaz / prezent / odsetki / inne; brak = zgadywana z tagów i opisu.
   incomeCategory?: string;

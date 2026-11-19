@@ -18,6 +18,8 @@ import {
 } from '@/utils/productMemory';
 import { saveMerchant } from '@/utils/merchantMemory';
 import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_META } from '@/utils/expenseCategory';
+import { FOOD_SUBCATS, FOOD_SUBCAT_META, guessMealSubcat } from '@/utils/food';
+import { bucketOf as bucketOfExpense } from '@/utils/fixedVariable';
 import { storeMatchOf } from '@/utils/categoryRules';
 import { useCategoryRulesStore } from '@/store/categoryRulesStore';
 import { offerUndo } from '@/services/undo';
@@ -163,6 +165,10 @@ export default function AddExpenseModal({
   // zmieniane pole nie zasługuje na stałe miejsce.
   const [catOpen, setCatOpen] = useState(false);
   const [expenseCategory, setExpenseCategory] = useState<string | undefined>(undefined);
+  // Rodzaj jedzenia całego wydatku (2026-11-18) — gdy wydatek liczy się jako Jedzenie
+  // i nie ma pozycji paragonu: zamiast kategorii Zmiennych wybór z FOOD_SUBCATS.
+  const [foodSubcat, setFoodSubcat] = useState<string | undefined>(undefined);
+  const [foodOpen, setFoodOpen] = useState(false);
   const [ruleSaved, setRuleSaved] = useState<string | null>(null);
   const [incomeCategory, setIncomeCategory] = useState<string | undefined>(undefined);
   const ruleMatch = storeMatchOf({ storeName, note });
@@ -193,6 +199,7 @@ export default function AddExpenseModal({
     setStoreName(''); setNote(''); setAmountInput(''); setDate(todayISO()); setPaymentMethod('card');
     setPayer('me'); setPaidOpen(false); setPasteBoxOpen(false); setFvOpen(false);
     setFvChoice('auto'); setCatOpen(false); setExpenseCategory(undefined); setIncomeCategory(undefined);
+    setFoodSubcat(undefined); setFoodOpen(false);
     setTags([]); setTagInput(''); setClipboardSuggestion(null); setDuplicateOf(null);
   };
 
@@ -215,6 +222,7 @@ export default function AddExpenseModal({
     setPayer(editingExpense.payer ?? 'me');
     setFvChoice(editingExpense.fvOverride && editingExpense.fvOverride !== 'transfer' ? editingExpense.fvOverride : 'auto');
     setExpenseCategory(editingExpense.expenseCategory);
+    setFoodSubcat(editingExpense.foodSubcat);
     setIncomeCategory(editingExpense.incomeCategory);
     setTags(editingExpense.tags ?? []);
     setUsedPaste(editingExpense.source === 'receipt');
@@ -353,6 +361,10 @@ export default function AddExpenseModal({
 
   const includedSum = round2(items.filter((it) => !it.excluded).reduce((sum, it) => sum + it.price, 0));
   const amount = items.length > 0 ? includedSum : (parseFloat(amountInput.replace(',', '.')) || 0);
+  // Czy wydatek (bez pozycji paragonu) liczy się jako Jedzenie → pokaż rodzaj jedzenia.
+  const mealGuess = guessMealSubcat(`${storeName} ${note} ${tags.join(' ')}`);
+  const foodWhole = type === 'expense' && !own && items.length === 0 && (fvChoice === 'food' || (fvChoice === 'auto' &&
+    bucketOfExpense({ id: '', type: 'expense', amount: amount || 1, date: '', note, storeName, tags, expenseCategory, createdAt: '', updatedAt: '' } as any) === 'food'));
   const mismatch = usedPaste && parsedTotal > 0 && Math.abs(includedSum - parsedTotal) > 0.01;
   const canSave = amount > 0;
 
@@ -412,6 +424,7 @@ export default function AddExpenseModal({
       receiptItems: type === 'expense' && !own && items.length > 0 ? items : undefined,
       fvOverride: own ? 'transfer' as const : type === 'expense' && fvChoice !== 'auto' ? fvChoice : null,
       expenseCategory: type === 'expense' && !own ? expenseCategory : undefined,
+      foodSubcat: foodWhole ? (foodSubcat ?? mealGuess) : undefined,
       incomeCategory: type === 'income' && !own ? incomeCategory : undefined,
       paymentMethod: own ? (type === 'expense' ? 'transfer' as const : undefined) : type === 'expense' ? paymentMethod : undefined,
       payer: type === 'expense' && !own && payer !== 'me' ? payer : undefined,
@@ -782,7 +795,33 @@ export default function AddExpenseModal({
         </View>
       )}
 
-      {type === 'expense' && !own && (
+      {foodWhole && (
+        <View style={s.section}>
+          {/* Rodzaj jedzenia (2026-11-18, user: "Dobre Precle → Jedzenie, a tam fast food albo
+              gotowe dania") — dla Jedzenia zamiast kategorii Zmiennych. Brak wyboru =
+              podpowiedź z nazwy (bar/pizza/kebab… → fast food) albo „Inne jedzenie”. */}
+          <TouchableOpacity style={s.paidSummaryRow} onPress={() => setFoodOpen((v) => !v)} activeOpacity={0.7}>
+            <Text style={s.label}>
+              Rodzaj jedzenia: {foodSubcat ? FOOD_SUBCAT_META[foodSubcat]?.label ?? foodSubcat : mealGuess ? `auto (${FOOD_SUBCAT_META[mealGuess]?.label})` : 'inne'}
+            </Text>
+            {foodOpen ? <ChevronUp size={14} color={colors.text.muted} /> : <ChevronDown size={14} color={colors.text.muted} />}
+          </TouchableOpacity>
+          {foodOpen && (
+            <View style={[s.paidDetail, s.chips]}>
+              <TouchableOpacity style={[s.chip, !foodSubcat && s.chipActive]} onPress={() => setFoodSubcat(undefined)} activeOpacity={0.7}>
+                <Text style={[s.chipLabel, !foodSubcat && s.chipLabelActive]}>{mealGuess ? 'Auto' : 'Inne'}</Text>
+              </TouchableOpacity>
+              {[...FOOD_SUBCATS.filter((f) => f.tag === 'fast food' || f.tag === 'dania gotowe'), ...FOOD_SUBCATS.filter((f) => f.tag !== 'fast food' && f.tag !== 'dania gotowe')].map((opt) => (
+                <TouchableOpacity key={opt.tag} style={[s.chip, foodSubcat === opt.tag && { backgroundColor: opt.color }]} onPress={() => setFoodSubcat(opt.tag)} activeOpacity={0.7}>
+                  <Text style={[s.chipLabel, foodSubcat === opt.tag && s.chipLabelActive]}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      {type === 'expense' && !own && !foodWhole && (
         <View style={s.section}>
           {/* Kategoria CAŁEGO wydatku (2026-11-10, user: "zróbmy to drugie...
               żeby były na przykład rozrywka i tak dalej") — RÓWNOLEGŁA do

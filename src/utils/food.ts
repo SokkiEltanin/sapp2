@@ -31,7 +31,17 @@ export const FOOD_SUBCATS: { tag: string; label: string; color: string }[] = [
   { tag: 'przekąski', label: 'Przekąski', color: '#F59E0B' },
   { tag: 'dania gotowe', label: 'Dania gotowe', color: '#A3E635' },
   { tag: 'mrożonki', label: 'Mrożonki', color: '#7DD3FC' },
+  // 2026-11-18, user: "Dobre Precle Warszawa → kategoria jedzenie, fast food" — jedzenie
+  // kupione na mieście (bar, budka, restauracja, dowóz). Głównie dla całego wydatku
+  // (Expense.foodSubcat), bo takie zakupy rzadko mają paragon z pozycjami.
+  { tag: 'fast food', label: 'Fast food i na mieście', color: '#F472B6' },
 ];
+
+// Podpowiedź rodzaju jedzenia dla CAŁEGO wydatku z nazwy sklepu / opisu (2026-11-18).
+const MEAL_OUT = /kebab|pizz|burger|mcdonald|mc donald|kfc|subway|zapiekan|prec(el|l)|hot ?dog|frytk|sushi|bistro|restaurac|bar mleczny|food ?truck|pyszne|wolt|glovo|uber ?eats|pierogarni|naleśnik|nalesnik|kawiarni|cafe|kebap|falafel|ramen|tacos?|pita\b/i;
+export function guessMealSubcat(text: string): string | undefined {
+  return text && MEAL_OUT.test(text) ? 'fast food' : undefined;
+}
 export const FOOD_SUBCAT_META: Record<string, { label: string; color: string }> = {
   ...Object.fromEntries(FOOD_SUBCATS.map((s) => [s.tag, { label: s.label, color: s.color }])),
   inne: { label: 'Inne jedzenie', color: '#9CA3AF' },

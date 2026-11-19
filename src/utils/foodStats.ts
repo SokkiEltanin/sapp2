@@ -1,6 +1,6 @@
 import type { Expense } from '@/types/finances';
 import { fvSplitOf, fixedVariableMonths, labelFor } from './fixedVariable';
-import { FOOD_SUBCAT_META } from './food';
+import { FOOD_SUBCAT_META, guessMealSubcat } from './food';
 import { round2 } from './money';
 
 // Dashboard, rząd 4 (2026-11-01, user: "czemu na dashboardzie nie ma widgetu... z
@@ -99,6 +99,12 @@ export interface FoodCategoryBar { label: string; amount: number; color: string;
 // podkategorie: "słodycze, przekąski, napoje"). Kwota jedzenia = fvSplitOf(e).food;
 // pozycje paragonu ją rozdzielają (proporcjonalnie, gdy ich suma > kwota), reszta →
 // 'inne'. Jedno źródło prawdy dla foodByCategory, budżetów i trendu.
+// Kwota jedzenia nierozpisana na pozycje → rodzaj wybrany dla całego wydatku, podpowiedź
+// z nazwy (precle/kebab/pizza… → fast food, też dla starych wydatków) albo "inne".
+const restSubcat = (e: Expense): string => (e.foodSubcat && FOOD_SUBCAT_META[e.foodSubcat]
+  ? e.foodSubcat
+  : guessMealSubcat(`${e.storeName ?? ''} ${e.note ?? ''}`) ?? 'inne');
+
 export function foodSplitOf(e: Expense): Map<string, number> {
   const out = new Map<string, number>();
   if (e.type !== 'expense') return out;
@@ -109,7 +115,8 @@ export function foodSplitOf(e: Expense): Map<string, number> {
   const k = itemsSum > foodAmt ? foodAmt / itemsSum : 1;
   for (const it of food) out.set(it.foodSubcat!, (out.get(it.foodSubcat!) ?? 0) + (it.price ?? 0) * k);
   const rest = foodAmt - itemsSum * k;
-  if (rest >= 0.01) out.set('inne', (out.get('inne') ?? 0) + rest);
+  const restTag = restSubcat(e);
+  if (rest >= 0.01) out.set(restTag, (out.get(restTag) ?? 0) + rest);
   return out;
 }
 
@@ -139,7 +146,7 @@ export function foodByCategory(expenses: Expense[], monthFilterKey?: string): Fo
       put(it.foodSubcat!, it.price * k, { expenseId: e.id, date: e.date, storeName: e.storeName, name: it.name, price: it.price, quantity: it.quantity });
     }
     const rest = foodAmt - itemsSum * k;
-    if (rest >= 0.01) put('inne', rest, { expenseId: e.id, date: e.date, storeName: e.storeName, name: labelFor(e), price: Math.round(rest * 100) / 100, quantity: 1 });
+    if (rest >= 0.01) put(restSubcat(e), rest, { expenseId: e.id, date: e.date, storeName: e.storeName, name: labelFor(e), price: Math.round(rest * 100) / 100, quantity: 1 });
   }
   return [...sums.entries()]
     .map(([tag, amount]) => ({

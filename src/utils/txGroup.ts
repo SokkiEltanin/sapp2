@@ -82,7 +82,8 @@ export function txDetail(e: Expense): string {
   const name = (e.storeName || '').trim();
   const note = (e.note || '').trim();
   if (note && note !== name && name) parts.push(note.length > 60 ? `${note.slice(0, 58)}…` : note);
-  if (e.expenseCategory) parts.push(EXPENSE_CATEGORY_META[e.expenseCategory]?.label ?? e.expenseCategory);
+  if (e.foodSubcat && FOOD_SUBCAT_META[e.foodSubcat]) parts.push(FOOD_SUBCAT_META[e.foodSubcat].label);
+  else if (e.expenseCategory) parts.push(EXPENSE_CATEGORY_META[e.expenseCategory]?.label ?? e.expenseCategory);
   const tags = (e.tags ?? []).filter((t) => t && t.toLowerCase() !== name.toLowerCase());
   if (tags.length) parts.push(tags.slice(0, 3).map((t) => `#${t}`).join(' '));
   return parts.join(' · ');

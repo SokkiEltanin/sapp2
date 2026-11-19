@@ -77,6 +77,7 @@ export function categoryUsage(expenses: Expense[], kind: CatKind, tag: string): 
   if (kind === 'fixed') return expenses.filter((e) => e.type === 'expense' && fixedCategoryOf(e) === tag).length;
   for (const e of expenses) {
     if (kind === 'var' && e.expenseCategory === tag) n++;
+    if (kind === 'food' && e.foodSubcat === tag) n++;
     for (const it of e.receiptItems ?? []) {
       if (kind === 'food' ? it.foodSubcat === tag : it.nonFoodCategory === tag) n++;
     }
@@ -96,9 +97,10 @@ export function reassignCategory(expenses: Expense[], kind: CatKind, from: strin
       return it;
     });
     const catHit = kind === 'var' && e.expenseCategory === from;
-    if (!touched && !catHit) return e;
+    const foodHit = kind === 'food' && e.foodSubcat === from;   // rodzaj jedzenia całego wydatku (2026-11-18)
+    if (!touched && !catHit && !foodHit) return e;
     changed++;
-    return { ...e, ...(items ? { receiptItems: items } : {}), ...(catHit ? { expenseCategory: to } : {}), updatedAt: nowIso };
+    return { ...e, ...(items ? { receiptItems: items } : {}), ...(catHit ? { expenseCategory: to } : {}), ...(foodHit ? { foodSubcat: to } : {}), updatedAt: nowIso };
   });
   return { expenses: out, changed };
 }

@@ -41,6 +41,13 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-18 — Rodzaj jedzenia całego wydatku** (`Expense.foodSubcat`, nowa podkategoria „Fast food i na
+mieście”): w edycji, gdy wydatek liczy się jako Jedzenie i nie ma pozycji paragonu, zamiast kategorii
+Zmiennych jest „Rodzaj jedzenia” (Auto = podpowiedź z nazwy, `guessMealSubcat`). `foodSplitOf`/
+`foodByCategory`: reszta jedzenia → foodSubcat albo podpowiedź z nazwy (też stare wydatki) albo „inne”.
+Rename/usuwanie kategorii jedzenia obejmuje pole (categoryRegistry).
+- [ ] Na telefonie: Dobre Precle → Jedzenie → Fast food; kafel Jedzenie i budżety pokazują „Fast food”.
+
 **2026-11-18 — Godzina jako kółka** (`components/design/WheelColumn.tsx`, PickerHost): godziny 00–23 i minuty
 00–59, zapętlone, przyciąganie, ząbek wibracji (`haptic.tick`), stuknięcie w pozycję. Dotyczy wszystkich
 pickerów godziny (Zadania, wydarzenia). Łańcuch data → godzina bez zmian.
