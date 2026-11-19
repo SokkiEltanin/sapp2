@@ -81,12 +81,31 @@ export function strokePath(p: number[], scale: number): string {
 }
 
 // Gumka: kreski, które przechodzą bliżej niż r od punktu (x, y).
+// Prostokąt kreski liczony raz na obiekt (2026-11-18, wydajność gumki przy wielu liniach).
+const bboxCache = new WeakMap<NoteStroke, [number, number, number, number]>();
+function bboxOf(s: NoteStroke): [number, number, number, number] {
+  let b = bboxCache.get(s);
+  if (!b) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let i = 0; i < s.p.length; i += 2) {
+      const x = s.p[i], y = s.p[i + 1];
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    b = [x0, y0, x1, y1];
+    bboxCache.set(s, b);
+  }
+  return b;
+}
+
 export function strokesHit(strokes: NoteStroke[], x: number, y: number, r = 0.03): number[] {
   const out: number[] = [];
+  const r2 = r * r;
   strokes.forEach((s, idx) => {
+    const [x0, y0, x1, y1] = bboxOf(s);
+    if (x < x0 - r || x > x1 + r || y < y0 - r || y > y1 + r) return; // daleko — bez sprawdzania punktów
     for (let i = 0; i < s.p.length; i += 2) {
       const dx = s.p[i] - x, dy = s.p[i + 1] - y;
-      if (dx * dx + dy * dy <= r * r) { out.push(idx); return; }
+      if (dx * dx + dy * dy <= r2) { out.push(idx); return; }
     }
   });
   return out;

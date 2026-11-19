@@ -16,14 +16,24 @@ import { addPoint, strokePath, strokesHit, brushFactor, smoothFactor, brushOutli
 // gesture-handler przekazuje `stylusData.pressure` dla rysika na Androidzie; palcem
 // grubość z szybkości. Kreska pędzla = wypełniony kontur (utils/notes.ts's brushOutline).
 
+// Wydajność (2026-11-18, user: "przy szybkim pisaniu i gumce laguje, zwłaszcza przy wielu
+// liniach"): każda kreska to osobny memo-komponent ze stałym kluczem (id z WeakMap po
+// obiekcie kreski) — nowa kreska / starta kreska przerysowuje TYLKO siebie, nie wszystkie.
+let strokeSeq = 0;
+const strokeIds = new WeakMap<NoteStroke, number>();
+const strokeId = (s: NoteStroke) => { let id = strokeIds.get(s); if (id == null) { id = ++strokeSeq; strokeIds.set(s, id); } return id; };
+
+const StrokePath = memo(function StrokePath({ s, width }: { s: NoteStroke; width: number }) {
+  return s.w
+    ? <Path d={brushOutline(s.p, s.w, width, s.width * (width / 360))} fill={s.color} />
+    : <Path d={strokePath(s.p, width)} stroke={s.color} strokeWidth={s.width * (width / 360)} strokeLinecap="round" strokeLinejoin="round" fill="none" />;
+});
+
 export const StrokesLayer = memo(function StrokesLayer({ strokes, width, height }: { strokes: NoteStroke[]; width: number; height: number }) {
   if (width <= 0) return null;
   return (
     <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
-      {strokes.map((s, i) => (s.w
-        ? <Path key={i} d={brushOutline(s.p, s.w, width, s.width * (width / 360))} fill={s.color} />
-        : <Path key={i} d={strokePath(s.p, width)} stroke={s.color} strokeWidth={s.width * (width / 360)} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      ))}
+      {strokes.map((s) => <StrokePath key={strokeId(s)} s={s} width={width} />)}
     </Svg>
   );
 });
@@ -58,7 +68,8 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
   const [, setTick] = useState(0);
   const raf = useRef<number | null>(null);
   const latest = useRef(strokes);
-  latest.current = strokes;
+  const erasedLocal = useRef(false);            // trwa ścieranie z lokalnym widokiem (patrz erase)
+  if (!erasedLocal.current) latest.current = strokes;
   // Gest tworzony RAZ (2026-11-15): wcześniej zależał od `onChange`/`tool`, które
   // zmieniają się przy każdym odświeżeniu ekranu notatki — gest podpinał się na nowo
   // w trakcie rysowania i potrafił uciąć kreskę. Aktualne wartości czytamy z refów.
@@ -94,11 +105,16 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
   // Wskaźnik gumki (2026-11-18, user: "gumka musi się pokazywać malutka, żeby było widać, że
   // jest włączona"): kółko o promieniu trafienia gumki pod palcem/rysikiem w trakcie ścierania.
   const eraserAt = useRef<{ x: number; y: number } | null>(null);
+  // Gumka ściera lokalnie (widok z `latest`), zapis do notatki RAZ po podniesieniu —
+  // wcześniej każde trafienie zapisywało całą notatkę i przerysowywało ekran.
   const erase = (x: number, y: number) => {
     eraserAt.current = { x, y };
-    redraw();
     const hit = strokesHit(latest.current, x, y, ERASE_R);
-    if (hit.length) commit(latest.current.filter((_, i) => !hit.includes(i)));
+    if (hit.length) {
+      latest.current = latest.current.filter((_, i) => !hit.includes(i));
+      erasedLocal.current = true;
+    }
+    redraw();
   };
 
   // Mnożnik grubości z nacisku (rysik) albo szybkości (palec) + odczyt do testu (max 10/s).
@@ -184,6 +200,7 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
       stroke.current = { reject: false, erase: false };
       scroll.current = { on: false, y0: 0, last: 0 };
       eraserAt.current = null;
+      if (erasedLocal.current) { erasedLocal.current = false; live.current.onChange(latest.current); }
       current.current = null;
       if (p && p.length >= 2) fns.current.commit([...latest.current, tl.brush
         ? { color: tl.color, width: tl.width, p, w: widths.current.slice(0, p.length / 2) }
@@ -199,7 +216,7 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
   return (
     <GestureDetector gesture={gesture}>
       <View style={styles.canvas} onLayout={onLayout} collapsable={false}>
-        <StrokesLayer strokes={strokes} width={size.w} height={size.h} />
+        <StrokesLayer strokes={erasedLocal.current ? latest.current : strokes} width={size.w} height={size.h} />
         {cur && size.w > 0 && (
           <Svg width={size.w} height={size.h} style={StyleSheet.absoluteFill} pointerEvents="none">
             {tool.brush
