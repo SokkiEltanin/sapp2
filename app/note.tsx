@@ -28,7 +28,8 @@ import { usePenStore } from '@/store/penStore';
 // nie zapisuje persist przy każdej literze); rysunek — po każdej kresce. Wyjście z
 // pustą notatką = notatka znika (bez śmieciowych pustych wpisów).
 const PEN_COLORS = ['#F2F2F2', '#EF4444', '#FBBF24', '#22C55E', '#60A5FA', '#A78BFA'];
-const PEN_WIDTHS = [2, 4, 9];
+// Grubości (2026-11-18): 5 do wyboru w panelu pióra — kółko w podglądzie ma realny rozmiar kreski.
+const PEN_WIDTHS = [2, 4, 6, 9, 14];
 
 // Dolna krawędź rysunku w px (kreski trzymane w jednostkach szerokości) — strona
 // rośnie, żeby było miejsce pod najniższą kreską.
@@ -86,6 +87,7 @@ export default function NoteScreen() {
   const setStorePageW = useNoteViewStore((st) => st.setPageW);
   const cutY = tileCutY(tile, pageW);
   const [showColors, setShowColors] = useState(false);
+  const [showPen, setShowPen] = useState(false); // panel: pióro/pędzel + grubość
   const [confirmDel, setConfirmDel] = useState(false);
   const [focusId, setFocusId] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -226,24 +228,48 @@ export default function NoteScreen() {
               <ColorPicker base={PEN_COLORS} value={tool.color} onPick={(c) => setTool((t) => ({ ...t, color: c, eraser: false }))} size={26} />
             </View>
           )}
+          {/* Panel narzędzia (2026-11-18, user: "pędzel/pióro jako jedno, po kliknięciu wybór i
+              wielkość kółeczka z wizualizacją"): rodzaj + grubość z podglądem w bieżącym kolorze. */}
+          {mode === 'draw' && showPen && (
+            <View style={s.penPanel}>
+              <View style={s.penKinds}>
+                {([[false, 'Pióro', 'stała grubość', PenLine], [true, 'Pędzel', 'S-Pen: mocniej = grubiej', Brush]] as const).map(([b, label, desc, Icon]) => {
+                  const on = !!tool.brush === b;
+                  return (
+                    <TouchableOpacity key={label} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, brush: b, eraser: false })); }} style={[s.penKind, on && s.penKindOn]} accessibilityLabel={label}>
+                      <Icon size={16} color={on ? colors.bg.primary : colors.text.primary} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[s.penKindTxt, on && { color: colors.bg.primary }]}>{label}</Text>
+                        <Text style={[s.penKindDesc, on && { color: colors.bg.primary, opacity: 0.7 }]} numberOfLines={1}>{desc}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <View style={s.penWidths}>
+                {PEN_WIDTHS.map((w) => {
+                  const on = tool.width === w;
+                  const d = Math.max(4, w * 1.6);
+                  return (
+                    <TouchableOpacity key={w} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, width: w, eraser: false })); }} style={[s.penWidth, on && s.penWidthOn]} accessibilityLabel={`Grubość ${w}`}>
+                      <View style={{ width: d, height: d, borderRadius: d / 2, backgroundColor: tool.color }} />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <PressureLabel brush={!!tool.brush} style={s.penPressure} />
+            </View>
+          )}
           {mode === 'draw' && (
             <View style={s.toolbar}>
               {PEN_COLORS.slice(0, 4).map((c) => (
                 <TouchableOpacity key={c} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, color: c, eraser: false })); }}
                   style={[s.swatch, { backgroundColor: c }, !tool.eraser && tool.color === c && s.swatchOn]} accessibilityLabel={`Kolor ${c}`} />
               ))}
-              <TouchableOpacity onPress={() => { haptic.tap(); setShowColors((v) => !v); }}
+              <TouchableOpacity onPress={() => { haptic.tap(); setShowPen(false); setShowColors((v) => !v); }}
                 style={[s.swatch, s.moreColors, !PEN_COLORS.slice(0, 4).includes(tool.color) && { backgroundColor: tool.color }, showColors && s.swatchOn]} accessibilityLabel="Więcej kolorów i moja paleta">
                 {PEN_COLORS.slice(0, 4).includes(tool.color) ? <Plus size={13} color={colors.text.primary} /> : null}
               </TouchableOpacity>
-              <View style={s.sep} />
-              {PEN_WIDTHS.map((w) => (
-                <TouchableOpacity key={w} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, width: w, eraser: false })); }}
-                  style={[s.iconBtn, !tool.eraser && tool.width === w && s.toolOn]} accessibilityLabel={`Grubość ${w}`}>
-                  <View style={{ width: w + 3, height: w + 3, borderRadius: (w + 3) / 2, backgroundColor: !tool.eraser && tool.width === w ? colors.bg.primary : colors.text.primary }} />
-                </TouchableOpacity>
-              ))}
-              <PressureLabel brush={!!tool.brush} style={s.pressure} />
             </View>
           )}
           <View style={s.modeSwitch}>
@@ -251,7 +277,7 @@ export default function NoteScreen() {
               {([['text', 'Tekst', Type], ['draw', 'Rysunek', PenLine]] as const).map(([m, label, Icon]) => {
                 const on = mode === m;
                 return (
-                  <TouchableOpacity key={m} onPress={() => { haptic.tap(); flush(); setMode(m); setShowColors(false); }} style={[s.segBtn, on && s.toolOn]} accessibilityLabel={`Narzędzie: ${label}`}>
+                  <TouchableOpacity key={m} onPress={() => { haptic.tap(); flush(); setMode(m); setShowColors(false); setShowPen(false); }} style={[s.segBtn, on && s.toolOn]} accessibilityLabel={`Narzędzie: ${label}`}>
                     <Icon size={15} color={on ? colors.bg.primary : colors.text.primary} />
                   </TouchableOpacity>
                 );
@@ -260,14 +286,12 @@ export default function NoteScreen() {
             {mode === 'draw' && (
               <>
                 <View style={s.sep} />
-                {([[false, 'Pióro', PenLine], [true, 'Pędzel', Brush]] as const).map(([b, label, Icon]) => {
-                  const on = !tool.eraser && !!tool.brush === b;
-                  return (
-                    <TouchableOpacity key={label} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, brush: b, eraser: false })); }} style={[s.iconBtn, on && s.toolOn]} accessibilityLabel={label}>
-                      <Icon size={15} color={on ? colors.bg.primary : colors.text.primary} />
-                    </TouchableOpacity>
-                  );
-                })}
+                {/* Jedno narzędzie: ikona pióra/pędzla + kropka w kolorze i grubości; stuknięcie = panel. */}
+                <TouchableOpacity onPress={() => { haptic.tap(); setShowColors(false); setShowPen((v) => !v); if (tool.eraser) setTool((t) => ({ ...t, eraser: false })); }}
+                  style={[s.penBtn, !tool.eraser && s.toolOn]} accessibilityLabel={`${tool.brush ? 'Pędzel' : 'Pióro'} — zmień narzędzie i grubość`}>
+                  {tool.brush ? <Brush size={15} color={!tool.eraser ? colors.bg.primary : colors.text.primary} /> : <PenLine size={15} color={!tool.eraser ? colors.bg.primary : colors.text.primary} />}
+                  <View style={{ width: Math.max(4, tool.width * 0.9), height: Math.max(4, tool.width * 0.9), borderRadius: 8, backgroundColor: tool.color, borderWidth: 1, borderColor: 'rgba(127,127,127,0.6)' }} />
+                </TouchableOpacity>
                 {/* Palec rysuje / przewija — gdy appka wykryła S-Pena (inaczej palec zawsze rysuje). */}
                 {penSeen && (
                   <TouchableOpacity onPress={() => { haptic.tap(); usePenStore.getState().set({ fingerScroll: !penFinger }); }}
@@ -371,6 +395,17 @@ const makeS = themedStyles((c) => StyleSheet.create({
   toolOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
   moreColors: { borderColor: c.border.default, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   colorPanel: { paddingHorizontal: spacing[3], paddingBottom: spacing[2] },
+  penPanel: { marginHorizontal: spacing[3], marginBottom: 6, padding: spacing[3], gap: spacing[3], borderRadius: radius.lg, backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default },
+  penKinds: { flexDirection: 'row', gap: 6 },
+  penKind: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
+  penKindOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
+  penKindTxt: { fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
+  penKindDesc: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
+  penWidths: { flexDirection: 'row', justifyContent: 'space-between' },
+  penWidth: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'transparent' },
+  penWidthOn: { borderColor: c.text.bright, backgroundColor: c.ui.in2 },
+  penPressure: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted, textAlign: 'center', marginTop: -4 },
+  penBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 32, paddingHorizontal: 9, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
   guide: { position: 'absolute', left: 0, right: 0, height: 0, borderTopWidth: 1, borderStyle: 'dashed', borderColor: c.text.muted, opacity: 0.45 },
   guideLabel: { position: 'absolute', right: spacing[3], top: -16, fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
   guideBtn: { width: 40, height: 36, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, alignItems: 'center', justifyContent: 'center' },
