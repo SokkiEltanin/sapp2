@@ -18,6 +18,9 @@ import { nWydatkow } from '@/utils/plural';
 // Reguły kategoryzacji (2026-11-14): "jeśli sklep/opis albo pozycja zawiera X →
 // kategoria Y". Działają przy każdym nowym wydatku i — przy dodaniu reguły — od razu
 // uzupełniają historię. Tylko puste kategorie; ręcznie ustawione zostają.
+// Reguła „przelew własny” (2026-11-18) — nie kategoria, tylko oznaczenie (fvOverride 'transfer').
+const OWN_CAT = { tag: 'transfer', label: 'Przelew własny', color: '#9CA3AF' };
+
 export default function CategoryRulesSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const s = makeS();
   const rules = useCategoryRulesStore((st) => st.rules);
@@ -25,7 +28,7 @@ export default function CategoryRulesSheet({ visible, onClose }: { visible: bool
   const expenses = useExpensesStore((st) => st.expenses);
   const [field, setField] = useState<RuleField>('store');
   const [match, setMatch] = useState('');
-  const [target, setTarget] = useState<{ kind: 'food' | 'var'; tag: string } | null>(null);
+  const [target, setTarget] = useState<{ kind: 'food' | 'var' | 'own'; tag: string } | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
   useEffect(() => { if (visible) { setMatch(''); setTarget(null); setInfo(null); } }, [visible]);
@@ -33,7 +36,7 @@ export default function CategoryRulesSheet({ visible, onClose }: { visible: bool
   const foodCats = useMemo(() => resolveCategories(prefs, 'food').filter((c) => !c.hidden), [prefs]);
   const varCats = useMemo(() => resolveCategories(prefs, 'var').filter((c) => !c.hidden), [prefs]);
   const labelOf = (r: Pick<CategoryRule, 'kind' | 'tag'>) =>
-    (r.kind === 'food' ? foodCats : varCats).find((c) => c.tag === r.tag) ?? { label: r.tag, color: colors.text.muted };
+    r.kind === 'own' ? OWN_CAT : (r.kind === 'food' ? foodCats : varCats).find((c) => c.tag === r.tag) ?? { label: r.tag, color: colors.text.muted };
 
   const draft: CategoryRule | null = match.trim().length >= 2 && target
     ? { id: 'draft', field, match: match.trim(), kind: target.kind, tag: target.tag, createdAt: '', updatedAt: '' } : null;
@@ -52,9 +55,10 @@ export default function CategoryRulesSheet({ visible, onClose }: { visible: bool
   const pickField = (f: RuleField) => {
     haptic.tap(); setField(f);
     if (f === 'store' && target?.kind === 'food') setTarget(null);
+    if (f === 'item' && target?.kind === 'own') setTarget(null);
   };
 
-  const chip = (kind: 'food' | 'var', c: { tag: string; label: string; color: string }) => {
+  const chip = (kind: 'food' | 'var' | 'own', c: { tag: string; label: string; color: string }) => {
     const on = target?.kind === kind && target.tag === c.tag;
     return (
       <TouchableOpacity key={c.tag} style={[s.chip, on && { borderColor: c.color, backgroundColor: c.color + '22' }]} onPress={() => { haptic.tap(); setTarget(on ? null : { kind, tag: c.tag }); }}>
@@ -82,7 +86,7 @@ export default function CategoryRulesSheet({ visible, onClose }: { visible: bool
         {/* Poziomy scroll (2026-11-16, user: "listy powinny być poziome scroll"). */}
         {field === 'item' && <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipScroll} contentContainerStyle={s.chips} keyboardShouldPersistTaps="handled">{foodCats.map((c) => chip('food', c))}</ScrollView>}
         <Text style={s.group}>{field === 'item' ? 'Nie jedzenie' : 'Kategoria Zmiennych'}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipScroll} contentContainerStyle={s.chips} keyboardShouldPersistTaps="handled">{varCats.map((c) => chip('var', c))}</ScrollView>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipScroll} contentContainerStyle={s.chips} keyboardShouldPersistTaps="handled">{field === 'store' && chip('own', OWN_CAT)}{varCats.map((c) => chip('var', c))}</ScrollView>
         <TouchableOpacity style={[s.addBtn, !draft && s.addOff]} disabled={!draft} onPress={addRule}>
           <Plus size={15} color={colors.bg.primary} />
           <Text style={s.addLabel}>{!draft ? 'Wpisz tekst i wybierz kategorię' : impact > 0 ? `Dodaj · uzupełni ${impact}` : 'Dodaj regułę'}</Text>

@@ -48,3 +48,16 @@ describe('reguły kategoryzacji', () => {
     expect(storeMatchOf({ storeName: 'ORLEN Stacja 123', note: '' })).toBe('orlen stacja');
   });
 });
+
+describe('reguła: przelew własny', () => {
+  const { applyCategoryRules: apply } = require('@/utils/categoryRules');
+  const rule = { id: 'r', field: 'store', match: 'trade republic', kind: 'own', tag: 'transfer', createdAt: '', updatedAt: '' };
+  const base = { id: 'e', amount: 500, date: '2026-11-18', tags: [], source: 'bank', createdAt: '', updatedAt: '' };
+  it('wydatek i wpływ z „Trade Republic” → przelew własny', () => {
+    expect(apply({ ...base, type: 'expense', storeName: 'TRADE REPUBLIC BANK' }, [rule])).toMatchObject({ fvOverride: 'transfer', paymentMethod: 'transfer' });
+    expect(apply({ ...base, type: 'income', note: 'Przelew od Trade Republic' }, [rule])).toMatchObject({ fvOverride: 'transfer' });
+  });
+  it('ręcznie ustawiony kubeł wygrywa', () => {
+    expect(apply({ ...base, type: 'expense', storeName: 'Trade Republic', fvOverride: 'variable' }, [rule])).toBeNull();
+  });
+});

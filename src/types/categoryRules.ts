@@ -7,7 +7,10 @@ export interface CategoryRule {
   id: string;
   field: RuleField;          // 'store' = nazwa sklepu + opis wydatku, 'item' = nazwa pozycji paragonu
   match: string;             // fragment tekstu (bez wielkości liter i polskich znaków)
-  kind: 'food' | 'var';      // 'food' tylko dla pozycji (foodSubcat), 'var' = kategoria Zmiennych
+  // 'food' tylko dla pozycji (foodSubcat), 'var' = kategoria Zmiennych, 'own' (2026-11-18,
+  // user: "jak zaznaczę przelew własny dla TRADE REPUBLIC, ma łapać sam") = przelew własny
+  // (fvOverride 'transfer', wydatek i wpływ; tylko field 'store', tag 'transfer').
+  kind: 'food' | 'var' | 'own';
   tag: string;
   createdAt: string;
   updatedAt: string;

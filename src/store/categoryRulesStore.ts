@@ -9,7 +9,7 @@ const genId = () => `rule_${Date.now().toString(36)}${Math.random().toString(36)
 
 interface RulesState {
   rules: CategoryRule[];
-  add: (r: { field: RuleField; match: string; kind: 'food' | 'var'; tag: string }) => CategoryRule;
+  add: (r: { field: RuleField; match: string; kind: 'food' | 'var' | 'own'; tag: string }) => CategoryRule;
   remove: (id: string) => void;
 }
 

@@ -41,6 +41,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-18 — Reguła „zawsze przelew własny”** (`CategoryRule.kind 'own'`, `ruleOwnFor`): w oknie przelewu
+własnego chip „Zawsze przelew własny dla „trade republic””, też w Ustawieniach → Reguły. Działa dla wydatków i
+wpływów (bank, ręcznie), oznacza od razu dotychczasowe; ręcznie ustawiony kubeł wygrywa.
+- [ ] Na telefonie: oznaczyć jeden przelew TR jako własny + reguła → kolejny z banku sam własny.
+
 **2026-11-18 — Zachęta do humoru**: kafel Daily bez dzisiejszego wpisu = „Jak minął dzień?” + 5 kolorów
 (stuknięcie = wpis, energia średnia, `services/moodReminders.ts` addQuickMood), seria dni (`utils/moodReminder.ts`
 moodStreak), wieczorem (≥18) kafel podświetlony. Przypomnienie (domyślnie 21:00, Ustawienia → Powiadomienia):

@@ -20,7 +20,7 @@ import { saveMerchant } from '@/utils/merchantMemory';
 import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_META } from '@/utils/expenseCategory';
 import { FOOD_SUBCATS, FOOD_SUBCAT_META, guessMealSubcat } from '@/utils/food';
 import { bucketOf as bucketOfExpense } from '@/utils/fixedVariable';
-import { storeMatchOf } from '@/utils/categoryRules';
+import { storeMatchOf, applyRulesToAll } from '@/utils/categoryRules';
 import { useCategoryRulesStore } from '@/store/categoryRulesStore';
 import { offerUndo } from '@/services/undo';
 import { useCategoriesVersion } from '@/store/categoriesStore';
@@ -170,6 +170,7 @@ export default function AddExpenseModal({
   const [foodSubcat, setFoodSubcat] = useState<string | undefined>(undefined);
   const [foodOpen, setFoodOpen] = useState(false);
   const [ruleSaved, setRuleSaved] = useState<string | null>(null);
+  const [ownRuleInfo, setOwnRuleInfo] = useState<string | null>(null);
   const [incomeCategory, setIncomeCategory] = useState<string | undefined>(undefined);
   const ruleMatch = storeMatchOf({ storeName, note });
   // Ostrzeżenie o możliwym duplikacie (2026-11-11, user: "jak dodałem z
@@ -574,6 +575,27 @@ export default function AddExpenseModal({
             ))}
           </View>
           <Text style={s.ownHint}>Przelew między Twoimi kontami: zmienia saldo, ale nie liczy się do wydatków, przychodów, kategorii ani budżetów.</Text>
+          {/* Reguła jednym tapem (2026-11-18, user: "jak zaznaczę przelew własny dla TRADE REPUBLIC,
+              ma łapać sam"): kolejne (i dotychczasowe) wpisy z tą nazwą/tytułem = przelew własny. */}
+          {ruleMatch.length >= 2 && (
+            <TouchableOpacity
+              style={[s.chip, s.ruleChip, ruleSaved === `${ruleMatch}|own` && s.chipActive]}
+              onPress={() => {
+                if (ruleSaved === `${ruleMatch}|own`) return;
+                haptic.success();
+                const rule = useCategoryRulesStore.getState().add({ field: 'store', match: ruleMatch, kind: 'own', tag: 'transfer' });
+                const { expenses: next, changed } = applyRulesToAll(useExpensesStore.getState().expenses, [rule], new Date().toISOString());
+                if (changed) useExpensesStore.setState({ expenses: next });
+                setRuleSaved(`${ruleMatch}|own`);
+                setOwnRuleInfo(changed ? `Oznaczono też ${changed} wcześniejsze` : null);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.chipLabel, ruleSaved === `${ruleMatch}|own` && s.chipLabelActive]}>
+                {ruleSaved === `${ruleMatch}|own` ? `Zapamiętane: „${ruleMatch}” = przelew własny${ownRuleInfo ? ` · ${ownRuleInfo}` : ''}` : `Zawsze przelew własny dla „${ruleMatch}”`}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 

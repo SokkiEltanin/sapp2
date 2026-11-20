@@ -20,6 +20,12 @@ export function ruleForStore(e: Pick<Expense, 'storeName' | 'note'>, rules: Cate
   return ordered(rules, 'store').find((r) => r.kind === 'var' && hay.includes(normText(r.match)));
 }
 
+/** Reguła „zawsze przelew własny” pasująca do nazwy/opisu (wydatek i wpływ). */
+export function ruleOwnFor(e: Pick<Expense, 'storeName' | 'note'>, rules: CategoryRule[]): CategoryRule | undefined {
+  const hay = `${normText(e.storeName)} ${normText(e.note)}`;
+  return ordered(rules, 'store').find((r) => r.kind === 'own' && hay.includes(normText(r.match)));
+}
+
 export function ruleForItem(name: string, rules: CategoryRule[]): CategoryRule | undefined {
   const hay = normText(name);
   return ordered(rules, 'item').find((r) => hay.includes(normText(r.match)));
@@ -27,7 +33,12 @@ export function ruleForItem(name: string, rules: CategoryRule[]): CategoryRule |
 
 /** Uzupełnia puste kategorie wg reguł. Zwraca NOWY wydatek albo null, gdy nic się nie zmieniło. */
 export function applyCategoryRules(e: Expense, rules: CategoryRule[]): Expense | null {
-  if (rules.length === 0 || e.type !== 'expense') return null;
+  if (rules.length === 0) return null;
+  // Przelew własny z reguły — tylko gdy kubeł nie był ustawiony ręcznie (fvOverride puste).
+  if (!e.fvOverride && ruleOwnFor(e, rules)) {
+    return { ...e, fvOverride: 'transfer', ...(e.type === 'expense' ? { paymentMethod: 'transfer' as const } : {}) };
+  }
+  if (e.type !== 'expense' || e.fvOverride === 'transfer') return null;
   let changed = false;
   let items: ReceiptItem[] | undefined = e.receiptItems;
   if (items?.length && rules.some((r) => r.field === 'item')) {
