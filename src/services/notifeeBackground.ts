@@ -14,6 +14,10 @@ export async function handleBackgroundAction(detail: Detail): Promise<boolean> {
     const { answerTest } = await import('./notifyTests');
     return answerTest(id, detail.notification?.id);
   }
+  if (id?.startsWith('mood-q-')) {
+    const { quickMoodFromNotification } = await import('./moodReminders');
+    return quickMoodFromNotification(id, detail.notification?.id);
+  }
   if (id === TASK_SNOOZE_ACTION && typeof data?.taskId === 'string') {
     const { snoozeTaskReminder } = await import('./taskReminders');
     await snoozeTaskReminder(data.taskId, detail.notification?.id);

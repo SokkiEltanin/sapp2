@@ -41,6 +41,14 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-18 — Zachęta do humoru**: kafel Daily bez dzisiejszego wpisu = „Jak minął dzień?” + 5 kolorów
+(stuknięcie = wpis, energia średnia, `services/moodReminders.ts` addQuickMood), seria dni (`utils/moodReminder.ts`
+moodStreak), wieczorem (≥18) kafel podświetlony. Przypomnienie (domyślnie 21:00, Ustawienia → Powiadomienia):
+7 dni do przodu, tylko dni bez wpisu, przyciski Słabo/OK/Dobrze zapisują w tle (notifeeBackground), stuknięcie →
+Daily z otwartym wpisem. `store/moodReminderStore.ts` (lokalnie), hooks/useMoodReminderSync.ts w _layout.
+- [ ] Na telefonie: powiadomienie o 21:00 przy braku wpisu; przycisk zapisuje bez otwierania appki; po wpisie
+  w ciągu dnia powiadomienie nie przychodzi.
+
 **2026-11-18 — Rodzaj jedzenia całego wydatku** (`Expense.foodSubcat`, nowa podkategoria „Fast food i na
 mieście”): w edycji, gdy wydatek liczy się jako Jedzenie i nie ma pozycji paragonu, zamiast kategorii
 Zmiennych jest „Rodzaj jedzenia” (Auto = podpowiedź z nazwy, `guessMealSubcat`). `foodSplitOf`/

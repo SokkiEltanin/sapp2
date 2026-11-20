@@ -49,6 +49,8 @@ import { useHealthStore } from '@/store/healthStore';
 import { isHealthConnectAvailable, ensureHealthConnect, openHealthConnectSettings, readHealthDay } from '@/services/healthConnectService';
 import { isHapticsEnabled, setHapticsEnabled, haptic, getHapticStrength, setHapticStrength, HAPTIC_STRENGTH_LABEL, type HapticStrength } from '@/utils/haptics';
 import { usePenStore } from '@/store/penStore';
+import { useMoodReminderStore } from '@/store/moodReminderStore';
+import { openPicker } from '@/services/picker';
 import Toggle from '@/components/design/Toggle';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import WidgetAppearanceSheet from '@/components/settings/WidgetAppearanceSheet';
@@ -126,6 +128,7 @@ function buildSections(
   pwa: string | null,
   profile: string,
   pen: { fingerScroll: boolean; buttonEraser: boolean; stylusSeen: boolean },
+  moodRem: { enabled: boolean; hour: number; minute: number },
 ): SettingsSection[] {
   return [
   // Zakładki (2026-11-17, user: "popraw ustawienia, zrób lepsze zakładki — czemu w
@@ -239,6 +242,10 @@ function buildSections(
       // Od 2026-11-17 jeden wpis → osobny ekran testów (app/notify-test.tsx): 5 testów
       // w kolorach, po JEDNYM powiadomieniu (stare odpalały się podwójnie), zgody na górze.
       { kind: 'action', key: 'thresholds', label: 'Progi i przypomnienia', description: thresholds, icon: Clock },
+      // Wieczorne przypomnienie o humorze (2026-11-18) — tylko w dni bez wpisu, z przyciskami
+      // Słabo / OK / Dobrze zapisującymi humor bez otwierania appki.
+      { kind: 'switch', key: 'mood-reminder', label: 'Przypomnienie o humorze', description: 'wieczorem, tylko gdy dziś nic nie wpisano', icon: Bell, value: moodRem.enabled },
+      ...(moodRem.enabled ? [{ kind: 'action' as const, key: 'mood-reminder-time', label: 'Godzina przypomnienia', description: `${String(moodRem.hour).padStart(2, '0')}:${String(moodRem.minute).padStart(2, '0')} · stuknij, żeby zmienić`, icon: Clock }] : []),
       { kind: 'action', key: 'notify-test', label: 'Testy powiadomień', description: 'zwykłe, TAK/NIE, pełny ekran, wybudzenie + zgody systemowe', icon: Bell },
     ],
   },
@@ -434,6 +441,10 @@ export default function SettingsScreen() {
   const penButton = usePenStore((st) => st.buttonEraser);
   const penSeen = usePenStore((st) => st.stylusSeen);
   const pen = useMemo(() => ({ fingerScroll: penFinger, buttonEraser: penButton, stylusSeen: penSeen }), [penFinger, penButton, penSeen]);
+  const mrEnabled = useMoodReminderStore((st) => st.enabled);
+  const mrHour = useMoodReminderStore((st) => st.hour);
+  const mrMinute = useMoodReminderStore((st) => st.minute);
+  const moodRem = useMemo(() => ({ enabled: mrEnabled, hour: mrHour, minute: mrMinute }), [mrEnabled, mrHour, mrMinute]);
   const sections = useMemo(
     () => buildSections(
       user?.email ?? null,
@@ -452,8 +463,9 @@ export default function SettingsScreen() {
       pwaLabel,
       profileLabel,
       pen,
+      moodRem,
     ),
-    [pen, profileLabel, pwaLabel, healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, hapticStrength, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, widgetNote, syncLabel],
+    [moodRem, pen, profileLabel, pwaLabel, healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, hapticStrength, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, widgetNote, syncLabel],
   );
 
   const backupNow = async () => {
@@ -763,6 +775,14 @@ export default function SettingsScreen() {
     'bank-history': leave(() => router.push('/bank-history' as any)),
     'import-sapp': leave(() => router.push('/import-sapp' as any)),
     'haptics-enabled': toggleHaptics,
+    'mood-reminder': () => { haptic.tap(); useMoodReminderStore.getState().set({ enabled: !useMoodReminderStore.getState().enabled }); },
+    'mood-reminder-time': () => {
+      const st = useMoodReminderStore.getState();
+      openPicker({
+        value: new Date(2026, 0, 1, st.hour, st.minute), mode: 'time', title: 'Przypomnienie o humorze',
+        onChange: (ev, d) => { if (ev.type === 'set' && d) useMoodReminderStore.getState().set({ hour: d.getHours(), minute: d.getMinutes() }); },
+      });
+    },
     'pen-finger-scroll': () => { haptic.tap(); usePenStore.getState().set({ fingerScroll: !usePenStore.getState().fingerScroll }); },
     'pen-button-eraser': () => { haptic.tap(); usePenStore.getState().set({ buttonEraser: !usePenStore.getState().buttonEraser }); },
     'haptics-strength': cycleHapticStrength,

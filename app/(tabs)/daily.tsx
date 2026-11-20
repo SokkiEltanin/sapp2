@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
 import { View, Text, StyleSheet, Platform, TouchableOpacity, Pressable } from 'react-native';
 import { Screen, Row, Tile, Cap, StackBar, FitList } from '@/ui/layout';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import MonthPaceSheet, { MonthPaceRows, windowLabel } from '@/components/daily/MonthPace';
 import { useExpensesStore } from '@/store/expensesStore';
 import { FACT_BY_ID, CAT_LABEL } from '@/utils/facts';
@@ -20,7 +20,9 @@ import MoodStatsSheet from '@/components/mood/MoodStatsSheet';
 import { useConfirmTap } from '@/hooks/useConfirmTap';
 import SleepSheet from '@/components/health/SleepSheet';
 import BodySheet from '@/components/health/BodySheet';
-import { moodColor, energyGlow, MOOD_LABELS, ENERGY_LABELS, roundLevel } from '@/types/mood';
+import { moodColor, energyGlow, MOOD_LABELS, ENERGY_LABELS, MOOD_COLORS, roundLevel } from '@/types/mood';
+import { moodStreak } from '@/utils/moodReminder';
+import { addQuickMood } from '@/services/moodReminders';
 import { todayISO } from '@/utils/date';
 import { useMoodStore } from '@/store/moodStore';
 import { useHealthStore } from '@/store/healthStore';
@@ -51,6 +53,9 @@ export default function DailyScreen() {
   const connected = useHealthStore((st) => st.connected);
   useHealthSync();
   const [moodOpen, setMoodOpen] = useState(false);
+  // Stuknięcie w przypomnienie o humorze → Daily z otwartym wpisem (hooks/useNotifeeAlertLaunch.ts).
+  const { mood: moodParam } = useLocalSearchParams<{ mood?: string }>();
+  useEffect(() => { if (moodParam) setMoodOpen(true); }, [moodParam]);
   const [moodStatsOpen, setMoodStatsOpen] = useState(false);
   const [knowArmed, knowTap] = useConfirmTap();
   const [sleepOpen, setSleepOpen] = useState(false);
@@ -101,6 +106,9 @@ export default function DailyScreen() {
 
   const todayEntries = useMemo(() => entries.filter((e) => e.date === today), [entries, today]);
   const lastToday = todayEntries[todayEntries.length - 1];
+  const moodSeries = useMemo(() => moodStreak(entries), [entries, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  // wieczorem bez wpisu kafel lekko się wyróżnia (2026-11-18)
+  const moodEvening = !lastToday && new Date().getHours() >= 18;
   const moodWeek = useMemo(() => {
     const now = new Date();
     return Array.from({ length: 7 }, (_, i) => {
@@ -198,7 +206,7 @@ export default function DailyScreen() {
             ))}
           </View>
         </Tile>
-        <Tile span={2} onPress={() => setMoodOpen(true)}>
+        <Tile span={2} onPress={() => setMoodOpen(true)} style={moodEvening ? st.moodEvening : undefined}>
           {/* Mini przycisk → zakładka humoru (2026-11-18): średnia, rok w pikselach, zależności.
               Reszta kafla dalej = zapisz humor. */}
           <View style={st.moodCap}>
@@ -207,19 +215,34 @@ export default function DailyScreen() {
               <BarChart3 size={13} color={C.txt} />
             </Pressable>
           </View>
-          <Text style={[T.rowHi, lastToday && { color: moodColor(lastToday.mood) }]} numberOfLines={1}>
-            {lastToday ? MOOD_LABELS[roundLevel(lastToday.mood)] : 'nie zapisano'}
-          </Text>
-          <Text style={T.small} numberOfLines={1}>{lastToday ? energyText(lastToday.energy) : 'dotknij, by zapisać'}</Text>
-          <View style={st.moodDots}>
-            {moodWeek.map((d, i) => (
-              <View key={d.key} style={st.moodDotCol}>
-                {d.mood != null && d.energy != null
-                  ? <View style={[st.moodDot, { backgroundColor: moodColor(d.mood), width: 6 + energyGlow(d.energy) * 7, height: 6 + energyGlow(d.energy) * 7 }, i === 6 && st.moodDotToday]} />
-                  : <View style={st.dotEmpty} />}
+          {lastToday ? (
+            <>
+              <Text style={[T.rowHi, { color: moodColor(lastToday.mood) }]} numberOfLines={1}>{MOOD_LABELS[roundLevel(lastToday.mood)]}</Text>
+              <Text style={T.small} numberOfLines={1}>{energyText(lastToday.energy)}{moodSeries.days >= 2 ? ` · 🔥 ${moodSeries.days} dni` : ''}</Text>
+              <View style={st.moodDots}>
+                {moodWeek.map((d, i) => (
+                  <View key={d.key} style={st.moodDotCol}>
+                    {d.mood != null && d.energy != null
+                      ? <View style={[st.moodDot, { backgroundColor: moodColor(d.mood), width: 6 + energyGlow(d.energy) * 7, height: 6 + energyGlow(d.energy) * 7 }, i === 6 && st.moodDotToday]} />
+                      : <View style={st.dotEmpty} />}
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
+            </>
+          ) : (
+            // Brak wpisu (2026-11-18, user: "zachęcić do wpisu humoru"): 5 kolorów = jedno
+            // stuknięcie zapisuje humor (energia średnia); szczegóły dalej po stuknięciu kafla.
+            <>
+              <Text style={T.rowHi} numberOfLines={1}>Jak minął dzień?</Text>
+              <Text style={T.small} numberOfLines={1}>{moodSeries.days >= 1 ? `🔥 seria ${moodSeries.days} — nie przerwij` : 'stuknij kolor'}</Text>
+              <View style={st.moodQuick}>
+                {([1, 2, 3, 4, 5] as const).map((l) => (
+                  <Pressable key={l} hitSlop={6} onPress={() => { haptic.success(); addQuickMood(l); }} accessibilityLabel={`Humor: ${MOOD_LABELS[l]}`}
+                    style={({ pressed }) => [st.moodQuickDot, { backgroundColor: MOOD_COLORS[l] }, pressed && { transform: [{ scale: 0.85 }] }]} />
+                ))}
+              </View>
+            </>
+          )}
         </Tile>
       </Row>
 
@@ -271,6 +294,9 @@ const st = StyleSheet.create({
   stepBar: { width: '75%', borderRadius: 2, backgroundColor: C.mut },
   moodCap: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8, marginTop: -6 },
   moodStatsBtn: { width: 26, height: 26, borderRadius: 8, backgroundColor: C.in2, alignItems: 'center', justifyContent: 'center' },
+  moodQuick: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, height: 24 },
+  moodQuickDot: { width: 20, height: 20, borderRadius: 10 },
+  moodEvening: { borderWidth: 1, borderColor: 'rgba(163,230,53,0.45)', backgroundColor: 'rgba(163,230,53,0.06)' },
   moodDots: { flexDirection: 'row', marginTop: 8, height: 14, alignItems: 'center' },
   moodDotCol: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   moodDot: { borderRadius: 7 },

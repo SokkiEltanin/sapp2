@@ -2317,3 +2317,8 @@ więc nie ma nic do migracji/zachowania.
 - `plugins/withStylus.js` → StylusState/StylusModule/StylusPackage + override dispatchTouchEvent w MainActivity.
   JS: `NativeModules.Stylus?.isButtonDown?.()` w DrawingCanvas (onBegin kreski).
 - Uwaga: komentarze w szablonach Kotlina w pluginach NIE mogą mieć backticków (to template stringi JS).
+
+### Humor — zachęta (2026-11-18)
+- `utils/moodReminder.ts` (moodStreak, planMoodReminders — czyste, testy), `services/moodReminders.ts`
+  (triggery notifee `mood-rem-YYYY-MM-DD`, akcje `mood-q-N` w tle, addQuickMood), `store/moodReminderStore.ts`,
+  `hooks/useMoodReminderSync.ts` (w _layout). Kafel Humor w Daily: szybkie kropki + seria.
