@@ -121,6 +121,8 @@ const FOOD_TAG_MAP: [string, string[]][] = [
     'śliwk','cytryna','mango','kiwi','ananas','arbuz','melon','czereśni',
     'wiśni','morel','brzoskwini','figi','daktyl','borówk','jeżyn','agrest',
     'porzeczk','granat','papaja','awokado','limonka','grejpfrut',
+    // 2026-11-21 (paragon Lidl: "Kaki szt." bez kategorii)
+    'kaki','persymon','marakuj','liczi','mandarynk','klementynk','nektaryn','pomelo',
   ]],
   ['słodycze',   [
     'czekolad','czekoladk','cukierek','cukierk','batonik','baton','lody','wafelek','ciast','biszkopty',
@@ -202,6 +204,8 @@ const KW_LETTER = 'a-z0-9ąćęłńóśźż';
 // wymagają granicy z LEWEJ strony, prawa strona bez ochrony u wszystkich długości (trzony
 // celowo łapią polskie końcówki fleksyjne: "ser"→"serek"/"sery", "jaj"→"jajko"/"jajka").
 function foodKeywordHit(lower: string, kw: string): boolean {
+  // "cukier" (produkty sypkie) NIE w "cukierki"/"cukierek" (słodycze) — 2026-11-21
+  if (kw === 'cukier') return /cukier(?!e?k)/.test(lower);
   if (kw.length > 4) return lower.includes(kw);
   const esc = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return new RegExp(`(^|[^${KW_LETTER}])${esc}`, 'i').test(lower);
@@ -250,9 +254,11 @@ function stripVatCode(line: string): string {
 
 const FULL_RE = /^(.+?)\s{2,}(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+[.,]\d{2})\s+(\d+[.,]\d{1,3})\s*$/i;
 const SIMPLE_RE = /^(.+?)\s{1,}(\d+[.,]\d{2})\s*$/;
-const WEIGHT_RE = /^(\d+[.,]\d+)\s*(?:kg|g|dag|l|ml|szt)\.?\s*[x×*]\s*(\d+[.,]\d{2,3})(?:[/\\](?:kg|g|dag|l|szt))?/i;
+// Cena za kg z 1–3 miejscami po przecinku (2026-11-21: Lidl drukuje "0,494kg x 62.9 31.07 A" —
+// wcześniej \d{2,3} gubiło "62.9" i linia wagi stawała się osobnym produktem "0,494kg x 62.9").
+const WEIGHT_RE = /^(\d+[.,]\d+)\s*(?:kg|g|dag|l|ml|szt)\.?\s*[x×*]\s*(\d+(?:[.,]\d{1,3})?)(?:[/\\](?:kg|g|dag|l|szt))?/i;
 const PRODUCT_INFO_RE = /^(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+[.,]\d{2})\s+(\d+[.,]\d{1,3})\s*$/;
-const WEIGHT_INLINE_RE = /^(\d+[.,]\d+)\s*kg\s*[x×*]\s*(\d+[.,]\d{2})\/kg\s+(\d+[.,]\d{2})/i;
+const WEIGHT_INLINE_RE = /^(\d+[.,]\d+)\s*kg\s*[x×*]\s*(\d+(?:[.,]\d{1,2})?)\/kg\s+(\d+[.,]\d{2})/i;
 const DISCOUNT_KW_RE = /^(?:RABAT(?:\s+\w+)?|OPUST|ZNIZKA|ZNIZK|PROMOCJA|OBNIŻKA|OBN|UPUST|KDR|LIDL\s*PLUS|PLUS\s*KUPON|KUPON|BON|VOUCHER|APLIKACJA|APP|MOJA\s*BIEDRONKA|BIEDRONKA\s*APP|GRATIS(?:\s+ZA)?\s+[-–]?(\d+[.,]\d{2})|HAPPY\s*HOUR|OFERTA|KARTA\s*STAŁ|KARTA\s*RABAT|ZWROT)\s*[-–]?\s*(\d+[.,]\d{2})/i;
 const DISCOUNT_NEG_RE = /^[#*]?\s*[-–]\s*(\d+[.,]\d{2})\s*$/;
 const INLINE_DISC_RE = /^.+\s{2,}[-–]\s*(\d+[.,]\d{2})\s*$/;
@@ -354,6 +360,8 @@ function cleanName(raw: string): string {
   s = s.replace(/\s+[A-E]\s*$/, '').trim();
   s = s.replace(/^\d{6,13}\s+/, '');
   s = s.replace(/\s+(?:PLN|Z[ŁL])$/i, '').trim();
+  // Dopisek jednostki na końcu nazwy (Lidl: "Śliwka Nałęczow. kg", "Kaki szt.") — 2026-11-21
+  s = s.replace(/\s+(?:kg|szt)\.?$/i, '').trim();
   s = expandAbbreviations(s);
   return s;
 }
