@@ -22,6 +22,6 @@ describe('eksport CSV', () => {
     expect(csvCell('linia1\nlinia2')).toBe('linia1 linia2');
   });
   it('nazwa pliku', () => {
-    expect(csvFileName(new Date(2026, 10, 4))).toBe('sapp2-transakcje-2026-11-04.csv');
+    expect(csvFileName(new Date(2026, 10, 4))).toBe('soen-transakcje-2026-11-04.csv');
   });
 });

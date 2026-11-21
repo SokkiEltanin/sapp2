@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Sapp2",
+    "name": "SOEN",
     "slug": "sapp2",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -94,8 +94,8 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "name": "sapp2",
-      "shortName": "sapp2",
+      "name": "SOEN",
+      "shortName": "SOEN",
       "themeColor": "#000000",
       "backgroundColor": "#000000"
     },

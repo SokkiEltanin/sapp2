@@ -188,7 +188,7 @@ function buildSections(
       // podkategorii") — te 4 wiersze istnieją/mają sens TYLKO gdy wyłącznik wyżej
       // jest włączony, więc wizualnie są wcięte/zmniejszone pod nim, nie na równi.
       ...(bank.enabled ? [
-        { kind: 'action' as const, tier: 'sub' as const, permission: true, key: 'bank-notif-access', label: 'Dostęp do powiadomień', description: 'ekran systemowy — przyznaj Sapp2 RAZ, inaczej nasłuch nic nie złapie', icon: Bell },
+        { kind: 'action' as const, tier: 'sub' as const, permission: true, key: 'bank-notif-access', label: 'Dostęp do powiadomień', description: 'ekran systemowy — przyznaj SOEN RAZ, inaczej nasłuch nic nie złapie', icon: Bell },
         { kind: 'switch' as const, tier: 'sub' as const, key: 'bank-auto-all', label: 'Dodawaj automatycznie', description: 'każda płatność kartą księguje się bez przeglądu', icon: Zap, value: bank.autoAll },
         { kind: 'action' as const, tier: 'sub' as const, key: 'bank-test', label: 'Sprawdź teraz (diagnostyka)', description: 'czy nasłuch w ogóle coś odbiera — log na dole ekranu', icon: Stethoscope },
         { kind: 'action' as const, tier: 'sub' as const, key: 'bank-review', label: 'Płatności do zatwierdzenia', description: bank.pending > 0 ? `${bank.pending} czeka — stuknij, żeby przejrzeć` : 'pusto — nic nie czeka na zatwierdzenie', icon: Rocket },
@@ -601,7 +601,7 @@ export default function SettingsScreen() {
       const n = useCalendarStore.getState().gcalEvents.length;
       append(n > 0
         ? `Kalendarz z telefonu: ${n} wydarzeń (od 45 dni wstecz do 180 dni w przód). Zmiany robisz na telefonie.`
-        : 'Brak wydarzeń z telefonu — zainstaluj na telefonie APK #225 lub nowszy, otwórz Sapp2 na telefonie (pobierze kalendarz), potem odśwież tę stronę.');
+        : 'Brak wydarzeń z telefonu — zainstaluj na telefonie APK #225 lub nowszy, otwórz SOEN na telefonie (pobierze kalendarz), potem odśwież tę stronę.');
       return;
     }
     try {
@@ -698,7 +698,7 @@ export default function SettingsScreen() {
       const queued = await drainBankNotifications();
       if (!peek.fileExists || peek.count === 0) {
         if (peek.seen.length === 0) {
-          append('Nasłuch NIC nie odbiera (nawet z innych apek) — sprawdź "Dostęp do powiadomień" i baterię Sapp2.');
+          append('Nasłuch NIC nie odbiera (nawet z innych apek) — sprawdź "Dostęp do powiadomień" i baterię SOEN.');
         } else {
           append(`Nasłuch działa, ale nic nie wyglądało na płatność bankową. Widziane apki: ${peek.seen.join(', ')}`);
         }
@@ -1028,7 +1028,7 @@ export default function SettingsScreen() {
       <ThresholdsSheet visible={thresholdsOpen} onClose={() => setThresholdsOpen(false)} />
       <ProfileSheet visible={profileOpen} onClose={() => setProfileOpen(false)} />
       <DashboardLayoutSheet visible={layoutOpen} onClose={() => setLayoutOpen(false)} />
-      <ErrorLogSheet visible={errorsOpen} onClose={() => setErrorsOpen(false)} header={`sapp2 ${BUILD_INFO.version} · build ${BUILD_INFO.buildNumber} · ${BUILD_INFO.commit} · ${runningUpdateLabel()}`} />
+      <ErrorLogSheet visible={errorsOpen} onClose={() => setErrorsOpen(false)} header={`SOEN ${BUILD_INFO.version} · build ${BUILD_INFO.buildNumber} · ${BUILD_INFO.commit} · ${runningUpdateLabel()}`} />
     </SafeAreaView>
   );
 }

@@ -26,10 +26,10 @@ class SappTileService : TileService() {
 
         val col = LayoutElementBuilders.Column.Builder()
             .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-        col.addContent(text("SAPP2", 11f, 0xFFA3A3A3.toInt(), bold = true))
+        col.addContent(text("SOEN", 11f, 0xFFA3A3A3.toInt(), bold = true))
         if (snap == null) {
             col.addContent(spacer(6f))
-            col.addContent(text("Otwórz Sapp2", 14f, 0xFFF2F2F2.toInt()))
+            col.addContent(text("Otwórz SOEN", 14f, 0xFFF2F2F2.toInt()))
             col.addContent(text("na telefonie", 14f, 0xFFF2F2F2.toInt()))
         } else {
             // Bez wydatków (2026-11-16): zadania + najbliższe wydarzenie / praca.

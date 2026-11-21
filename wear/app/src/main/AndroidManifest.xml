@@ -7,7 +7,7 @@
     <uses-feature android:name="android.hardware.sensor.heartrate" android:required="false" />
 
     <application
-        android:label="Sapp2"
+        android:label="SOEN"
         android:icon="@drawable/ic_launcher"
         android:allowBackup="false"
         android:theme="@android:style/Theme.DeviceDefault">
@@ -18,7 +18,7 @@
         <!-- Kafelek: wydatki dziś / w miesiącu + zadania (dane z ostatniego snapshotu). -->
         <service
             android:name=".SappTileService"
-            android:label="Sapp2"
+            android:label="SOEN"
             android:exported="true"
             android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
             <intent-filter>

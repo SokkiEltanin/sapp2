@@ -2338,3 +2338,11 @@ więc nie ma nic do migracji/zachowania.
   Ograniczenie: dopóki appka na telefonie nie zostanie otwarta, wpis z zegarka nie kasuje przypomnienia 21:00.
 - **Tętno:** `SensorManager` TYPE_HEART_RATE, uprawnienie BODY_SENSORS (prośba po stuknięciu w wiersz), czujnik
   włączony tylko między onResume/onPause. Nie jest wysyłane do telefonu.
+
+## NAZWA: SOEN (2026-11-21)
+
+Widoczna nazwa appki = **SOEN** (od SOkki EltaNin): `app.json` name / web.name, `public/manifest.json`, ekran
+logowania, Ustawienia, zegarek (etykieta, nagłówek, kafelek), nazwa usługi powiadomień banku, plik CSV `soen-…`.
+CELOWO bez zmian (zmiana zepsułaby aktualizacje/dane/parowanie): `com.sokki.sapp2`, slug i scheme `sapp2`
+(deep linki widgetów), adres PWA `/sapp2/`, ścieżki Data Layer `/sapp2/…`, `app: 'sapp2'` w plikach kopii,
+nazwy plików/klas w kodzie.

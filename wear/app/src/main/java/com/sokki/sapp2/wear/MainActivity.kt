@@ -292,12 +292,12 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
         shifts = snap?.optJSONArray("work")
         activeKey = shiftKey(System.currentTimeMillis())
         if (snap == null) {
-            list.addView(text("SAPP2", 11f, "#A3A3A3", bold = true, center = true))
-            list.addView(text("Otwórz Sapp2 na telefonie — dane pojawią się tutaj.", 14f, "#F2F2F2", center = true, maxLines = 3).apply { setPadding(0, dp(10), 0, 0) })
+            list.addView(text("SOEN", 11f, "#A3A3A3", bold = true, center = true))
+            list.addView(text("Otwórz SOEN na telefonie — dane pojawią się tutaj.", 14f, "#F2F2F2", center = true, maxLines = 3).apply { setPadding(0, dp(10), 0, 0) })
             return
         }
         val at = snap.optLong("t", 0L)
-        list.addView(text(if (at > 0) "SAPP2 · " + SimpleDateFormat("HH:mm", pl).format(Date(at)) else "SAPP2", 10f, "#A3A3A3", bold = true, center = true))
+        list.addView(text(if (at > 0) "SOEN · " + SimpleDateFormat("HH:mm", pl).format(Date(at)) else "SOEN", 10f, "#A3A3A3", bold = true, center = true))
         renderWork()
 
         // Zadania (bez wydatków — 2026-11-16)

@@ -44,7 +44,7 @@ export default function LoginScreen() {
         <View style={s.logoWrap}>
           <Logo size={36} />
         </View>
-        <Text style={s.title}>Sapp2</Text>
+        <Text style={s.title}>SOEN</Text>
         <Text style={s.subtitle}>Zaloguj się kontem Google, żeby zacząć.</Text>
 
         <TouchableOpacity style={s.button} onPress={handlePress} disabled={loading} activeOpacity={0.8}>
