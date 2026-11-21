@@ -20,7 +20,7 @@ import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
 import { drainWidgetToggleQueue } from '@/services/widgetToggleDrain';
 import { View, Text, TouchableOpacity, ActivityIndicator, AppState, Dimensions, Platform, useWindowDimensions } from 'react-native';
 import { WEB_MAX_W } from '@/ui/layout';
-import { desktopLayout } from '@/utils/desktopColumns';
+import { desktopLayout, deskPanelWidth } from '@/utils/desktopColumns';
 import { DesktopPanelBackdrop } from '@/ui/DesktopPanelBackdrop';
 import EventEditSheet from '@/components/calendar/EventEditSheet';
 import PickerHost from '@/components/design/PickerHost';
@@ -350,7 +350,7 @@ export default function RootLayout() {
                     headerShown: false,
                     ...(panel ? { presentation: 'transparentModal' as const, animation: 'slide_from_right' as const } : null),
                     // Notatka na komputerze szerzej (2026-11-16) — wygodne pisanie/rysowanie.
-                    contentStyle: panel ? (route.name === 'note' || route.name === 'expense-table' ? { ...DESK_PANEL_STYLE, width: Math.min(900, Math.max(WEB_MAX_W, winW * 0.55)) } : DESK_PANEL_STYLE) : { backgroundColor: colors.bg.primary },
+                    contentStyle: panel ? { ...DESK_PANEL_STYLE, width: deskPanelWidth(route.name, winW, WEB_MAX_W) } : { backgroundColor: colors.bg.primary },
                   };
                 }}
               />

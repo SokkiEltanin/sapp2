@@ -48,3 +48,15 @@ export function isDesktopPanelPath(pathname: string): boolean {
   const seg = pathname.replace(/^\/+/, '').split(/[/?#]/)[0];
   return !!seg && !FULL_PATHS.has(seg) && !seg.startsWith('+');
 }
+
+// Szersze panele (2026-11-16: notatka, tabela wydatków). Jedno źródło szerokości dla panelu
+// (_layout contentStyle) i przyciemnienia obok (ui/DesktopPanelBackdrop) — 2026-11-21 przyciemnienie
+// liczyło się dla zwykłej szerokości i zachodziło na lewą część notatki: klik/rysowanie tam
+// zamykało notatkę, a przyciski pod nim nie działały.
+const WIDE_PANELS = new Set(['note', 'expense-table']);
+/** Szerokość panelu z prawej dla ekranu (nazwa trasy albo ścieżka) przy szerokości okna. */
+export function deskPanelWidth(routeOrPath: string, winW: number, base: number): number {
+  const seg = routeOrPath.replace(/^\/+/, '').split(/[/?#]/)[0];
+  const w = WIDE_PANELS.has(seg) ? Math.min(900, Math.max(base, Math.round(winW * 0.55))) : base;
+  return Math.min(w, winW);
+}

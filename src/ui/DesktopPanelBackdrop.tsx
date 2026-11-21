@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 import { usePathname } from 'expo-router';
 import { goBack } from '@/services/nav';
 import { WEB_MAX_W } from './layout';
-import { isDesktopPanelPath } from '@/utils/desktopColumns';
+import { isDesktopPanelPath, deskPanelWidth } from '@/utils/desktopColumns';
 
 // Komputer (2026-11-14): gdy z prawej jest otwarty panel (ustawienia, notatki…),
 // kolumny po lewej są lekko przyciemnione, a kliknięcie w nie zamyka panel — jak w
@@ -17,7 +17,7 @@ export function DesktopPanelBackdrop() {
     <Pressable
       onPress={goBack}
       accessibilityLabel="Zamknij panel"
-      style={[st.backdrop, { width: Math.max(0, width - WEB_MAX_W) }]}
+      style={[st.backdrop, { width: Math.max(0, width - deskPanelWidth(pathname, width, WEB_MAX_W)) }]}
     />
   );
 }

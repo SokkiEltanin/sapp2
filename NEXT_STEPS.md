@@ -46,6 +46,13 @@ w przypomnieniu 21:00), bo zapisywanie jednej pozytywnej rzeczy dziennie obniża
 zaprojektowania: gdzie wpisywać (MoodModal? osobne pole w Daily?), przegląd „dobrych rzeczy” w statystykach humoru,
 losowe przypomnienie starej dobrej rzeczy w gorszy dzień.
 
+**2026-11-21 — Notatki na komputerze się zamykały / martwe przyciski**: przyciemnienie obok panelu (klik = zamknij)
+liczyło się dla zwykłej szerokości panelu (560), a notatka ma do 900 px → zasłaniało lewą część notatki (przełącznik
+T/✎, pióro, rysowanie przy lewej krawędzi). Wspólne `deskPanelWidth` (utils/desktopColumns.ts) dla panelu i tła.
+Sprawdzone w Playwright 1600 px: tekst → rysunek przy lewej krawędzi, wyjazd kursorem poza panel, Gumka/Cofnij/
+powrót do tekstu — notatka zostaje; klik w tło dalej zamyka.
+- [ ] Na komputerze (po odświeżeniu PWA): czy coś jeszcze „odwala” w notatkach.
+
 **2026-11-21 — Zegarek: licznik zarobków, humor palcem, tętno** (ARCHITECTURE „ZEGAREK: PRACA, HUMOR, TĘTNO”).
 Wymaga nowego APK telefonu (odbiór `/sapp2/mood/`) i nowego `sapp2-wear-N.apk` (ADB).
 - [ ] W czasie zmiany z kalendarza: karta „W PRACY” z liczącą się kwotą, paskiem i „zostało”; przed zmianą

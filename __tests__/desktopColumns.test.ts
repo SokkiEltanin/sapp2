@@ -41,3 +41,14 @@ describe('isDesktopPanelPath', () => {
     expect(isDesktopPanelPath('/login')).toBe(false);
   });
 });
+
+describe('szerokość panelu na komputerze', () => {
+  const { deskPanelWidth } = require('../src/utils/desktopColumns');
+  it('notatka szersza, przyciemnienie liczone z tej samej szerokości', () => {
+    expect(deskPanelWidth('note', 1600, 560)).toBe(880);
+    expect(deskPanelWidth('/note?id=1', 1600, 560)).toBe(880);
+    expect(deskPanelWidth('/note', 2400, 560)).toBe(900);
+    expect(deskPanelWidth('settings', 1600, 560)).toBe(560);
+    expect(deskPanelWidth('/note', 500, 560)).toBe(500);
+  });
+});
