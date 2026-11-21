@@ -41,6 +41,20 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**POMYSŁ NA PÓŹNIEJ (2026-11-21, user): „jedna dobra rzecz z dnia”** — krótki wpis wieczorem (np. przy humorze /
+w przypomnieniu 21:00), bo zapisywanie jednej pozytywnej rzeczy dziennie obniża stres i ryzyko depresji. Do
+zaprojektowania: gdzie wpisywać (MoodModal? osobne pole w Daily?), przegląd „dobrych rzeczy” w statystykach humoru,
+losowe przypomnienie starej dobrej rzeczy w gorszy dzień.
+
+**2026-11-21 — Zegarek: licznik zarobków, humor palcem, tętno** (ARCHITECTURE „ZEGAREK: PRACA, HUMOR, TĘTNO”).
+Wymaga nowego APK telefonu (odbiór `/sapp2/mood/`) i nowego `sapp2-wear-N.apk` (ADB).
+- [ ] W czasie zmiany z kalendarza: karta „W PRACY” z liczącą się kwotą, paskiem i „zostało”; przed zmianą
+  „Praca dziś hh:mm, zarobisz ≈”.
+- [ ] Humor na zegarku → po otwarciu appki na telefonie wpis w Daily (bez dubli); wiersz HUMOR pokazuje go od razu.
+- [ ] Tętno: stuknięcie → zgoda → bpm na żywo, serce bije w rytmie; „załóż zegarek” bez kontaktu.
+- [ ] Znane ograniczenie: wpis humoru z zegarka nie kasuje przypomnienia 21:00, dopóki appka telefonu nie
+  zostanie otwarta.
+
 **2026-11-18 — Reguła „zawsze przelew własny”** (`CategoryRule.kind 'own'`, `ruleOwnFor`): w oknie przelewu
 własnego chip „Zawsze przelew własny dla „trade republic””, też w Ustawieniach → Reguły. Działa dla wydatków i
 wpływów (bank, ręcznie), oznacza od razu dotychczasowe; ręcznie ustawiony kubeł wygrywa.

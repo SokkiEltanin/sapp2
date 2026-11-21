@@ -2322,3 +2322,19 @@ więc nie ma nic do migracji/zachowania.
 - `utils/moodReminder.ts` (moodStreak, planMoodReminders — czyste, testy), `services/moodReminders.ts`
   (triggery notifee `mood-rem-YYYY-MM-DD`, akcje `mood-q-N` w tle, addQuickMood), `store/moodReminderStore.ts`,
   `hooks/useMoodReminderSync.ts` (w _layout). Kafel Humor w Daily: szybkie kropki + seria.
+
+## ZEGAREK: PRACA, HUMOR, TĘTNO (2026-11-21)
+
+- **Licznik zarobków:** snapshot `work` = `utils/wearSnapshot.ts` `wearShifts` (pracodawcy w trybie kalendarza,
+  wydarzenia pracy od wczoraj do jutra, godziny z tytułu `shiftClockRange`, stawka `computeWorkRate` — ta sama co
+  w Finansach → Praca). Czasy bezwzględne (ms), więc zegarek liczy sam, także bez telefonu. `MainActivity`
+  `renderWork`/`updateTicker` (Handler co 100 ms tylko gdy appka na wierzchu; przekroczenie startu/końca zmiany
+  = przebudowa widoku). Przed zmianą: „Praca dziś/jutro hh:mm–hh:mm, zarobisz ≈ X zł”.
+- **Humor:** `wear/…/MoodPadActivity.kt` — pad przyjemność (X, kolor) × energia (Y, poświata), wartości ciągłe
+  jak `MoodPad.tsx`. Zapis = DataItem `/sapp2/mood/<id>` {id, mood, energy, date, t} + lokalna kopia `mood_local`
+  (lista na zegarku pokazuje wpis od razu). Telefon: WearListenerService → `wear_mood_queue.json` i usuwa DataItem;
+  `services/widgetToggleDrain.ts` `drainMood` (przy starcie/powrocie appki) → `utils/wearMood.ts` → moodStore
+  (id `w_<id>` = bez dubli). Snapshot `mood` = `wearMoodToday` (liczba wpisów dziś + ostatni).
+  Ograniczenie: dopóki appka na telefonie nie zostanie otwarta, wpis z zegarka nie kasuje przypomnienia 21:00.
+- **Tętno:** `SensorManager` TYPE_HEART_RATE, uprawnienie BODY_SENSORS (prośba po stuknięciu w wiersz), czujnik
+  włączony tylko między onResume/onPause. Nie jest wysyłane do telefonu.

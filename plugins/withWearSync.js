@@ -7,6 +7,7 @@
 //    przy niskim poziomie); odhaczenie zadania = wiadomość "/sapp2/toggle" z id zadania;
 //    WearListenerService dopisuje id do widget_toggle_queue.json (ta sama kolejka co
 //    widget Zadań), appka odhacza przy najbliższym otwarciu (widgetToggleDrain.ts).
+//    Humor = DataItem "/sapp2/mood/<id>" (2026-11-21) → wear_mood_queue.json.
 // Aplikacja zegarka: katalog wear/ (osobny projekt Gradle, ten sam applicationId i
 // klucz podpisu — inaczej Data Layer nie połączy telefonu z zegarkiem).
 const { withAndroidManifest, withDangerousMod, withMainApplication, withAppBuildGradle, AndroidConfig } = require('@expo/config-plugins');
@@ -178,7 +179,30 @@ class WearListenerService : WearableListenerService() {
 
   override fun onDataChanged(events: DataEventBuffer) {
     for (e in events) {
-      if (e.type != DataEvent.TYPE_CHANGED || e.dataItem.uri.path != "/sapp2/battery") continue
+      // Humor z zegarka (2026-11-21): "/sapp2/mood/<id>" → wear_mood_queue.json (appka
+      // dopisuje wpis przy otwarciu, services/widgetToggleDrain.ts), potem usunięcie
+      // DataItemu, żeby Data Layer nie dosyłał go w nieskończoność.
+      val p = e.dataItem.uri.path ?: ""
+      if (e.type == DataEvent.TYPE_CHANGED && p.startsWith("/sapp2/mood/")) {
+        try {
+          val m = DataMapItem.fromDataItem(e.dataItem).dataMap
+          val o = JSONObject()
+            .put("id", m.getString("id") ?: p.removePrefix("/sapp2/mood/"))
+            .put("mood", m.getFloat("mood", 3f).toDouble())
+            .put("energy", m.getFloat("energy", 3f).toDouble())
+            .put("date", m.getString("date") ?: "")
+            .put("t", m.getLong("t", System.currentTimeMillis()))
+          synchronized(WearListenerService::class.java) {
+            val f = File(filesDir, "wear_mood_queue.json")
+            val arr = if (f.exists()) try { JSONArray(f.readText()) } catch (x: Exception) { JSONArray() } else JSONArray()
+            arr.put(o)
+            f.writeText(arr.toString())
+          }
+          com.google.android.gms.wearable.Wearable.getDataClient(this).deleteDataItems(e.dataItem.uri)
+        } catch (ex: Exception) {}
+        continue
+      }
+      if (e.type != DataEvent.TYPE_CHANGED || p != "/sapp2/battery") continue
       try {
         val m = DataMapItem.fromDataItem(e.dataItem).dataMap
         val level = m.getInt("level", -1)

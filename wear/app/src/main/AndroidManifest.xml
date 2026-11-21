@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-feature android:name="android.hardware.type.watch" />
+    <!-- Tętno prosto z czujnika (2026-11-21) — tylko gdy appka jest otwarta. -->
+    <uses-permission android:name="android.permission.BODY_SENSORS" />
+    <uses-feature android:name="android.hardware.sensor.heartrate" android:required="false" />
 
     <application
         android:label="Sapp2"
@@ -36,6 +39,9 @@
                 <data android:scheme="wear" android:host="*" android:pathPrefix="/sapp2" />
             </intent-filter>
         </service>
+
+        <!-- Humor palcem (pad przyjemność × energia). -->
+        <activity android:name=".MoodPadActivity" android:exported="false" android:taskAffinity="" />
 
         <activity
             android:name=".MainActivity"

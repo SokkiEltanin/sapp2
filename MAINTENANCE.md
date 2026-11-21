@@ -130,3 +130,6 @@ przytrzymaniem tarczy → Kafelki → Sapp2. Dane przychodzą w tle (DataListene
     Debugowania, zmienia się) → `adb -s IP:PORT install -r sapp2-wear-N.apk` (`-s`, bo ADB widzi
     zegarek 2×). Plik: `curl -L -o sapp2-wear-N.apk https://github.com/SokkiEltanin/sapp2/releases/download/wear-N/sapp2-wear-N.apk`.
 - Aktualizacja = zainstalowanie nowszego pliku tak samo (dane zostają).
+- Od 2026-11-21 zegarek pokazuje też licznik zarobków w czasie zmiany z kalendarza, humor palcem (zapis wraca do
+  telefonu przy otwarciu appki) i tętno z czujnika (pierwsze stuknięcie w wiersz ♥ = zgoda na czujniki).
+  Wymaga APK telefonu z obsługą `/sapp2/mood/` (build po 2026-11-21) i nowego `sapp2-wear-N.apk`.

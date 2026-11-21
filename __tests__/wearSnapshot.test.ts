@@ -26,3 +26,30 @@ describe('dane dla zegarka', () => {
     ]);
   });
 });
+
+describe('zegarek: zmiany pracy i humor', () => {
+  const { wearShifts, wearMoodToday } = require('@/utils/wearSnapshot');
+  const emp = { id: 'e', name: 'JD', workPrefix: '[JD]', monthlySalary: 3000, hoursPerMonth: 100, rateOverride: 30, createdAt: 0 };
+  it('zmiana dziś z godzin w tytule, przez północ, bez zakończonych i ukrytych pracodawców', () => {
+    const ev = [
+      Ev({ title: '[JD] 13:00-20:00', startTime: '09:00', endTime: '17:00' }),
+      Ev({ title: '[JD] 06:00-10:00', startTime: '06:00', endTime: '10:00' }), // już minęła
+      Ev({ title: '[JD] 22:00-06:00', date: '2026-11-15', startTime: '22:00', endTime: '06:00' }),
+      Ev({ title: 'Kino', startTime: '18:00', endTime: '20:00' }),
+    ] as any;
+    const s = wearShifts([emp], ev, [], NOW);
+    expect(s.map((x: any) => [new Date(x.s).toString().slice(16, 21), new Date(x.e).getDate(), new Date(x.e).toString().slice(16, 21), x.rate])).toEqual([
+      ['13:00', 14, '20:00', 30], ['22:00', 16, '06:00', 30],
+    ]);
+    expect(wearShifts([{ ...emp, hidden: true }], ev, [], NOW)).toEqual([]);
+  });
+  it('humor dziś: liczba wpisów i ostatni', () => {
+    const m = wearMoodToday([
+      { id: '1', date: '2026-11-14', mood: 2, energy: 3, tags: [], createdAt: '2026-11-14T08:00:00Z', updatedAt: '' },
+      { id: '2', date: '2026-11-14', mood: 4.333, energy: 2, tags: [], createdAt: '2026-11-14T10:00:00Z', updatedAt: '' },
+      { id: '3', date: '2026-11-13', mood: 1, energy: 1, tags: [], createdAt: '2026-11-13T10:00:00Z', updatedAt: '' },
+    ] as any, NOW);
+    expect(m).toEqual({ n: 2, mood: 4.33, energy: 2 });
+    expect(wearMoodToday([], NOW)).toEqual({ n: 0, mood: null, energy: null });
+  });
+});

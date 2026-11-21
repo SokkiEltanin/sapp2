@@ -13,6 +13,8 @@ const NAV_THEME = { ...DarkTheme, colors: { ...DarkTheme.colors, background: col
 // zakładki, więc "cofnij" wraca do appki zamiast ją zamykać / pokazywać pusty ekran.
 export const unstable_settings = { initialRouteName: '(tabs)' };
 import { syncWear } from '@/services/wearSync';
+import { useWorkStore } from '@/store/workStore';
+import { useMoodStore } from '@/store/moodStore';
 import { useWeatherStore } from '@/store/weatherStore';
 import { useWidgetSettingsStore } from '@/store/widgetSettingsStore';
 import { drainWidgetToggleQueue } from '@/services/widgetToggleDrain';
@@ -277,9 +279,20 @@ export default function RootLayout() {
     // Zegarek (Wear OS): zadania + wydatki → snapshot (services/wearSync.ts), co najwyżej co 2 s.
     let wt: ReturnType<typeof setTimeout> | null = null;
     // Zegarek: zadania + wydarzenia dziś/jutro (bez wydatków, 2026-11-16).
-    const pushWear = () => { if (wt) clearTimeout(wt); wt = setTimeout(() => { const c = useCalendarStore.getState(); syncWear(c.tasks, [...c.events, ...c.gcalEvents]); }, 2000); };
+    // + zmiany pracy (licznik zarobków) i humor dziś (2026-11-21).
+    const pushWear = () => { if (wt) clearTimeout(wt); wt = setTimeout(() => {
+      const c = useCalendarStore.getState();
+      syncWear(c.tasks, [...c.events, ...c.gcalEvents], {
+        employers: useWorkStore.getState().employers,
+        expenses: useExpensesStore.getState().expenses,
+        mood: useMoodStore.getState().entries,
+      });
+    }, 2000); };
     const unsubWearT = useCalendarStore.subscribe((st, prev) => { if (st.tasks !== prev.tasks || st.events !== prev.events || st.gcalEvents !== prev.gcalEvents) pushWear(); });
-    const unsubWearE = () => {};
+    const unsubWearW = useWorkStore.subscribe((st, prev) => { if (st.employers !== prev.employers) pushWear(); });
+    const unsubWearM = useMoodStore.subscribe((st, prev) => { if (st.entries !== prev.entries) pushWear(); });
+    const unsubWearX = useExpensesStore.subscribe((st, prev) => { if (st.expenses !== prev.expenses) pushWear(); });
+    const unsubWearE = () => { unsubWearW(); unsubWearM(); unsubWearX(); };
     const wearStart = setTimeout(pushWear, 3000);
     // Po powrocie do appki (np. następnego dnia) — świeże "dziś" na zegarku.
     const subWear = AppState.addEventListener('change', (st) => { if (st === 'active') pushWear(); });
