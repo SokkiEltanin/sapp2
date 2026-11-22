@@ -69,6 +69,7 @@ export default function AppBottomSheet({
   footer,
   scrollable = true,
   maxHeightRatio = DEFAULT_MAX_HEIGHT_RATIO,
+  fixedHeight = false,
   initialFocusRef,
   onClosed,
   children,
@@ -84,6 +85,10 @@ export default function AppBottomSheet({
   // poprosić o więcej miejsca zamiast appka globalnie zjadała więcej ekranu
   // wszędzie (np. krótkim popupom nie potrzeba 90% wysokości).
   maxHeightRatio?: number;
+  // Stała wysokość = `maxHeightRatio` ekranu (2026-11-22, user: "przeskakuje wysokością
+  // między zakładkami, niewygodne") — arkusz z zakładkami nie rośnie/kurczy się przy
+  // przełączaniu; treść przewija się w środku.
+  fixedHeight?: boolean;
   // Pole, które ma dostać fokus (i otworzyć klawiaturę) zaraz po pokazaniu
   // sheeta (2026-11-11, user: "jak klikam plusik to podczas otwierania od razu
   // z klawiaturą się otwierać"). Goły `autoFocus` na `TextInput` w środku
@@ -268,7 +273,7 @@ export default function AppBottomSheet({
             własnym (zawodnym na Androidzie przy dynamicznej wysokości
             dziecka) przeliczaniu. */}
         <Animated.View style={[s.sheetOuter, dialog && { justifyContent: 'center' }, { paddingBottom: Animated.add(spacing[2], keyboardOffset) }]} pointerEvents="box-none">
-          <Animated.View style={[s.sheet, { transform: [{ translateY: sheetY }] }]}>
+          <Animated.View style={[s.sheet, fixedHeight && { height: SCREEN_H * maxHeightRatio }, { transform: [{ translateY: sheetY }] }]}>
             {dialog ? <View style={{ height: spacing[3] }} /> : <View style={s.handleWrap}><View style={s.handle} /></View>}
             {header && <View style={s.header}>{header}</View>}
             <Body {...bodyProps}>{children}</Body>

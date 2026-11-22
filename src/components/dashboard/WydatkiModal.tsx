@@ -2,6 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { X, ChevronLeft, ChevronRight, Table2 } from 'lucide-react-native';
+import TrendCard from '@/components/finances/TrendCard';
+import { SheetCard } from '@/components/design/SheetCard';
+import { incomeByCategory } from '@/utils/incomeCategory';
+import { zl } from '@/utils/money';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
@@ -42,11 +46,17 @@ import type { Expense } from '@/types/finances';
 // wierchu (też `AppBottomSheet`, patrz tam) — to samo zachowanie co wcześniej z
 // dwoma niezależnymi `Modal`ami, gorhom's `BottomSheetModalProvider` wspiera
 // kilka naraz prezentowanych sheetów bez specjalnej obsługi z naszej strony.
-type WydatkiTab = 'fixed' | 'variable' | 'food';
+// 2026-11-22 (user: "kilka miejsc z tymi danymi — jedzenie, zmienne, stałe, excel —
+// ujednolicić; przeskakuje wysokością między zakładkami"): JEDNO okno wydatków. Zakładki
+// Stałe / Zmienne / Jedzenie / Wpływy, w każdej: rozbicie miesiąca (karta jak dotąd) →
+// trend 12 miesięcy (TrendCard, dawny osobny arkusz Trend) → tabela wszystkich wydatków.
+// Arkusz ma STAŁĄ wysokość (`fixedHeight`), więc przełączanie zakładek nie skacze.
+export type WydatkiTab = 'fixed' | 'variable' | 'food' | 'income';
 const TABS: { key: WydatkiTab; label: string }[] = [
   { key: 'fixed', label: 'Stałe' },
   { key: 'variable', label: 'Zmienne' },
   { key: 'food', label: 'Jedzenie' },
+  { key: 'income', label: 'Wpływy' },
 ];
 
 export default function WydatkiModal({
@@ -100,6 +110,9 @@ export default function WydatkiModal({
   // Rozrywka/Transport/itp. (2026-11-10) — kategoria CAŁEGO wydatku, ten sam
   // reużyty drill-down co Higiena/Chemia wyżej.
   const expenseCats: typeof nonFoodCats = [];
+  const incomeCats = useMemo(() => incomeByCategory(expenses, monthKey), [expenses, monthKey]);
+  const incomeTotal = incomeCats.reduce((a, c) => a + c.amount, 0);
+  const incomeMax = Math.max(1, ...incomeCats.map((c) => c.amount));
 
   // Bubbluje do ekranu-wołającego (Dashboard/Finanse) — oba już mają
   // `editingExpense`/`AddExpenseModal` dla "Ostatnie transakcje", to ten sam
@@ -145,19 +158,12 @@ export default function WydatkiModal({
           </TouchableOpacity>
         ))}
       </View>
-      {/* Tabela jak w Sheets (2026-11-16) — kategorie × miesiące, app/expense-table.tsx.
-          Nawigacja dopiero po zamknięciu sheeta (onClosed), inaczej zostaje puste okno. */}
-      <TouchableOpacity style={s.tableBtn} onPress={() => { haptic.tap(); openTable.current = true; onClose(); }} activeOpacity={0.8} accessibilityLabel="Tabela wszystkich wydatków">
-        <Table2 size={15} color={colors.text.primary} />
-        <Text style={s.tableBtnLabel}>Tabela wszystkich wydatków</Text>
-        <ChevronRight size={15} color={colors.text.muted} />
-      </TouchableOpacity>
     </>
   );
 
   return (
     <>
-      <AppBottomSheet visible={visible} onClose={onClose} header={header}
+      <AppBottomSheet visible={visible} onClose={onClose} header={header} fixedHeight maxHeightRatio={0.88}
         onClosed={() => { if (openTable.current) { openTable.current = false; router.push('/expense-table' as any); } }}>
         {tab === 'fixed' && (
           <FixedBreakdownCard
@@ -197,6 +203,28 @@ export default function WydatkiModal({
             onSelectCategory={setSelectedCategory}
           />
         )}
+        {tab === 'income' && (
+          <SheetCard title={`Wpływy · ${data.month}`} right={<Text style={s.incTotal}>{zl(incomeTotal)}</Text>}>
+            {incomeCats.length === 0 ? <Text style={s.incEmpty}>Brak wpływów w tym miesiącu</Text> : incomeCats.map((c) => (
+              <TouchableOpacity key={c.tag} style={s.incRow} onPress={() => { haptic.tap(); setSelectedCategory(c); }} activeOpacity={0.7}>
+                <View style={[s.incDot, { backgroundColor: c.color }]} />
+                <Text style={s.incName} numberOfLines={1}>{c.label}</Text>
+                <View style={s.incTrack}><View style={[s.incFill, { width: `${(c.amount / incomeMax) * 100}%`, backgroundColor: c.color }]} /></View>
+                <Text style={s.incVal}>{zl(c.amount)}</Text>
+                <ChevronRight size={14} color={colors.text.muted} />
+              </TouchableOpacity>
+            ))}
+          </SheetCard>
+        )}
+        {/* trend 12 miesięcy tej zakładki (zawsze do bieżącego miesiąca) */}
+        <TrendCard bucket={tab} />
+        {/* Tabela jak w Sheets (2026-11-16) — kategorie × miesiące, app/expense-table.tsx.
+          Nawigacja dopiero po zamknięciu sheeta (onClosed), inaczej zostaje puste okno. */}
+        <TouchableOpacity style={s.tableBtn} onPress={() => { haptic.tap(); openTable.current = true; onClose(); }} activeOpacity={0.8} accessibilityLabel="Tabela wszystkich wydatków">
+        <Table2 size={15} color={colors.text.primary} />
+        <Text style={s.tableBtnLabel}>Tabela wszystkich wydatków</Text>
+        <ChevronRight size={15} color={colors.text.muted} />
+        </TouchableOpacity>
       </AppBottomSheet>
       <FoodCategoryItemsModal
         visible={!!selectedCategory}
@@ -220,7 +248,15 @@ const makeS = themedStyles((c) => StyleSheet.create({
   monthNavBtnDisabled: { opacity: 0.4 },
   monthLabel: { fontSize: 13.5, fontFamily: 'Inter_900Black', color: c.text.primary, minWidth: 130, textAlign: 'center' },
   tabsRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[1] },
-  tableBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[2], marginBottom: spacing[1], paddingHorizontal: spacing[3], paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
+  incTotal: { fontSize: 15, fontFamily: 'Inter_900Black', color: c.text.bright },
+  incEmpty: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
+  incRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7 },
+  incDot: { width: 9, height: 9, borderRadius: 5 },
+  incName: { width: 96, fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
+  incTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: c.ui.in2, overflow: 'hidden' },
+  incFill: { height: '100%', borderRadius: 3 },
+  incVal: { fontSize: 12.5, fontFamily: 'Inter_900Black', color: c.text.primary, fontVariant: ['tabular-nums'] },
+  tableBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[3], marginBottom: spacing[1], paddingHorizontal: spacing[3], paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
   tableBtnLabel: { flex: 1, fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
   tabBtn: { flex: 1, alignItems: 'center', paddingVertical: spacing[2], borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default },
   tabBtnActive: { backgroundColor: c.text.bright, borderColor: c.text.bright },

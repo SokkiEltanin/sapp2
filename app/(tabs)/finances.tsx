@@ -1,11 +1,9 @@
 import FitText from '@/ui/FitText';
-import { incomeByCategory } from '@/utils/incomeCategory';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Plus, Package, Car, ChevronRight, RefreshCw, TrendingUp, Target } from 'lucide-react-native';
-import TrendSheet from '@/components/finances/TrendSheet';
+import { Plus, Package, Car, ChevronRight, RefreshCw, Target } from 'lucide-react-native';
 import { spacing, radius, themedStyles } from '@/theme';
 import { Screen, Row, Tile, Cap, FitList, Item, Price, StackBar } from '@/ui/layout';
 import { C, T, S } from '@/ui/theme';
@@ -14,10 +12,10 @@ import { money, round2 } from '@/utils/money';
 import { useQuickAdd, takeQuickAdd } from '@/services/quickAdd';
 import ProductsModal from '@/components/finances/ProductsModal';
 import TransactionsModal from '@/components/finances/TransactionsModal';
-import WydatkiModal from '@/components/dashboard/WydatkiModal';
-import BudgetSheet, { BudgetBar } from '@/components/budgets/BudgetSheet';
+import WydatkiModal, { type WydatkiTab } from '@/components/dashboard/WydatkiModal';
+import BudgetSheet from '@/components/budgets/BudgetSheet';
 import { useBudgetsStore } from '@/store/budgetsStore';
-import { budgetStatuses, scopeLabel } from '@/utils/budgets';
+import { budgetStatuses } from '@/utils/budgets';
 import { variableByCategory } from '@/utils/expenseCategory';
 import { fixedByCategory } from '@/utils/fixedCategory';
 import { useCategoriesVersion } from '@/store/categoriesStore';
@@ -252,16 +250,14 @@ export default function FinancesScreen() {
   const budgetStats = useMemo(() => budgetStatuses(budgets, expenses, now), [budgets, expenses, now]);
   const [budgetOpen, setBudgetOpen] = useState(false);
   // Zakładka popupu Wydatki: "Podział" → Stałe, kafel Zmienne · kategorie → Zmienne.
-  const [wydatkiTab, setWydatkiTab] = useState<'fixed' | 'variable' | 'food'>('fixed');
+  const [wydatkiTab, setWydatkiTab] = useState<WydatkiTab>('fixed');
 
   const catVersion = useCategoriesVersion();
   const varCats = useMemo(() => variableByCategory(expenses, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`), [expenses, now, catVersion]);
   const fixedCats = useMemo(() => fixedByCategory(expenses, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`), [expenses, now, catVersion]);
-  const incomeCats = useMemo(() => incomeByCategory(expenses, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`), [expenses, now]);
-  const [catTab, setCatTab] = useState<'food' | 'fixed' | 'variable' | 'income' | 'limits'>('food');
-  const [trendOpen, setTrendOpen] = useState(false);
+  const [grp, setGrp] = useState<'food' | 'fixed' | 'variable'>('food');
   const foodCats = wydatkiData.food.categories;
-  const catBars = catTab === 'food' ? foodCats : catTab === 'fixed' ? fixedCats : catTab === 'income' ? incomeCats : catTab === 'limits' ? [] : varCats;
+  const catBars = grp === 'food' ? foodCats : grp === 'fixed' ? fixedCats : varCats;
   const budOver = budgetStats.some((b) => b.level === 'over');
 
   return (
@@ -304,70 +300,48 @@ export default function FinancesScreen() {
         </View>
       </Row>
 
-      <Row>
-        <Tile span={4} onPress={() => { setWydatkiTab('fixed'); setWydatkiOpen(true); }}>
-          <Cap l="Podział" r={`${money(splitTotal)} PLN`} />
-          <View style={s.barSpace}>
-            <StackBar parts={split} height={10} />
-          </View>
-        </Tile>
-      </Row>
-
-      {/* Kategorie (2026-11-14, user: "3 główne JEDZENIE, STAŁE, ZMIENNE i one na
-          mniejsze") — jeden kafel z przełącznikiem zamiast osobnych kafli.
-          Budżety (2026-11-22, user: "kafelek budżetów wywalić, niech będą gdzieś jako zakładka"):
-          ikona-zakładka 🎯 na końcu (czerwona kropka = coś przekroczone) → wiersze limitów
-          (nazwa · pasek · wydane/limit), stuknięcie = BudgetSheet. */}
+      {/* Wydatki — JEDEN kafel (2026-11-22, user: "kilka miejsc z jedzeniem/zmiennymi/stałymi —
+          ujednolicić, merge w jeden fajny kafel; przeskakuje wysokością"): na górze podział
+          miesiąca (pasek + 3 kolumny Stałe/Jedzenie/Zmienne = wybór), pod spodem rozbicie
+          wybranej grupy. Stała wysokość niezależnie od wyboru. Stuknięcie rozbicia = okno
+          Wydatki na tej zakładce (tam trend 12 mies., Wpływy i tabela); 🎯 = limity. */}
       <Row>
         <Tile span={4}>
-          <View style={s.catHead}>
-            {(['food', 'fixed', 'variable', 'income'] as const).map((k) => (
-              <TouchableOpacity key={k} onPress={() => { haptic.tap(); setCatTab(k); }} hitSlop={6} style={[s.catTab, catTab === k && s.catTabOn]}>
-                <Text style={[s.catTabLabel, catTab === k && s.catTabLabelOn]}>{k === 'food' ? 'Jedzenie' : k === 'fixed' ? 'Stałe' : k === 'income' ? 'Wpływy' : 'Zmienne'}</Text>
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity onPress={() => { haptic.tap(); setCatTab('limits'); }} hitSlop={6} style={[s.catTab, s.catTabIcon, catTab === 'limits' && s.catTabOn]} accessibilityLabel="Limity (budżety)">
-              <Target size={13} color={catTab === 'limits' ? C.bg : C.mut} />
-              {budOver && catTab !== 'limits' && <View style={s.budDot} />}
+          <View style={s.wxHead}>
+            <Text style={T.cap}>Wydatki · {wydatkiData.month}</Text>
+            <View style={{ flex: 1 }} />
+            <Text style={s.wxTotal}>{money(splitTotal)} zł</Text>
+            <TouchableOpacity onPress={() => { haptic.tap(); setBudgetOpen(true); }} hitSlop={8} style={s.wxIcon} accessibilityLabel="Limity (budżety)">
+              <Target size={15} color={C.mut} />
+              {budOver && <View style={s.budDot} />}
             </TouchableOpacity>
-            {catTab === 'limits' ? (
-              <Text style={s.catTotal}>limity</Text>
-            ) : (
-              <>
-                <Text style={s.catTotal} numberOfLines={1}>{money(catBars.reduce((a2, c) => a2 + c.amount, 0))}</Text>
-                <TouchableOpacity onPress={() => { haptic.tap(); setTrendOpen(true); }} hitSlop={8} style={s.trendBtn} accessibilityLabel="Trend 12 miesięcy">
-                  <TrendingUp size={15} color={C.mut} />
-                </TouchableOpacity>
-              </>
-            )}
           </View>
-          {catTab === 'limits' ? (
-            <TouchableOpacity onPress={() => { haptic.tap(); setBudgetOpen(true); }} activeOpacity={0.7} style={s.barSpace}>
-              {budgetStats.length === 0 ? (
-                <Text style={[T.small, s.emptyInline, { marginTop: 0 }]}>Ustaw limit na jedzenie, słodycze albo kategorię ›</Text>
-              ) : (
-                <View style={s.budRows}>
-                  {budgetStats.slice(0, 3).map((b) => (
-                    <View key={b.budget.id} style={s.budRow}>
-                      <Text style={s.budName} numberOfLines={1}>{scopeLabel(b.budget.scope)}</Text>
-                      <View style={{ flex: 1 }}><BudgetBar s={b} height={6} /></View>
-                      <Text style={s.budVal} numberOfLines={1}>
-                        <Text style={b.level === 'over' ? { color: C.warnTxt } : null}>{Math.round(b.spent)}</Text>
-                        <Text style={s.budgetOf}> / {Math.round(b.budget.limit)}</Text>
-                      </Text>
-                    </View>
-                  ))}
-                  {budgetStats.length > 3 && <Text style={[T.small, { color: C.mut }]}>+{budgetStats.length - 3} więcej ›</Text>}
-                </View>
-              )}
-            </TouchableOpacity>
-          ) : catBars.length === 0 ? (
-            <Text style={[T.small, s.emptyInline]}>Brak w tym miesiącu</Text>
-          ) : (
-            <TouchableOpacity onPress={() => { if (catTab === 'income') setTrendOpen(true); else { setWydatkiTab(catTab); setWydatkiOpen(true); } }} activeOpacity={0.7} style={s.barSpace}>
-              <StackBar parts={topParts(catBars)} height={10} legendMax={3} />
-            </TouchableOpacity>
-          )}
+          <StackBar parts={split} height={10} legend={false} />
+          <View style={s.grpRow}>
+            {split.map((p, i) => {
+              const k = (['fixed', 'food', 'variable'] as const)[i];
+              const on = grp === k;
+              return (
+                <TouchableOpacity key={k} style={[s.grp, on && s.grpOn]} onPress={() => { haptic.tap(); setGrp(k); }} activeOpacity={0.7} accessibilityLabel={`${p.label}: ${money(p.value)} zł`}>
+                  <View style={s.grpTop}>
+                    <View style={[s.grpDot, { backgroundColor: p.color }]} />
+                    <Text style={[s.grpName, on && { color: C.hi }]}>{p.label}</Text>
+                  </View>
+                  <Text style={[s.grpVal, on && { color: C.hi }]} numberOfLines={1}>{money(p.value < 0.01 ? 0 : p.value)}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <TouchableOpacity onPress={() => { haptic.tap(); setWydatkiTab(grp); setWydatkiOpen(true); }} activeOpacity={0.7} style={s.grpDetail} accessibilityLabel="Szczegóły wydatków">
+            {catBars.length === 0 ? (
+              <View>
+                <View style={s.grpEmptyBar} />
+                <Text style={[T.small, s.grpEmpty]} numberOfLines={1}>Brak w tym miesiącu</Text>
+              </View>
+            ) : (
+              <StackBar parts={topParts(catBars)} height={8} legendMax={3} />
+            )}
+          </TouchableOpacity>
         </Tile>
       </Row>
 
@@ -496,9 +470,6 @@ export default function FinancesScreen() {
           onInitialPasteTextConsumed={() => useShareReceiptStore.getState().clear()}
         />
       </LazyMount>
-      <LazyMount visible={trendOpen}>
-        <TrendSheet visible={trendOpen} onClose={() => setTrendOpen(false)} initial={catTab === 'limits' ? 'food' : catTab} />
-      </LazyMount>
       <LazyMount visible={budgetOpen}>
         <BudgetSheet visible={budgetOpen} onClose={() => setBudgetOpen(false)} />
       </LazyMount>
@@ -566,15 +537,9 @@ const makeS = themedStyles((c) => StyleSheet.create({
   balanceIn: { fontSize: 12, fontFamily: 'Inter_700Bold', color: C.ok },
   balanceOut: { fontSize: 12, fontFamily: 'Inter_700Bold', color: C.mut },
 
-  barSpace: { marginTop: spacing[3] },
   sideCol: { gap: S.gap },
   budgetOf: { fontSize: 11, fontFamily: 'Inter_700Bold', color: C.mut },
-  budRows: { gap: 10 },
-  budRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  budName: { width: 78, fontSize: 12, fontFamily: 'Inter_700Bold', color: C.txt },
-  budVal: { width: 78, textAlign: 'right', fontSize: 12.5, fontFamily: 'Inter_900Black', color: C.hi, fontVariant: ['tabular-nums'] },
   sideBtn: { flex: 1, padding: 4, gap: 2 },
-  emptyInline: { textAlign: 'center', marginTop: spacing[3] },
 
   workEmpty: { marginTop: spacing[3] },
   workPay: { marginTop: spacing[2] },
@@ -614,13 +579,18 @@ const makeS = themedStyles((c) => StyleSheet.create({
   editCancelLabel: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
   editSaveBtn: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md, backgroundColor: c.text.bright },
   editSaveLabel: { fontSize: 12.5, fontFamily: 'Inter_900Black', color: c.bg.primary },
-  catHead: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  catTab: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
-  catTabOn: { backgroundColor: C.txt },
-  catTabIcon: { paddingHorizontal: 7, paddingVertical: 5 },
-  budDot: { position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: 3, backgroundColor: C.warn },
-  catTabLabel: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: C.mut },
-  catTabLabelOn: { color: C.bg },
-  catTotal: { marginLeft: 'auto', flexShrink: 1, fontSize: 10, fontFamily: 'Inter_700Bold', color: C.mut, fontVariant: ['tabular-nums'] },
-  trendBtn: { marginLeft: 8, padding: 2 },
+  wxHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  wxTotal: { fontSize: 13, fontFamily: 'Inter_900Black', color: C.hi, fontVariant: ['tabular-nums'] },
+  wxIcon: { padding: 2 },
+  grpRow: { flexDirection: 'row', gap: 6, marginTop: 8 },
+  grp: { flex: 1, paddingVertical: 6, paddingHorizontal: 8, borderRadius: 10, borderWidth: 1, borderColor: 'transparent' },
+  grpOn: { backgroundColor: C.in, borderColor: C.line },
+  grpTop: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  grpDot: { width: 7, height: 7, borderRadius: 4 },
+  grpName: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: C.mut },
+  grpVal: { fontSize: 14, fontFamily: 'Inter_900Black', color: C.txt, marginTop: 2, fontVariant: ['tabular-nums'] },
+  grpDetail: { marginTop: 10, minHeight: 34 },
+  grpEmptyBar: { height: 8, borderRadius: 4, backgroundColor: C.in },
+  grpEmpty: { color: C.mut, marginTop: 6 },
+  budDot: { position: 'absolute', top: 0, right: 0, width: 6, height: 6, borderRadius: 3, backgroundColor: C.warn },
 }));

@@ -1854,7 +1854,7 @@ dole Suma, Wpływy, Bilans. Kolor komórki = `heat` względem maksimum wiersza. 
 pierwsza kolumna, miesiące w poziomym scrollu (start: bieżący przy prawej krawędzi).
 Komórka → DrillSheet (wydatki z kategorii w miesiącu, `metricAmount`). Logika
 `utils/expenseTable.ts` (na `trendSeries` — te same kubły co Trend/Podział), nazwy
-serii `utils/seriesMeta.ts` (wspólne z TrendSheet). Na komputerze szeroki panel.
+serii `utils/seriesMeta.ts` (wspólne z TrendCard). Na komputerze szeroki panel.
 
 **FitText (2026-11-16)** `src/ui/FitText.tsx` — `adjustsFontSizeToFit` nie działa na
 web; FitText na telefonie = natywne, na komputerze mierzy DOM i zmniejsza czcionkę.
@@ -1980,10 +1980,18 @@ termin zaległe/dziś/7 dni/bez, tag), arkusz `components/tasks/TaskSearchSheet.
 
 `utils/trend.ts` (`trendSeries` — jeden przebieg, klucze all/food/variable/fixed +
 `cat:`/`food:`/`fixed:` podkategorie; `trendStats` — średnia pełnych miesięcy bez
-bieżącego, % vs średnia, maks.), arkusz `components/finances/TrendSheet.tsx` (koszyk →
-podkategorie, słupki z kreską średniej, stuknięcie = kwota), wejście: ikonka trendu w
-kaflu "Kategorie" w Finansach (startuje na aktywnej zakładce). Liczone tylko przy
-otwartym arkuszu. `foodByCategory` liczy teraz z `fvSplitOf(e).food` (reszta → "Inne
+bieżącego, % vs średnia, maks.), karta `components/finances/TrendCard.tsx` (podkategorie,
+słupki z kreską średniej, stuknięcie = kwota) — od 2026-11-22 NIE osobny arkusz: siedzi pod
+każdą zakładką okna Wydatki (`WydatkiModal`, koszyk = zakładka).
+
+**WYDATKI W JEDNYM MIEJSCU (2026-11-22, user: „kilka miejsc z jedzeniem/zmiennymi/stałymi i
+excelem — ujednolicić, merge w jeden kafel; przeskakuje wysokością”)**: Finanse mają JEDEN kafel
+„Wydatki · miesiąc” (suma + 🎯 limity → BudgetSheet; pasek podziału; 3 kolumny Stałe/Jedzenie/
+Zmienne = wybór grupy; pod spodem rozbicie wybranej grupy `topParts`; stała wysokość, puste =
+szary pasek). Stuknięcie rozbicia → `WydatkiModal` na tej zakładce. Okno: zakładki Stałe /
+Zmienne / Jedzenie / Wpływy (`incomeByCategory`, drill-down tym samym FoodCategoryItemsModal) →
+karta miesiąca → TrendCard → „Tabela wszystkich wydatków” na dole; `AppBottomSheet fixedHeight`
+(nowy prop) = stała wysokość arkusza. Dawne kafle „Podział” i „Kategorie” oraz TrendSheet usunięte. `foodByCategory` liczy teraz z `fvSplitOf(e).food` (reszta → "Inne
 jedzenie") — wcześniej "Rozlicz jako: Jedzenie" bez pozycji znikało z Podziału.
 
 ## COFNIJ (2026-11-14)
@@ -2107,10 +2115,8 @@ ostrzeżenie.
   do limitu szary, nadwyżka czerwona, biała kreska = limit (podpis „↑ limit X zł” w sheecie);
   plakietka `budgetBadge` („PRZEKROCZONY · 2,6× limitu” / „81%”); słupki miesięcy dzielone
   (do limitu szare + nadwyżka czerwona), kwota nad słupkiem, kreska limitu NA słupkach.
-  Finanse (2026-11-22, user: „kafelek budżetów wywalić, niech będą jako zakładka”): osobnego kafla NIE MA —
-  ikona-zakładka 🎯 (Target) na końcu zakładek kafla kategorii (Jedzenie/Stałe/Zmienne/Wpływy), czerwona kropka =
-  coś przekroczone; w niej max 3 wiersze (najpilniejsze): nazwa · `BudgetBar` · „wydane / limit”, stuknięcie =
-  BudgetSheet. Powiadomienia o progach bez zmian.
+  Finanse (2026-11-22, user: „kafelek budżetów wywalić”): osobnego kafla NIE MA — ikona 🎯 (Target) w nagłówku
+  kafla „Wydatki” (czerwona kropka = coś przekroczone) otwiera BudgetSheet. Powiadomienia o progach bez zmian.
 - **Model** `src/types/budgets.ts` (`scope`: 'all' | 'food' | 'variable' | 'fixed' |
   'cat:<tag>' | 'food:<podkategoria>' (2026-11-15: słodycze, napoje… — kwota z
   `foodStats.foodSplitOf`, tej samej co trend i "Jedzenie" w Wydatkach), `limit` zł/mies.).

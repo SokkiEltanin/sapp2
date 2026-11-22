@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
-import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { SheetCard } from '@/components/design/SheetCard';
 import { useExpensesStore } from '@/store/expensesStore';
 import { useCategoriesVersion } from '@/store/categoriesStore';
@@ -14,26 +13,26 @@ import { zl } from '@/utils/money';
 // Trend 12 miesięcy (2026-11-14, z listy "czego brakuje": "ile szło na paliwo albo
 // jedzenie miesiąc po miesiącu"). Koszyk → podkategorie, słupki z kreską średniej,
 // stuknięcie słupka pokazuje kwotę. Logika: utils/trend.ts.
-type Bucket = 'all' | 'food' | 'fixed' | 'variable' | 'income';
-const BUCKETS: [Bucket, string][] = [['all', 'Wydatki'], ['food', 'Jedzenie'], ['fixed', 'Stałe'], ['variable', 'Zmienne'], ['income', 'Wpływy']];
-const PREFIX: Record<Bucket, string> = { all: '', food: 'food:', fixed: 'fixed:', variable: 'cat:', income: 'inc:' };
+// 2026-11-22 (user: "kilka miejsc z tymi danymi — ujednolicić"): z osobnego arkusza Trend
+// zrobiona KARTA w oknie Wydatki (components/dashboard/WydatkiModal.tsx) — każda zakładka
+// (Stałe/Zmienne/Jedzenie/Wpływy) ma pod spodem swój trend; koszyk wybiera zakładka.
+export type TrendBucket = 'all' | 'food' | 'fixed' | 'variable' | 'income';
+const BUCKETS: [TrendBucket, string][] = [['all', 'Wydatki'], ['food', 'Jedzenie'], ['fixed', 'Stałe'], ['variable', 'Zmienne'], ['income', 'Wpływy']];
+const PREFIX: Record<TrendBucket, string> = { all: '', food: 'food:', fixed: 'fixed:', variable: 'cat:', income: 'inc:' };
 const CHART_H = 120;
 
 const metaOf = seriesMeta;
 
-export default function TrendSheet({ visible, onClose, initial = 'all' }: { visible: boolean; onClose: () => void; initial?: Bucket }) {
+export default function TrendCard({ bucket }: { bucket: TrendBucket }) {
   const s = makeS();
   const expenses = useExpensesStore((st) => st.expenses);
   const catVersion = useCategoriesVersion();
-  const [bucket, setBucket] = useState<Bucket>(initial);
   const [sub, setSub] = useState<string | null>(null);
   const [picked, setPicked] = useState<number | null>(null);
+  useEffect(() => { setSub(null); setPicked(null); }, [bucket]);
 
-  useEffect(() => { if (visible) { setBucket(initial); setSub(null); setPicked(null); } }, [visible, initial]);
-
-  // Liczone tylko przy otwartym arkuszu (zamknięty nie przelicza przy każdym wydatku).
-  const data = useMemo(() => (visible ? trendSeries(expenses, 12, new Date()) : null), [visible, expenses, catVersion]);
-  if (!data) return <AppBottomSheet visible={false} onClose={onClose}><View /></AppBottomSheet>;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const data = useMemo(() => trendSeries(expenses, 12, new Date()), [expenses, catVersion]);
 
   const subs = bucket === 'all' ? [] : [...data.series.entries()]
     .filter(([k]) => k.startsWith(PREFIX[bucket]))
@@ -47,14 +46,7 @@ export default function TrendSheet({ visible, onClose, initial = 'all' }: { visi
   const sel = picked ?? values.length - 1;
 
   return (
-    <AppBottomSheet visible={visible} onClose={onClose} maxHeightRatio={0.92} header={<Text style={s.title}>Trend · 12 miesięcy</Text>}>
-      <View style={s.seg}>
-        {BUCKETS.map(([b, label]) => (
-          <TouchableOpacity key={b} style={[s.segItem, bucket === b && s.segOn]} onPress={() => { haptic.tap(); setBucket(b); setSub(null); setPicked(null); }}>
-            <Text style={[s.segLabel, bucket === b && s.segLabelOn]}>{label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+    <SheetCard title={`12 miesięcy · ${sub ? metaOf(sub).label : BUCKETS.find(([b]) => b === bucket)![1]}`}>
 
       {/* Podkategorie w JEDNYM rzędzie przewijanym w bok (2026-11-16, user: "listy
           powinny być poziome scroll, a nie takie rozległe"); "Wszystkie" = cały koszyk. */}
@@ -75,7 +67,6 @@ export default function TrendSheet({ visible, onClose, initial = 'all' }: { visi
         </ScrollView>
       )}
 
-      <SheetCard title={sub ? metaOf(sub).label : BUCKETS.find(([b]) => b === bucket)![1]}>
         <View style={s.readout}>
           <Text style={s.big}>{zl(values[sel])}</Text>
           <Text style={s.readLabel}>{monthShort(data.months[sel])} {data.months[sel].slice(0, 4)}{sel === values.length - 1 ? ' · do dziś' : ''}</Text>
@@ -102,19 +93,12 @@ export default function TrendSheet({ visible, onClose, initial = 'all' }: { visi
           <View style={s.stat}><Text style={s.statV}>{st.max.v ? zl(st.max.v) : '—'}</Text><Text style={s.statL}>{st.max.v ? `najwięcej · ${monthShort(data.months[st.max.i])}` : 'najwięcej'}</Text></View>
         </View>
         <Text style={s.note}>Kreska = średnia pełnych miesięcy. Bieżący miesiąc jest niepełny (jaśniejszy).</Text>
-      </SheetCard>
-    </AppBottomSheet>
+    </SheetCard>
   );
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
-  title: { fontSize: 17, fontFamily: 'Inter_900Black', color: c.text.primary, paddingBottom: spacing[2] },
-  seg: { flexDirection: 'row', borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, overflow: 'hidden' },
-  segItem: { flex: 1, alignItems: 'center', paddingVertical: 8 },
-  segOn: { backgroundColor: c.text.bright },
-  segLabel: { fontSize: 11.5, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary },
-  segLabelOn: { color: c.bg.primary },
-  chipScroll: { marginTop: spacing[3], flexGrow: 0 },
+  chipScroll: { marginBottom: spacing[3], flexGrow: 0 },
   chips: { flexDirection: 'row', gap: 6, paddingRight: spacing[2] },
   chipAll: { backgroundColor: c.text.bright, borderColor: c.text.bright },
   chipAllLabel: { color: c.bg.primary },
