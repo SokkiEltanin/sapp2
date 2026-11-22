@@ -47,8 +47,9 @@ kolejna runda (np. kafel pogody na Dashboardzie w tym samym stylu).
 
 **2026-11-22 — Czas z telefonem: naprawa „17 h 19 min” + czytelniejszy panel** (ARCHITECTURE „CZAS Z TELEFONEM”).
 Liczenie = nowe APK (moduł v2), panel i popup kategorii = OTA.
-- [ ] Po instalacji APK: środa i reszta tygodnia przeliczone (bez 17 h), „zwykle do tej pory” realne;
-  porównać wczoraj z Cyfrową równowagą.
+- [ ] Po instalacji APK: środa i reszta tygodnia przeliczone (bez 17 h), „zwykle do tej pory” realne.
+  User: 17 h to najpewniej Instalator pakietów (pauza bez wznowienia → v1 liczyło od północy); Cyfrowej
+  równowagi nie ma, więc porównanie odpada. Jeśli Instalator dalej ma duże czasy → wykluczyć go jak HOME.
 - [ ] Stuknięcie appki → popup kategorii; pasek 3 liczb + „Szczegóły dnia” czytelne.
 
 **2026-11-22 — Notatki: kolor i wzór strony + ołówek i zakreślacz** (ARCHITECTURE „Strona notatki”, „Narzędzia”). OTA.
