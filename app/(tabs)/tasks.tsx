@@ -321,7 +321,6 @@ export default function TasksScreen() {
         }}
         onEdit={(t) => { afterDetail.current = { kind: 'edit', task: t }; setDetailId(null); }}
         onDelete={(t) => { afterDetail.current = { kind: 'delete', task: t }; setDetailId(null); }}
-        onDone={(t) => { handleToggleDone(t.id); setDetailId(null); }}
       />
 
       <LazyMount visible={historyOpen}>

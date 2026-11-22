@@ -16,13 +16,15 @@ import type { Task } from '@/types/calendar';
 // że do ukończenia muszę jeszcze zrobić to i to"). Tap na kafelek w Zadaniach,
 // wynik szukania i wiersz widgetu otwierają TO okno (edycja — przycisk "Edytuj").
 // Na górze postęp (segment na krok) i co dalej; niżej kroki do odhaczania/dodawania.
-export default function TaskDetailSheet({ taskId, onClose, onClosed, onEdit, onDelete, onDone, tagColors }: {
+// 2026-11-22, user: "przycisk Ukończ zadanie BARDZO MYLI — wydaje mi się, że to Zapisz, klikam
+// i całe zadanie znika jako ukończone": tu NIE ma już kończenia zadania (tylko kółko na liście),
+// główny przycisk to "Gotowe" = zamknij (kroki i tak zapisują się od razu).
+export default function TaskDetailSheet({ taskId, onClose, onClosed, onEdit, onDelete, tagColors }: {
   taskId: string | null;
   onClose: () => void;
   onClosed?: () => void;
   onEdit: (t: Task) => void;
   onDelete: (t: Task) => void;
-  onDone: (t: Task) => void;
   tagColors?: Map<string, string>;
 }) {
   const s = makeS();
@@ -52,12 +54,10 @@ export default function TaskDetailSheet({ taskId, onClose, onClosed, onEdit, onD
         <Text style={s.ghostTxt}>Edytuj</Text>
       </TouchableOpacity>
       <View style={{ flex: 1 }} />
-      {!done && (
-        <TouchableOpacity style={[s.doneBtn, allDone && { backgroundColor: accent }]} onPress={() => { haptic.success(); onDone(task); }}>
-          <Check size={16} color={colors.bg.primary} />
-          <Text style={s.doneTxt}>Ukończ zadanie</Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity style={s.doneBtn} onPress={() => { haptic.tap(); onClose(); }} accessibilityLabel="Gotowe — zamknij (zmiany zapisują się same)">
+        <Check size={16} color={colors.bg.primary} />
+        <Text style={s.doneTxt}>Gotowe</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -98,11 +98,13 @@ export default function TaskDetailSheet({ taskId, onClose, onClosed, onEdit, onD
           </View>
         )}
         <Text style={[s.progressLine, allDone && { color: accent }]}>{done ? 'Zadanie ukończone.' : progressLine(p)}</Text>
+        {allDone && !done && <Text style={s.progressHint}>Wszystkie kroki zrobione — całe zadanie odhaczysz kółkiem na liście.</Text>}
       </View>
 
       <Text style={s.section}>Kroki</Text>
-      <StepsEditor steps={task.subtasks ?? []} accent={accent}
+      <StepsEditor steps={task.subtasks ?? []} accent={accent} editable
         onChange={(subtasks) => updateTask(task.id, { subtasks })} />
+      <Text style={s.saveNote}>Zmiany zapisują się od razu. Stuknij krok, żeby zmienić jego treść albo kolejność.</Text>
     </AppBottomSheet>
   );
 }
@@ -120,8 +122,10 @@ const makeS = themedStyles((c) => StyleSheet.create({
   progressNum: { fontSize: 22, fontFamily: 'Inter_900Black', fontVariant: ['tabular-nums'] },
   segments: { flexDirection: 'row', gap: 4 },
   segment: { flex: 1, height: 8, borderRadius: 4, backgroundColor: c.ui.dim },
+  progressHint: { fontSize: 11.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: -6 },
   progressLine: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary, lineHeight: 18 },
   section: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: spacing[4], marginBottom: spacing[1] },
+  saveNote: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[2] },
   footer: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   iconBtn: { width: 42, height: 42, borderRadius: radius.md, borderWidth: 1, borderColor: c.accent.red + '55', alignItems: 'center', justifyContent: 'center' },
   ghostBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing[3], height: 42, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },

@@ -41,6 +41,13 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-22 — Zadania: bez „Ukończ zadanie” w szczegółach, edycja kroków, ładniejsze kafle** (user: przycisk
+mylił się z „Zapisz” i kończył zadanie). Szczegóły: główny przycisk „Gotowe” = zamknij (zapis i tak od razu); całe
+zadanie kończy się tylko kółkiem na liście. Kroki: stuknięcie w treść = edycja + strzałki wyżej/niżej (StepsEditor,
+też w formularzu nowego zadania). Kafel na liście: kolor tagu jako sierp po łuku lewego rogu (karta przesunięta
+o 4 px nad kolorem), postęp kroków = pierścień wokół kółka zamiast paska na dole. Tylko JS (OTA).
+- [ ] Na telefonie i komputerze: edycja/przesuwanie kroku, „Gotowe” nie kończy zadania.
+
 **2026-11-22 — Jedna dobra rzecz z dnia** (ZBUDOWANE; ARCHITECTURE „JEDNA DOBRA RZECZ Z DNIA”): kafel w Daily (wpis,
 seria, wieczorem podświetlony, w gorszy dzień „Pamiętasz?” ze starą dobrą rzeczą), pole w zapisie humoru, wpis
 w pamiętniku, karta i zależność w statystykach humoru, wyszukiwarka, sync i kopia. Tylko JS (OTA).

@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { Trash2, Check, Clock, AlertCircle, Flag } from 'lucide-react-native';
 import { tagColor } from '@/utils/taskTags';
 import { taskProgress } from '@/utils/taskProgress';
@@ -45,11 +46,17 @@ export default function TaskRow({
   const today = !!due && !due.overdue && due.text.startsWith('Dziś');
   const accent = task.tags.length ? tagColor(task.tags[0], tagColors) : due?.overdue ? colors.accent.red : colors.border.default;
   const done = task.status === 'done';
-  // Kamienie milowe (2026-11-16): "2/5", następny krok zamiast tagów, pasek postępu na dole.
+  // Kamienie milowe (2026-11-16): "2/5", następny krok zamiast tagów; postęp = pierścień przy kółku.
   const p = taskProgress(task);
+  // 2026-11-22, user (przykład z Figmy): "krawędzie, żeby nie wyglądało jakby były niedopasowane" —
+  // prosty pasek z lewej i pasek postępu na dole kłóciły się z zaokrąglonymi rogami. Teraz kolor
+  // tagu to tło pod kartą, a karta jest przesunięta o 4 px → kolorowy sierp idzie po łuku rogu.
+  // Postęp kroków = pierścień wokół kółka odhaczania (droga do ukończenia).
+  const hasAccent = task.tags.length > 0 || !!due?.overdue;
   return (
-    <View style={[s.card, due?.overdue && s.cardOverdue, done && { opacity: 0.5 }]}>
-      <View style={[s.bar, { backgroundColor: accent }]} />
+    <View style={[s.outer, done && { opacity: 0.5 }]}>
+    {hasAccent && <View style={[s.edge, { backgroundColor: accent }]} pointerEvents="none" />}
+    <View style={[s.card, hasAccent && s.cardShift, due?.overdue && s.cardOverdue]}>
       <TouchableOpacity onPress={() => { haptic.tap(); onRequestDelete(task); }} hitSlop={8} accessibilityLabel="Usuń zadanie">
         <Trash2 size={15} color={colors.text.muted} />
       </TouchableOpacity>
@@ -82,26 +89,40 @@ export default function TaskRow({
           </View>
         )}
       </TouchableOpacity>
-      {p.total > 0 && (
-        <View style={s.track} pointerEvents="none">
-          <View style={[s.fill, { width: `${p.pct * 100}%`, backgroundColor: accent }]} />
+      <TouchableOpacity onPress={() => { haptic.success(); onToggleDone(task.id); }} hitSlop={8} style={s.checkWrap} accessibilityLabel={done ? 'Przywróć zadanie' : 'Oznacz jako zrobione'}>
+        {p.total > 0 && !done && (
+          <Svg width={RING} height={RING} style={StyleSheet.absoluteFill} pointerEvents="none">
+            <Circle cx={RING / 2} cy={RING / 2} r={RING_R} stroke={colors.ui.dim} strokeWidth={3} fill="none" />
+            {p.pct > 0 && (
+              <Circle cx={RING / 2} cy={RING / 2} r={RING_R} stroke={hasAccent ? accent : colors.text.bright} strokeWidth={3} fill="none" strokeLinecap="round"
+                strokeDasharray={`${RING_C * p.pct} ${RING_C}`} transform={`rotate(-90 ${RING / 2} ${RING / 2})`} />
+            )}
+          </Svg>
+        )}
+        <View style={[s.check, p.total > 0 && !done && s.checkInRing, done && s.checkOn]}>
+          {done ? <Check size={16} color={colors.bg.primary} /> : null}
         </View>
-      )}
-      <TouchableOpacity onPress={() => { haptic.success(); onToggleDone(task.id); }} hitSlop={8} style={[s.check, done && s.checkOn]} accessibilityLabel={done ? 'Przywróć zadanie' : 'Oznacz jako zrobione'}>
-        {done ? <Check size={16} color={colors.bg.primary} /> : null}
       </TouchableOpacity>
+    </View>
     </View>
   );
 }
 
+const RING = 34;
+const RING_R = (RING - 3) / 2;
+const RING_C = 2 * Math.PI * RING_R;
+
 const makeS = themedStyles((c) => StyleSheet.create({
+  outer: { flex: 1, borderRadius: radius.lg, overflow: 'hidden' },
+  // kolor tylko pod lewym brzegiem (inaczej prześwitywał cienką linią przy prawych rogach)
+  edge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 40 },
   card: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing[3],
     backgroundColor: c.ui.in2, borderRadius: radius.lg, paddingLeft: spacing[4], paddingRight: spacing[3],
-    borderWidth: 1, borderColor: 'transparent', overflow: 'hidden',
+    borderWidth: 1, borderColor: 'transparent',
   },
+  cardShift: { marginLeft: 4 },
   cardOverdue: { borderColor: c.accent.red + '66' },
-  bar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
   content: { flex: 1, gap: 5, justifyContent: 'center' },
   title: { fontSize: 14.5, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },
   titleDone: { textDecorationLine: 'line-through', color: c.text.muted },
@@ -115,8 +136,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
   steps: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: radius.full, backgroundColor: c.bg.primary },
   stepsTxt: { fontSize: 10.5, fontFamily: 'Inter_900Black', color: c.text.secondary, fontVariant: ['tabular-nums'] },
   next: { flexShrink: 1, fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
-  track: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 3, backgroundColor: c.ui.dim },
-  fill: { position: 'absolute', left: 0, top: 0, bottom: 0 },
+  checkWrap: { width: RING, height: RING, alignItems: 'center', justifyContent: 'center' },
+  checkInRing: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5 },
   check: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: c.text.muted, alignItems: 'center', justifyContent: 'center' },
   checkOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
 }));
