@@ -44,6 +44,8 @@ import {
   Inter_700Bold,
   Inter_800ExtraBold,
   Inter_900Black,
+  Inter_500Medium_Italic,
+  Inter_800ExtraBold_Italic,
 } from '@expo-google-fonts/inter';
 import { colors } from '@/theme/colors';
 import { useAuthUser } from '@/hooks/useAuthUser';
@@ -176,6 +178,9 @@ export default function RootLayout() {
     Inter_700Bold,
     Inter_800ExtraBold,
     Inter_900Black,
+    // Kursywa w notatkach (2026-11-22) — components/notes/richStyle.ts.
+    Inter_500Medium_Italic,
+    Inter_800ExtraBold_Italic,
   });
 
   const { user, initializing } = useAuthUser();

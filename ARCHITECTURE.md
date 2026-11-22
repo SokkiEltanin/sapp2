@@ -2366,3 +2366,13 @@ więcej szczegółów”. Rząd Dashboardu `screen` (utils/dashboardLayout.ts) �
   stany noModule / noAccess / empty), szczegóły `components/screen/ScreenTimeSheet.tsx` (dni strzałkami, liczby,
   godziny, kategorie, appki, 7 dni). Ustawienia → Połączenia → „Dostęp do danych o użyciu”. Humor: zależność
   „Ponad X h z telefonem” (`moodLinks(..., screen)`).
+
+## NOTATKI: KURSYWA, WIDGET Z FORMATOWANIEM, ZNIKAJĄCE LINIE (2026-11-22)
+
+- Kursywa = osobne pliki czcionki (`Inter_500Medium_Italic`, `Inter_800ExtraBold_Italic`, ładowane w _layout);
+  `runTextStyle` wybiera fontFamily zamiast fontStyle (Android ignoruje fontStyle przy własnej czcionce).
+- Widget „Notatka”: `widgetText(text, runs)` (utils/widgetNote.ts) daje tekst + `spans` [s,e) z b/i/u, kolorem,
+  zakreślaczem (format #AARRGGBB) i mnożnikiem rozmiaru; provider (plugins/withNoteWidget.js `styled`) robi z nich
+  SpannableStringBuilder.
+- Edytor na Androidzie: po zmianie tekstu/stylu `relayout()` (szerokość pola −1 px na 32 ms) — obejście
+  nieprzerysowanych linii w natywnym polu z wieloma spanami.

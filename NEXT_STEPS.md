@@ -46,6 +46,17 @@ w przypomnieniu 21:00), bo zapisywanie jednej pozytywnej rzeczy dziennie obniża
 zaprojektowania: gdzie wpisywać (MoodModal? osobne pole w Daily?), przegląd „dobrych rzeczy” w statystykach humoru,
 losowe przypomnienie starej dobrej rzeczy w gorszy dzień.
 
+**2026-11-22 — Edytor notatek: znikający tekst, kursywa, widget** (zrzuty usera):
+- Znikająca linia po dopisaniu litery — tekst BYŁ zapisany (widget pokazywał całość), Android nie przerysował linii
+  po podmianie spanów w polu. Obejście: `RichTextEditor` `relayout()` — 120 ms po pisaniu/zmianie stylu pole na
+  moment o 1 px węższe i z powrotem (pełne ponowne ułożenie tekstu). Jeśli nadal się zdarza → szukać dalej
+  (podejrzane: lineHeight pola + spany tła/koloru w natywnym EditText).
+- Kursywa: Android ignoruje fontStyle przy Inter bez pliku pochyłego → `Inter_500Medium_Italic` /
+  `Inter_800ExtraBold_Italic` (app/_layout.tsx, `runTextStyle`).
+- Widget: `spans` w snapshocie (utils/widgetNote.ts `widgetText`) → SpannableString w providerze (nowe APK).
+- [ ] Na telefonie: dłuższy tekst z kolorami/zakreślaczem, pisanie w nowej linii — czy linie nie znikają.
+- [ ] Kursywa widoczna w edytorze, na Dashboardzie i na widgecie.
+
 **2026-11-22 — Czas z telefonem na Dashboardzie** (zamiast #JedzeniePerMiesiąc, który jest teraz ukryty w Ustawieniach →
 Układ Dashboardu). Nowe APK (moduł UsageStats). ARCHITECTURE „CZAS Z TELEFONEM”.
 - [ ] Kafel → „zezwól na dostęp” → ekran systemowy → włączyć SOEN → powrót: dane od razu.

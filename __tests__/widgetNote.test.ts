@@ -66,3 +66,19 @@ describe('androidColor', () => {
     expect(androidColor('red')).toBe('#F2F2F2');
   });
 });
+
+describe('widget notatki: formatowanie', () => {
+  const { widgetText } = require('@/utils/widgetNote');
+  it('odcinki po przycięciu i zwinięciu pustych linii', () => {
+    const text = '  Ala ma\n\n\n\nkota ';
+    // "  " zwykłe, "Ala" pogrubione, " ma" zwykłe, "\n\n\n\n" zwykłe, "kota" kursywa+kolor z alfą, " " zwykłe
+    const runs = [{ n: 2 }, { n: 3, b: true }, { n: 3 }, { n: 4 }, { n: 4, i: true, h: '#FDE04766' }, { n: 1 }];
+    const w = widgetText(text, runs);
+    expect(w.text).toBe('Ala ma\n\nkota');
+    expect(w.spans).toEqual([{ s: 0, e: 3, b: 1 }, { s: 8, e: 12, i: 1, h: '#66FDE047' }]);
+  });
+  it('rozmiar jako mnożnik, bez formatowania = brak odcinków', () => {
+    expect(widgetText('Duży', [{ n: 4, z: 'xl' }]).spans).toEqual([{ s: 0, e: 4, z: 1.75 }]);
+    expect(widgetText('zwykły tekst', undefined).spans).toEqual([]);
+  });
+});

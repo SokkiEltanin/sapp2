@@ -4,7 +4,7 @@
 // NoteWidget.requestUpdate(); provider renderuje tytuł + tekst albo do 8 pozycji listy
 // (stałe sloty — RemoteViews bez kolekcji). Stuknięcie → sapp2://note?id=… (edytor).
 // Wygląd z Ustawień → Widgety → Notatka: klucze "note_*" w TasksWidgetPrefs, brak →
-// wspólne "bg_*". Formatowanie tekstu w widgecie pominięte (zwykły tekst).
+// wspólne "bg_*". Formatowanie tekstu od 2026-11-22 (`spans` w snapshocie → spany).
 // Rysunek (2026-11-17): kreski ze snapshotu malowane do bitmapy (`note_drawing`).
 const { withAndroidManifest, withDangerousMod, withMainApplication, AndroidConfig } = require('@expo/config-plugins');
 const { mergeContents } = require('@expo/config-plugins/build/utils/generateCode');
@@ -34,6 +34,14 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
+import android.graphics.Typeface
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.BackgroundColorSpan
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
+import android.text.style.StyleSpan
+import android.text.style.UnderlineSpan
 import android.net.Uri
 import android.util.TypedValue
 import android.view.View
@@ -155,6 +163,29 @@ class ${PROVIDER_CLASS} : AppWidgetProvider() {
       } catch (e: Exception) {}
     }
 
+    // Formatowanie tekstu (2026-11-22): odcinki z utils/widgetNote.ts widgetText → spany
+    // (RemoteViews przenosi pogrubienie, kursywę, podkreślenie, kolor, zakreślacz, rozmiar).
+    private fun styled(text: String, spans: org.json.JSONArray?): CharSequence {
+      if (spans == null || spans.length() == 0 || text.isEmpty()) return text
+      val sb = SpannableStringBuilder(text)
+      for (i in 0 until spans.length()) {
+        val o = spans.optJSONObject(i) ?: continue
+        val a = o.optInt("s", 0).coerceIn(0, text.length)
+        val b = o.optInt("e", 0).coerceIn(a, text.length)
+        if (b <= a) continue
+        val f = Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        val bold = o.optInt("b", 0) == 1
+        val ital = o.optInt("i", 0) == 1
+        if (bold || ital) sb.setSpan(StyleSpan(if (bold && ital) Typeface.BOLD_ITALIC else if (bold) Typeface.BOLD else Typeface.ITALIC), a, b, f)
+        if (o.optInt("u", 0) == 1) sb.setSpan(UnderlineSpan(), a, b, f)
+        try { if (o.has("c")) sb.setSpan(ForegroundColorSpan(Color.parseColor(o.getString("c"))), a, b, f) } catch (e: Exception) {}
+        try { if (o.has("h")) sb.setSpan(BackgroundColorSpan(Color.parseColor(o.getString("h"))), a, b, f) } catch (e: Exception) {}
+        val z = o.optDouble("z", 0.0)
+        if (z > 0.3 && z < 4.0) sb.setSpan(RelativeSizeSpan(z.toFloat()), a, b, f)
+      }
+      return sb
+    }
+
     private fun buildViews(context: Context, wDp: Int, hDp: Int): RemoteViews {
       val v = RemoteViews(context.packageName, R.layout.note_widget)
       val p = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -187,7 +218,7 @@ class ${PROVIDER_CLASS} : AppWidgetProvider() {
       v.setTextViewText(R.id.note_title, snap.optString("title", "NOTATKA"))
       val text = snap.optString("text", "")
       v.setViewVisibility(R.id.note_text, if (text.isNotEmpty()) View.VISIBLE else View.GONE)
-      v.setTextViewText(R.id.note_text, text)
+      v.setTextViewText(R.id.note_text, styled(text, snap.optJSONArray("spans")))
       val drawing = snap.optJSONObject("drawing")
       // miejsce na rysunek: widget minus paddingi (16+16 / 14+14) i tytuł (~22 dp); z tekstem
       // nad rysunkiem rysunek dostaje 2/3 wysokości (layout_weight 2 : 1)

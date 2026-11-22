@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import ColorPicker from './ColorPicker';
 import WebRichField from './WebRichField';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform, ScrollView } from 'react-native';
@@ -59,7 +59,7 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus, page, 
     haptic.tap();
     if (Platform.OS === 'web') setFocusTick((t) => t + 1);
     const { start, end } = sel.current;
-    if (end > start) onChange(text, applyStyle(fitted, start, end, patch));
+    if (end > start) { onChange(text, applyStyle(fitted, start, end, patch)); relayout(); }
     else setPending({ at: start, st: clean({ ...cur, ...patch }) });
   };
   const toggle = (k: 'b' | 'i' | 'u') => {
@@ -72,7 +72,24 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus, page, 
   // zaznaczone np. podkreślenie, to ponowne kliknięcie ma wyłączać"): na Androidzie
   // zmiana zaznaczenia przychodzi PRZED zmianą tekstu, więc kursor był już dalej,
   // styl "na zapas" (np. wyłączone podkreślenie) się gubił i litery wracały podkreślone.
+  // Znikające linie (2026-11-22, user: "dodałem jedną literkę i zniknął tekst"): Android po
+  // podmianie odcinków (spany) w polu potrafi nie przerysować części linii — tekst jest
+  // zapisany (widget pokazywał całość), ale w polu pusto. Chwilę po pisaniu wymuszamy
+  // ponowne ułożenie tekstu: szerokość pola na moment o 1 px mniejsza i z powrotem.
+  const [nudge, setNudge] = useState(0);
+  const nudgeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (nudgeTimer.current) clearTimeout(nudgeTimer.current); }, []);
+  const relayout = () => {
+    if (Platform.OS !== 'android') return;
+    if (nudgeTimer.current) clearTimeout(nudgeTimer.current);
+    nudgeTimer.current = setTimeout(() => {
+      setNudge(1);
+      nudgeTimer.current = setTimeout(() => setNudge(0), 32);
+    }, 120);
+  };
+
   const handleText = (t: string) => {
+    relayout();
     let at = 0;
     const max = Math.min(text.length, t.length);
     while (at < max && text[at] === t[at]) at++;
@@ -108,7 +125,7 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus, page, 
         onSelectionChange={(e) => { sel.current = e.nativeEvent.selection; setSelState(e.nativeEvent.selection); }}
         placeholder="Pisz…"
         placeholderTextColor={colors.text.muted}
-        style={page ? [s.body, s.pageBody, { minHeight: page.minHeight }, web && fieldH > 0 ? { height: Math.max(page.minHeight, fieldH) } : null] : s.body}
+        style={[page ? [s.body, s.pageBody, { minHeight: page.minHeight }, web && fieldH > 0 ? { height: Math.max(page.minHeight, fieldH) } : null] : s.body, nudge ? { paddingRight: spacing[4] + 1 } : null]}
         multiline
         textAlignVertical="top"
         autoFocus={autoFocus}
