@@ -429,6 +429,7 @@ export default function FinancesScreen() {
           </TouchableOpacity>
           <FitList
             data={recent}
+            tailInset={58}
             emptyText="Brak transakcji — dodaj pierwszą przyciskiem +"
             renderItem={(e) => (
               // Wiersz jak w liście Transakcji (2026-11-17, user: "coś mi nie gra z Finansami"):
@@ -447,8 +448,6 @@ export default function FinancesScreen() {
               </Item>
             )}
           />
-          {/* miejsce pod pływający „+" — inaczej zasłaniał kwotę ostatniego wiersza */}
-          <View style={s.fabSpace} />
         </Tile>
       </Row>
 
@@ -553,7 +552,6 @@ const makeS = themedStyles((c) => StyleSheet.create({
 
   txTextCol: { flex: 1, minWidth: 0 },
   txBar: { width: 3, alignSelf: 'stretch', borderRadius: 2, marginVertical: 2 },
-  fabSpace: { height: 40 },
   txAmt: { fontSize: 13, fontFamily: 'Inter_900Black', color: C.hi, fontVariant: ['tabular-nums'] },
 
   fab: {
