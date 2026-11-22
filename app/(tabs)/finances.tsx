@@ -15,7 +15,7 @@ import { useQuickAdd, takeQuickAdd } from '@/services/quickAdd';
 import ProductsModal from '@/components/finances/ProductsModal';
 import TransactionsModal from '@/components/finances/TransactionsModal';
 import WydatkiModal from '@/components/dashboard/WydatkiModal';
-import BudgetSheet, { budgetLine } from '@/components/budgets/BudgetSheet';
+import BudgetSheet, { budgetLine, BudgetBar } from '@/components/budgets/BudgetSheet';
 import { useBudgetsStore } from '@/store/budgetsStore';
 import { budgetStatuses, scopeLabel, type BudgetLevel } from '@/utils/budgets';
 import { variableByCategory } from '@/utils/expenseCategory';
@@ -331,9 +331,11 @@ export default function FinancesScreen() {
                 {budgetStats.map((b) => {
                   const on = b.budget.id === budSel?.budget.id;
                   return (
+                    // Pigułka = nazwa + % limitu w kolorze stanu (2026-11-22, user: "130/50 wygląda
+                    // dziwnie — ani przekroczony, ani nijak"); pasek wybranego niżej (BudgetBar).
                     <TouchableOpacity key={b.budget.id} onPress={() => { haptic.tap(); setBudgetSelId(b.budget.id); }} style={[s.budChip, on && s.budChipOn]} activeOpacity={0.8}>
-                      <View style={[s.budFill, { width: `${Math.min(100, b.pct * 100)}%`, backgroundColor: budTint(b.level) }]} />
                       <Text style={[s.budChipTxt, on && s.budChipTxtOn]} numberOfLines={1}>{scopeLabel(b.budget.scope)}</Text>
+                      <Text style={[s.budChipPct, { color: budPctColor(b.level) }]}>{Math.round(b.pct * 100)}%</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -346,6 +348,7 @@ export default function FinancesScreen() {
                   </Text>
                 </View>
               )}
+              {budSel && <View style={{ marginTop: 8 }}><BudgetBar s={budSel} height={6} /></View>}
             </>
           )}
         </Tile>
@@ -559,7 +562,7 @@ export default function FinancesScreen() {
 }
 
 // Wypełnienie pigułki budżetu = % limitu, stonowane (user: "czerwony za bardzo się rzuca").
-const budTint = (level: BudgetLevel) => (level === 'over' ? 'rgba(239,68,68,0.30)' : level === 'warn' || level === 'pace' ? 'rgba(251,146,60,0.26)' : 'rgba(214,214,214,0.14)');
+const budPctColor = (level: BudgetLevel) => (level === 'over' ? C.warnTxt : level === 'warn' || level === 'pace' ? '#FDBA74' : C.mut);
 
 const makeS = themedStyles((c) => StyleSheet.create({
   capRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
@@ -575,9 +578,9 @@ const makeS = themedStyles((c) => StyleSheet.create({
   barSpace: { marginTop: spacing[3] },
   sideCol: { gap: S.gap },
   budChips: { gap: 6, paddingRight: 4 },
-  budChip: { overflow: 'hidden', paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999, backgroundColor: C.in, borderWidth: 1, borderColor: 'transparent' },
+  budChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999, backgroundColor: C.in, borderWidth: 1, borderColor: 'transparent' },
+  budChipPct: { fontSize: 10.5, fontFamily: 'Inter_900Black', fontVariant: ['tabular-nums'] },
   budChipOn: { borderColor: C.txt },
-  budFill: { position: 'absolute', left: 0, top: 0, bottom: 0 },
   budChipTxt: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: C.mut },
   budChipTxtOn: { color: C.hi },
   budLine: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 10 },

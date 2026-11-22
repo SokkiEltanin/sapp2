@@ -2098,6 +2098,12 @@ lista kart po 50 ("Pokaż więcej"), nazwa → grupa z pamięcią w obrębie wyl
 
 User: "tak, okej" na limit miesięczny na kategorię, ile zostało, ile dziennie,
 ostrzeżenie.
+- **Wygląd przekroczenia (2026-11-22, user: „130/50 nie wygląda ani na przekroczony, ani nijak”)**:
+  `BudgetBar` (BudgetSheet.tsx, też kafel w Finansach) ponad limitem rysuje się w skali WYDANEGO —
+  do limitu szary, nadwyżka czerwona, biała kreska = limit (podpis „↑ limit X zł” w sheecie);
+  plakietka `budgetBadge` („PRZEKROCZONY · 2,6× limitu” / „81%”); słupki miesięcy dzielone
+  (do limitu szare + nadwyżka czerwona), kwota nad słupkiem, kreska limitu NA słupkach.
+  Kafel Finansów: pigułki = nazwa + % w kolorze stanu (bez wypełnienia), pod linią pasek wybranego.
 - **Model** `src/types/budgets.ts` (`scope`: 'all' | 'food' | 'variable' | 'fixed' |
   'cat:<tag>' | 'food:<podkategoria>' (2026-11-15: słodycze, napoje… — kwota z
   `foodStats.foodSplitOf`, tej samej co trend i "Jedzenie" w Wydatkach), `limit` zł/mies.).

@@ -35,14 +35,34 @@ export function levelColor(s: BudgetStatus): string {
   return s.level === 'over' ? colors.accent.red : s.level === 'warn' ? colors.accent.orange : s.level === 'pace' ? colors.accent.orange : colors.text.secondary;
 }
 
+// Pasek budżetu (2026-11-22, user: "130/50 nie wygląda ani na przekroczony, ani nijak"):
+// w limicie — wypełnienie + kreska "dziś"; PONAD limit — pasek w skali wydanego: część do
+// limitu szara, nadwyżka czerwona, biała kreska = gdzie był limit. Widać od razu "2,6× za dużo".
 export function BudgetBar({ s, height = 6 }: { s: BudgetStatus; height?: number }) {
   const st = makeS();
+  const r = height / 2;
+  if (s.spent > s.budget.limit && s.budget.limit > 0) {
+    const at = (s.budget.limit / s.spent) * 100;
+    return (
+      <View style={[st.track, { height, borderRadius: r }]}>
+        <View style={[st.fill, { width: `${at}%`, backgroundColor: colors.text.secondary, borderTopLeftRadius: r, borderBottomLeftRadius: r }]} />
+        <View style={[st.fill, { left: `${at}%`, right: 0, width: undefined, backgroundColor: colors.accent.red, borderTopRightRadius: r, borderBottomRightRadius: r }]} />
+        <View style={[st.limitMark, { left: `${at}%` }]} />
+      </View>
+    );
+  }
   return (
-    <View style={[st.track, { height, borderRadius: height / 2 }]}>
-      <View style={[st.fill, { width: `${Math.min(100, s.pct * 100)}%`, backgroundColor: levelColor(s), borderRadius: height / 2 }]} />
+    <View style={[st.track, { height, borderRadius: r }]}>
+      <View style={[st.fill, { width: `${Math.min(100, s.pct * 100)}%`, backgroundColor: levelColor(s), borderRadius: r }]} />
       <View style={[st.paceMark, { left: `${Math.min(100, s.pacePct * 100)}%` }]} />
     </View>
   );
+}
+
+/** Krótki stan: "2,6× limitu", "82%", "w normie". */
+export function budgetBadge(s: BudgetStatus): string {
+  if (s.level === 'over') return s.pct >= 1.95 ? `${(Math.round(s.pct * 10) / 10).toString().replace('.', ',')}× limitu` : `${Math.round(s.pct * 100)}%`;
+  return `${Math.round(s.pct * 100)}%`;
 }
 
 export function budgetLine(s: BudgetStatus): string {
@@ -106,10 +126,20 @@ export default function BudgetSheet({ visible, onClose }: { visible: boolean; on
             <View style={s.headRow}>
               {dot && <View style={[s.dot, { backgroundColor: dot }]} />}
               <Text style={s.name}>{scopeLabel(b.scope)}</Text>
-              <Text style={[s.amount, { color: levelColor(st) }]}>{zl(st.spent)}</Text>
-              <Text style={s.of}> / {zl(b.limit)}</Text>
+              <View style={[s.badge, { backgroundColor: levelColor(st) + (st.level === 'ok' ? '22' : '2E') }]}>
+                <Text style={[s.badgeTxt, { color: st.level === 'ok' ? colors.text.secondary : levelColor(st) }]}>{st.level === 'over' ? 'PRZEKROCZONY · ' : ''}{budgetBadge(st)}</Text>
+              </View>
             </View>
-            <BudgetBar s={st} height={8} />
+            <View style={s.amountRow}>
+              <Text style={[s.amount, st.level === 'over' && { color: colors.accent.red }]}>{zl(st.spent)}</Text>
+              <Text style={s.of}>z {zl(b.limit)}</Text>
+            </View>
+            <BudgetBar s={st} height={10} />
+            {st.level === 'over' && (
+              <View style={s.scaleRow}>
+                <Text style={[s.scaleTxt, { left: `${(b.limit / st.spent) * 100}%` }]}>↑ limit {zl(b.limit)}</Text>
+              </View>
+            )}
             <Text style={[s.line, st.left < 0 && { color: colors.accent.red }]}>{budgetLine(st)}</Text>
 
             {knownN > 0 && (
@@ -117,17 +147,23 @@ export default function BudgetSheet({ visible, onClose }: { visible: boolean; on
                 <View style={s.hist}>
                   {hist.map((h) => (
                     <View key={h.key} style={s.histCol}>
+                      {/* słupek = do limitu szary + nadwyżka czerwona; kwota nad słupkiem;
+                          kreska limitu NA słupkach (wcześniej chowała się pod nimi) */}
+                      <Text style={[s.histVal, !h.within && h.spent > 0 && { color: colors.accent.red }]} numberOfLines={1}>{h.spent > 0 ? Math.round(h.spent) : ''}</Text>
                       <View style={s.histBox}>
+                        {h.spent > 0 ? (
+                          <View style={[s.histBar, { height: `${(h.spent / maxH) * 100}%` }]}>
+                            {!h.within && <View style={{ flex: h.spent - b.limit, backgroundColor: colors.accent.red }} />}
+                            <View style={{ flex: Math.min(h.spent, b.limit), backgroundColor: colors.text.secondary }} />
+                          </View>
+                        ) : <View style={s.histNone} />}
                         <View style={[s.histLimit, { bottom: `${(b.limit / maxH) * 100}%` }]} />
-                        {h.spent > 0
-                          ? <View style={[s.histBar, { height: `${(h.spent / maxH) * 100}%`, backgroundColor: h.within ? colors.text.secondary : colors.accent.red }]} />
-                          : <View style={s.histNone} />}
                       </View>
                       <Text style={s.histLabel}>{h.label}</Text>
                     </View>
                   ))}
                 </View>
-                <Text style={s.note}>W limicie {withinN} z {knownN} mies. · kreska = limit, czerwone = ponad.</Text>
+                <Text style={s.note}>W limicie {withinN} z {knownN} mies. · kreska = limit {zl(b.limit)}, czerwone = nadwyżka.</Text>
               </>
             )}
 
@@ -211,20 +247,27 @@ export default function BudgetSheet({ visible, onClose }: { visible: boolean; on
 const makeS = themedStyles((c) => StyleSheet.create({
   title: { fontSize: 17, fontFamily: 'Inter_900Black', color: c.text.primary, paddingBottom: spacing[2] },
   intro: { fontSize: 12.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, lineHeight: 18, marginBottom: spacing[2] },
-  headRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: spacing[2] },
+  headRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.full },
+  badgeTxt: { fontSize: 10.5, fontFamily: 'Inter_900Black', letterSpacing: 0.3, fontVariant: ['tabular-nums'] },
+  amountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 6, marginBottom: spacing[2] },
+  limitMark: { position: 'absolute', top: -4, bottom: -4, width: 3, marginLeft: -1.5, backgroundColor: c.text.bright, borderRadius: 1.5 },
+  scaleRow: { height: 14, marginTop: 3 },
+  scaleTxt: { position: 'absolute', marginLeft: -4, fontSize: 10, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary },
+  histVal: { fontSize: 9.5, fontFamily: 'Inter_800ExtraBold', color: c.text.muted, fontVariant: ['tabular-nums'] },
   dot: { width: 8, height: 8, borderRadius: 4, alignSelf: 'center' },
   name: { flex: 1, fontSize: 14, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
-  amount: { fontSize: 15, fontFamily: 'Inter_900Black', fontVariant: ['tabular-nums'] },
+  amount: { fontSize: 22, fontFamily: 'Inter_900Black', color: c.text.bright, fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
   of: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.muted, fontVariant: ['tabular-nums'] },
   line: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary, marginTop: spacing[2] },
   track: { backgroundColor: c.bg.primary, overflow: 'visible', position: 'relative' },
   fill: { position: 'absolute', left: 0, top: 0, bottom: 0 },
   paceMark: { position: 'absolute', top: -3, bottom: -3, width: 2, marginLeft: -1, backgroundColor: c.text.muted, borderRadius: 1 },
-  hist: { flexDirection: 'row', gap: 6, height: 56, marginTop: spacing[3] },
+  hist: { flexDirection: 'row', gap: 6, height: 76, marginTop: spacing[3] },
   histCol: { flex: 1, alignItems: 'center', gap: 3 },
   histBox: { flex: 1, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
-  histLimit: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: c.text.muted, opacity: 0.6 },
-  histBar: { width: '64%', borderRadius: 3, minHeight: 3 },
+  histLimit: { position: 'absolute', left: 0, right: 0, height: 0, borderTopWidth: 1.5, borderStyle: 'dashed', borderColor: c.text.bright, opacity: 0.8 },
+  histBar: { width: '64%', borderRadius: 3, minHeight: 3, overflow: 'hidden' },
   histNone: { width: 5, height: 5, borderRadius: 3, backgroundColor: c.border.default },
   histLabel: { fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
   note: { fontSize: 10.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[2], lineHeight: 15 },
