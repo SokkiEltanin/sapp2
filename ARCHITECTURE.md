@@ -638,8 +638,10 @@ opcjonalnym tekstem, zapisywanym w formie pamiętnika DZIEŃ DATA")
   wymagający przeciągania kciukiem) siedziała NAJWYŻEJ w scrollu, najdalej od
   naturalnej pozycji kciuka przy trzymaniu telefonu jedną ręką. Teraz: tagi →
   notatka → siatka, siatka na SAMYM DOLE tuż nad przyciskiem "Zapisz" — ten sam
-  "bliżej kciuka" priorytet co FAB wklejania paragonu w `AddExpenseModal`
-  (patrz §FINANSE). `MoodEnergyGrid.tsx` sam w sobie bez zmian, przeniesiony
+  "bliżej kciuka" priorytet co (dawny, usunięty 2026-11-22) FAB wklejania paragonu w
+  `AddExpenseModal`. **Wklejanie paragonu (2026-11-22)**: wklejka do pola (≥ 30 znaków naraz
+  i nowa linia) od razu rozpoznaje paragon i zwija pole do linijki „Paragon rozpoznany · N poz.
+  · wklej inny”; ręcznie wpisany tekst — przycisk „Rozpoznaj paragon” (też zwija). `MoodEnergyGrid.tsx` sam w sobie bez zmian, przeniesiony
   tylko w kolejności renderu w `MoodModal.tsx`.
 - **Świadomie NIE w tej rundzie**: przypomnienia rano/wieczorem (sapp ma
   `scheduleDailyMoodReminder`/`scheduleMorningMoodReminder` — port wymaga najpierw

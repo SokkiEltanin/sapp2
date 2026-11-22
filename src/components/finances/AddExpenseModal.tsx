@@ -247,7 +247,7 @@ export default function AddExpenseModal({
   };
 
   // Rdzeń rozpoznawania, wspólny dla ręcznego "Rozpoznaj" i szybkiej wklejki ze
-  // schowka (patrz `handlePasteFromClipboard` niżej) — żeby nie duplikować logiki.
+  // schowka (baner "Wykryto możliwy paragon") i wklejki do pola — żeby nie duplikować logiki.
   // Pamięć nauczona z poprzednich paragonów podpięta TUTAJ (nie było jej wcale w
   // Fazie 2.2): `canonicalProductName` naprawia nazwę przez znane aliasy/marki
   // (np. "jezykicherry" → "Jeżyki") OD RAZU, bez pytania — to są TWARDE zasady,
@@ -272,19 +272,19 @@ export default function AddExpenseModal({
     setPaymentMethod(r.paymentMethod);
     setUsedPaste(true);
   };
-  const handleParse = () => runParse(pasteText);
+  const handleParse = () => { runParse(pasteText); setPasteBoxOpen(false); };
 
-  // Pływający przycisk "wklej i rozpoznaj" (user, 2026-11-01: "zeby ten parser
-  // paragonow byl blizej prawego kciuka") — jedno tapnięcie w prawym dolnym rogu,
-  // bez przewijania do góry i bez ręcznego wklejania w pole tekstowe. Pole paste
-  // nad listą pozycji zostaje jako ścieżka zapasowa (np. tekst wpisany/zdyktowany,
-  // nie skopiowany).
-  const handlePasteFromClipboard = async () => {
-    const text = await Clipboard.getStringAsync();
-    if (!text?.trim()) return;
-    setPasteText(text);
-    runParse(text);
+  // Wklejenie do pola = od razu rozpoznanie i zwinięcie pola (2026-11-22, user: "po wklejeniu
+  // zakładka niech się zwija, teraz muszę scrollować w dół, żeby zaakceptować"). Wklejka =
+  // tekst urósł naraz o ≥ 30 znaków i ma co najmniej 2 linie; pisanie ręczne dalej przez
+  // "Rozpoznaj paragon". Pływający przycisk "wklej ze schowka" usunięty (user: "nigdy nie
+  // używałem").
+  const onPasteTextChange = (t: string) => {
+    const pasted = t.length - pasteText.length >= 30 && t.includes('\n');
+    setPasteText(t);
+    if (pasted) { runParse(t); setPasteBoxOpen(false); haptic.success(); }
   };
+  const parsedCount = usedPaste ? items.length : 0;
 
   const acceptClipboardSuggestion = () => {
     if (!clipboardSuggestion) return;
@@ -496,11 +496,6 @@ export default function AddExpenseModal({
       {/* Pływający, zawsze pod prawym kciukiem (user, 2026-11-01) — `bottom:'100%'`
           wynosi go NAD przypiętą stopkę `AppBottomSheet`'s `footer` (ta sama warstwa,
           już trzymana ponad klawiaturą przez gorhom, nie trzeba drugiej). */}
-      {type === 'expense' && !own && (
-        <TouchableOpacity style={s.pasteFab} onPress={handlePasteFromClipboard} activeOpacity={0.8} accessibilityLabel="Wklej ze schowka i rozpoznaj paragon">
-          <ClipboardPaste size={20} color={colors.bg.primary} />
-        </TouchableOpacity>
-      )}
       {duplicateOf && (
         <View style={s.dupWarning}>
           <Text style={s.dupWarningText}>
@@ -619,15 +614,15 @@ export default function AddExpenseModal({
       {type === 'expense' && !own && (
         <View style={s.section}>
           <TouchableOpacity style={s.paidSummaryRow} onPress={() => setPasteBoxOpen((v) => !v)} activeOpacity={0.7}>
-            <Text style={s.label}>Wklej tekst paragonu ręcznie</Text>
+            <Text style={s.label} numberOfLines={1}>{parsedCount > 0 && !pasteBoxOpen ? `Paragon rozpoznany · ${parsedCount} poz. · wklej inny` : 'Wklej tekst paragonu'}</Text>
             {pasteBoxOpen ? <ChevronUp size={14} color={colors.text.muted} /> : <ChevronDown size={14} color={colors.text.muted} />}
           </TouchableOpacity>
           {pasteBoxOpen && (
             <View style={s.paidDetail}>
               <TextInput
                 value={pasteText}
-                onChangeText={setPasteText}
-                placeholder="Wklej tekst paragonu ze sklepu / SMS-a / aplikacji banku…"
+                onChangeText={onPasteTextChange}
+                placeholder="Wklej tekst paragonu ze sklepu / SMS-a / aplikacji banku — rozpozna się sam…"
                 placeholderTextColor={colors.text.muted}
                 style={s.pasteInput}
                 multiline
@@ -944,12 +939,7 @@ export default function AddExpenseModal({
         </View>
       )}
 
-      {/* 2026-11-09, user zrzutem: przycisk "+" Tagów (ostatnia sekcja, prawy dolny
-          róg body) nachodził na pływający `pasteFab` — ten floatuje `bottom:'100%'`
-          NAD `footerRoot`em niezależnie od scrolla body, więc body musi świadomie
-          zarezerwować pod nim pustą przestrzeń (48 wysokość FAB-a + 12 jego
-          marginBottom + zapas), inaczej ostatnia sekcja zawsze ląduje pod nim. */}
-      <View style={[s.section, s.lastSectionClearsFab]}>
+      <View style={s.section}>
         <Text style={s.label}>Tagi</Text>
         <View style={s.tagInputRow}>
           <TextInput
@@ -1119,10 +1109,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   },
   tagRemoveLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.bg.primary },
 
-  // `footerRoot` = wrapper dla `footer`+`pasteFab` razem (2026-11-02) — `AppBottomSheet`
-  // dostaje JEDEN `footer` prop, a FAB musi mieć wspólnego rodzica z rzędem
-  // kwota+Zapisz, żeby `bottom:'100%'` na `pasteFab` kotwiczyło się do GÓRNEJ
-  // krawędzi TEGO rzędu (nie całego, szerszego paddingu `AppBottomSheet`'s).
+  // `footerRoot` = wrapper stopki (ostrzeżenie o duplikacie + kwota/Zapisz).
   footerRoot: {},
   // Ostrzeżenie o możliwym duplikacie (2026-11-11) — ten sam wizualny wzorzec
   // co ProductsModal.tsx's "Możliwe duplikaty" (dupeBtnSecondary/Primary).
@@ -1143,20 +1130,6 @@ const makeS = themedStyles((c) => StyleSheet.create({
   footerAmount: { fontSize: 20, fontFamily: 'Inter_900Black', color: c.text.bright },
   saveBtn: { paddingHorizontal: spacing[6], paddingVertical: spacing[3], borderRadius: radius.md, backgroundColor: c.text.bright },
   saveLabel: { fontSize: 14, fontFamily: 'Inter_900Black', color: c.bg.primary },
-
-  // Pływający, zawsze pod prawym kciukiem — `bottom:'100%'` zamiast stałego `bottom`
-  // w px (2026-11-02) — wynosi się NAD `footerRoot`'a WŁASNĄ wysokość, niezależnie
-  // od tego ile miejsca zajmuje padding/safe-area wokół, które liczył `AppBottomSheet`.
-  pasteFab: {
-    position: 'absolute', right: spacing[4], bottom: '100%', marginBottom: spacing[3],
-    width: 48, height: 48, borderRadius: radius.full, backgroundColor: c.text.bright,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
-    elevation: 6,
-  },
-  // 48 (pasteFab's wysokość) + 12 (jego marginBottom) + zapas = miejsce pod ostatnią
-  // sekcją body, żeby `tagAddBtn` (tej samej, prawej krawędzi co FAB) na nim nie lądował.
-  lastSectionClearsFab: { marginBottom: 72 },
 
   paidSummaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   paidDetail: { marginTop: spacing[2], gap: spacing[2] },

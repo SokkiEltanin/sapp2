@@ -41,6 +41,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-22 — Wydatek: wklejka paragonu sama się rozpoznaje i zwija; bez pływającego przycisku; data z banku
+czytelna.** OTA. DO DECYZJI (user pytany): uporządkowanie formularza wydatku — karta podsumowania na górze,
+pozycje paragonu w 1 linii (stuknięcie = edycja), rząd pigułek (rozlicz/kategoria/zapłacono/tagi/notatka)
+rozwijanych pojedynczo, tagi: tylko wybrane + „+ tag”.
+
 **2026-11-22 — Pogoda 2.0** (ARCHITECTURE „Pogoda 2.0”). OTA. User szuka przykładów do inspiracji — po nich
 kolejna runda (np. kafel pogody na Dashboardzie w tym samym stylu).
 - [ ] Wykres 24 h przewija się płynnie palcem; krzywa i opady czytelne; „jutro” przy północy.
