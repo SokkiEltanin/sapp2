@@ -107,6 +107,8 @@ class UsageStatsModule(private val ctx: ReactApplicationContext) : ReactContextB
     val time = HashMap<String, Long>()
     val launches = HashMap<String, Int>()
     val hours = LongArray(24)
+    val unlockHours = IntArray(24)   // odblokowania w każdej godzinie (2026-11-22, wykres "kiedy")
+    val hcal = Calendar.getInstance()
     var unlocks = 0
     var screenOns = 0
     var first = 0L
@@ -144,7 +146,12 @@ class UsageStatsModule(private val ctx: ReactApplicationContext) : ReactContextB
           open.clear()
           lastPkg = null
         }
-        18 -> { unlocks++; if (first == 0L) first = t }
+        18 -> {
+          unlocks++
+          if (first == 0L) first = t
+          hcal.timeInMillis = t
+          unlockHours[hcal.get(Calendar.HOUR_OF_DAY)]++
+        }
       }
     }
     val end = Math.min(e, System.currentTimeMillis())
@@ -163,8 +170,10 @@ class UsageStatsModule(private val ctx: ReactApplicationContext) : ReactContextB
     }
     val hj = JSONArray()
     for (h in hours) hj.put(h)
+    val uj = JSONArray()
+    for (u in unlockHours) uj.put(u)
     val o = JSONObject().put("s", s).put("total", total).put("unlocks", unlocks).put("screenOns", screenOns)
-      .put("first", first).put("apps", apps).put("hours", hj)
+      .put("first", first).put("apps", apps).put("hours", hj).put("uh", uj)
     if (longMs > 0) o.put("longest", JSONObject().put("p", longPkg).put("l", labelOf(pm, longPkg).first).put("ms", longMs))
     return o
   }

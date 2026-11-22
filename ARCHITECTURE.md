@@ -2399,3 +2399,19 @@ historie zapisywać”. Docs `devices` i `screen` w cloudSync mają `mergeFirst`
 - `DocSync` przy starcie: obie strony z danymi + plan „push” → najpierw `apply` (suma), potem push sumy.
 Komputer: brak ostatniego odczytu → ostatnia próbka z historii (`useDeviceBatteries`); na kaflu Baterie zawsze wiek
 odczytu; w panelu czasu z telefonem „stan na …”.
+
+## WZORCE ZACHOWAŃ + KATEGORIE APPEK (2026-11-22)
+
+User: „sensowne porównanie danych i schematy zachowań — mniej energii, więcej słodyczy jak więcej pracuję, rozrywka
+w telefonie a słodycze/zakupy; oznaczyć appki, które to rozrywka”.
+- `utils/insights.ts` (czyste, testy): `buildDays` (dzień → humor, energia, sen, kroki, wydatki bez stałych, słodycze
+  i przekąski, fast food, zakupy zmienne, godziny pracy, telefon/rozrywka/odblokowania/noc, dobra rzecz),
+  `PAIRS` (wybrane pary przyczyna → skutek, `lag` 1 = skutek dzień później), `SPLIT` (progi: praca ≥3 h vs 0, sen 7 h+
+  vs <6,5 h, kroki 8000+ vs <5000; telefon = mediana), `computeInsights` (≥4 dni w grupie, d Cohena ≥0,3 + minimalna
+  różnica bezwzględna, sortowanie siła × √n), zdania po polsku. `hooks/useInsights.ts` zbiera dane (90 dni bez dziś).
+- UI: kafel „Twoje wzorce” w Daily (nad Ciekawostką), `components/insights/InsightsSheet.tsx` (filtry, karta = zdanie +
+  2 paski, siła, liczba dni; stan pusty = ile dni jakich danych).
+- Kategorie appek: `store/appCategoryStore.ts` (`cats`, `fun`, sync w doc `prefs`), `catOf(a, prefs)`, `isFun`,
+  `FUN_CATS` = społeczności/wideo/gry; w `ScreenTimeSheet` stuknięcie appki → `AppCatPanel`. Fakty „Rozrywka”
+  i „Otwarcia appek”; wykres godzin `HourChart` (minuty nad słupkiem, godziny co 2, odblokowania na godzinę z
+  natywnego `uh` — od nowego APK, stuknięcie = dokładny przedział).

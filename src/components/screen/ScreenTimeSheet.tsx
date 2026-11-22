@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Platform, Linking } from 'react-native';
-import { ChevronLeft, ChevronRight, Smartphone, LockOpen, Sun, Moon, Timer, Flame } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Smartphone, LockOpen, Sun, Moon, Timer, Flame, Gamepad2, AppWindow } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { SheetCard, Legend } from '@/components/design/SheetCard';
 import { useScreenTimeStore, useAppIconsStore } from '@/store/screenTimeStore';
+import { useAppCategoryStore } from '@/store/appCategoryStore';
 import { openScreenAccess, refreshScreenTime, screenTimeAvailable } from '@/services/screenTime';
 import {
-  fmtDur, byCategory, catOf, CAT_LABEL, CAT_COLOR, vsUsual, avgBefore, peakHour, nightMinutes, lastScreenDays, ymd,
-  type ScreenDay, type ScreenApp,
+  fmtDur, byCategory, catOf, isFun, funMinutes, FUN_CATS, CAT_LABEL, CAT_COLOR, vsUsual, avgBefore, peakHour, nightMinutes, lastScreenDays, ymd,
+  type ScreenDay, type ScreenApp, type ScreenCat, type AppPrefs,
 } from '@/utils/screenTime';
 import { haptic } from '@/utils/haptics';
 
@@ -98,15 +99,20 @@ function Info({ text }: { text: string; icon?: boolean }) {
 
 function DayView({ d, days, now, isToday }: { d: ScreenDay; days: Record<string, ScreenDay>; now: Date; isToday: boolean }) {
   const s = makeS();
+  const prefCats = useAppCategoryStore((st) => st.cats);
+  const prefFun = useAppCategoryStore((st) => st.fun);
+  const prefs = useMemo<AppPrefs>(() => ({ cats: prefCats, fun: prefFun }), [prefCats, prefFun]);
+  const [editApp, setEditApp] = useState<ScreenApp | null>(null);
   const vs = isToday ? vsUsual(days, now) : null;
   const avg = avgBefore(days, isToday ? now : new Date(`${d.date}T12:00:00`));
   const peak = peakHour(d);
   const night = nightMinutes(d);
-  const cats = byCategory(d.apps);
+  const cats = byCategory(d.apps, prefs);
+  const fun = funMinutes(d, prefs);
+  const opens = d.apps.reduce((a, x) => a + x.n, 0);
   const catTotal = cats.reduce((a, c) => a + c.m, 0) || 1;
   const week = lastScreenDays(days, isToday ? now : new Date(`${d.date}T12:00:00`), 7);
   const weekMax = Math.max(1, ...week.map((w) => w.d?.total ?? 0));
-  const hourMax = Math.max(1, ...d.hours);
   const appMax = Math.max(1, ...d.apps.map((a) => a.m));
   const [showAll, setShowAll] = useState(false);
   const apps = showAll ? d.apps : d.apps.slice(0, 8);
@@ -133,20 +139,11 @@ function DayView({ d, days, now, isToday }: { d: ScreenDay; days: Record<string,
         <Fact Icon={Timer} l="Najdłużej bez przerwy" v={d.longest ? fmtDur(d.longest.m) : '—'} sub={d.longest?.l} />
         <Fact Icon={Flame} l="Najwięcej" v={peak && peak.m > 0 ? `${peak.h}:00–${peak.h + 1}:00` : '—'} sub={peak && peak.m > 0 ? fmtDur(peak.m) : undefined} />
         <Fact Icon={Moon} l="W nocy (0–6)" v={fmtDur(night)} color={night >= 30 ? colors.accent.orange : undefined} />
+        <Fact Icon={Gamepad2} l="Rozrywka" v={fmtDur(fun)} sub={d.total ? `${Math.round((fun / d.total) * 100)}% czasu · zmień w appkach niżej` : undefined} />
+        <Fact Icon={AppWindow} l="Otwarcia appek" v={String(opens)} sub={d.unlocks ? `~${Math.max(1, Math.round(opens / d.unlocks))} na odblokowanie` : undefined} />
       </View>
 
-      <SheetCard title="W ciągu dnia">
-        <View style={s.hours}>
-          {d.hours.map((m, h) => (
-            <View key={h} style={s.hourCol}>
-              <View style={[s.hourBar, { height: Math.max(2, (m / hourMax) * 64), backgroundColor: m === 0 ? colors.ui.in2 : peak?.h === h ? colors.text.bright : colors.text.secondary }]} />
-            </View>
-          ))}
-        </View>
-        <View style={s.hourAxis}>
-          {[0, 6, 12, 18, 24].map((h) => <Text key={h} style={s.axis}>{h}</Text>)}
-        </View>
-      </SheetCard>
+      <HourChart d={d} />
 
       {cats.length > 0 && (
         <SheetCard title="Na co idzie czas">
@@ -167,13 +164,15 @@ function DayView({ d, days, now, isToday }: { d: ScreenDay; days: Record<string,
       )}
 
       <SheetCard title="Aplikacje" right={<Text style={s.cardRight}>{d.apps.filter((a) => a.m > 0).length} użytych</Text>}>
-        {apps.map((a) => <AppRow key={a.p} a={a} max={appMax} />)}
+        {apps.map((a) => <AppRow key={a.p} a={a} max={appMax} prefs={prefs} onPress={() => setEditApp(a)} />)}
         {d.apps.length > 8 && (
           <TouchableOpacity onPress={() => { haptic.tap(); setShowAll((v) => !v); }} style={s.more}>
             <Text style={s.moreTxt}>{showAll ? 'Pokaż mniej' : `Pokaż wszystkie (${d.apps.length})`}</Text>
           </TouchableOpacity>
         )}
       </SheetCard>
+
+      <AppCatPanel app={editApp} prefs={prefs} onClose={() => setEditApp(null)} />
 
       <SheetCard title="Ostatnie 7 dni" right={<Legend items={[{ color: colors.text.secondary, label: 'czas' }]} />}>
         <View style={s.week}>
@@ -199,12 +198,57 @@ function DayView({ d, days, now, isToday }: { d: ScreenDay; days: Record<string,
   );
 }
 
-function AppRow({ a, max }: { a: ScreenApp; max: number }) {
+// Wykres godzinowy (2026-11-22, user: "ładniej, z liczbami nad słupkami i lepszymi godzinami,
+// które mówią dokładnie, kiedy to było — teraz zgadywanie"). Zakres od pierwszej używanej
+// godziny (min. od 6:00), liczba minut nad słupkiem, godzina pod co drugim, pod spodem
+// odblokowania w tej godzinie (nowe APK). Stuknięcie w słupek = dokładnie "8:00–9:00 · …".
+function HourChart({ d }: { d: ScreenDay }) {
+  const s = makeS();
+  const first = d.hours.findIndex((m, h) => m > 0 || (d.unlockHours?.[h] ?? 0) > 0);
+  const start = first >= 0 && first < 6 ? first : 6;
+  const hrs = Array.from({ length: 24 - start }, (_, i) => start + i);
+  const max = Math.max(1, ...d.hours);
+  const peak = peakHour(d);
+  const [sel, setSel] = useState<number | null>(null);
+  const h = sel ?? (peak && peak.m > 0 ? peak.h : null);
+  const unl = (x: number) => d.unlockHours?.[x] ?? null;
+  const H = 74;
+  return (
+    <SheetCard title="W ciągu dnia" right={h != null ? (
+      <Text style={s.hourSel}>{h}:00–{h + 1}:00 · {fmtDur(d.hours[h])}{unl(h) != null ? ` · ${unl(h)} odblok.` : ''}</Text>
+    ) : undefined}>
+      <View style={[s.hours, { height: H + 14 }]}>
+        {hrs.map((x) => {
+          const m = d.hours[x];
+          const on = x === h;
+          return (
+            <TouchableOpacity key={x} style={s.hourCol} activeOpacity={0.7} onPress={() => { haptic.tap(); setSel(x); }} accessibilityLabel={`${x}:00, ${fmtDur(m)}`}>
+              {m > 0 && <Text style={[s.hourVal, on && { color: colors.text.bright }]} numberOfLines={1}>{m}</Text>}
+              <View style={[s.hourBar, { height: m > 0 ? Math.max(3, (m / max) * H) : 2, backgroundColor: m === 0 ? colors.ui.in2 : on ? colors.text.bright : colors.text.secondary }]} />
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      {d.unlockHours && (
+        <View style={s.hourRow}>
+          {hrs.map((x) => <Text key={x} style={[s.hourUnl, x === h && { color: colors.text.bright }]} numberOfLines={1}>{unl(x) ? unl(x) : ''}</Text>)}
+        </View>
+      )}
+      <View style={s.hourRow}>
+        {hrs.map((x) => <Text key={x} style={[s.hourLab, x === h && { color: colors.text.bright }]} numberOfLines={1}>{x % 2 === 0 ? x : ''}</Text>)}
+      </View>
+      <Text style={s.hourNote}>Liczby nad słupkami = minuty w danej godzinie{d.unlockHours ? '; pod nimi — ile razy odblokowano telefon' : ''}. Stuknij słupek, żeby zobaczyć dokładnie.</Text>
+    </SheetCard>
+  );
+}
+
+function AppRow({ a, max, prefs, onPress }: { a: ScreenApp; max: number; prefs: AppPrefs; onPress: () => void }) {
   const s = makeS();
   const icon = useAppIconsStore((st) => st.icons[a.p]);
-  const cat = catOf(a);
+  const cat = catOf(a, prefs);
+  const fun = isFun(a, prefs);
   return (
-    <View style={s.appRow}>
+    <TouchableOpacity style={s.appRow} onPress={() => { haptic.tap(); onPress(); }} activeOpacity={0.7} accessibilityLabel={`${a.l} — zmień kategorię`}>
       {icon ? <Image source={{ uri: icon }} style={s.appIcon} /> : (
         <View style={[s.appIcon, s.appInitial, { backgroundColor: CAT_COLOR[cat] + '33' }]}>
           <Text style={[s.appInitialTxt, { color: CAT_COLOR[cat] }]}>{(a.l || a.p).slice(0, 1).toUpperCase()}</Text>
@@ -216,9 +260,45 @@ function AppRow({ a, max }: { a: ScreenApp; max: number }) {
           <Text style={s.appVal}>{fmtDur(a.m)}</Text>
         </View>
         <View style={s.appTrack}><View style={[s.appFill, { width: `${Math.max(2, (a.m / max) * 100)}%`, backgroundColor: CAT_COLOR[cat] }]} /></View>
-        <Text style={s.appSub} numberOfLines={1}>{CAT_LABEL[cat]}{a.n ? ` · otwarta ${a.n}×` : ''}</Text>
+        <Text style={s.appSub} numberOfLines={1}>{CAT_LABEL[cat]}{fun ? ' · rozrywka' : ''}{a.n ? ` · otwarta ${a.n}×` : ''}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
+  );
+}
+
+// Kategoria appki i "rozrywka tak/nie" (2026-11-22, user: "oznaczyć aplikacje, które to rozrywka,
+// bo niektóre może źle łapać"). Zapis: store/appCategoryStore.ts (sync z komputerem).
+const CAT_ORDER: ScreenCat[] = ['social', 'chat', 'video', 'audio', 'games', 'web', 'work', 'maps', 'photo', 'news', 'other'];
+function AppCatPanel({ app, prefs, onClose }: { app: ScreenApp | null; prefs: AppPrefs; onClose: () => void }) {
+  const s = makeS();
+  const setCat = useAppCategoryStore((st) => st.setCat);
+  const setFun = useAppCategoryStore((st) => st.setFun);
+  if (!app) return null;
+  const cat = catOf(app, prefs);
+  const fun = isFun(app, prefs);
+  const auto = catOf(app);
+  return (
+    <SheetCard title={`Kategoria: ${app.l}`} right={<TouchableOpacity onPress={() => { haptic.tap(); onClose(); }} hitSlop={8}><Text style={s.catDone}>Gotowe</Text></TouchableOpacity>}>
+      <View style={s.catChips}>
+        {CAT_ORDER.map((c) => (
+          <TouchableOpacity key={c} onPress={() => { haptic.tap(); setCat(app.p, c === auto ? null : c); }}
+            style={[s.catChip, cat === c && { backgroundColor: CAT_COLOR[c] + '33', borderColor: CAT_COLOR[c] }]}>
+            <View style={[s.catDot, { backgroundColor: CAT_COLOR[c] }]} />
+            <Text style={[s.catChipTxt, cat === c && { color: colors.text.bright }]}>{CAT_LABEL[c]}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <View style={s.funRow}>
+        <Text style={s.funTxt}>Liczy się jako rozrywka</Text>
+        {([true, false] as const).map((v) => (
+          <TouchableOpacity key={String(v)} onPress={() => { haptic.tap(); setFun(app.p, v === FUN_CATS.has(cat) ? null : v); }}
+            style={[s.funBtn, fun === v && s.funBtnOn]}>
+            <Text style={[s.funBtnTxt, fun === v && s.funBtnTxtOn]}>{v ? 'Tak' : 'Nie'}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <Text style={s.hourNote}>Rozrywka domyślnie = społeczności, wideo i gry. To, co tu ustawisz, liczy się też we wzorcach zachowań (np. rozrywka a słodycze) i na komputerze.</Text>
+    </SheetCard>
   );
 }
 
@@ -248,10 +328,15 @@ const makeS = themedStyles((c) => StyleSheet.create({
   factL: { flex: 1, fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.3 },
   factV: { fontSize: 15, fontFamily: 'Inter_900Black', color: c.text.primary, marginTop: 3, fontVariant: ['tabular-nums'] },
   factSub: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 1 },
-  hours: { flexDirection: 'row', alignItems: 'flex-end', height: 64, gap: 2 },
-  hourCol: { flex: 1, justifyContent: 'flex-end', height: 64 },
-  hourBar: { borderTopLeftRadius: 2, borderTopRightRadius: 2 },
-  hourAxis: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
+  hours: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
+  hourCol: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', height: '100%' },
+  hourBar: { width: '100%', borderTopLeftRadius: 3, borderTopRightRadius: 3 },
+  hourVal: { fontSize: 8.5, fontFamily: 'Inter_800ExtraBold', color: c.text.muted, marginBottom: 2, fontVariant: ['tabular-nums'] },
+  hourRow: { flexDirection: 'row', gap: 2, marginTop: 3 },
+  hourUnl: { flex: 1, textAlign: 'center', fontSize: 8.5, fontFamily: 'Inter_700Bold', color: c.accent.blue },
+  hourLab: { flex: 1, textAlign: 'center', fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  hourSel: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },
+  hourNote: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[2] },
   axis: { fontSize: 9.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
   stack: { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', gap: 2 },
   catList: { marginTop: spacing[2], gap: 6 },
@@ -271,6 +356,16 @@ const makeS = themedStyles((c) => StyleSheet.create({
   appTrack: { height: 4, borderRadius: 2, backgroundColor: c.ui.in2, marginTop: 4, overflow: 'hidden' },
   appFill: { height: '100%', borderRadius: 2 },
   appSub: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 3 },
+  catChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  catChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default },
+  catChipTxt: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
+  catDone: { fontSize: 12, fontFamily: 'Inter_900Black', color: c.text.bright },
+  funRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing[3] },
+  funTxt: { flex: 1, fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  funBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
+  funBtnOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
+  funBtnTxt: { fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary },
+  funBtnTxtOn: { color: c.bg.primary },
   more: { alignItems: 'center', paddingTop: spacing[2] },
   moreTxt: { fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
   week: { flexDirection: 'row', gap: 4 },

@@ -41,6 +41,14 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-22 — Wzorce zachowań + rozrywka w telefonie** (ARCHITECTURE „WZORCE ZACHOWAŃ”). Odblokowania na godzinę
+wymagają nowego APK (moduł UsageStats `uh`), reszta OTA.
+- [ ] Po 2–3 tygodniach danych: czy wzorce mają sens (praca → słodycze, rozrywka → humor/energia/sen itd.).
+- [ ] Oznaczyć źle złapane appki (Czas z telefonem → stuknij appkę).
+- [ ] Podejrzane: „zwykle do tej pory 2 h 40 min” przy 13 min dziś — porównać wczoraj z Cyfrową równowagą
+  (czy liczenie sesji per aktywność nie dubluje czasu na Samsungu).
+- [ ] POMYSŁ (odłożony, user: „dodatek”): notatki — kolor/tło strony (linie, kratka, kropki) + więcej pędzli (task #67).
+
 **2026-11-22 — Bateria i czas z telefonem na komputerze: scalanie zamiast zastępowania** (ARCHITECTURE „DANE Z
 TELEFONU NA KOMPUTERZE”). Historia baterii 30 dni (było 4), komputer pokazuje ostatni odczyt z godziną. Tylko JS.
 - [ ] Komputer: kafel Baterie z wiekiem odczytu; panel z historią; po kilku dniach wykresy dalej pełne.

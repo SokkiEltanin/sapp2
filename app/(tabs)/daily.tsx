@@ -13,11 +13,14 @@ import FactSheet from '@/components/daily/FactSheet';
 import CollectionSheet, { useCollectionData } from '@/components/daily/CollectionSheet';
 import { useCollectionStore } from '@/store/collectionStore';
 import { haptic } from '@/utils/haptics';
-import { Check, BarChart3, Sparkles } from 'lucide-react-native';
+import { Check, BarChart3, Sparkles, Waypoints } from 'lucide-react-native';
 import { C, T, S, R } from '@/ui/theme';
 import MoodModal from '@/components/mood/MoodModal';
 import MoodStatsSheet from '@/components/mood/MoodStatsSheet';
 import GoodThingSheet from '@/components/mood/GoodThingSheet';
+import InsightsSheet from '@/components/insights/InsightsSheet';
+import ScreenTimeSheet from '@/components/screen/ScreenTimeSheet';
+import { useInsights } from '@/hooks/useInsights';
 import { useGoodThingsStore } from '@/store/goodThingsStore';
 import { goodStreak, goodMemory, isRoughDay, goodExample } from '@/utils/goodThings';
 import { useConfirmTap } from '@/hooks/useConfirmTap';
@@ -63,6 +66,11 @@ export default function DailyScreen() {
   const [good, setGood] = useState<{ open: boolean; date: string | null }>({ open: false, date: null });
   useEffect(() => { if (goodParam) setGood({ open: true, date: goodParam }); }, [goodParam]);
   const goodItems = useGoodThingsStore((st) => st.items);
+  // Wzorce zachowań (2026-11-22) — kafel nad Ciekawostką, szczegóły w InsightsSheet.
+  const [insOpen, setInsOpen] = useState(false);
+  const [screenOpen, setScreenOpen] = useState(false);
+  const { insights } = useInsights();
+  const topIns = insights[0] ?? null;
   const [moodStatsOpen, setMoodStatsOpen] = useState(false);
   const [knowArmed, knowTap] = useConfirmTap();
   const [sleepOpen, setSleepOpen] = useState(false);
@@ -175,6 +183,20 @@ export default function DailyScreen() {
       {/* CIEKAWOSTKA (2026-11-16; 2.0: "temat max 3 słowa, treść zachęcająca jako skrót,
           po kliknięciu rozszerzone info", "znam to", "każda tylko raz", ta sama na tel i komp).
           Jedna na dzień — utils/facts.ts + store/factsStore.ts; tap → FactSheet. */}
+      {/* Wzorce zachowań (2026-11-22, user: "porównanie danych i schematy zachowań"): najsilniejszy
+          wzorzec jednym zdaniem, reszta w InsightsSheet. */}
+      <Row>
+        <Tile span={4} onPress={() => setInsOpen(true)} accessibilityLabel="Twoje wzorce">
+          <Cap l="Twoje wzorce" r={insights.length ? `${insights.length} ›` : 'zbieram dane'} />
+          <View style={st.goodRow}>
+            <Waypoints size={14} color={topIns ? (topIns.tone === 'bad' ? '#FB923C' : topIns.tone === 'good' ? C.ok : C.txt) : C.mut} />
+            <Text style={[topIns ? T.body : T.small, { flex: 1 }, topIns && { color: C.hi }]} numberOfLines={2}>
+              {topIns ? topIns.text : 'Po 2–3 tygodniach zobaczysz tu np. czy w dni pracy kupujesz więcej słodyczy.'}
+            </Text>
+          </View>
+        </Tile>
+      </Row>
+
       <Row flex={1}>
         <Tile span={4} onPress={() => { haptic.tap(); setFactOpen(true); }} style={st.factTile}>
           <Cap l={fact ? `Ciekawostka · ${CAT_LABEL[fact.cat]}` : 'Ciekawostka'} r={`${factSeen}/${FACT_LIST.length}`} />
@@ -292,6 +314,13 @@ export default function DailyScreen() {
         </Tile>
       </Row>
 
+      <LazyMount visible={insOpen}>
+        <InsightsSheet visible={insOpen} onClose={() => setInsOpen(false)}
+          onOpenScreen={() => { setInsOpen(false); setTimeout(() => setScreenOpen(true), 280); }} />
+      </LazyMount>
+      <LazyMount visible={screenOpen}>
+        <ScreenTimeSheet visible={screenOpen} onClose={() => setScreenOpen(false)} />
+      </LazyMount>
       <LazyMount visible={good.open}>
         <GoodThingSheet visible={good.open} date={good.date} onClose={() => setGood({ open: false, date: null })} />
       </LazyMount>

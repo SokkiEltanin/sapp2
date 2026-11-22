@@ -16,6 +16,7 @@ import { useHealthStore } from '@/store/healthStore';
 import { useDeviceBatteryStore } from '@/store/deviceBatteryStore';
 import { useScreenTimeStore } from '@/store/screenTimeStore';
 import { useGoodThingsStore } from '@/store/goodThingsStore';
+import { useAppCategoryStore } from '@/store/appCategoryStore';
 import { useFactsStore } from '@/store/factsStore';
 import { useCollectionStore } from '@/store/collectionStore';
 import { useProfileStore } from '@/store/profileStore';
@@ -125,7 +126,7 @@ const docBindings: DocBinding[] = [
   },
   {
     name: 'prefs',
-    stores: [S(useBalanceStore), S(useSubscriptionsStore), S(useWorkStore), S(useCategoriesStore), S(useThresholdsStore), S(useNotesStore), S(useProfileStore)],
+    stores: [S(useBalanceStore), S(useSubscriptionsStore), S(useWorkStore), S(useCategoriesStore), S(useThresholdsStore), S(useNotesStore), S(useProfileStore), S(useAppCategoryStore)],
     get: () => ({
       balanceOffset: useBalanceStore.getState().offset ?? 0,
       dismissedBills: useSubscriptionsStore.getState().dismissedBills,
@@ -134,6 +135,7 @@ const docBindings: DocBinding[] = [
       thresholds: useThresholdsStore.getState().t,
       notePalette: useNotesStore.getState().palette,
       profile: (({ name, birthDate, heightCm }) => ({ name, birthDate, heightCm }))(useProfileStore.getState()),
+      appCats: { cats: useAppCategoryStore.getState().cats, fun: useAppCategoryStore.getState().fun }, // 2026-11-22
     }),
     set: (v) => {
       if (typeof v.balanceOffset === 'number') useBalanceStore.setState({ offset: v.balanceOffset });
@@ -141,12 +143,14 @@ const docBindings: DocBinding[] = [
       if ('activeEmployerId' in v) useWorkStore.setState({ activeEmployerId: v.activeEmployerId ?? null });
       if (v.thresholds && typeof v.thresholds === 'object') useThresholdsStore.getState().set(v.thresholds);
       if (v.profile && typeof v.profile === 'object') useProfileStore.setState({ name: typeof v.profile.name === 'string' ? v.profile.name : '', birthDate: typeof v.profile.birthDate === 'string' ? v.profile.birthDate : null, heightCm: typeof v.profile.heightCm === 'number' ? v.profile.heightCm : null });
+      if (v.appCats && typeof v.appCats === 'object') useAppCategoryStore.setState({ cats: v.appCats.cats ?? {}, fun: v.appCats.fun ?? {} });
       if (Array.isArray(v.notePalette)) useNotesStore.setState({ palette: v.notePalette.filter((c: unknown) => typeof c === 'string') });
       if (v.categories && typeof v.categories === 'object') useCategoriesStore.getState().setPrefs({ added: { food: v.categories.added?.food ?? [], var: v.categories.added?.var ?? [] }, overrides: v.categories.overrides ?? {} });
     },
     isEmpty: (v) => !v.balanceOffset && !(v.dismissedBills ?? []).length && v.activeEmployerId == null
       && !Object.keys(v.categories?.overrides ?? {}).length && !(v.categories?.added?.food ?? []).length && !(v.categories?.added?.var ?? []).length
-      && !(v.notePalette ?? []).length && !v.profile?.name && !v.profile?.birthDate,
+      && !(v.notePalette ?? []).length && !v.profile?.name && !v.profile?.birthDate
+      && !Object.keys(v.appCats?.cats ?? {}).length && !Object.keys(v.appCats?.fun ?? {}).length,
     stamp: () => 0,
   },
   {

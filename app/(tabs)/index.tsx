@@ -19,6 +19,7 @@ import BatterySheet from '@/components/battery/BatterySheet';
 import ScreenTimeSheet from '@/components/screen/ScreenTimeSheet';
 import { useScreenTimeStore, useAppIconsStore } from '@/store/screenTimeStore';
 import { screenTimeAvailable } from '@/services/screenTime';
+import { useAppCategoryStore } from '@/store/appCategoryStore';
 import { lastScreenDays, vsUsual, catOf, CAT_COLOR, ymd as screenYmd } from '@/utils/screenTime';
 import { useMinuteClock } from '@/hooks/useMinuteClock';
 import { useProfileStore } from '@/store/profileStore';
@@ -293,6 +294,7 @@ export default function Dashboard() {
   const screenAccess = useScreenTimeStore((st) => st.access);
   const screenT = useScreenTimeStore((st) => st.t);
   const appIcons = useAppIconsStore((st) => st.icons);
+  const appCats = useAppCategoryStore((st) => st.cats);
   const screen = useMemo<DashData['screen']>(() => {
     const today = screenDays[screenYmd(now)];
     const week = lastScreenDays(screenDays, now, 7).map((w) => ({ label: w.date, value: w.d?.total ?? 0 }));
@@ -304,10 +306,10 @@ export default function Dashboard() {
       total: today?.total ?? 0, unlocks: today?.unlocks ?? 0, first: today?.first ?? null,
       vsPct: vsUsual(screenDays, now)?.pct ?? null,
       week,
-      top: (today?.apps ?? []).filter((a) => a.m > 0).slice(0, 3).map((a) => ({ p: a.p, l: a.l, m: a.m, icon: appIcons[a.p], color: CAT_COLOR[catOf(a)] })),
+      top: (today?.apps ?? []).filter((a) => a.m > 0).slice(0, 3).map((a) => ({ p: a.p, l: a.l, m: a.m, icon: appIcons[a.p], color: CAT_COLOR[catOf(a, { cats: appCats })] })),
       remoteAt: Platform.OS === 'web' && screenT ? screenT : null,
     };
-  }, [screenDays, screenAccess, screenT, appIcons, now]);
+  }, [screenDays, screenAccess, screenT, appIcons, appCats, now]);
 
   const data: DashData = {
     next: upcomingEvent ? { title: upcomingEvent.e.title, start: upcomingEvent.start } : null,

@@ -13,6 +13,7 @@ export interface ScreenDay {
   first: string | null;  // pierwsze odblokowanie "HH:MM"
   apps: ScreenApp[];     // od najdłużej używanej
   hours: number[];       // 24 × minuty
+  unlockHours?: number[]; // 24 × odblokowania (od APK z 2026-11-22; starsze dni bez)
   longest: { p: string; l: string; m: number } | null; // najdłużej bez przerwy w jednej appce
   t: number;             // kiedy odczytano (ms)
 }
@@ -21,7 +22,7 @@ export interface ScreenDay {
 export interface RawScreenDay {
   s: number; total: number; unlocks: number; screenOns: number; first: number;
   apps: { p: string; l: string; ms: number; n: number; c: number }[];
-  hours: number[]; longest?: { p: string; l: string; ms: number } | null;
+  hours: number[]; longest?: { p: string; l: string; ms: number } | null; uh?: number[];
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -45,6 +46,7 @@ export function fromRaw(r: RawScreenDay, t: number): ScreenDay {
     apps: (r.apps ?? []).map((a) => ({ p: a.p, l: a.l || a.p, m: min(a.ms), n: a.n | 0, c: a.c ?? -1 })).filter((a) => a.m > 0 || a.n > 0)
       .sort((a, b) => b.m - a.m || b.n - a.n).slice(0, 40),
     hours: Array.from({ length: 24 }, (_, i) => min(r.hours?.[i] ?? 0)),
+    ...(Array.isArray(r.uh) && r.uh.length === 24 ? { unlockHours: r.uh.map((x) => x | 0) } : {}),
     longest: r.longest && r.longest.ms > 0 ? { p: r.longest.p, l: r.longest.l || r.longest.p, m: min(r.longest.ms) } : null,
     t,
   };
@@ -85,14 +87,28 @@ const KNOWN: [RegExp, ScreenCat][] = [
   [/^(com\.google\.android\.gm|com\.microsoft\.office|com\.google\.android\.apps\.docs|com\.slack|com\.microsoft\.teams|com\.notion|com\.todoist|com\.google\.android\.calendar|com\.samsung\.android\.calendar|com\.sokki\.)/, 'work'],
   [/^(com\.google\.android\.apps\.photos|com\.sec\.android\.gallery3d|com\.sec\.android\.app\.camera|com\.google\.android\.GoogleCamera)/, 'photo'],
 ];
-export function catOf(a: Pick<ScreenApp, 'p' | 'c'>): ScreenCat {
+/** Ustawienia usera (2026-11-22, user: "oznaczyć aplikacje, które to rozrywka, bo niektóre może
+ *  źle łapać"): własna kategoria i/lub "rozrywka tak/nie" per pakiet (store/appCategoryStore.ts). */
+export interface AppPrefs { cats?: Record<string, ScreenCat>; fun?: Record<string, boolean> }
+
+export function catOf(a: Pick<ScreenApp, 'p' | 'c'>, pr?: AppPrefs): ScreenCat {
+  const own = pr?.cats?.[a.p];
+  if (own) return own;
   for (const [re, c] of KNOWN) if (re.test(a.p)) return c;
   return ANDROID_CAT[a.c] ?? 'other';
 }
 
-export function byCategory(apps: ScreenApp[]): { cat: ScreenCat; m: number }[] {
+// Rozrywka domyślnie: społeczności, wideo, gry (zmienialne per appka).
+export const FUN_CATS: ReadonlySet<ScreenCat> = new Set<ScreenCat>(['social', 'video', 'games']);
+export function isFun(a: Pick<ScreenApp, 'p' | 'c'>, pr?: AppPrefs): boolean {
+  const own = pr?.fun?.[a.p];
+  return own != null ? own : FUN_CATS.has(catOf(a, pr));
+}
+export const funMinutes = (d: ScreenDay, pr?: AppPrefs) => d.apps.reduce((acc, a) => acc + (isFun(a, pr) ? a.m : 0), 0);
+
+export function byCategory(apps: ScreenApp[], pr?: AppPrefs): { cat: ScreenCat; m: number }[] {
   const acc = new Map<ScreenCat, number>();
-  for (const a of apps) if (a.m > 0) acc.set(catOf(a), (acc.get(catOf(a)) ?? 0) + a.m);
+  for (const a of apps) if (a.m > 0) { const c = catOf(a, pr); acc.set(c, (acc.get(c) ?? 0) + a.m); }
   return [...acc.entries()].map(([cat, m]) => ({ cat, m })).sort((a, b) => b.m - a.m);
 }
 
