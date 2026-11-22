@@ -8,7 +8,7 @@ import { haptic } from '@/utils/haptics';
 import { type MoodEntry, MOOD_COLORS, MOOD_LABELS, ENERGY_LABELS, roundLevel } from '@/types/mood';
 import { useMoodStore } from '@/store/moodStore';
 import { useGoodThingsStore } from '@/store/goodThingsStore';
-import { goodExample } from '@/utils/goodThings';
+import { goodExample, goodMemory } from '@/utils/goodThings';
 import { PRESET_TAGS, sortMoodTags, levelSignal } from '@/utils/moodTags';
 import MoodPad from '@/components/design/MoodPad';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
@@ -94,6 +94,7 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
   const toggleTag = (tag: string) => { haptic.tap(); setTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag])); };
 
   const canSave = !!mood && !!energy;
+  const memory = mood != null && mood < 2.6 && !good.trim() ? goodMemory(goodItems, todayStr) : null;
   const handleSave = () => {
     if (!canSave) return;
     haptic.success();
@@ -221,29 +222,22 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
             </View>
           </View>
 
+          {/* Jedna dobra rzecz dnia W MIEJSCU notatki (2026-11-22, user: "opcjonalna, w miejscu
+              notatki"). Stare notatki wpisów zostają w pamiętniku. W gorszy dzień (humor < Tak sobie)
+              pod polem "Pamiętasz?" ze starą dobrą rzeczą. */}
           <View style={s.section}>
-            <Text style={s.sectionLabel}>Jedna dobra rzecz {editingEntry && editingEntry.date !== todayStr ? 'tego dnia' : 'dziś'}</Text>
+            <Text style={s.sectionLabel}>Jedna dobra rzecz {editingEntry && editingEntry.date !== todayStr ? 'tego dnia' : 'dziś'} (opcjonalnie)</Text>
             <TextInput
               value={good}
               onChangeText={setGood}
-              placeholder={`np. ${goodExample(editingEntry?.date ?? todayStr)}`}
-              placeholderTextColor={colors.text.muted}
-              style={s.goodInput}
-              maxLength={240}
-            />
-          </View>
-
-          <View style={s.section}>
-            <Text style={s.sectionLabel}>Notatka dnia (opcjonalnie)</Text>
-            <TextInput
-              value={note}
-              onChangeText={setNote}
-              placeholder="Co słychać? Trafi do pamiętnika pod dzisiejszą datą."
+              placeholder={`Co dziś było dobrego? np. ${goodExample(editingEntry?.date ?? todayStr)}`}
               placeholderTextColor={colors.text.muted}
               style={s.noteInput}
+              maxLength={240}
               multiline
               textAlignVertical="top"
             />
+            {memory && <Text style={s.memory}>Pamiętasz? {new Date(`${memory.date}T12:00:00`).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}: {memory.text}</Text>}
           </View>
 
           <View style={s.padSection}>
@@ -334,6 +328,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   tagChipLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   tagChipLabelActive: { color: c.bg.primary },
 
+  memory: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_700Bold', color: c.accent.orange },
   diaryGood: { fontSize: 12.5, lineHeight: 17, fontFamily: 'Inter_700Bold', color: c.accent.orange, marginBottom: spacing[1] },
   goodInput: {
     fontSize: 13, fontFamily: 'Inter_600SemiBold', color: c.text.primary,

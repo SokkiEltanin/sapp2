@@ -13,16 +13,13 @@ import FactSheet from '@/components/daily/FactSheet';
 import CollectionSheet, { useCollectionData } from '@/components/daily/CollectionSheet';
 import { useCollectionStore } from '@/store/collectionStore';
 import { haptic } from '@/utils/haptics';
-import { Check, BarChart3, Sparkles, Waypoints } from 'lucide-react-native';
+import { Check, BarChart3 } from 'lucide-react-native';
 import { C, T, S, R } from '@/ui/theme';
 import MoodModal from '@/components/mood/MoodModal';
 import MoodStatsSheet from '@/components/mood/MoodStatsSheet';
 import GoodThingSheet from '@/components/mood/GoodThingSheet';
-import InsightsSheet from '@/components/insights/InsightsSheet';
-import ScreenTimeSheet from '@/components/screen/ScreenTimeSheet';
-import { useInsights } from '@/hooks/useInsights';
-import { useGoodThingsStore } from '@/store/goodThingsStore';
-import { goodStreak, goodMemory, isRoughDay, goodExample } from '@/utils/goodThings';
+
+
 import { useConfirmTap } from '@/hooks/useConfirmTap';
 import SleepSheet from '@/components/health/SleepSheet';
 import BodySheet from '@/components/health/BodySheet';
@@ -62,15 +59,12 @@ export default function DailyScreen() {
   // Stuknięcie w przypomnienie o humorze → Daily z otwartym wpisem (hooks/useNotifeeAlertLaunch.ts).
   const { mood: moodParam, good: goodParam } = useLocalSearchParams<{ mood?: string; good?: string }>();
   useEffect(() => { if (moodParam) setMoodOpen(true); }, [moodParam]);
-  // Jedna dobra rzecz z dnia (2026-11-22); `good` z wyszukiwarki = edycja wpisu z tego dnia.
+  // Jedna dobra rzecz z dnia (2026-11-22): wpis w MoodModal; `good` z wyszukiwarki / statystyk
+  // humoru = edycja wpisu z tego dnia (GoodThingSheet).
   const [good, setGood] = useState<{ open: boolean; date: string | null }>({ open: false, date: null });
   useEffect(() => { if (goodParam) setGood({ open: true, date: goodParam }); }, [goodParam]);
-  const goodItems = useGoodThingsStore((st) => st.items);
-  // Wzorce zachowań (2026-11-22) — kafel nad Ciekawostką, szczegóły w InsightsSheet.
-  const [insOpen, setInsOpen] = useState(false);
-  const [screenOpen, setScreenOpen] = useState(false);
-  const { insights } = useInsights();
-  const topIns = insights[0] ?? null;
+
+
   const [moodStatsOpen, setMoodStatsOpen] = useState(false);
   const [knowArmed, knowTap] = useConfirmTap();
   const [sleepOpen, setSleepOpen] = useState(false);
@@ -124,11 +118,7 @@ export default function DailyScreen() {
   const moodSeries = useMemo(() => moodStreak(entries), [entries, today]); // eslint-disable-line react-hooks/exhaustive-deps
   // wieczorem bez wpisu kafel lekko się wyróżnia (2026-11-18)
   const moodEvening = !lastToday && new Date().getHours() >= 18;
-  const goodToday = goodItems.find((g) => g.date === today && g.text.trim()) ?? null;
-  const goodSeries = useMemo(() => goodStreak(goodItems, today), [goodItems, today]);
-  // Gorszy dzień → "Pamiętasz?" ze starą dobrą rzeczą (zamiast pustej zachęty).
-  const goodMem = useMemo(() => (!goodToday && isRoughDay(todayEntries, today) ? goodMemory(goodItems, today) : null), [goodToday, todayEntries, goodItems, today]);
-  const goodEvening = !goodToday && new Date().getHours() >= 18;
+
   const moodWeek = useMemo(() => {
     const now = new Date();
     return Array.from({ length: 7 }, (_, i) => {
@@ -183,20 +173,6 @@ export default function DailyScreen() {
       {/* CIEKAWOSTKA (2026-11-16; 2.0: "temat max 3 słowa, treść zachęcająca jako skrót,
           po kliknięciu rozszerzone info", "znam to", "każda tylko raz", ta sama na tel i komp).
           Jedna na dzień — utils/facts.ts + store/factsStore.ts; tap → FactSheet. */}
-      {/* Wzorce zachowań (2026-11-22, user: "porównanie danych i schematy zachowań"): najsilniejszy
-          wzorzec jednym zdaniem, reszta w InsightsSheet. */}
-      <Row>
-        <Tile span={4} onPress={() => setInsOpen(true)} accessibilityLabel="Twoje wzorce">
-          <Cap l="Twoje wzorce" r={insights.length ? `${insights.length} ›` : 'zbieram dane'} />
-          <View style={st.goodRow}>
-            <Waypoints size={14} color={topIns ? (topIns.tone === 'bad' ? '#FB923C' : topIns.tone === 'good' ? C.ok : C.txt) : C.mut} />
-            <Text style={[topIns ? T.body : T.small, { flex: 1 }, topIns && { color: C.hi }]} numberOfLines={2}>
-              {topIns ? topIns.text : 'Po 2–3 tygodniach zobaczysz tu np. czy w dni pracy kupujesz więcej słodyczy.'}
-            </Text>
-          </View>
-        </Tile>
-      </Row>
-
       <Row flex={1}>
         <Tile span={4} onPress={() => { haptic.tap(); setFactOpen(true); }} style={st.factTile}>
           <Cap l={fact ? `Ciekawostka · ${CAT_LABEL[fact.cat]}` : 'Ciekawostka'} r={`${factSeen}/${FACT_LIST.length}`} />
@@ -280,47 +256,6 @@ export default function DailyScreen() {
         </Tile>
       </Row>
 
-      {/* Jedna dobra rzecz z dnia (2026-11-22, user: "podać jedną pozytywną rzecz z dnia —
-          obniża stres i szanse na depresję"). Stuknięcie = wpis/edycja; w gorszy dzień
-          (humor poniżej "Tak sobie") przypomina starą dobrą rzecz. */}
-      <Row>
-        <Tile span={4} onPress={() => setGood({ open: true, date: null })} style={goodEvening && !goodMem ? st.goodEvening : undefined} accessibilityLabel="Dobra rzecz dnia">
-          {goodToday ? (
-            <>
-              <Cap l="Dobra rzecz dziś" r={goodSeries >= 2 ? `${goodSeries} dni z rzędu` : undefined} />
-              <View style={st.goodRow}>
-                <Sparkles size={14} color="#FB923C" />
-                <Text style={[T.body, { flex: 1, color: C.hi }]} numberOfLines={2}>{goodToday.text}</Text>
-              </View>
-            </>
-          ) : goodMem ? (
-            <>
-              <Cap l="Pamiętasz?" r={new Date(`${goodMem.date}T12:00:00`).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })} />
-              <View style={st.goodRow}>
-                <Sparkles size={14} color="#FB923C" />
-                <Text style={[T.body, { flex: 1, color: C.hi }]} numberOfLines={2}>{goodMem.text}</Text>
-              </View>
-              <Text style={[T.small, { marginTop: 4 }]} numberOfLines={1}>Gorszy dzień — a co dziś mimo to było dobrego? Stuknij.</Text>
-            </>
-          ) : (
-            <>
-              <Cap l="Jedna dobra rzecz z dnia" r={goodSeries >= 1 ? `seria ${goodSeries} — nie przerwij` : undefined} />
-              <View style={st.goodRow}>
-                <Sparkles size={14} color={goodEvening ? '#FB923C' : C.mut} />
-                <Text style={[T.small, { flex: 1 }]} numberOfLines={1}>Co dziś było dobrego? np. {goodExample(today)}</Text>
-              </View>
-            </>
-          )}
-        </Tile>
-      </Row>
-
-      <LazyMount visible={insOpen}>
-        <InsightsSheet visible={insOpen} onClose={() => setInsOpen(false)}
-          onOpenScreen={() => { setInsOpen(false); setTimeout(() => setScreenOpen(true), 280); }} />
-      </LazyMount>
-      <LazyMount visible={screenOpen}>
-        <ScreenTimeSheet visible={screenOpen} onClose={() => setScreenOpen(false)} />
-      </LazyMount>
       <LazyMount visible={good.open}>
         <GoodThingSheet visible={good.open} date={good.date} onClose={() => setGood({ open: false, date: null })} />
       </LazyMount>
@@ -342,7 +277,8 @@ export default function DailyScreen() {
       </LazyMount>
       <LazyMount visible={moodStatsOpen}>
         <MoodStatsSheet visible={moodStatsOpen} onClose={() => setMoodStatsOpen(false)} expenses={expenses}
-          onAdd={() => { setMoodStatsOpen(false); setTimeout(() => setMoodOpen(true), 280); }} />
+          onAdd={() => { setMoodStatsOpen(false); setTimeout(() => setMoodOpen(true), 280); }}
+          onGood={(date) => { setMoodStatsOpen(false); setTimeout(() => setGood({ open: true, date }), 280); }} />
       </LazyMount>
       <LazyMount visible={moodOpen}>
         <MoodModal visible={moodOpen} onClose={() => setMoodOpen(false)} />
@@ -379,6 +315,4 @@ const st = StyleSheet.create({
   moodDotCol: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   moodDot: { borderRadius: 7 },
   moodDotToday: { borderWidth: 1.5, borderColor: C.hi },
-  goodRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 6 },
-  goodEvening: { borderWidth: 1, borderColor: 'rgba(251,146,60,0.45)', backgroundColor: 'rgba(251,146,60,0.06)' },
 });

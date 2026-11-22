@@ -17,6 +17,8 @@ import { weatherCodeInfo, rainSummary, aqiInfo, fmtTemp, weatherColor } from '@/
 import WeatherSheet from '@/components/weather/WeatherSheet';
 import BatterySheet from '@/components/battery/BatterySheet';
 import ScreenTimeSheet from '@/components/screen/ScreenTimeSheet';
+import InsightsSheet from '@/components/insights/InsightsSheet';
+import { useInsights } from '@/hooks/useInsights';
 import { useScreenTimeStore, useAppIconsStore } from '@/store/screenTimeStore';
 import { screenTimeAvailable } from '@/services/screenTime';
 import { useAppCategoryStore } from '@/store/appCategoryStore';
@@ -33,9 +35,6 @@ import { countdownParts, formatCountdown } from '@/utils/countdown';
 import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import { upcomingPayments } from '@/utils/recurringBills';
 import type { PendingFx } from '@/utils/fx';
-import { useVehiclesStore } from '@/store/vehiclesStore';
-import { allReplaceRows, rowName } from '@/utils/replacements';
-import { useReplacementsStore } from '@/store/replacementsStore';
 import { useNotesStore } from '@/store/notesStore';
 import { useDeviceBatteries } from '@/hooks/useDeviceBatteries';
 import { useThresholdsStore } from '@/store/thresholdsStore';
@@ -118,7 +117,6 @@ export default function Dashboard() {
   const expenses = useExpensesStore((st) => st.expenses);
   const subscriptions = useSubscriptionsStore((st) => st.subscriptions);
   const dismissedBills = useSubscriptionsStore((st) => st.dismissedBills);
-  const vehicles = useVehiclesStore((st) => st.vehicles);
   // 2026-11-08, user: "jak wchodzę do apki to kalendarz sie nie ładuje na
   // dashbordzie a powinien... tylko rozsądnie bez lagów" — wcześniej TYLKO
   // `tasks.tsx` odświeżał `gcalEvents`, więc Dashboard pokazywał cokolwiek
@@ -282,12 +280,15 @@ export default function Dashboard() {
   // Przypięta notatka zamiast listy wydatków (2026-11-14).
   const pinnedNote = useNotesStore((st) => st.notes.find((n) => n.pinned) ?? null);
   const notesCount = useNotesStore((st) => st.notes.length);
-  const replaceItems = useReplacementsStore((st) => st.items);
-  const nextMaintenance = useMemo(() => {
-    const [r] = allReplaceRows(replaceItems, vehicles, dayNow);
-    if (!r) return null;
-    return { vehicleName: r.kind === 'car' ? r.car.vehicleName : 'dom', label: rowName(r), dueLabel: r.due.label, overdue: r.due.daysLeft < 0 };
-  }, [vehicles, replaceItems, dayNow]);
+  // Lewy górny kafel = wzorce zachowań (2026-11-22, user: "zamiast WYMIAN na Dashboardzie dać te
+  // zależności"). Wymiany zostają w Finansach (przycisk) i w wyszukiwarce.
+  const { insights, coverage: insCoverage } = useInsights();
+  const [insOpen, setInsOpen] = useState(false);
+  const insightTile = useMemo<DashData['insight']>(() => {
+    const top = insights[0];
+    const days = Math.max(...Object.values(insCoverage));
+    return top ? { text: top.short, tone: top.tone, strength: top.strength, count: insights.length } : { text: null, tone: 'neutral', strength: null, count: 0, days };
+  }, [insights, insCoverage]);
 
   // Czas z telefonem (2026-11-22): store odświeża services/screenTime.ts (co 5 min / po powrocie).
   const screenDays = useScreenTimeStore((st) => st.days);
@@ -318,7 +319,7 @@ export default function Dashboard() {
     weatherHint,
     foodMonths: foodMonths.map((m) => ({ label: m.label, value: m.value })),
     screen,
-    nextMaintenance,
+    insight: insightTile,
     note: pinnedNote,
     notesCount: notesCount,
     onNoteToggle: (noteId, itemId) => { haptic.tap(); useNotesStore.getState().toggleItem(noteId, itemId); },
@@ -337,6 +338,7 @@ export default function Dashboard() {
     onOpen: (what, id) => {
       if (what === 'battery') { batteries.refresh(); setBatteryOpen(true); }
       else if (what === 'screen') setScreenOpen(true);
+      else if (what === 'insights') setInsOpen(true);
       else if (what === 'foodMonth') { setWydatkiTab('food'); setWydatkiOpen(true); }
       else if (what === 'note' && id) openNote(id);
       else if (what === 'noteNew') openNewNote('text', true);
@@ -385,6 +387,10 @@ export default function Dashboard() {
           phone={Platform.OS === 'web' ? batteries.remotePhone : batteries.phone}
           watch={batteries.watch}
           laptop={Platform.OS === 'web' ? batteries.phone : null} />
+      </LazyMount>
+      <LazyMount visible={insOpen}>
+        <InsightsSheet visible={insOpen} onClose={() => setInsOpen(false)}
+          onOpenScreen={() => { setInsOpen(false); setTimeout(() => setScreenOpen(true), 280); }} />
       </LazyMount>
       <LazyMount visible={screenOpen}>
         <ScreenTimeSheet visible={screenOpen} onClose={() => setScreenOpen(false)} />

@@ -23,8 +23,8 @@ const n1 = (v: number) => v.toFixed(1).replace('.', ',');
 const signed = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${n1(Math.abs(v))}`;
 const MONTHS = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
 
-export default function MoodStatsSheet({ visible, onClose, onAdd, expenses }: {
-  visible: boolean; onClose: () => void; onAdd: () => void; expenses: Expense[];
+export default function MoodStatsSheet({ visible, onClose, onAdd, onGood, expenses }: {
+  visible: boolean; onClose: () => void; onAdd: () => void; onGood?: (date: string) => void; expenses: Expense[];
 }) {
   const s = makeS();
   const entries = useMoodStore((st) => st.entries);
@@ -143,13 +143,13 @@ export default function MoodStatsSheet({ visible, onClose, onAdd, expenses }: {
           {goods.length > 0 && (
             <SheetCard title="Dobre rzeczy" right={<Text style={s.capR}>{goods.length} zapisanych{goodStreak(goodItems, todayISO()) >= 2 ? ` · ${goodStreak(goodItems, todayISO())} dni z rzędu` : ''}</Text>}>
               {goods.slice(0, 6).map((g) => (
-                <View key={g.id} style={s.goodRow}>
+                <TouchableOpacity key={g.id} style={s.goodRow} activeOpacity={0.7} onPress={() => onGood?.(g.date)}>
                   <Text style={s.goodDate}>{new Date(`${g.date}T12:00:00`).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}</Text>
                   <View style={[s.goodDot, { backgroundColor: days.get(g.date) ? moodColor(days.get(g.date)!.mood) : colors.text.muted }]} />
                   <Text style={s.goodTxt} numberOfLines={2}>{g.text}</Text>
-                </View>
+                </TouchableOpacity>
               ))}
-              <Text style={s.note}>Kropka = humor tego dnia. Wszystkie wpisy znajdziesz w wyszukiwarce (lupa) albo stukając kafel „Dobra rzecz” w Daily.</Text>
+              <Text style={s.note}>Kropka = humor tego dnia. Stuknij wpis, żeby go zmienić; wszystkie znajdziesz w wyszukiwarce (lupa). Nowy wpisujesz przy zapisie humoru.</Text>
             </SheetCard>
           )}
 

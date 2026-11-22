@@ -43,3 +43,22 @@ describe('wzorce zachowań', () => {
     expect(fmtVal(3.46, 'pkt')).toBe('3,5/5');
   });
 });
+
+describe('wzorce: statystyka', () => {
+  const { welchP, bhPass, computeInsights, buildDays } = require('@/utils/insights');
+  it('p Welcha: wyraźna różnica → małe p, szum → duże p', () => {
+    expect(welchP([10, 11, 12, 10, 11, 12], [3, 4, 3, 5, 4, 3])).toBeLessThan(0.001);
+    expect(welchP([5, 7, 4, 6, 8, 5], [6, 5, 7, 4, 6, 7])).toBeGreaterThan(0.3);
+  });
+  it('korekta BH przepuszcza tylko to, co wytrzymuje wiele porównań', () => {
+    expect(bhPass([0.001, 0.04, 0.5, 0.8], 0.1)).toEqual([true, true, false, false]);
+    expect(bhPass([0.09, 0.5, 0.6, 0.7], 0.1)).toEqual([false, false, false, false]);
+  });
+  it('przypadkowe dane (mała próbka, szum) nie dają wzorców', () => {
+    const ds = Array.from({ length: 20 }, (_, i) => `2026-10-${String(i + 1).padStart(2, '0')}`);
+    let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const byDay = new Map(); const work = new Map();
+    ds.forEach((d) => { if (rnd() > 0.5) work.set(d, 480); byDay.set(d, { total: 50, sweets: Math.round(rnd() * 20), fastfood: 0, shop: 0 }); });
+    expect(computeInsights(buildDays({ days: ds, spend: { from: ds[0], byDay }, workMin: { from: ds[0], byDay: work } }))).toEqual([]);
+  });
+});

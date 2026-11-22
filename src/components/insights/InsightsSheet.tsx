@@ -45,7 +45,7 @@ export default function InsightsSheet({ visible, onClose, onOpenScreen }: { visi
       {insights.length === 0 ? (
         <View style={s.empty}>
           <Text style={s.emptyTitle}>Zbieram dane</Text>
-          <Text style={s.emptyTxt}>Wzorzec pokazuje się, gdy w obu porównywanych grupach jest co najmniej 4 dni (np. 4 dni pracy i 4 wolne) i różnica jest wyraźna. Zwykle po 2–3 tygodniach.</Text>
+          <Text style={s.emptyTxt}>Wzorzec pokazuje się dopiero, gdy jest pewny: min. 14 dni danych, po 5 w każdej grupie (np. 5 dni pracy i 5 wolnych), wyraźna różnica i test statystyczny z poprawką na to, że sprawdzamy ok. 30 par naraz — żeby nie było przypadkowych „strzałów”. Zwykle po 2–4 tygodniach.</Text>
           <View style={s.cov}>
             {Object.entries(coverage).map(([k, n]) => (
               <View key={k} style={s.covItem}><Text style={s.covN}>{n}</Text><Text style={s.covL}>{k}</Text></View>
@@ -56,7 +56,7 @@ export default function InsightsSheet({ visible, onClose, onOpenScreen }: { visi
       ) : list.map((x) => <InsightCard key={x.id} x={x} />)}
 
       <Text style={s.note}>
-        Jak czytać: dni dzielone są na dwie grupy (np. praca vs wolne, więcej vs mniej rozrywki w telefonie — próg to Twoja mediana), a pasek pokazuje średni wynik w każdej. „Silny” = duża i stała różnica, „słaby” = warto obserwować.
+        Jak czytać: dni dzielone są na dwie grupy (np. praca vs wolne, więcej vs mniej rozrywki w telefonie — próg to Twoja mediana), a pasek pokazuje średni wynik w każdej. Każdy pokazany wzorzec przeszedł test statystyczny (z poprawką na wiele porównań); „silny” = duża i bardzo pewna różnica, „słaby” = pewna, ale mniejsza.
         Rozrywka w telefonie = społeczności, wideo i gry — appki źle złapane zmienisz stukając je w „Czas z telefonem”.
       </Text>
       {onOpenScreen && (

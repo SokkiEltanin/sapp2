@@ -2429,3 +2429,14 @@ na Dashboardzie; tętno pisało »załóż zegarek« mimo założonego”.
 - `curve()`: wiersze przy górnej/dolnej krawędzi mniejsze (−22%) i przygaszone; zadania, sekcje i kalendarz wyśrodkowane.
 - Kafelek: najbliższe wydarzenie („za 2 h 15 min”, odświeżanie ~5 min) + liczba zadań.
 - Tętno: „brak kontaktu” tylko gdy nie było żadnego odczytu (Samsung zgłasza NO_CONTACT na starcie pomiaru).
+
+## WZORCE NA DASHBOARDZIE + STATYSTYKA (2026-11-22, druga runda)
+
+- Lewy górny kafel Dashboardu = najsilniejszy wzorzec (`DashData.insight`), stuknięcie → InsightsSheet. Wymiany:
+  przycisk w Finansach + wyszukiwarka (kafel i `nextMaintenance` usunięte).
+- `computeInsights`: min. 14 dni (`minTotal`) i 5 w grupie, test t Welcha (`welchP`, niepełna beta) + korekta
+  Benjaminiego–Hochberga q=0,1 po wszystkich przetestowanych parach (`bhPass`), |d| ≥ 0,4; „silny” d≥0,8 i p<0,01,
+  „wyraźny” d≥0,5 i p<0,05.
+- Daily: bez kafli wzorców i dobrej rzeczy. Dobra rzecz = pole w MoodModal W MIEJSCU notatki (stare notatki zostają
+  w pamiętniku), w gorszy dzień „Pamiętasz?” pod polem; edycja starszych z kart w statystykach humoru i z wyszukiwarki
+  (GoodThingSheet przez `/daily?good=`).

@@ -6,8 +6,8 @@
 // Metoda: dzień po dniu zbieramy cechy (humor, energia, sen, kroki, wydatki wg rodzaju, godziny
 // pracy, telefon). Dla wybranych, sensownych par "przyczyna → skutek" dzielimy dni na grupę
 // "więcej" i "mniej" (progi stałe albo mediana), porównujemy średni skutek i liczymy siłę
-// efektu (d Cohena). Pokazujemy tylko pary z min. 4 dniami w każdej grupie, wyraźną różnicą
-// i sensowną różnicą bezwzględną. To korelacje — UI mówi to wprost.
+// efektu (d Cohena) + test Welcha z korektą wielu porównań (BH). Min. 5 dni w grupie i 14 łącznie,
+// wyraźna i sensowna różnica bezwzględna. To korelacje — UI mówi to wprost.
 
 export type FeatKey =
   | 'mood' | 'energy' | 'sleep' | 'steps'
@@ -169,14 +169,74 @@ const VERB: Record<FeatKey, (v: string) => string> = {
   unlocks: (v) => `odblokowujesz średnio ${v} razy`, night: (v) => `w nocy telefon średnio ${v}`, good: (v) => v,
 };
 
-/** Wzorce z min. `minPerGroup` dni po każdej stronie, od najsilniejszych. */
-export function computeInsights(days: DayFeat[], pairs: PairDef[] = PAIRS, minPerGroup = 4): Insight[] {
-  const out: Insight[] = [];
+// ── Statystyka (2026-11-22, user: "rozegrać mądrze, żeby nie było bez sensu strzałów na małych
+// próbkach"): test t Welcha (różne wariancje i liczności grup) + korekta wielu porównań
+// Benjaminiego–Hochberga (testujemy ~30 par naraz — bez korekty część "wzorców" byłaby czystym
+// przypadkiem). Do tego minimum dni w każdej grupie i łącznie.
+function betacf(a: number, b: number, x: number): number {
+  const MAXIT = 200, EPS = 3e-12, FPMIN = 1e-300;
+  let c = 1, d = 1 - ((a + b) * x) / (a + 1);
+  if (Math.abs(d) < FPMIN) d = FPMIN;
+  d = 1 / d;
+  let h = d;
+  for (let m = 1; m <= MAXIT; m++) {
+    const m2 = 2 * m;
+    let aa = (m * (b - m) * x) / ((a - 1 + m2) * (a + m2));
+    d = 1 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN;
+    c = 1 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN;
+    d = 1 / d; h *= d * c;
+    aa = (-(a + m) * (a + b + m) * x) / ((a + m2) * (a + 1 + m2));
+    d = 1 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN;
+    c = 1 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN;
+    d = 1 / d;
+    const del = d * c;
+    h *= del;
+    if (Math.abs(del - 1) < EPS) break;
+  }
+  return h;
+}
+function lgamma(x: number): number {
+  const g = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
+  let y = x; const tmp0 = x + 5.5; const tmp = tmp0 - (x + 0.5) * Math.log(tmp0);
+  let ser = 1.000000000190015;
+  for (const c of g) ser += c / ++y;
+  return -tmp + Math.log((2.5066282746310005 * ser) / x);
+}
+/** Regularyzowana niepełna funkcja beta I_x(a, b). */
+function ibeta(x: number, a: number, b: number): number {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const bt = Math.exp(lgamma(a + b) - lgamma(a) - lgamma(b) + a * Math.log(x) + b * Math.log(1 - x));
+  return x < (a + 1) / (a + b + 2) ? (bt * betacf(a, b, x)) / a : 1 - (bt * betacf(b, a, 1 - x)) / b;
+}
+/** Dwustronne p testu t Welcha. */
+export function welchP(a: number[], b: number[]): number {
+  const ma = mean(a), mb = mean(b);
+  const va = variance(a, ma) / a.length, vb = variance(b, mb) / b.length;
+  const se = Math.sqrt(va + vb);
+  if (!(se > 0)) return ma === mb ? 1 : 0;
+  const t = (ma - mb) / se;
+  const df = (va + vb) ** 2 / ((va * va) / Math.max(1, a.length - 1) + (vb * vb) / Math.max(1, b.length - 1));
+  return ibeta(df / (df + t * t), df / 2, 0.5);
+}
+/** Benjamini–Hochberg: które p przechodzą przy kontroli odsetka fałszywych odkryć `q`. */
+export function bhPass(ps: number[], q = 0.1): boolean[] {
+  const idx = ps.map((p, i) => [p, i] as const).sort((x, y) => x[0] - y[0]);
+  let k = -1;
+  idx.forEach(([p], r) => { if (p <= ((r + 1) / ps.length) * q) k = r; });
+  const pass = ps.map(() => false);
+  for (let r = 0; r <= k; r++) pass[idx[r][1]] = true;
+  return pass;
+}
+
+/** Wzorce: min. `minPerGroup` dni w każdej grupie i `minTotal` łącznie, test Welcha + korekta BH. */
+export function computeInsights(days: DayFeat[], pairs: PairDef[] = PAIRS, minPerGroup = 5, minTotal = 14): Insight[] {
+  const cand: (Insight & { p: number })[] = [];
   for (const p of pairs) {
     const split = SPLIT[p.x];
     if (!split) continue;
     const xs = days.map((d) => d.v[p.x]).filter((x): x is number => x != null);
-    if (xs.length < minPerGroup * 2) continue;
+    if (xs.length < minTotal) continue;
     const med = median(xs);
     const hi: number[] = [], lo: number[] = [];
     days.forEach((d, i) => {
@@ -188,26 +248,29 @@ export function computeInsights(days: DayFeat[], pairs: PairDef[] = PAIRS, minPe
       if (side == null) return;
       (side ? hi : lo).push(y);
     });
-    if (hi.length < minPerGroup || lo.length < minPerGroup) continue;
+    if (hi.length < minPerGroup || lo.length < minPerGroup || hi.length + lo.length < minTotal) continue;
     const mh = mean(hi), ml = mean(lo);
     const sd = Math.sqrt(((hi.length - 1) * variance(hi, mh) + (lo.length - 1) * variance(lo, ml)) / Math.max(1, hi.length + lo.length - 2));
-    if (!(sd > 0) || Math.abs(mh - ml) < MIN_DIFF[p.y]) continue;
-    const d = (mh - ml) / sd;
-    const ad = Math.abs(d);
-    if (ad < 0.3) continue;
+    const pv = welchP(hi, lo);
+    const d = sd > 0 ? (mh - ml) / sd : 0;
     const u = UNIT[p.y];
     const hiL = split.hiLabel(med), loL = split.loLabel(med);
     const up = mh > ml;
     const tone = p.good === 0 ? 'neutral' : (up ? p.good > 0 : p.good < 0) ? 'good' : 'bad';
-    const text = `${hiL} ${VERB[p.y](fmtVal(mh, u))}, ${loL} ${fmtVal(ml, u)} — ${compare(mh, ml, u)}.`;
-    const short = `${hiL}: ${OUTCOME[p.y]} ${up ? '↑' : '↓'} ${compare(mh, ml, u)}`;
-    out.push({
-      id: p.id, group: p.group, x: p.x, y: p.y, text, short,
+    cand.push({
+      id: p.id, group: p.group, x: p.x, y: p.y,
+      text: `${hiL} ${VERB[p.y](fmtVal(mh, u))}, ${loL} ${fmtVal(ml, u)} — ${compare(mh, ml, u)}.`,
+      short: `${hiL}: ${OUTCOME[p.y]} ${up ? '↑' : '↓'} ${compare(mh, ml, u)}`,
       hi: { mean: mh, n: hi.length, label: split.short[0] }, lo: { mean: ml, n: lo.length, label: split.short[1] },
-      d, strength: ad >= 0.8 ? 'silny' : ad >= 0.5 ? 'wyraźny' : 'słaby', tone, unit: u,
+      d, strength: 'słaby', tone, unit: u, p: pv,
     });
   }
-  return out.sort((a, b) => Math.abs(b.d) * Math.sqrt(Math.min(b.hi.n, b.lo.n)) - Math.abs(a.d) * Math.sqrt(Math.min(a.hi.n, a.lo.n)));
+  // korekta liczona po WSZYSTKICH przetestowanych parach (także tych bez różnicy)
+  const pass = bhPass(cand.map((c) => c.p));
+  return cand
+    .filter((c, i) => pass[i] && Math.abs(c.d) >= 0.4 && Math.abs(c.hi.mean - c.lo.mean) >= MIN_DIFF[c.y])
+    .map(({ p, ...c }) => ({ ...c, strength: (Math.abs(c.d) >= 0.8 && p < 0.01 ? 'silny' : Math.abs(c.d) >= 0.5 && p < 0.05 ? 'wyraźny' : 'słaby') as Insight['strength'] }))
+    .sort((a, b) => Math.abs(b.d) * Math.sqrt(Math.min(b.hi.n, b.lo.n)) - Math.abs(a.d) * Math.sqrt(Math.min(a.hi.n, a.lo.n)));
 }
 
 /** Ile dni jakich danych mamy (stan pusty: co jeszcze zbierać). */

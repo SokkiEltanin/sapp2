@@ -4,7 +4,7 @@ import { useDashboardLayoutStore } from '@/store/dashboardLayoutStore';
 import { visibleSections, type DashSection } from '@/utils/dashboardLayout';
 import React from 'react';
 import { View, Text, StyleSheet, Platform, Image } from 'react-native';
-import { ListTodo, CalendarClock, Wrench, MapPin, StickyNote, Smartphone, Watch, Zap, Laptop, LockOpen } from 'lucide-react-native';
+import { ListTodo, CalendarClock, Waypoints, MapPin, StickyNote, Smartphone, Watch, Zap, Laptop, LockOpen } from 'lucide-react-native';
 import { fmtShort, fmtDur } from '@/utils/screenTime';
 import { batteryTone, ageLabel } from '@/utils/deviceBattery';
 import NotePreview from '@/components/notes/NotePreview';
@@ -58,13 +58,9 @@ export type DashData = {
   // USUNIĘTE stąd razem z nieużywanym dalej kodem w index.tsx (ta funkcja
   // nigdzie indziej się nie pokazywała).
   countdown: { text: string; eventTitle: string } | null;
-  // Lewa połowa Rzędu 1 (2026-11-09, user: "tam gdzie zielony musimy coś
-  // zrobić i może zróbmy będzie najbliższa wymiana (oleju, filtra itp z
-  // zapisanych)") — wcześniej świadomie pusty `Tile` (user: "zostaw pusty
-  // kafelek"), od 2026-11-13 zasilany `allReplaceRows` (utils/replacements.ts): dom + pojazdy, ze
-  // WSZYSTKICH pojazdów naraz. 2026-11-15, user: "jak klikam wymiana niech mnie
-  // przeniesie do wymiany" — klikany, otwiera ekran Wymiany.
-  nextMaintenance: { vehicleName: string; label: string; dueLabel: string; overdue: boolean } | null;
+  // Lewy górny kafel (2026-11-22, user: "zamiast WYMIAN na Dashboardzie dać zależności"): najsilniejszy
+  // wzorzec zachowań (utils/insights.ts). Wymiany: przycisk w Finansach + wyszukiwarka.
+  insight: { text: string | null; tone: 'good' | 'bad' | 'neutral'; strength: string | null; count: number; days?: number };
   upcoming: { id: string; when: string; title: string; kind: 'event' | 'deadline' | 'bill'; color: string; minutes?: number; amount?: number; fx?: { amount: number; currency: string }; steps?: string }[];
   onOpen: (what: string, id?: string) => void; // otwiera bottom sheet
 };
@@ -107,20 +103,21 @@ export function DashboardScreen(d: DashData) {
               wymiana" z Pojazdów — patrz `nextMaintenance` w `DashData` wyżej.
               Tap → ekran Wymiany (2026-11-15). */}
           <Row>
-            <Tile span={2} center style={st.maintTile} onPress={() => d.onOpen('replacements')} accessibilityLabel="Wymiany">
-              {d.nextMaintenance ? (
+            <Tile span={2} style={st.insTile} onPress={() => d.onOpen('insights')} accessibilityLabel="Twoje wzorce">
+              <View style={st.insHead}>
+                <Waypoints size={12} color={d.insight.text ? INS_TONE[d.insight.tone] : C.dim} />
+                <Text style={[T.cap, { flex: 1 }]} numberOfLines={1}>Wzorce</Text>
+                {d.insight.count > 0 ? <Text style={T.capR}>{d.insight.count} ›</Text> : null}
+              </View>
+              {d.insight.text ? (
                 <>
-                  <Wrench size={12} color={C.dim} style={st.icoL} />
-                  <FitText style={[T.num, { fontSize: 20 }, d.nextMaintenance.overdue && { color: C.warn }]} numberOfLines={1} minimumFontScale={0.6}>
-                    {d.nextMaintenance.dueLabel}
-                  </FitText>
-                  <Text style={T.unit} numberOfLines={1}>{d.nextMaintenance.vehicleName}</Text>
-                  <Text style={[T.lab, { textAlign: 'center' }]} numberOfLines={2}>{d.nextMaintenance.label}</Text>
+                  <Text style={st.insText} numberOfLines={3}>{d.insight.text}</Text>
+                  <Text style={[st.insFoot, { color: INS_TONE[d.insight.tone] }]} numberOfLines={1}>{d.insight.strength}</Text>
                 </>
               ) : (
                 <>
-                  <Text style={[T.unit, { color: C.dim }]}>brak</Text>
-                  <Text style={T.lab} numberOfLines={1}>Najbliższa wymiana</Text>
+                  <Text style={[T.small, { marginTop: 6 }]} numberOfLines={3}>Zbieram dane — wzorce po 2–3 tyg.</Text>
+                  {d.insight.days ? <Text style={st.insFoot} numberOfLines={1}>{d.insight.days} dni danych</Text> : null}
                 </>
               )}
             </Tile>
@@ -300,6 +297,7 @@ export function DashboardScreen(d: DashData) {
   );
 }
 
+const INS_TONE = { good: C.ok, bad: '#FB923C', neutral: C.txt };
 const WD_LETTER = ['nd', 'pn', 'wt', 'śr', 'cz', 'pt', 'sb'];
 function ScreenTileBody({ sc }: { sc: DashData['screen'] }) {
   if (sc.state !== 'ok') {
@@ -408,7 +406,10 @@ const st = StyleSheet.create({
   // dole (`space-between`, jak sen ma pasek), tag w prawym górnym rogu.
   // `paddingRight` przy liczbie — żeby długie "7 dni 23h" nie wjechało pod tag.
   nextTile: { justifyContent: 'space-between', minHeight: 96 },
-  maintTile: { paddingHorizontal: 8 },
+  insTile: { justifyContent: 'space-between', minHeight: 96 },
+  insHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  insText: { fontFamily: F.b, fontSize: 12, lineHeight: 15, color: C.hi, marginTop: 4 },
+  insFoot: { fontFamily: F.xb, fontSize: 9.5, letterSpacing: 0.6, textTransform: 'uppercase', color: C.mut, marginTop: 2 },
   nextTagCorner: { position: 'absolute', top: 9, right: 9 },
   nextNum: { color: '#000', paddingRight: 34 },
   nextWhen: { color: 'rgba(0,0,0,.55)' },
