@@ -72,3 +72,17 @@ export function addQuickMood(level: number): void {
   const t = now.toISOString();
   useMoodStore.getState().addEntry({ id: `mood_${now.getTime()}_${Math.random().toString(36).slice(2, 8)}`, date: ymd(now), mood: level, energy: 3, tags: [], createdAt: t, updatedAt: t });
 }
+
+/** Powiadomienie o humorze się pokazało: jeśli humor z dziś już jest (np. z zegarka) — schowaj je. */
+export async function dropMoodReminderIfLogged(notificationId: string): Promise<void> {
+  const st = useMoodStore;
+  if (!st.persist.hasHydrated()) await st.persist.rehydrate();
+  try { await (await import('./widgetToggleDrain')).drainWidgetToggleQueue(); } catch { /* kolejka opcjonalna */ }
+  const today = ymd(new Date());
+  if (!st.getState().entries.some((e) => e.date === today)) return;
+  try {
+    const notifee = (await import('@notifee/react-native')).default;
+    await notifee.cancelDisplayedNotification(notificationId);
+  } catch { /* brak modułu */ }
+  await syncMoodReminders();
+}

@@ -34,6 +34,12 @@ export function registerNotifeeBackground(): void {
     const { EventType } = mod;
     notifee.onBackgroundEvent(async ({ type, detail }: { type: number; detail: Detail }) => {
       if (type === EventType.ACTION_PRESS) await handleBackgroundAction(detail);
+      // Przypomnienie o humorze właśnie się pokazało, a humor wpisano na zegarku (kolejka jeszcze
+      // nieprzeniesiona do appki) → przenieś i schowaj powiadomienie (2026-11-22).
+      if (type === EventType.DELIVERED && detail.notification?.id?.startsWith('mood-rem-')) {
+        const { dropMoodReminderIfLogged } = await import('./moodReminders');
+        await dropMoodReminderIfLogged(detail.notification.id);
+      }
     });
   } catch {
     // brak modułu natywnego (Expo Go) — nic

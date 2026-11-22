@@ -34,8 +34,9 @@ import {
   CloudUpload, CloudDownload, LayoutGrid,
   Tags, PenLine, Eraser,
 } from 'lucide-react-native';
-import { Smartphone as SmartphoneIcon } from 'lucide-react-native';
+import { Smartphone as SmartphoneIcon, RefreshCw } from 'lucide-react-native';
 import { useScreenTimeStore } from '@/store/screenTimeStore';
+import { useBackgroundStore, BG_LABEL, BG_ORDER, type BgInterval } from '@/store/backgroundStore';
 import { screenTimeAvailable, openScreenAccess } from '@/services/screenTime';
 import * as Clipboard from 'expo-clipboard';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -133,6 +134,7 @@ function buildSections(
   pen: { fingerScroll: boolean; buttonEraser: boolean; stylusSeen: boolean },
   moodRem: { enabled: boolean; hour: number; minute: number },
   screenAccess: boolean | null,
+  bg: { interval: BgInterval; lastRun: number },
 ): SettingsSection[] {
   return [
   // Zakładki (2026-11-17, user: "popraw ustawienia, zrób lepsze zakładki — czemu w
@@ -297,6 +299,11 @@ function buildSections(
       { kind: 'value', key: 'info-version', label: 'Wersja', description: `build ${BUILD_INFO.buildNumber} · ${BUILD_INFO.buildDate}`, icon: Info, value: BUILD_INFO.version },
       { kind: 'value', key: 'info-ota', label: 'Paczka JS', description: `runtime ${runtimeShort()} — OTA musi mieć ten sam`, icon: Info, value: runningUpdateLabel() },
       { kind: 'action', key: 'app-health', label: 'Stan appki', description: appStatus, icon: Stethoscope },
+      // Odświeżanie w tle (2026-11-22, user: "w ustawieniach: co 15 min, co 1 h, co 3 h, nigdy").
+      ...(Platform.OS === 'android' ? [{
+        kind: 'action' as const, key: 'bg-refresh', label: 'Odświeżanie w tle', icon: RefreshCw,
+        description: `${BG_LABEL[bg.interval]} · stuknij, żeby zmienić${bg.lastRun ? ` · ostatnio ${new Date(bg.lastRun).toLocaleString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''} — czas z telefonem, zegarek, komputer bez otwierania appki`,
+      }] : []),
       // Tylko na komputerze (services/pwaInstall.ts).
       ...(pwa ? [{ kind: 'action' as const, key: 'pwa-install', label: 'Zainstaluj na komputerze', description: pwa, icon: Download }] : []),
     ],
@@ -457,6 +464,8 @@ export default function SettingsScreen() {
   const mrMinute = useMoodReminderStore((st) => st.minute);
   const moodRem = useMemo(() => ({ enabled: mrEnabled, hour: mrHour, minute: mrMinute }), [mrEnabled, mrHour, mrMinute]);
   const screenAccess = useScreenTimeStore((st) => st.access);
+  const bgInterval = useBackgroundStore((st) => st.interval);
+  const bgLastRun = useBackgroundStore((st) => st.lastRun);
   const sections = useMemo(
     () => buildSections(
       user?.email ?? null,
@@ -477,8 +486,9 @@ export default function SettingsScreen() {
       pen,
       moodRem,
       screenAccess,
+      { interval: bgInterval, lastRun: bgLastRun },
     ),
-    [screenAccess, moodRem, pen, profileLabel, pwaLabel, healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, hapticStrength, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, widgetNote, syncLabel],
+    [bgInterval, bgLastRun, screenAccess, moodRem, pen, profileLabel, pwaLabel, healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, hapticStrength, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, widgetNote, syncLabel],
   );
 
   const backupNow = async () => {
@@ -782,6 +792,7 @@ export default function SettingsScreen() {
     'notify-test': leave(() => router.push('/notify-test' as any)),
     'bank-enabled': toggleBankEnabled,
     'bank-notif-access': openNotificationAccess,
+    'bg-refresh': () => { haptic.tap(); const st = useBackgroundStore.getState(); st.setInterval(BG_ORDER[(BG_ORDER.indexOf(st.interval) + 1) % BG_ORDER.length]); },
     'usage-access': () => { if (screenTimeAvailable()) openScreenAccess(); },
     'bank-auto-all': toggleBankAutoAll,
     'bank-test': testBankCapture,

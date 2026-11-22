@@ -2449,3 +2449,14 @@ promień 22 dp, min. 48 dp), tekst w karcie od lewej, nagłówki sekcji wyśrodk
 zadanie / kolor wydarzenia) = sierp po łuku lewego rogu (`cardWrap`: karta przesunięta o 4 dp nad kolorem — jak
 w telefonie). Zadanie: tytuł, „kroki x/y · termin” + ▾, cienki pasek postępu w karcie; rozwinięte kroki i
 „Przytrzymaj: zrobione” w tej samej karcie. Tętno usunięte (kod, uprawnienie BODY_SENSORS).
+
+## ODŚWIEŻANIE W TLE + HUMOR Z ZEGARKA KASUJE PRZYPOMNIENIE (2026-11-22)
+
+- `expo-background-task` + `expo-task-manager` (nowe APK). Zadanie `soen-background-refresh` definiowane w index.js
+  (`services/backgroundRefresh.ts` `defineBackgroundTask`), harmonogram `hooks/useBackgroundSchedule.ts` wg
+  `store/backgroundStore.ts` (`interval` 15/60/180 min albo 0 = nigdy; domyślnie 60). Przebieg (tylko gdy appka NIE
+  jest na wierzchu): kolejki widgetu/zegarka, przypomnienia o humorze, czas z telefonem, bateria (+ historia), snapshot
+  zegarka, krótki sync z chmurą (czeka na stan logowania max 5 s, 12 s pracy, potem stop). Ustawienia → Aplikacja →
+  „Odświeżanie w tle” (stuknięcie zmienia, widać ostatni przebieg).
+- notifee DELIVERED dla `mood-rem-*` w tle → `dropMoodReminderIfLogged`: przenieś kolejkę z zegarka, jeśli humor
+  z dziś jest — schowaj powiadomienie i przeplanuj.

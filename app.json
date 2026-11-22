@@ -90,7 +90,8 @@
       ],
       "@react-native-community/datetimepicker",
       "react-native-health-connect",
-      "./plugins/withHealthConnectQueries.js"
+      "./plugins/withHealthConnectQueries.js",
+      "expo-background-task"
     ],
     "web": {
       "bundler": "metro",

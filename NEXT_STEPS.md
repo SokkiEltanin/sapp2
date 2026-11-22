@@ -41,6 +41,13 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-22 — Odświeżanie w tle, zegarek w kartach, wzorce na Dashboardzie** (nowe APK + Wear). Do sprawdzenia:
+- [ ] Ustawienia → Aplikacja → Odświeżanie w tle: po godzinie „ostatnio …” się zmienia; komputer ma świeży czas z telefonu
+  i baterię bez otwierania appki. Bateria telefonu — czy nie widać różnicy.
+- [ ] Humor wpisany na zegarku przed 21:00 → przypomnienie znika samo.
+- [ ] Zegarek: karty zadań/wydarzeń czytelne, sierp koloru, bez tętna.
+- [ ] Dashboard: lewy górny kafel = wzorce (na razie „zbieram dane”).
+
 **2026-11-22 — Wzorce zachowań + rozrywka w telefonie** (ARCHITECTURE „WZORCE ZACHOWAŃ”). Odblokowania na godzinę
 wymagają nowego APK (moduł UsageStats `uh`), reszta OTA.
 - [ ] Po 2–3 tygodniach danych: czy wzorce mają sens (praca → słodycze, rozrywka → humor/energia/sen itd.).
