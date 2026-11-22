@@ -12,6 +12,7 @@ interface ScreenTimeState {
   t: number; // ostatni odczyt (ms)
   addDays: (d: ScreenDay[]) => void;
   setAccess: (v: boolean) => void;
+  mergeRemote: (d: ScreenDay[], t: number) => void;
 }
 
 export const useScreenTimeStore = create<ScreenTimeState>()(
@@ -22,6 +23,8 @@ export const useScreenTimeStore = create<ScreenTimeState>()(
       t: 0,
       addDays: (d) => set((st) => ({ days: mergeScreenDays(st.days, d), t: Math.max(st.t, ...d.map((x) => x.t)) })),
       setAccess: (v) => set({ access: v }),
+      // z chmury: scalenie (nowszy odczyt dnia wygrywa), nic nie znika
+      mergeRemote: (d, t) => set((st) => ({ days: mergeScreenDays(st.days, d.filter((x) => x && typeof x.date === 'string' && typeof x.t === 'number')), t: Math.max(st.t, t) })),
     }),
     { name: 'screen-time-v1', storage: createJSONStorage(() => AsyncStorage), partialize: (st) => ({ days: st.days, access: st.access, t: st.t }) },
   ),

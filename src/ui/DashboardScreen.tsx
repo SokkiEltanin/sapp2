@@ -364,7 +364,8 @@ function BatteryRow({ icon, b, lowPct, at }: { icon: 'phone' | 'watch' | 'laptop
   const kind = b ? batteryTone(b.level, b.charging, Math.max(lowPct, BAT_RED_PCT)) : null;
   const tone = kind ? BAT_TONE[kind] : C.dim;
   const low = kind === 'low';
-  const stale = at != null && Date.now() - at > 60 * 60000; // odczyt starszy niż godzina — mały dopisek
+  // odczyt starszy niż godzina — mały dopisek; na komputerze zawsze (dane z telefonu, user: "z datą zaczytania")
+  const stale = at != null && (Platform.OS === 'web' || Date.now() - at > 60 * 60000);
   return (
     <View style={[st.batRow, low && st.batRowLow]} accessibilityLabel={`${icon === 'phone' ? 'Telefon' : icon === 'watch' ? 'Zegarek' : 'Komputer'} ${b ? `${b.level}%` : 'brak danych'}${b?.charging ? ', ładuje się' : ''}`}>
       <Icon size={15} color={low ? BAT_TONE.low : b ? C.txt : C.dim} />

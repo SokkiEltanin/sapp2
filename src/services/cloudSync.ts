@@ -109,6 +109,9 @@ interface DocBinding {
   stamp: () => number;                            // kiedy dane powstały (ms), 0 = nie wiadomo
   readOnly?: () => boolean;                       // to urządzenie tylko czyta (nigdy nie wysyła)
   keepWhenEmpty?: boolean;                        // pusty lokalnie (np. brak sieci/tokenu) nie czyści chmury
+  // `set` SCALA (sumuje historię) — przy starcie najpierw dociągnij chmurę, potem wyślij sumę
+  // (2026-11-22: telefon po reinstalacji nie nadpisze już dłuższej historii w chmurze).
+  mergeFirst?: boolean;
 }
 const docBindings: DocBinding[] = [
   {
@@ -187,8 +190,11 @@ const docBindings: DocBinding[] = [
     name: 'devices',
     stores: [S(useDeviceBatteryStore)],
     get: () => { const d = useDeviceBatteryStore.getState(); return { phone: d.phone, watch: d.watch, phoneLog: d.phoneLog, watchLog: d.watchLog }; },
-    set: (v) => { if (Platform.OS === 'web') useDeviceBatteryStore.setState({ phone: v.phone ?? null, watch: v.watch ?? null, phoneLog: Array.isArray(v.phoneLog) ? v.phoneLog : [], watchLog: Array.isArray(v.watchLog) ? v.watchLog : [] }); },
-    isEmpty: (v) => !v.phone && !v.watch,
+    // Scalanie zamiast zastępowania (2026-11-22, user: "na komputerze czasami w ogóle się nie
+    // pokazują — ostatnio zaczytane z datą i aktualizowane, żeby nie było pusto").
+    set: (v) => useDeviceBatteryStore.getState().mergeRemote(v),
+    isEmpty: (v) => !v.phone && !v.watch && !(v.phoneLog ?? []).length && !(v.watchLog ?? []).length,
+    mergeFirst: true,
     stamp: () => { const d = useDeviceBatteryStore.getState(); return Math.max(d.phone?.t ?? 0, d.watch?.t ?? 0, d.phoneLog.at(-1)?.t ?? 0, d.watchLog.at(-1)?.t ?? 0); },
     readOnly: () => Platform.OS === 'web',
     keepWhenEmpty: true,
@@ -199,8 +205,11 @@ const docBindings: DocBinding[] = [
     name: 'screen',
     stores: [S(useScreenTimeStore)],
     get: () => { const d = useScreenTimeStore.getState().days; const keys = Object.keys(d).sort().slice(-35); return { days: Object.fromEntries(keys.map((k) => [k, d[k]])) }; },
-    set: (v) => { if (Platform.OS === 'web' && v.days && typeof v.days === 'object') useScreenTimeStore.setState({ days: v.days, t: typeof v._t === 'number' ? v._t : Date.now() }); },
+    // Scalanie dni (nowszy odczyt dnia wygrywa) — komputer trzyma też starsze niż 35 dni,
+    // telefon po reinstalacji odzyskuje historię z chmury (Android trzyma tylko ~tydzień).
+    set: (v) => { if (v.days && typeof v.days === 'object') useScreenTimeStore.getState().mergeRemote(Object.values(v.days) as any, typeof v._t === 'number' ? v._t : 0); },
     isEmpty: (v) => !Object.keys(v.days ?? {}).length,
+    mergeFirst: true,
     stamp: () => useScreenTimeStore.getState().t,
     readOnly: () => Platform.OS === 'web',
     keepWhenEmpty: true,
@@ -420,7 +429,11 @@ class DocSync {
           docHashes[this.b.name] ?? null,
           data ? { hash: remoteHash!, empty: this.b.isEmpty(data), stamp: typeof raw?._t === 'number' ? raw._t : 0 } : null,
         );
-        if (plan === 'pull' && data) this.apply(data, remoteHash!, raw ?? undefined);
+        if (this.b.mergeFirst && data && plan === 'push' && !this.b.isEmpty(data)) {
+          // obie strony mają dane: najpierw suma (set scala), potem wyślij sumę
+          this.apply(data, remoteHash!, raw ?? undefined);
+          this.push(true).catch(() => {});
+        } else if (plan === 'pull' && data) this.apply(data, remoteHash!, raw ?? undefined);
         else if (plan === 'push') this.push(true).catch(() => {});
         else if (plan === 'none' && remoteHash) { docHashes[this.b.name] = remoteHash; saveDocHashes(); }
         return;

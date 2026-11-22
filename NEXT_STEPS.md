@@ -41,6 +41,10 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-22 — Bateria i czas z telefonem na komputerze: scalanie zamiast zastępowania** (ARCHITECTURE „DANE Z
+TELEFONU NA KOMPUTERZE”). Historia baterii 30 dni (było 4), komputer pokazuje ostatni odczyt z godziną. Tylko JS.
+- [ ] Komputer: kafel Baterie z wiekiem odczytu; panel z historią; po kilku dniach wykresy dalej pełne.
+
 **2026-11-22 — Zadania: bez „Ukończ zadanie” w szczegółach, edycja kroków, ładniejsze kafle** (user: przycisk
 mylił się z „Zapisz” i kończył zadanie). Szczegóły: główny przycisk „Gotowe” = zamknij (zapis i tak od razu); całe
 zadanie kończy się tylko kółkiem na liście. Kroki: stuknięcie w treść = edycja + strzałki wyżej/niżej (StepsEditor,

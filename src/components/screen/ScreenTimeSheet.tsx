@@ -109,6 +109,8 @@ function DayView({ d, days, now, isToday }: { d: ScreenDay; days: Record<string,
     <>
       <View style={s.hero}>
         <Text style={s.big}>{fmtDur(d.total)}</Text>
+        {/* kiedy odczytano (2026-11-22, user: "ostatnio zaczytane z datą zaczytania") */}
+        <Text style={s.readAt}>{isToday ? 'stan na' : 'odczyt'} {new Date(d.t).toLocaleString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}{Platform.OS === 'web' ? ' · z telefonu' : ''}</Text>
         {vs ? (
           <Text style={[s.heroSub, { color: vs.pct > 10 ? colors.accent.orange : vs.pct < -10 ? colors.accent.green : colors.text.muted }]}>
             {vs.pct > 0 ? '▲' : vs.pct < 0 ? '▼' : '●'} {Math.abs(vs.pct)}% {vs.pct >= 0 ? 'więcej' : 'mniej'} niż zwykle do tej pory ({fmtDur(vs.usual)})
@@ -232,6 +234,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   dayTxt: { minWidth: 84, textAlign: 'center', fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
   hero: { paddingVertical: spacing[2] },
   big: { fontSize: 38, lineHeight: 42, fontFamily: 'Inter_900Black', color: c.text.bright, letterSpacing: -1.2, fontVariant: ['tabular-nums'] },
+  readAt: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 1 },
   heroSub: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.muted, marginTop: 2 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   fact: { flexGrow: 1, flexBasis: '45%', backgroundColor: c.ui.in, borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 10 },

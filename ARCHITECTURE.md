@@ -2387,3 +2387,15 @@ UI: kafel w Daily (ostatni rząd) → `components/mood/GoodThingSheet.tsx` (dzie
 pole w `MoodModal` (zapis do tego samego store'a) + „✦” w pamiętniku; `MoodStatsSheet` karta „Dobre rzeczy” +
 zależność `moodLinks(..., goodDates)`; wyszukiwarka (`HitKind 'good'` → `/daily?good=<data>`); treść przypomnienia
 21:00 wspomina dobrą rzecz.
+
+## DANE Z TELEFONU NA KOMPUTERZE — SCALANIE ZAMIAST ZASTĘPOWANIA (2026-11-22)
+
+User: „na komputerze czasami w ogóle się nie pokazują — ostatnio zaczytane z datą, aktualizowane, żeby nie było pusto;
+historie zapisywać”. Docs `devices` i `screen` w cloudSync mają `mergeFirst` + `set` scalające:
+- bateria: `useDeviceBatteryStore.mergeRemote` (nowszy odczyt telefonu/zegarka wygrywa, historie sumowane
+  `mergeBatLogs`: 30 dni, starsze niż 2 doby przerzedzone do 30 min, zmiany ładowania zostają, max 1500);
+  `setLogs` z natywnego pliku (~4 dni) też DOPISUJE, nie zastępuje — pusty plik po reinstalacji nic nie kasuje;
+- czas z telefonem: `useScreenTimeStore.mergeRemote` (mergeScreenDays) — telefon po reinstalacji odzyskuje dni z chmury;
+- `DocSync` przy starcie: obie strony z danymi + plan „push” → najpierw `apply` (suma), potem push sumy.
+Komputer: brak ostatniego odczytu → ostatnia próbka z historii (`useDeviceBatteries`); na kaflu Baterie zawsze wiek
+odczytu; w panelu czasu z telefonem „stan na …”.

@@ -89,3 +89,25 @@ export function analyzeBattery(samples: BatSample[], now = Date.now()): BatteryA
 
 /** Temperatura baterii: ok < 38 °C, ciepła 38–42, gorąca > 42. */
 export const tempTone = (c: number): 'ok' | 'warm' | 'hot' => (c > 42 ? 'hot' : c >= 38 ? 'warm' : 'ok');
+
+/**
+ * Historia baterii na dłużej (2026-11-22, user: "dane mają się zapisywać, żeby potem nie było
+ * pustych"): telefon natywnie trzyma ~4 dni — appka DOPISUJE je do swojej historii (zamiast
+ * zastępować), trzyma `keepDays` dni, starsze niż 2 doby przerzedza do jednej próbki na
+ * 30 min (zostawia zmiany ładowania, potrzebne do "ostatnio ładowany").
+ */
+export function mergeBatLogs(a: BatSample[], b: BatSample[], now = Date.now(), keepDays = 30): BatSample[] {
+  const byT = new Map<number, BatSample>();
+  for (const x of [...a, ...b]) if (x && Number.isFinite(x.t)) byT.set(x.t, x);
+  const all = [...byT.values()].filter((x) => now - x.t <= keepDays * 86400000).sort((p, q) => p.t - q.t);
+  const out: BatSample[] = [];
+  const fresh = now - 2 * 86400000;
+  for (let i = 0; i < all.length; i++) {
+    const x = all[i];
+    const prev = out[out.length - 1];
+    const next = all[i + 1];
+    const keep = x.t >= fresh || !prev || prev.c !== x.c || (next && next.c !== x.c) || Math.floor(x.t / 1800000) !== Math.floor(prev.t / 1800000);
+    if (keep) out.push(x);
+  }
+  return out.slice(-1500);
+}

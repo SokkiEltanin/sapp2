@@ -79,11 +79,16 @@ export function useDeviceBatteries() {
   }, [phone?.level, phone?.charging]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Komputer: telefon i zegarek z chmury (ostatni odczyt telefonu).
+  // Brak ostatniego odczytu, ale jest historia → ostatnia próbka z historii (2026-11-22, user:
+  // "na komputerze czasami w ogóle się nie pokazują — ma być ostatnio zaczytane z datą").
   const remote = useDeviceBatteryStore((st) => (Platform.OS === 'web' ? st : null));
+  const fromLog = (l: { t: number; l: number; c: boolean }[] | undefined) => { const x = l?.[l.length - 1]; return x ? { level: x.l, charging: x.c, t: x.t } : null; };
+  const newest = <T extends { t: number }>(a: T | null, b: T | null): T | null => (!a ? b : !b ? a : b.t > a.t ? b : a);
+  const rWatchLog = fromLog(remote?.watchLog);
   return {
     phone,
-    watch: Platform.OS === 'web' ? remote?.watch ?? null : watch,
-    remotePhone: Platform.OS === 'web' ? remote?.phone ?? null : null,
+    watch: Platform.OS === 'web' ? (remote?.watch && (!rWatchLog || remote.watch.t >= rWatchLog.t) ? remote.watch : rWatchLog ? { ...rWatchLog, model: remote?.watch?.model ?? '' } : null) : watch,
+    remotePhone: Platform.OS === 'web' ? newest(remote?.phone ?? null, fromLog(remote?.phoneLog)) : null,
     refresh,
   };
 }
