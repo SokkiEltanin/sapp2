@@ -238,3 +238,45 @@ export function dayRainText(d: Pick<WeatherDay, 'code' | 'pop' | 'precipSum' | '
   const parts = top.map(([a, b]) => `${PART((a + b + 1) / 2)} (${a}–${b + 1})`);
   return { text: `${word} ${parts.join(' i ')}${tail}`, wet: true };
 }
+
+// ── Panel pogody 2.0 (2026-11-22, user: "pogodę zrobiłbym lepiej, brakuje inspiracji") ──
+
+/** Gładka krzywa przez punkty (Catmull-Rom → Bézier), dla wykresu temperatury 24 h. */
+export function smoothPath(pts: [number, number][]): string {
+  if (pts.length === 0) return '';
+  const r = (v: number) => Math.round(v * 10) / 10;
+  let d = `M${r(pts[0][0])} ${r(pts[0][1])}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] ?? p2;
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += `C${r(c1x)} ${r(c1y)} ${r(c2x)} ${r(c2y)} ${r(p2[0])} ${r(p2[1])}`;
+  }
+  return d;
+}
+
+/** Indeks UV słownie (skala WHO). */
+export function uvLabel(uv: number): string {
+  if (uv < 3) return 'niski';
+  if (uv < 6) return 'umiarkowany';
+  if (uv < 8) return 'wysoki';
+  if (uv < 11) return 'bardzo wysoki';
+  return 'ekstremalny';
+}
+
+/** Długość dnia "8 h 33 min" z ISO wschodu/zachodu ("RRRR-MM-DDTHH:MM"). */
+export function dayLength(sunrise: string, sunset: string): string {
+  const m = (t: string) => Number(t.slice(11, 13)) * 60 + Number(t.slice(14, 16));
+  const v = m(sunset) - m(sunrise);
+  if (!(v > 0)) return '';
+  const h = Math.floor(v / 60), r = v % 60;
+  return r ? `${h} h ${r} min` : `${h} h`;
+}
+
+/** Wilgotność słownie (odczucie). */
+export function humidityLabel(h: number): string {
+  if (h < 30) return 'sucho';
+  if (h < 60) return 'komfortowo';
+  if (h < 80) return 'wilgotno';
+  return 'bardzo wilgotno';
+}

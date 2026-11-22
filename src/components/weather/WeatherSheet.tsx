@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Linking } from 'react-native';
 import * as LucideIcons from 'lucide-react-native';
-import { MapPin, Navigation, RefreshCw, Search, Radar, ExternalLink, Droplet } from 'lucide-react-native';
+import { MapPin, Navigation, RefreshCw, Search, Radar, ExternalLink, Droplet, Droplets, Wind, Gauge, Sun, Sunrise, Sunset } from 'lucide-react-native';
+import HourlyChart from './HourlyChart';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SheetCard, Legend } from '@/components/design/SheetCard';
 import { colors } from '@/theme/colors';
@@ -10,9 +11,12 @@ import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useWeatherStore } from '@/store/weatherStore';
 import { refreshWeather } from '@/hooks/useWeather';
 import { searchCity, type CityHit } from '@/services/weather';
-import { weatherCodeInfo, aqiInfo, rainSummary, cloudSummary, weatherTip, fmtTemp, weatherColor, weatherToneKey, WEATHER_TONES, tempColor, dayRainText } from '@/utils/weather';
+import { weatherCodeInfo, aqiInfo, rainSummary, cloudSummary, weatherTip, fmtTemp, weatherColor, weatherToneKey, WEATHER_TONES, tempColor, dayRainText, uvLabel, dayLength, humidityLabel } from '@/utils/weather';
 import { haptic } from '@/utils/haptics';
 
+// Układ 2026-11-22 (user: "pogodę zrobiłbym lepiej, brakuje inspiracji"): teraz → jedna karta
+// "Szczegóły" (liczba + słowne znaczenie) → wykres 24 h (HourlyChart: krzywa temp., opady,
+// chmury) → 7 dni (suchy dzień w jednej linii) → powietrze z paskiem "ile z normy" → radar.
 // Szczegóły pogody (2026-11-13): teraz (odczuwalna/wilgotność/wiatr/ciśnienie/
 // UV/wschód-zachód), 24 h godzina po godzinie (temp + szansa opadów), 7 dni,
 // jakość powietrza z normami WHO, a na dole lokalizacja: GPS albo wyszukane
@@ -127,8 +131,8 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
               </View>
               {today && (
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={s.nowRange}>{fmtTemp(today.max)}</Text>
-                  <Text style={s.nowRangeLo}>{fmtTemp(today.min)}</Text>
+                  <Text style={s.nowRange}>↑ {fmtTemp(today.max)}</Text>
+                  <Text style={s.nowRangeLo}>↓ {fmtTemp(today.min)}</Text>
                 </View>
               )}
             </View>
@@ -137,48 +141,25 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
             {tip && <Text style={s.tip}>{tip}</Text>}
           </View>
 
-          <View style={s.miniRow}>
-            {[
-              ['Wilgotność', `${Math.round(cur.humidity)}%`],
-              ['Wiatr', `${Math.round(cur.wind)}`, 'km/h'],
-              ['Porywy', `${Math.round(cur.gusts)}`, 'km/h'],
-              ['Ciśnienie', `${Math.round(cur.pressure)}`, 'hPa'],
-              ['UV max', today ? today.uvMax.toFixed(0) : '—'],
-              ['Słońce', today ? `${hm(today.sunrise)}` : '—', today ? `do ${hm(today.sunset)}` : undefined],
-            ].map(([k, v, unit]) => (
-              <View key={k} style={s.mini}>
-                <Text style={s.gridVal}>{v}{unit && !unit.startsWith('do') ? <Text style={s.unit}> {unit}</Text> : null}</Text>
-                <Text style={s.gridKey}>{k}{unit?.startsWith('do') ? ` · ${unit}` : ''}</Text>
-              </View>
-            ))}
-          </View>
+          {/* Szczegóły "teraz" w JEDNEJ karcie (2026-11-22, user: "za dużo kafelków") — liczba +
+              słowne znaczenie (UV, wilgotność, długość dnia), zamiast 6 osobnych kafli. */}
+          <SheetCard title="Szczegóły">
+            <View style={s.dGrid}>
+              <Detail Icon={Droplets} l="Wilgotność" v={`${Math.round(cur.humidity)}%`} sub={humidityLabel(cur.humidity)} />
+              <Detail Icon={Wind} l="Wiatr" v={`${Math.round(cur.wind)} km/h`} sub={`porywy ${Math.round(cur.gusts)}`} warn={cur.gusts >= 60} />
+              <Detail Icon={Gauge} l="Ciśnienie" v={`${Math.round(cur.pressure)}`} sub={cur.pressure < 1005 ? 'hPa · niskie' : cur.pressure > 1022 ? 'hPa · wysokie' : 'hPa · w normie'} />
+              <Detail Icon={Sun} l="UV max" v={today ? today.uvMax.toFixed(0) : '—'} sub={today ? uvLabel(today.uvMax) : undefined} warn={!!today && today.uvMax >= 6} />
+              <Detail Icon={Sunrise} l="Wschód" v={today ? hm(today.sunrise) : '—'} />
+              <Detail Icon={Sunset} l="Zachód" v={today ? hm(today.sunset) : '—'} sub={today ? `dzień ${dayLength(today.sunrise, today.sunset)}` : undefined} />
+            </View>
+          </SheetCard>
 
           <SheetCard
-            title="24 h"
-            right={<Legend items={[{ color: colors.accent.blue, label: 'deszcz %' }, ...(hasClouds ? [{ color: colors.ui.dim, label: 'chmury %' }] : [])]} />}
+            title="Najbliższe 24 h"
+            right={<Legend items={[{ color: colors.accent.orange, label: 'temp.' }, { color: colors.accent.blue, label: 'szansa opadu' }, ...(hasClouds ? [{ color: colors.text.secondary, label: 'chmury' }] : [])]} />}
           >
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.hours}>
-              {data!.hourly.map((h) => (
-                <View key={h.time} style={s.hour}>
-                  <Text style={s.hourT}>{hm(h.time)}</Text>
-                  <Icon name={weatherCodeInfo(h.code, isDayAt(h.time)).icon} size={15} color={weatherColor(h.code, isDayAt(h.time))} />
-                  <Text style={s.hourTemp}>{fmtTemp(h.temp)}</Text>
-                  <View style={s.barsRow}>
-                    <View style={s.popBox}>
-                      <View style={[s.popBar, { height: `${h.pop}%`, opacity: h.pop >= 50 ? 1 : 0.55 }]} />
-                    </View>
-                    {hasClouds && (
-                      <View style={s.popBox}>
-                        <View style={[s.cloudBar, { height: `${h.cloud ?? 0}%` }]} />
-                      </View>
-                    )}
-                  </View>
-                  <Text style={s.hourPop}>{h.pop > 0 ? `${h.pop}%` : ''}</Text>
-                  <Text style={s.hourMm}>{h.precip >= 0.1 ? `${h.precip.toFixed(1).replace('.', ',')}` : ''}</Text>
-                </View>
-              ))}
-            </ScrollView>
-            <Text style={s.note}>Słupek pełny = 100%. Liczba pod spodem = mm opadu w tej godzinie.</Text>
+            <HourlyChart hours={data!.hourly} isDayAt={isDayAt} />
+            <Text style={s.note}>Przesuń w bok. Pod słupkiem: szansa i ilość opadu; dolny pasek — im ciemniej, tym więcej chmur.</Text>
           </SheetCard>
 
           {/* "7 dni" (2026-11-16, user: "paski kolorki nie docierają do mnie"): bez
@@ -199,20 +180,22 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
                       <Text style={s.dayDate}>{Number(d.date.slice(8, 10))}.{d.date.slice(5, 7)}</Text>
                     </View>
                     <Icon name={weatherCodeInfo(d.code).icon} size={18} color={tone.color} />
-                    <Text style={s.dayKind} numberOfLines={1}>{tone.label}</Text>
+                    <Text style={s.dayKind} numberOfLines={1}>{tone.label}{rain.wet ? '' : ' · bez opadów'}</Text>
                     <Text style={s.dayTemps}>
                       <Text style={[s.dayMax, { color: tempColor(d.max) }]}>{fmtTemp(d.max)}</Text>
                       <Text style={s.dayMin}>  {fmtTemp(d.min)}</Text>
                     </Text>
                   </View>
-                  <View style={s.dayRain}>
-                    <Droplet size={12} color={colors.text.muted} />
-                    <Text style={s.dayRainTxt} numberOfLines={2}>{rain.text}</Text>
-                  </View>
+                  {rain.wet && (
+                    <View style={s.dayRain}>
+                      <Droplet size={12} color={colors.accent.blue} />
+                      <Text style={s.dayRainTxt} numberOfLines={2}>{rain.text}</Text>
+                    </View>
+                  )}
                 </View>
               );
             })}
-            <Text style={s.note}>Duża liczba = najcieplej w dzień, mała = najzimniej w nocy. Godziny w nawiasie = kiedy pada; % = szansa, mm = ile spadnie.</Text>
+            <Text style={s.note}>Duża liczba = najcieplej w dzień, mała = najzimniej w nocy. W nawiasie godziny opadu; % = szansa, mm = ile spadnie.</Text>
           </SheetCard>
 
           {data!.air && (() => {
@@ -231,11 +214,15 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
                   ].filter(([, v]) => v != null).map(([k, v, norm]) => (
                     <View key={k as string} style={s.gridCell}>
                       <Text style={[s.gridVal, (v as number) > (norm as number) && { color: colors.accent.red }]}>{Math.round(v as number)}</Text>
+                      {/* ile z normy (2026-11-22) — pełny pasek = norma WHO */}
+                      <View style={s.normTrack}>
+                        <View style={[s.normFill, { width: `${Math.min(100, ((v as number) / (norm as number)) * 100)}%`, backgroundColor: (v as number) > (norm as number) ? colors.accent.red : (v as number) > (norm as number) * 0.7 ? colors.accent.orange : colors.accent.green }]} />
+                      </View>
                       <Text style={s.gridKey}>{k} · norma {norm}</Text>
                     </View>
                   ))}
                 </View>
-                <Text style={s.note}>µg/m³, normy dobowe WHO. Czerwone = powyżej normy.</Text>
+                <Text style={s.note}>µg/m³, normy dobowe WHO. Pełny pasek = norma; czerwone = powyżej.</Text>
               </SheetCard>
             );
           })()}
@@ -284,7 +271,24 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
   );
 }
 
+function Detail({ Icon: I, l, v, sub, warn }: { Icon: any; l: string; v: string; sub?: string; warn?: boolean }) {
+  const s = makeS();
+  return (
+    <View style={s.dCell}>
+      <View style={s.dHead}><I size={12} color={colors.text.muted} /><Text style={s.dL} numberOfLines={1}>{l}</Text></View>
+      <Text style={[s.dV, warn && { color: colors.accent.orange }]} numberOfLines={1}>{v}</Text>
+      {sub ? <Text style={s.dSub} numberOfLines={1}>{sub}</Text> : null}
+    </View>
+  );
+}
+
 const makeS = themedStyles((c) => StyleSheet.create({
+  dGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: spacing[3] },
+  dCell: { width: '33.33%', paddingRight: spacing[2] },
+  dHead: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  dL: { flex: 1, fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  dV: { fontSize: 16, fontFamily: 'Inter_900Black', color: c.text.primary, marginTop: 3, fontVariant: ['tabular-nums'] },
+  dSub: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 1 },
   head: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingBottom: spacing[2] },
   place: { flexShrink: 1, fontSize: 17, fontFamily: 'Inter_900Black', color: c.text.primary },
   headBtn: { marginLeft: 'auto', width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
@@ -296,12 +300,6 @@ const makeS = themedStyles((c) => StyleSheet.create({
   nowRange: { fontSize: 14, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
   nowRangeLo: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.muted },
   cloudLine: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.secondary, marginTop: 2 },
-  miniRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[2] },
-  mini: { flexGrow: 1, flexBasis: '30%', backgroundColor: c.ui.in, borderRadius: radius.lg, paddingVertical: spacing[2], paddingHorizontal: spacing[3] },
-  unit: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted },
-  barsRow: { flexDirection: 'row', gap: 2 },
-  cloudBar: { width: '100%', backgroundColor: c.ui.dim, borderRadius: 4 },
-  hourMm: { fontSize: 9, fontFamily: 'Inter_600SemiBold', color: c.text.muted, height: 11 },
   radar: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], backgroundColor: c.ui.in, borderRadius: radius.lg, padding: spacing[3], marginTop: spacing[2] },
   radarTitle: { fontSize: 13.5, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
   radarSub: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 1 },
@@ -309,23 +307,18 @@ const makeS = themedStyles((c) => StyleSheet.create({
   tip: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.accent.orange, marginTop: spacing[1] },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: spacing[3] },
-  gridCell: { width: '50%' },
+  gridCell: { width: '50%', paddingRight: spacing[3] },
+  normTrack: { height: 4, borderRadius: 2, backgroundColor: c.ui.in2, marginTop: 4, marginBottom: 4, overflow: 'hidden' },
+  normFill: { height: '100%', borderRadius: 2 },
   gridVal: { fontSize: 16, fontFamily: 'Inter_900Black', color: c.text.primary },
   gridKey: { fontSize: 10, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 1 },
 
   section: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: spacing[4], marginBottom: spacing[2] },
-  hours: { gap: spacing[2], paddingRight: spacing[2] },
-  hour: { alignItems: 'center', width: 42, gap: 4 },
-  hourT: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
-  hourTemp: { fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
-  popBox: { height: 32, width: 7, borderRadius: 4, backgroundColor: c.bg.elevated, justifyContent: 'flex-end', overflow: 'hidden' },
-  popBar: { width: '100%', backgroundColor: c.accent.blue, borderRadius: 4 },
-  hourPop: { fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.accent.blue, height: 12 },
 
   nowCard: { backgroundColor: c.ui.in, borderRadius: radius.lg, padding: spacing[3], overflow: 'hidden' },
   // Kafelki dni jak mini-kafelki wyżej (2026-11-17, user: "czarne kafelki — za duży kontrast,
   // wyłamują się ze stylu"): jaśniejsze tło karty zamiast czarnego, bez obwódek; dziś = cienka ramka.
-  dayRow: { backgroundColor: c.ui.in2, borderRadius: radius.md, padding: spacing[3], gap: 6, marginBottom: 6, borderWidth: 1, borderColor: 'transparent' },
+  dayRow: { backgroundColor: c.ui.in2, borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: spacing[3], gap: 4, marginBottom: 6, borderWidth: 1, borderColor: 'transparent' },
   dayToday: { borderColor: c.border.default },
   dayTop: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   dayNameCol: { width: 64 },

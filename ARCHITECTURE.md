@@ -2215,6 +2215,11 @@ więc nie ma nic do migracji/zachowania.
   wykres w sheecie → karta + legenda. Radar = link do RainViewer (zewnętrznie;
   mapa w WebView byłaby ciężka). Pogoda pobiera też `cloud_cover` →
   `cloudSummary()` w `utils/weather.ts`.
+  **Pogoda 2.0 (2026-11-22)**: mini-kafle → jedna karta „Szczegóły” (`Detail`: liczba + słownie —
+  `uvLabel`, `humidityLabel`, `dayLength`, ciśnienie niskie/w normie/wysokie); 24 h →
+  `components/weather/HourlyChart.tsx` (krzywa temp. `smoothPath`, ikony, słupki szansy opadu + mm,
+  pasek zachmurzenia — krycie = %); 7 dni: suchy dzień w jednej linii („· bez opadów”); powietrze
+  z paskiem „ile z normy” WHO. Testy `__tests__/weatherPanel.test.ts`.
 
 - **Ustawienia — przeprojektowany wygląd wierszy (2026-11-01)**, user zrzutem
   ekranu sekcji Finanse: "nie rozróżniam nazwy kategorii od podkategorii, oraz jak
