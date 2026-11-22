@@ -352,10 +352,12 @@ export default function AddExpenseModal({
   const openDatePicker = () => {
     haptic.tap();
     openPicker({
-      value: new Date(`${date}T12:00:00`),
+      // Data z banku ma godzinę ("2026-11-20T22:15:00", 2026-11-22) — kalendarz bierze sam dzień,
+      // a zmiana dnia zostawia godzinę płatności.
+      value: new Date(`${date.slice(0, 10)}T12:00:00`),
       mode: 'date',
       onChange: (event, selected) => {
-        if (event.type === 'set' && selected) setDate(ymd(selected));
+        if (event.type === 'set' && selected) setDate(ymd(selected) + date.slice(10));
       },
     });
   };
@@ -659,16 +661,16 @@ export default function AddExpenseModal({
           {[{ key: 'today', label: 'Dziś', v: todayISO() }, { key: 'yesterday', label: 'Wczoraj', v: ymd(new Date(Date.now() - 86400000)) }].map((opt) => (
             <TouchableOpacity
               key={opt.key}
-              style={[s.chip, date === opt.v && s.chipActive]}
-              onPress={() => { haptic.tap(); setDate(opt.v); }}
+              style={[s.chip, date.slice(0, 10) === opt.v && s.chipActive]}
+              onPress={() => { haptic.tap(); setDate(opt.v + date.slice(10)); }}
               activeOpacity={0.7}
             >
-              <Text style={[s.chipLabel, date === opt.v && s.chipLabelActive]}>{opt.label}</Text>
+              <Text style={[s.chipLabel, date.slice(0, 10) === opt.v && s.chipLabelActive]}>{opt.label}</Text>
             </TouchableOpacity>
           ))}
           <TouchableOpacity style={s.dateBadge} onPress={openDatePicker} activeOpacity={0.7}>
             <CalendarDays size={13} color={colors.text.secondary} />
-            <Text style={s.dateBadgeLabel}>{date}</Text>
+            <Text style={s.dateBadgeLabel}>{fmtDateBadge(date)}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -992,6 +994,14 @@ export default function AddExpenseModal({
     />
     </>
   );
+}
+
+/** "20.11.2026 · 22:15" (z godziną z banku) albo "20.11.2026". */
+function fmtDateBadge(d: string): string {
+  const [y, m, dd] = d.slice(0, 10).split('-');
+  if (!y || !m || !dd) return d;
+  const hm = d.length >= 16 ? d.slice(11, 16) : '';
+  return `${dd}.${m}.${y}${hm ? ` · ${hm}` : ''}`;
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
