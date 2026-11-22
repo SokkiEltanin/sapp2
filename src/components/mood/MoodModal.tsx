@@ -7,6 +7,8 @@ import { todayISO } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
 import { type MoodEntry, MOOD_COLORS, MOOD_LABELS, ENERGY_LABELS, roundLevel } from '@/types/mood';
 import { useMoodStore } from '@/store/moodStore';
+import { useGoodThingsStore } from '@/store/goodThingsStore';
+import { goodExample } from '@/utils/goodThings';
 import { PRESET_TAGS, sortMoodTags, levelSignal } from '@/utils/moodTags';
 import MoodPad from '@/components/design/MoodPad';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
@@ -41,6 +43,10 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
   const [note, setNote] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState('');
+  // Jedna dobra rzecz z dnia (2026-11-22) — osobny store (jedna na dzień), tu tylko wygodne pole.
+  const goodItems = useGoodThingsStore((st) => st.items);
+  const setGoodFor = useGoodThingsStore((st) => st.setForDate);
+  const [good, setGood] = useState('');
 
   const todayStr = todayISO();
   const todayCount = useMemo(() => entries.filter((e) => e.date === todayStr).length, [entries, todayStr]);
@@ -62,12 +68,13 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
   const allDisplayTags = [...tags.filter((t) => !PRESET_TAGS.includes(t)), ...sortedPresetTags];
 
   const resetForm = () => {
-    setEditingId(null); setMood(undefined); setEnergy(undefined); setNote(''); setTags([]); setCustomTag('');
+    setEditingId(null); setMood(undefined); setEnergy(undefined); setNote(''); setTags([]); setCustomTag(''); setGood('');
   };
 
   useEffect(() => {
     if (!visible) { resetForm(); setView('checkin'); }
-  }, [visible]);
+    else setGood(useGoodThingsStore.getState().items.find((g) => g.date === todayStr)?.text ?? '');
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClose = () => { haptic.tap(); resetForm(); onClose(); };
 
@@ -75,6 +82,7 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
     haptic.tap();
     setEditingId(entry.id);
     setMood(entry.mood); setEnergy(entry.energy); setNote(entry.note ?? ''); setTags(entry.tags);
+    setGood(goodItems.find((g) => g.date === entry.date)?.text ?? '');
     setView('checkin');
   };
 
@@ -90,6 +98,8 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
     if (!canSave) return;
     haptic.success();
     const now = new Date().toISOString();
+    const goodDate = editingEntry?.date ?? todayStr;
+    if (good.trim() || goodItems.some((g) => g.date === goodDate)) setGoodFor(goodDate, good);
     if (editingEntry) {
       updateEntry(editingEntry.id, { mood, energy, note: note.trim() || undefined, tags, updatedAt: now });
     } else {
@@ -212,6 +222,18 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
           </View>
 
           <View style={s.section}>
+            <Text style={s.sectionLabel}>Jedna dobra rzecz {editingEntry && editingEntry.date !== todayStr ? 'tego dnia' : 'dziś'}</Text>
+            <TextInput
+              value={good}
+              onChangeText={setGood}
+              placeholder={`np. ${goodExample(editingEntry?.date ?? todayStr)}`}
+              placeholderTextColor={colors.text.muted}
+              style={s.goodInput}
+              maxLength={240}
+            />
+          </View>
+
+          <View style={s.section}>
             <Text style={s.sectionLabel}>Notatka dnia (opcjonalnie)</Text>
             <TextInput
               value={note}
@@ -238,6 +260,7 @@ export default function MoodModal({ visible, onClose }: { visible: boolean; onCl
             byDay.map(([date, list]) => (
               <View key={date} style={s.daySection}>
                 <Text style={s.dayHeader}>DZIEŃ · {formatDiaryDate(date)}</Text>
+                {goodItems.find((g) => g.date === date)?.text ? <Text style={s.diaryGood}>✦ {goodItems.find((g) => g.date === date)!.text}</Text> : null}
                 {list.map((e) => (
                   <TouchableOpacity key={e.id} style={s.entryCard} onPress={() => openForEdit(e)} activeOpacity={0.7}>
                     <View style={s.entryTopRow}>
@@ -311,6 +334,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
   tagChipLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   tagChipLabelActive: { color: c.bg.primary },
 
+  diaryGood: { fontSize: 12.5, lineHeight: 17, fontFamily: 'Inter_700Bold', color: c.accent.orange, marginBottom: spacing[1] },
+  goodInput: {
+    fontSize: 13, fontFamily: 'Inter_600SemiBold', color: c.text.primary,
+    backgroundColor: c.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: 'rgba(251,146,60,0.35)',
+    paddingHorizontal: spacing[3], paddingVertical: 10,
+  },
   noteInput: {
     fontSize: 13, fontFamily: 'Inter_500Medium', color: c.text.primary,
     backgroundColor: c.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default,

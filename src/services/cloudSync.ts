@@ -15,6 +15,7 @@ import { useWorkStore } from '@/store/workStore';
 import { useHealthStore } from '@/store/healthStore';
 import { useDeviceBatteryStore } from '@/store/deviceBatteryStore';
 import { useScreenTimeStore } from '@/store/screenTimeStore';
+import { useGoodThingsStore } from '@/store/goodThingsStore';
 import { useFactsStore } from '@/store/factsStore';
 import { useCollectionStore } from '@/store/collectionStore';
 import { useProfileStore } from '@/store/profileStore';
@@ -95,6 +96,7 @@ const bindings: Binding<any>[] = [
   listBinding('sync_notes', S(useNotesStore), 'notes'),
   listBinding('sync_note_folders', S(useNotesStore), 'folders'),
   listBinding('sync_rules', S(useCategoryRulesStore), 'rules'),
+  listBinding('sync_good', S(useGoodThingsStore), 'items'), // jedna dobra rzecz z dnia (2026-11-22)
 ];
 
 // Pojedyncze dokumenty: get → obiekt, set ← obiekt z chmury.

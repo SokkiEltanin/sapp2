@@ -6,14 +6,16 @@ import type { ReplaceItem } from '@/types/replacements';
 import type { Vehicle } from '@/types/vehicles';
 import { normText } from './categoryRules';
 import { noteTitle } from './notes';
+import type { GoodThing } from './goodThings';
 
 // Wyszukiwanie w całej appce (2026-11-14, z listy "czego brakuje"): jedno pole —
 // wydatki (sklep, opis, pozycje paragonu, kwota), notatki, zadania, stałe opłaty,
 // wymiany, pojazdy. Czysta funkcja (__tests__/globalSearch.test.ts), ekran app/search.tsx.
-export type HitKind = 'expense' | 'note' | 'task' | 'subscription' | 'replacement' | 'vehicle';
+export type HitKind = 'expense' | 'note' | 'task' | 'subscription' | 'replacement' | 'vehicle' | 'good';
 export interface SearchHit { kind: HitKind; id: string; title: string; sub: string; date?: string; amount?: number }
 export interface SearchData {
   expenses: Expense[]; notes: Note[]; tasks: Task[]; subscriptions: Subscription[]; replacements: ReplaceItem[]; vehicles: Vehicle[];
+  good?: GoodThing[]; // jedna dobra rzecz z dnia (2026-11-22)
 }
 
 const words = (q: string) => normText(q).split(' ').filter(Boolean);
@@ -22,7 +24,7 @@ const amountQuery = (q: string) => { const m = /^(\d+(?:[.,]\d{1,2})?)\s*(zł|zl
 
 export function globalSearch(d: SearchData, q: string, perKind = 30): Record<HitKind, SearchHit[]> & { total: number } {
   const ws = words(q);
-  const out = { expense: [], note: [], task: [], subscription: [], replacement: [], vehicle: [], total: 0 } as Record<HitKind, SearchHit[]> & { total: number };
+  const out = { expense: [], note: [], task: [], subscription: [], replacement: [], vehicle: [], good: [], total: 0 } as Record<HitKind, SearchHit[]> & { total: number };
   if (!ws.length || normText(q).length < 2) return out;
   const amt = amountQuery(q);
 
@@ -59,6 +61,9 @@ export function globalSearch(d: SearchData, q: string, perKind = 30): Record<Hit
   out.vehicle = d.vehicles.filter((v) => matches(`${v.name} ${v.tag}`, ws)).slice(0, perKind)
     .map((v) => ({ kind: 'vehicle', id: v.id, title: v.name, sub: 'pojazd' }));
 
-  out.total = out.expense.length + out.note.length + out.task.length + out.subscription.length + out.replacement.length + out.vehicle.length;
+  out.good = (d.good ?? []).filter((g) => g.text.trim() && matches(g.text, ws)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, perKind)
+    .map((g) => ({ kind: 'good', id: g.date, date: g.date, title: g.text, sub: 'dobra rzecz dnia' }));
+
+  out.total = out.expense.length + out.note.length + out.task.length + out.subscription.length + out.replacement.length + out.vehicle.length + out.good.length;
   return out;
 }

@@ -41,34 +41,10 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
-**POMYSŁ NA PÓŹNIEJ (2026-11-21, user): „jedna dobra rzecz z dnia”** — krótki wpis wieczorem (np. przy humorze /
-w przypomnieniu 21:00), bo zapisywanie jednej pozytywnej rzeczy dziennie obniża stres i ryzyko depresji. Do
-zaprojektowania: gdzie wpisywać (MoodModal? osobne pole w Daily?), przegląd „dobrych rzeczy” w statystykach humoru,
-losowe przypomnienie starej dobrej rzeczy w gorszy dzień.
-
-**2026-11-22 — Edytor notatek: znikający tekst, kursywa, widget** (zrzuty usera):
-- Znikająca linia po dopisaniu litery — tekst BYŁ zapisany (widget pokazywał całość), Android nie przerysował linii
-  po podmianie spanów w polu. Obejście: `RichTextEditor` `relayout()` — 120 ms po pisaniu/zmianie stylu pole na
-  moment o 1 px węższe i z powrotem (pełne ponowne ułożenie tekstu). Jeśli nadal się zdarza → szukać dalej
-  (podejrzane: lineHeight pola + spany tła/koloru w natywnym EditText).
-- Kursywa: Android ignoruje fontStyle przy Inter bez pliku pochyłego → `Inter_500Medium_Italic` /
-  `Inter_800ExtraBold_Italic` (app/_layout.tsx, `runTextStyle`).
-- Widget: `spans` w snapshocie (utils/widgetNote.ts `widgetText`) → SpannableString w providerze (nowe APK).
-- [ ] Na telefonie: dłuższy tekst z kolorami/zakreślaczem, pisanie w nowej linii — czy linie nie znikają.
-- [ ] Kursywa widoczna w edytorze, na Dashboardzie i na widgecie.
-
-**2026-11-22 — Czas z telefonem na Dashboardzie** (zamiast #JedzeniePerMiesiąc, który jest teraz ukryty w Ustawieniach →
-Układ Dashboardu). Nowe APK (moduł UsageStats). ARCHITECTURE „CZAS Z TELEFONEM”.
-- [ ] Kafel → „zezwól na dostęp” → ekran systemowy → włączyć SOEN → powrót: dane od razu.
-- [ ] Porównać z Samsung „Cyfrowa równowaga” (czas, odblokowania) — czy liczby się zgadzają w przybliżeniu.
-- [ ] Ikony appek w panelu; komputer pokazuje dane z telefonu.
-
-**2026-11-21 — Notatki na komputerze się zamykały / martwe przyciski**: przyciemnienie obok panelu (klik = zamknij)
-liczyło się dla zwykłej szerokości panelu (560), a notatka ma do 900 px → zasłaniało lewą część notatki (przełącznik
-T/✎, pióro, rysowanie przy lewej krawędzi). Wspólne `deskPanelWidth` (utils/desktopColumns.ts) dla panelu i tła.
-Sprawdzone w Playwright 1600 px: tekst → rysunek przy lewej krawędzi, wyjazd kursorem poza panel, Gumka/Cofnij/
-powrót do tekstu — notatka zostaje; klik w tło dalej zamyka.
-- [ ] Na komputerze (po odświeżeniu PWA): czy coś jeszcze „odwala” w notatkach.
+**2026-11-22 — Jedna dobra rzecz z dnia** (ZBUDOWANE; ARCHITECTURE „JEDNA DOBRA RZECZ Z DNIA”): kafel w Daily (wpis,
+seria, wieczorem podświetlony, w gorszy dzień „Pamiętasz?” ze starą dobrą rzeczą), pole w zapisie humoru, wpis
+w pamiętniku, karta i zależność w statystykach humoru, wyszukiwarka, sync i kopia. Tylko JS (OTA).
+- [ ] Na telefonie: wpis z kafla i z humoru, edycja starszego dnia, „Pamiętasz?” przy humorze Słabo/Fatalnie.
 
 **2026-11-21 — Zegarek: licznik zarobków, humor palcem, tętno** (ARCHITECTURE „ZEGAREK: PRACA, HUMOR, TĘTNO”).
 Wymaga nowego APK telefonu (odbiór `/sapp2/mood/`) i nowego `sapp2-wear-N.apk` (ADB).

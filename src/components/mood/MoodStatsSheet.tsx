@@ -8,6 +8,9 @@ import { SheetCard, Legend } from '@/components/design/SheetCard';
 import { useMoodStore } from '@/store/moodStore';
 import { useCollectionStore } from '@/store/collectionStore';
 import { useScreenTimeStore } from '@/store/screenTimeStore';
+import { useGoodThingsStore } from '@/store/goodThingsStore';
+import { goodList, goodStreak } from '@/utils/goodThings';
+import { todayISO } from '@/utils/date';
 import type { Expense } from '@/types/finances';
 import { moodColor, energyGlow, roundLevel, MOOD_LABELS, ENERGY_LABELS, MOOD_COLORS } from '@/types/mood';
 import { dailyMood, moodSummary, lastDays, weekdayMood, yearPixels, moodLinks, tagMood } from '@/utils/moodStats';
@@ -31,7 +34,10 @@ export default function MoodStatsSheet({ visible, onClose, onAdd, expenses }: {
   const month = useMemo(() => lastDays(days, 30), [days]);
   const week = useMemo(() => weekdayMood(days), [days]);
   const screenDays = useScreenTimeStore((st) => st.days);
-  const links = useMemo(() => moodLinks(days, expenses, healthLog, screenDays), [days, expenses, healthLog, screenDays]);
+  const goodItems = useGoodThingsStore((st) => st.items);
+  const goods = useMemo(() => goodList(goodItems), [goodItems]);
+  const goodDates = useMemo(() => new Set(goods.map((g) => g.date)), [goods]);
+  const links = useMemo(() => moodLinks(days, expenses, healthLog, screenDays, goodDates), [days, expenses, healthLog, screenDays, goodDates]);
   const tags = useMemo(() => tagMood(entries), [entries]);
   const years = useMemo(() => {
     const ys = new Set<number>([new Date().getFullYear()]);
@@ -119,7 +125,7 @@ export default function MoodStatsSheet({ visible, onClose, onAdd, expenses }: {
 
           <SheetCard title="Co wpływa na humor">
             {links.length === 0 ? (
-              <Text style={s.empty}>Za mało danych — zależności pojawią się, gdy będzie po kilka dni w każdej grupie (sen, kroki, wydatki, słodycze, weekend).</Text>
+              <Text style={s.empty}>Za mało danych — zależności pojawią się, gdy będzie po kilka dni w każdej grupie (sen, kroki, wydatki, słodycze, czas z telefonem, dobra rzecz dnia, weekend).</Text>
             ) : links.map((l) => (
               <View key={l.key} style={s.lRow}>
                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -133,6 +139,19 @@ export default function MoodStatsSheet({ visible, onClose, onAdd, expenses }: {
             ))}
             <Text style={s.note}>Średni humor (1–5) w dni z danym warunkiem vs bez niego. To korelacje, nie przyczyny.</Text>
           </SheetCard>
+
+          {goods.length > 0 && (
+            <SheetCard title="Dobre rzeczy" right={<Text style={s.capR}>{goods.length} zapisanych{goodStreak(goodItems, todayISO()) >= 2 ? ` · ${goodStreak(goodItems, todayISO())} dni z rzędu` : ''}</Text>}>
+              {goods.slice(0, 6).map((g) => (
+                <View key={g.id} style={s.goodRow}>
+                  <Text style={s.goodDate}>{new Date(`${g.date}T12:00:00`).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}</Text>
+                  <View style={[s.goodDot, { backgroundColor: days.get(g.date) ? moodColor(days.get(g.date)!.mood) : colors.text.muted }]} />
+                  <Text style={s.goodTxt} numberOfLines={2}>{g.text}</Text>
+                </View>
+              ))}
+              <Text style={s.note}>Kropka = humor tego dnia. Wszystkie wpisy znajdziesz w wyszukiwarce (lupa) albo stukając kafel „Dobra rzecz” w Daily.</Text>
+            </SheetCard>
+          )}
 
           {tags.length > 0 && (
             <SheetCard title="Tagi">
@@ -154,6 +173,10 @@ export default function MoodStatsSheet({ visible, onClose, onAdd, expenses }: {
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
+  goodRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 5 },
+  goodDate: { width: 52, fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: c.text.muted, paddingTop: 1 },
+  goodDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5 },
+  goodTxt: { flex: 1, fontSize: 13, lineHeight: 18, fontFamily: 'Inter_600SemiBold', color: c.text.primary },
   headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: spacing[2] },
   title: { fontSize: 18, fontFamily: 'Inter_900Black', color: c.text.bright },
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.text.bright, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 7 },

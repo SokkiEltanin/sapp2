@@ -108,7 +108,7 @@ const median = (xs: number[]) => {
  * Zależności: średni humor w dni "z" vs "bez" (sen, kroki, wydatki, słodycze, czas z telefonem, weekend,
  * dzień po dużych zakupach). Tylko te z ≥3 dniami po obu stronach, posortowane wg siły.
  */
-export function moodLinks(days: Map<string, DayMood>, expenses: Expense[], health: HealthLog, screen: Record<string, { total: number }> = {}): MoodLink[] {
+export function moodLinks(days: Map<string, DayMood>, expenses: Expense[], health: HealthLog, screen: Record<string, { total: number }> = {}, goodDates?: Set<string>): MoodLink[] {
   const list = [...days.values()];
   const { spend, sweets } = dailySpend(expenses);
   const out: (MoodLink | null)[] = [];
@@ -135,6 +135,11 @@ export function moodLinks(days: Map<string, DayMood>, expenses: Expense[], healt
     const sthr = Math.max(60, Math.round(median(scr) / 30) * 30);
     const hl = sthr % 60 ? `${Math.floor(sthr / 60)},5 h` : `${sthr / 60} h`;
     out.push(link('screen', `Ponad ${hl} z telefonem`, 'mniej', ...split((d) => { const v = screen[d.date]?.total; return v != null && v > 0 ? v > sthr : null; })));
+  }
+  // Jedna dobra rzecz z dnia (2026-11-22): dni z zapisaną dobrą rzeczą vs bez (od pierwszego wpisu).
+  if (goodDates?.size) {
+    const first = [...goodDates].sort()[0];
+    out.push(link('good', 'Zapisana dobra rzecz dnia', 'bez', ...split((d) => (d.date >= first ? goodDates.has(d.date) : null))));
   }
   out.push(link('weekend', 'Weekend', 'dni robocze', ...split((d) => { const w = new Date(`${d.date}T12:00:00`).getDay(); return w === 0 || w === 6; })));
 

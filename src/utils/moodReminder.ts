@@ -38,7 +38,7 @@ export function planMoodReminders(entries: Pick<MoodEntry, 'date'>[], now: Date,
     if (has.has(date) || d.getTime() <= now.getTime()) continue;
     const body = i === 0 && streak.days > 0
       ? `Seria ${streak.days} ${streak.days === 1 ? 'dzień' : 'dni'} — wpisz, żeby jej nie przerwać.`
-      : 'Jedno stuknięcie wystarczy.';
+      : 'Jedno stuknięcie wystarczy — i może jedna dobra rzecz z dziś?';
     out.push({ id: MOOD_REMINDER_PREFIX + date, date, fireAt: d.getTime(), body });
   }
   return out;

@@ -38,3 +38,12 @@ describe('wyszukiwanie w całej appce', () => {
     expect(globalSearch(data, 's').total).toBe(0);
   });
 });
+
+describe('szukanie: dobre rzeczy dnia', () => {
+  it('znajduje po tekście, od najnowszej', () => {
+    const good = [{ id: 'g_2026-11-20', date: '2026-11-20', text: 'Spacer z psem', createdAt: '', updatedAt: '' }, { id: 'g_2026-11-21', date: '2026-11-21', text: 'spacer nad rzeką', createdAt: '', updatedAt: '' }];
+    const r = globalSearch({ ...data, good }, 'spacer');
+    expect(r.good.map((h) => h.id)).toEqual(['2026-11-21', '2026-11-20']);
+    expect(globalSearch(data, 'spacer').good).toEqual([]);
+  });
+});

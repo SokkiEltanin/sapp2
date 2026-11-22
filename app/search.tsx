@@ -3,7 +3,7 @@ import { useDeferredValue, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChevronLeft, Search, X, Receipt, StickyNote, CheckSquare, Repeat, RefreshCw, Car } from 'lucide-react-native';
+import { ChevronLeft, Search, X, Receipt, StickyNote, CheckSquare, Repeat, RefreshCw, Car, Sparkles } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import { useExpensesStore } from '@/store/expensesStore';
@@ -12,6 +12,7 @@ import { useCalendarStore } from '@/store/calendarStore';
 import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import { useReplacementsStore } from '@/store/replacementsStore';
 import { useVehiclesStore } from '@/store/vehiclesStore';
+import { useGoodThingsStore } from '@/store/goodThingsStore';
 import { globalSearch, type HitKind, type SearchHit } from '@/utils/globalSearch';
 import { openNote } from '@/services/notesNav';
 import { haptic } from '@/utils/haptics';
@@ -25,6 +26,7 @@ const GROUPS: { kind: HitKind; label: string; Icon: typeof Receipt }[] = [
   { kind: 'subscription', label: 'Stałe opłaty', Icon: Repeat },
   { kind: 'replacement', label: 'Wymiany', Icon: RefreshCw },
   { kind: 'vehicle', label: 'Pojazdy', Icon: Car },
+  { kind: 'good', label: 'Dobre rzeczy', Icon: Sparkles },
 ];
 const zlSigned = (n: number) => `${n > 0 ? '+' : '−'}${zl(Math.abs(n))}`;
 const dateLabel = (d?: string) => (d ? `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(2, 4)}` : '');
@@ -38,6 +40,7 @@ function openHit(h: SearchHit) {
     case 'subscription': router.push('/subscriptions' as any); break;
     case 'replacement': router.push('/replacements' as any); break;
     case 'vehicle': router.push({ pathname: '/vehicles', params: { id: h.id } } as any); break;
+    case 'good': router.navigate({ pathname: '/daily', params: { good: h.id } } as any); break;
   }
 }
 
@@ -51,9 +54,10 @@ export default function SearchScreen() {
   const subscriptions = useSubscriptionsStore((st) => st.subscriptions);
   const replacements = useReplacementsStore((st) => st.items);
   const vehicles = useVehiclesStore((st) => st.vehicles);
+  const good = useGoodThingsStore((st) => st.items);
   const res = useMemo(
-    () => globalSearch({ expenses, notes, tasks, subscriptions, replacements, vehicles }, dq),
-    [dq, expenses, notes, tasks, subscriptions, replacements, vehicles],
+    () => globalSearch({ expenses, notes, tasks, subscriptions, replacements, vehicles, good }, dq),
+    [dq, expenses, notes, tasks, subscriptions, replacements, vehicles, good],
   );
 
   return (

@@ -64,6 +64,16 @@ describe('humor — statystyki', () => {
     expect(l).toMatchObject({ a: 2, b: 4, na: 4, nb: 4 });
     expect(moodLinks(dailyMood(entries), [], {}).find((x) => x.key === 'screen')).toBeUndefined();
   });
+  it('zależność od dobrej rzeczy dnia — tylko dni od pierwszego wpisu', () => {
+    const entries: any[] = []; const good = new Set<string>();
+    for (let i = 1; i <= 10; i++) {
+      const d = `2026-11-${String(i).padStart(2, '0')}`;
+      entries.push(E(d, i <= 2 ? 1 : i % 2 ? 4 : 3));
+      if (i >= 3 && i % 2) good.add(d);
+    }
+    const l = moodLinks(dailyMood(entries), [], {}, {}, good).find((x) => x.key === 'good')!;
+    expect(l).toMatchObject({ a: 4, b: 3, na: 4, nb: 4 }); // dni 1–2 (przed pierwszym wpisem) pominięte
+  });
   it('tagi: min 3 użycia, od najlepszego', () => {
     const t = tagMood([E('a', 5, 3, ['spokojny']), E('b', 5, 3, ['spokojny']), E('c', 4, 3, ['spokojny']), E('d', 1, 3, ['zmęczony'])]);
     expect(t).toEqual([{ tag: 'spokojny', avg: 14 / 3, n: 3 }]);

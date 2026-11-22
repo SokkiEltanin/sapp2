@@ -13,10 +13,13 @@ import FactSheet from '@/components/daily/FactSheet';
 import CollectionSheet, { useCollectionData } from '@/components/daily/CollectionSheet';
 import { useCollectionStore } from '@/store/collectionStore';
 import { haptic } from '@/utils/haptics';
-import { Check, BarChart3 } from 'lucide-react-native';
+import { Check, BarChart3, Sparkles } from 'lucide-react-native';
 import { C, T, S, R } from '@/ui/theme';
 import MoodModal from '@/components/mood/MoodModal';
 import MoodStatsSheet from '@/components/mood/MoodStatsSheet';
+import GoodThingSheet from '@/components/mood/GoodThingSheet';
+import { useGoodThingsStore } from '@/store/goodThingsStore';
+import { goodStreak, goodMemory, isRoughDay, goodExample } from '@/utils/goodThings';
 import { useConfirmTap } from '@/hooks/useConfirmTap';
 import SleepSheet from '@/components/health/SleepSheet';
 import BodySheet from '@/components/health/BodySheet';
@@ -54,8 +57,12 @@ export default function DailyScreen() {
   useHealthSync();
   const [moodOpen, setMoodOpen] = useState(false);
   // Stuknięcie w przypomnienie o humorze → Daily z otwartym wpisem (hooks/useNotifeeAlertLaunch.ts).
-  const { mood: moodParam } = useLocalSearchParams<{ mood?: string }>();
+  const { mood: moodParam, good: goodParam } = useLocalSearchParams<{ mood?: string; good?: string }>();
   useEffect(() => { if (moodParam) setMoodOpen(true); }, [moodParam]);
+  // Jedna dobra rzecz z dnia (2026-11-22); `good` z wyszukiwarki = edycja wpisu z tego dnia.
+  const [good, setGood] = useState<{ open: boolean; date: string | null }>({ open: false, date: null });
+  useEffect(() => { if (goodParam) setGood({ open: true, date: goodParam }); }, [goodParam]);
+  const goodItems = useGoodThingsStore((st) => st.items);
   const [moodStatsOpen, setMoodStatsOpen] = useState(false);
   const [knowArmed, knowTap] = useConfirmTap();
   const [sleepOpen, setSleepOpen] = useState(false);
@@ -109,6 +116,11 @@ export default function DailyScreen() {
   const moodSeries = useMemo(() => moodStreak(entries), [entries, today]); // eslint-disable-line react-hooks/exhaustive-deps
   // wieczorem bez wpisu kafel lekko się wyróżnia (2026-11-18)
   const moodEvening = !lastToday && new Date().getHours() >= 18;
+  const goodToday = goodItems.find((g) => g.date === today && g.text.trim()) ?? null;
+  const goodSeries = useMemo(() => goodStreak(goodItems, today), [goodItems, today]);
+  // Gorszy dzień → "Pamiętasz?" ze starą dobrą rzeczą (zamiast pustej zachęty).
+  const goodMem = useMemo(() => (!goodToday && isRoughDay(todayEntries, today) ? goodMemory(goodItems, today) : null), [goodToday, todayEntries, goodItems, today]);
+  const goodEvening = !goodToday && new Date().getHours() >= 18;
   const moodWeek = useMemo(() => {
     const now = new Date();
     return Array.from({ length: 7 }, (_, i) => {
@@ -246,6 +258,43 @@ export default function DailyScreen() {
         </Tile>
       </Row>
 
+      {/* Jedna dobra rzecz z dnia (2026-11-22, user: "podać jedną pozytywną rzecz z dnia —
+          obniża stres i szanse na depresję"). Stuknięcie = wpis/edycja; w gorszy dzień
+          (humor poniżej "Tak sobie") przypomina starą dobrą rzecz. */}
+      <Row>
+        <Tile span={4} onPress={() => setGood({ open: true, date: null })} style={goodEvening && !goodMem ? st.goodEvening : undefined} accessibilityLabel="Dobra rzecz dnia">
+          {goodToday ? (
+            <>
+              <Cap l="Dobra rzecz dziś" r={goodSeries >= 2 ? `${goodSeries} dni z rzędu` : undefined} />
+              <View style={st.goodRow}>
+                <Sparkles size={14} color="#FB923C" />
+                <Text style={[T.body, { flex: 1, color: C.hi }]} numberOfLines={2}>{goodToday.text}</Text>
+              </View>
+            </>
+          ) : goodMem ? (
+            <>
+              <Cap l="Pamiętasz?" r={new Date(`${goodMem.date}T12:00:00`).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })} />
+              <View style={st.goodRow}>
+                <Sparkles size={14} color="#FB923C" />
+                <Text style={[T.body, { flex: 1, color: C.hi }]} numberOfLines={2}>{goodMem.text}</Text>
+              </View>
+              <Text style={[T.small, { marginTop: 4 }]} numberOfLines={1}>Gorszy dzień — a co dziś mimo to było dobrego? Stuknij.</Text>
+            </>
+          ) : (
+            <>
+              <Cap l="Jedna dobra rzecz z dnia" r={goodSeries >= 1 ? `seria ${goodSeries} — nie przerwij` : undefined} />
+              <View style={st.goodRow}>
+                <Sparkles size={14} color={goodEvening ? '#FB923C' : C.mut} />
+                <Text style={[T.small, { flex: 1 }]} numberOfLines={1}>Co dziś było dobrego? np. {goodExample(today)}</Text>
+              </View>
+            </>
+          )}
+        </Tile>
+      </Row>
+
+      <LazyMount visible={good.open}>
+        <GoodThingSheet visible={good.open} date={good.date} onClose={() => setGood({ open: false, date: null })} />
+      </LazyMount>
       <LazyMount visible={coll.open}>
         <CollectionSheet visible={coll.open} onClose={closeColl} highlight={coll.highlight} />
       </LazyMount>
@@ -301,4 +350,6 @@ const st = StyleSheet.create({
   moodDotCol: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   moodDot: { borderRadius: 7 },
   moodDotToday: { borderWidth: 1.5, borderColor: C.hi },
+  goodRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 6 },
+  goodEvening: { borderWidth: 1, borderColor: 'rgba(251,146,60,0.45)', backgroundColor: 'rgba(251,146,60,0.06)' },
 });

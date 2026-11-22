@@ -2376,3 +2376,14 @@ więcej szczegółów”. Rząd Dashboardu `screen` (utils/dashboardLayout.ts) �
   SpannableStringBuilder.
 - Edytor na Androidzie: po zmianie tekstu/stylu `relayout()` (szerokość pola −1 px na 32 ms) — obejście
   nieprzerysowanych linii w natywnym polu z wieloma spanami.
+
+## JEDNA DOBRA RZECZ Z DNIA (2026-11-22)
+
+User: „podać jedną pozytywną rzecz z dnia (obniża stres i szanse na depresję)”. Osobno od humoru (można bez humoru):
+`store/goodThingsStore.ts` (`good-things-v1`, jeden wpis na dzień, id `g_<data>`, pusty tekst = usunięcie),
+sync `sync_good` (cloudSync listBinding), kopia automatycznie. Czyste: `utils/goodThings.ts` (goodList, goodStreak,
+goodMemory — stara rzecz sprzed ≥3 dni, stała w ciągu dnia; isRoughDay — średni humor < 2,6).
+UI: kafel w Daily (ostatni rząd) → `components/mood/GoodThingSheet.tsx` (dzień + lista, stuknięcie = edycja dnia);
+pole w `MoodModal` (zapis do tego samego store'a) + „✦” w pamiętniku; `MoodStatsSheet` karta „Dobre rzeczy” +
+zależność `moodLinks(..., goodDates)`; wyszukiwarka (`HitKind 'good'` → `/daily?good=<data>`); treść przypomnienia
+21:00 wspomina dobrą rzecz.
