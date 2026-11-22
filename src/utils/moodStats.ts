@@ -105,10 +105,10 @@ const median = (xs: number[]) => {
 };
 
 /**
- * Zależności: średni humor w dni "z" vs "bez" (sen, kroki, wydatki, słodycze, weekend,
+ * Zależności: średni humor w dni "z" vs "bez" (sen, kroki, wydatki, słodycze, czas z telefonem, weekend,
  * dzień po dużych zakupach). Tylko te z ≥3 dniami po obu stronach, posortowane wg siły.
  */
-export function moodLinks(days: Map<string, DayMood>, expenses: Expense[], health: HealthLog): MoodLink[] {
+export function moodLinks(days: Map<string, DayMood>, expenses: Expense[], health: HealthLog, screen: Record<string, { total: number }> = {}): MoodLink[] {
   const list = [...days.values()];
   const { spend, sweets } = dailySpend(expenses);
   const out: (MoodLink | null)[] = [];
@@ -129,6 +129,13 @@ export function moodLinks(days: Map<string, DayMood>, expenses: Expense[], healt
   out.push(link('spend', `Wydatki ponad ${thr} zł`, 'mniej lub nic', ...split((d) => (spend.get(d.date) ?? 0) > thr)));
   out.push(link('nospend', 'Dzień bez wydatków', 'z wydatkami', ...split((d) => !spend.has(d.date))));
   out.push(link('sweets', 'Kupione słodycze', 'bez słodyczy', ...split((d) => sweets.has(d.date))));
+  // Czas z telefonem (2026-11-22): próg = mediana dni z danymi, zaokrąglona do 30 min (min. 1 h).
+  const scr = list.map((d) => screen[d.date]?.total).filter((v): v is number => v != null && v > 0);
+  if (scr.length) {
+    const sthr = Math.max(60, Math.round(median(scr) / 30) * 30);
+    const hl = sthr % 60 ? `${Math.floor(sthr / 60)},5 h` : `${sthr / 60} h`;
+    out.push(link('screen', `Ponad ${hl} z telefonem`, 'mniej', ...split((d) => { const v = screen[d.date]?.total; return v != null && v > 0 ? v > sthr : null; })));
+  }
   out.push(link('weekend', 'Weekend', 'dni robocze', ...split((d) => { const w = new Date(`${d.date}T12:00:00`).getDay(); return w === 0 || w === 6; })));
 
   return (out.filter(Boolean) as MoodLink[]).sort((x, y) => Math.abs(y.diff) - Math.abs(x.diff));

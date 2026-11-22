@@ -16,6 +16,10 @@ import { useWeatherStore } from '@/store/weatherStore';
 import { weatherCodeInfo, rainSummary, aqiInfo, fmtTemp, weatherColor } from '@/utils/weather';
 import WeatherSheet from '@/components/weather/WeatherSheet';
 import BatterySheet from '@/components/battery/BatterySheet';
+import ScreenTimeSheet from '@/components/screen/ScreenTimeSheet';
+import { useScreenTimeStore, useAppIconsStore } from '@/store/screenTimeStore';
+import { screenTimeAvailable } from '@/services/screenTime';
+import { lastScreenDays, vsUsual, catOf, CAT_COLOR, ymd as screenYmd } from '@/utils/screenTime';
 import { useMinuteClock } from '@/hooks/useMinuteClock';
 import { useProfileStore } from '@/store/profileStore';
 import { nextBirthday } from '@/utils/profile';
@@ -253,6 +257,7 @@ export default function Dashboard() {
   const wxError = useWeatherStore((st) => st.error);
   const [weatherOpen, setWeatherOpen] = useState(false);
   const [batteryOpen, setBatteryOpen] = useState(false); // szczegóły baterii (2026-11-17)
+  const [screenOpen, setScreenOpen] = useState(false); // czas z telefonem (2026-11-22)
   // Kliknięcie widgetu "Pogoda" na pulpicie → app/weather.tsx → tu z ?weather=1.
   const { weather: weatherParam } = useLocalSearchParams<{ weather?: string }>();
   useEffect(() => {
@@ -283,12 +288,34 @@ export default function Dashboard() {
     return { vehicleName: r.kind === 'car' ? r.car.vehicleName : 'dom', label: rowName(r), dueLabel: r.due.label, overdue: r.due.daysLeft < 0 };
   }, [vehicles, replaceItems, dayNow]);
 
+  // Czas z telefonem (2026-11-22): store odświeża services/screenTime.ts (co 5 min / po powrocie).
+  const screenDays = useScreenTimeStore((st) => st.days);
+  const screenAccess = useScreenTimeStore((st) => st.access);
+  const screenT = useScreenTimeStore((st) => st.t);
+  const appIcons = useAppIconsStore((st) => st.icons);
+  const screen = useMemo<DashData['screen']>(() => {
+    const today = screenDays[screenYmd(now)];
+    const week = lastScreenDays(screenDays, now, 7).map((w) => ({ label: w.date, value: w.d?.total ?? 0 }));
+    const state: DashData['screen']['state'] = Platform.OS === 'android' && !screenTimeAvailable() ? 'noModule'
+      : Platform.OS === 'android' && screenAccess === false ? 'noAccess'
+      : today ? 'ok' : 'empty';
+    return {
+      state,
+      total: today?.total ?? 0, unlocks: today?.unlocks ?? 0, first: today?.first ?? null,
+      vsPct: vsUsual(screenDays, now)?.pct ?? null,
+      week,
+      top: (today?.apps ?? []).filter((a) => a.m > 0).slice(0, 3).map((a) => ({ p: a.p, l: a.l, m: a.m, icon: appIcons[a.p], color: CAT_COLOR[catOf(a)] })),
+      remoteAt: Platform.OS === 'web' && screenT ? screenT : null,
+    };
+  }, [screenDays, screenAccess, screenT, appIcons, now]);
+
   const data: DashData = {
     next: upcomingEvent ? { title: upcomingEvent.e.title, start: upcomingEvent.start } : null,
     batteries: { ...batteries, lowPct: watchLow },
     weather,
     weatherHint,
     foodMonths: foodMonths.map((m) => ({ label: m.label, value: m.value })),
+    screen,
     nextMaintenance,
     note: pinnedNote,
     notesCount: notesCount,
@@ -307,6 +334,7 @@ export default function Dashboard() {
     })),
     onOpen: (what, id) => {
       if (what === 'battery') { batteries.refresh(); setBatteryOpen(true); }
+      else if (what === 'screen') setScreenOpen(true);
       else if (what === 'foodMonth') { setWydatkiTab('food'); setWydatkiOpen(true); }
       else if (what === 'note' && id) openNote(id);
       else if (what === 'noteNew') openNewNote('text', true);
@@ -355,6 +383,9 @@ export default function Dashboard() {
           phone={Platform.OS === 'web' ? batteries.remotePhone : batteries.phone}
           watch={batteries.watch}
           laptop={Platform.OS === 'web' ? batteries.phone : null} />
+      </LazyMount>
+      <LazyMount visible={screenOpen}>
+        <ScreenTimeSheet visible={screenOpen} onClose={() => setScreenOpen(false)} />
       </LazyMount>
       <LazyMount visible={weatherOpen}>
         <WeatherSheet visible={weatherOpen} onClose={() => setWeatherOpen(false)} />

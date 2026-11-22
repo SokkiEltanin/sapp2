@@ -34,6 +34,9 @@ import {
   CloudUpload, CloudDownload, LayoutGrid,
   Tags, PenLine, Eraser,
 } from 'lucide-react-native';
+import { Smartphone as SmartphoneIcon } from 'lucide-react-native';
+import { useScreenTimeStore } from '@/store/screenTimeStore';
+import { screenTimeAvailable, openScreenAccess } from '@/services/screenTime';
 import * as Clipboard from 'expo-clipboard';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db, withTimeout } from '@/firebase';
@@ -129,6 +132,7 @@ function buildSections(
   profile: string,
   pen: { fingerScroll: boolean; buttonEraser: boolean; stylusSeen: boolean },
   moodRem: { enabled: boolean; hour: number; minute: number },
+  screenAccess: boolean | null,
 ): SettingsSection[] {
   return [
   // Zakładki (2026-11-17, user: "popraw ustawienia, zrób lepsze zakładki — czemu w
@@ -161,6 +165,13 @@ function buildSections(
         icon: Watch,
       },
       { kind: 'action', tier: 'sub', key: 'health-diag', label: 'Test: wszystko z zegarka', description: 'co łapiemy z Health Connect (Samsung Health, zegarek…) — z kopiowaniem raportu', icon: Stethoscope },
+      // Czas z telefonem (2026-11-22): kafel na Dashboardzie potrzebuje systemowego dostępu.
+      ...(Platform.OS === 'android' ? [{
+        kind: 'action' as const, key: 'usage-access', label: 'Dostęp do danych o użyciu', permission: true,
+        description: !screenTimeAvailable() ? 'wymaga nowego APK — czas w appkach i odblokowania na Dashboardzie'
+          : screenAccess ? 'włączony — czas z telefonem liczy się na Dashboardzie' : 'ekran systemowy — włącz SOEN, żeby liczyć czas w appkach i odblokowania',
+        icon: SmartphoneIcon,
+      }] : []),
     ],
   },
   // Sekcja "Finanse" miała dotąd tylko statyczne "W budowie" — stałe od Fazy 2.1,
@@ -445,6 +456,7 @@ export default function SettingsScreen() {
   const mrHour = useMoodReminderStore((st) => st.hour);
   const mrMinute = useMoodReminderStore((st) => st.minute);
   const moodRem = useMemo(() => ({ enabled: mrEnabled, hour: mrHour, minute: mrMinute }), [mrEnabled, mrHour, mrMinute]);
+  const screenAccess = useScreenTimeStore((st) => st.access);
   const sections = useMemo(
     () => buildSections(
       user?.email ?? null,
@@ -464,8 +476,9 @@ export default function SettingsScreen() {
       profileLabel,
       pen,
       moodRem,
+      screenAccess,
     ),
-    [moodRem, pen, profileLabel, pwaLabel, healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, hapticStrength, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, widgetNote, syncLabel],
+    [screenAccess, moodRem, pen, profileLabel, pwaLabel, healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, hapticStrength, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, widgetNote, syncLabel],
   );
 
   const backupNow = async () => {
@@ -769,6 +782,7 @@ export default function SettingsScreen() {
     'notify-test': leave(() => router.push('/notify-test' as any)),
     'bank-enabled': toggleBankEnabled,
     'bank-notif-access': openNotificationAccess,
+    'usage-access': () => { if (screenTimeAvailable()) openScreenAccess(); },
     'bank-auto-all': toggleBankAutoAll,
     'bank-test': testBankCapture,
     'bank-review': leave(() => router.push('/bank-review' as any)),

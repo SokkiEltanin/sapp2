@@ -20,7 +20,8 @@ export const BACKUP_CHUNK_CHARS = 300_000;
 export function shouldBackupKey(key: string): boolean {
   // `sync-*` (2026-11-13): stan synchronizacji jest per urządzenie — po przywróceniu
   // kopii (np. na nowym telefonie) synchronizacja ma zacząć od pełnego scalenia.
-  return !key.startsWith('firebase:') && !key.startsWith(BACKUP_KEY_PREFIX) && !key.startsWith('sync-');
+  // `cache-*` (2026-11-22): dane do odtworzenia w każdej chwili (np. ikony appek) — bez sensu w kopii.
+  return !key.startsWith('firebase:') && !key.startsWith(BACKUP_KEY_PREFIX) && !key.startsWith('sync-') && !key.startsWith('cache-');
 }
 
 export function chunkString(s: string, size: number = BACKUP_CHUNK_CHARS): string[] {

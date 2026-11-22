@@ -52,6 +52,7 @@ import { useBillReminderSync } from '@/hooks/useBillReminderSync';
 import { useReplaceReminderSync } from '@/hooks/useReplaceReminderSync';
 import { useTaskReminderSync } from '@/hooks/useTaskReminderSync';
 import { useMoodReminderSync } from '@/hooks/useMoodReminderSync';
+import { useScreenTimeSync } from '@/hooks/useScreenTimeSync';
 import { startBudgetAlerts } from '@/services/budgetAlerts';
 // Kategorie z Ustawień (nazwy/kolory/ukryte/nowe) — import = zastosowanie przy starcie.
 import '@/store/categoriesStore';
@@ -192,6 +193,7 @@ export default function RootLayout() {
   useReplaceReminderSync();
   useTaskReminderSync();
   useMoodReminderSync();
+  useScreenTimeSync();
   useCollectionUpkeep();
   useEffect(() => (Platform.OS === 'web' ? installWheelToHorizontal() : undefined), []);
   // Tagi ze starej appki (czekolada → Słodycze, chemia → Zmienne…) — 2026-11-16.

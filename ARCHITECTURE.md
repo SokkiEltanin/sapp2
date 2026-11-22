@@ -2346,3 +2346,23 @@ logowania, Ustawienia, zegarek (etykieta, nagłówek, kafelek), nazwa usługi po
 CELOWO bez zmian (zmiana zepsułaby aktualizacje/dane/parowanie): `com.sokki.sapp2`, slug i scheme `sapp2`
 (deep linki widgetów), adres PWA `/sapp2/`, ścieżki Data Layer `/sapp2/…`, `app: 'sapp2'` w plikach kopii,
 nazwy plików/klas w kodzie.
+
+## CZAS Z TELEFONEM (2026-11-22)
+
+User: „zamiast #JedzeniePerMiesiąc statystyki użycia innych aplikacji, ilość włączeń telefonu… po otwarciu
+więcej szczegółów”. Rząd Dashboardu `screen` (utils/dashboardLayout.ts) — `food` zostaje, domyślnie ukryty
+(`DEFAULT_HIDDEN`; stary zapisany układ: `migrateLayoutV1`, persist version 1 w dashboardLayoutStore).
+- **Natywnie:** `plugins/withUsageStats.js` → moduł `UsageStats` (hasAccess, openAccessSettings, getDays,
+  getIcons). Uprawnienia PACKAGE_USAGE_STATS (+ tools:ignore) i QUERY_ALL_PACKAGES (nazwy/ikony appek od Androida
+  11) dodaje plugin w manifeście. Dzień liczony ze zdarzeń: ACTIVITY_RESUMED/PAUSED/STOPPED (per aktywność, sesja
+  przez północ liczona od początku okna), ekran wył. (16) zamyka sesje, odblokowania = KEYGUARD_HIDDEN (18),
+  włączenia ekranu = 15. Bez ekranu głównego (HOME) i paska systemu. Godziny = sesje rozłożone na 24 h.
+- **JS:** `utils/screenTime.ts` (czyste: fromRaw, kategorie — znane pakiety przed ApplicationInfo.category,
+  vsUsual = porównanie z poprzednimi dniami DO TEJ SAMEJ GODZINY, daysToFetch, merge), `store/screenTimeStore.ts`
+  (`screen-time-v1`, 90 dni; ikony osobno w `cache-app-icons-v1` — prefiks `cache-` = poza kopią),
+  `services/screenTime.ts` (refresh: dziś + niepełne dni tygodnia, limit 60 s), `hooks/useScreenTimeSync.ts`
+  (start, powrót do appki, co 5 min). Komputer: doc `screen` w cloudSync (telefon pisze, web czyta, 35 dni).
+- **UI:** kafel w `ui/DashboardScreen.tsx` (`ScreenTileBody`: dziś, odblokowania, % vs zwykle, tydzień, 3 appki;
+  stany noModule / noAccess / empty), szczegóły `components/screen/ScreenTimeSheet.tsx` (dni strzałkami, liczby,
+  godziny, kategorie, appki, 7 dni). Ustawienia → Połączenia → „Dostęp do danych o użyciu”. Humor: zależność
+  „Ponad X h z telefonem” (`moodLinks(..., screen)`).

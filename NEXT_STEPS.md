@@ -46,6 +46,12 @@ w przypomnieniu 21:00), bo zapisywanie jednej pozytywnej rzeczy dziennie obniża
 zaprojektowania: gdzie wpisywać (MoodModal? osobne pole w Daily?), przegląd „dobrych rzeczy” w statystykach humoru,
 losowe przypomnienie starej dobrej rzeczy w gorszy dzień.
 
+**2026-11-22 — Czas z telefonem na Dashboardzie** (zamiast #JedzeniePerMiesiąc, który jest teraz ukryty w Ustawieniach →
+Układ Dashboardu). Nowe APK (moduł UsageStats). ARCHITECTURE „CZAS Z TELEFONEM”.
+- [ ] Kafel → „zezwól na dostęp” → ekran systemowy → włączyć SOEN → powrót: dane od razu.
+- [ ] Porównać z Samsung „Cyfrowa równowaga” (czas, odblokowania) — czy liczby się zgadzają w przybliżeniu.
+- [ ] Ikony appek w panelu; komputer pokazuje dane z telefonu.
+
 **2026-11-21 — Notatki na komputerze się zamykały / martwe przyciski**: przyciemnienie obok panelu (klik = zamknij)
 liczyło się dla zwykłej szerokości panelu (560), a notatka ma do 900 px → zasłaniało lewą część notatki (przełącznik
 T/✎, pióro, rysowanie przy lewej krawędzi). Wspólne `deskPanelWidth` (utils/desktopColumns.ts) dla panelu i tła.

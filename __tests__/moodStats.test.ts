@@ -51,6 +51,19 @@ describe('humor — statystyki', () => {
     expect(links.find((l) => l.key === 'nospend')!.diff).toBe(2);
     expect(links.find((l) => l.key === 'sleep')).toBeUndefined(); // brak danych snu
   });
+  it('zależność od czasu z telefonem: próg = mediana (do 30 min)', () => {
+    const entries: any[] = []; const screen: Record<string, { total: number }> = {};
+    for (let i = 1; i <= 8; i++) {
+      const d = `2026-11-${String(i).padStart(2, '0')}`;
+      const heavy = i <= 4;
+      entries.push(E(d, heavy ? 2 : 4));
+      screen[d] = { total: heavy ? 300 : 120 };
+    }
+    const l = moodLinks(dailyMood(entries), [], {}, screen).find((x) => x.key === 'screen')!;
+    expect(l.label).toBe('Ponad 3,5 h z telefonem');
+    expect(l).toMatchObject({ a: 2, b: 4, na: 4, nb: 4 });
+    expect(moodLinks(dailyMood(entries), [], {}).find((x) => x.key === 'screen')).toBeUndefined();
+  });
   it('tagi: min 3 użycia, od najlepszego', () => {
     const t = tagMood([E('a', 5, 3, ['spokojny']), E('b', 5, 3, ['spokojny']), E('c', 4, 3, ['spokojny']), E('d', 1, 3, ['zmęczony'])]);
     expect(t).toEqual([{ tag: 'spokojny', avg: 14 / 3, n: 3 }]);

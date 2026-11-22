@@ -7,6 +7,7 @@ import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { SheetCard, Legend } from '@/components/design/SheetCard';
 import { useMoodStore } from '@/store/moodStore';
 import { useCollectionStore } from '@/store/collectionStore';
+import { useScreenTimeStore } from '@/store/screenTimeStore';
 import type { Expense } from '@/types/finances';
 import { moodColor, energyGlow, roundLevel, MOOD_LABELS, ENERGY_LABELS, MOOD_COLORS } from '@/types/mood';
 import { dailyMood, moodSummary, lastDays, weekdayMood, yearPixels, moodLinks, tagMood } from '@/utils/moodStats';
@@ -29,7 +30,8 @@ export default function MoodStatsSheet({ visible, onClose, onAdd, expenses }: {
   const sum = useMemo(() => moodSummary(days, 30), [days]);
   const month = useMemo(() => lastDays(days, 30), [days]);
   const week = useMemo(() => weekdayMood(days), [days]);
-  const links = useMemo(() => moodLinks(days, expenses, healthLog), [days, expenses, healthLog]);
+  const screenDays = useScreenTimeStore((st) => st.days);
+  const links = useMemo(() => moodLinks(days, expenses, healthLog, screenDays), [days, expenses, healthLog, screenDays]);
   const tags = useMemo(() => tagMood(entries), [entries]);
   const years = useMemo(() => {
     const ys = new Set<number>([new Date().getFullYear()]);

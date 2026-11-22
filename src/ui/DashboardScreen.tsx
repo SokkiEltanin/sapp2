@@ -3,8 +3,9 @@ import { Fragment } from 'react';
 import { useDashboardLayoutStore } from '@/store/dashboardLayoutStore';
 import { visibleSections, type DashSection } from '@/utils/dashboardLayout';
 import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
-import { ListTodo, CalendarClock, Wrench, MapPin, StickyNote, Smartphone, Watch, Zap, Laptop } from 'lucide-react-native';
+import { View, Text, StyleSheet, Platform, Image } from 'react-native';
+import { ListTodo, CalendarClock, Wrench, MapPin, StickyNote, Smartphone, Watch, Zap, Laptop, LockOpen } from 'lucide-react-native';
+import { fmtShort, fmtDur } from '@/utils/screenTime';
 import { batteryTone, ageLabel } from '@/utils/deviceBattery';
 import NotePreview from '@/components/notes/NotePreview';
 import NotePage from '@/components/notes/NotePage';
@@ -35,6 +36,15 @@ export type DashData = {
   weather: { temp: string; feels: string; label: string; icon: string; tone: string; place: string; rain: string; aqi?: { value: number; color: string } } | null;
   weatherHint: string;
   foodMonths: { label: string; value: number }[];
+  // Czas z telefonem (2026-11-22) — rząd "screen" zamiast #JedzeniePerMiesiąc (ten domyślnie ukryty).
+  screen: {
+    state: 'ok' | 'noAccess' | 'noModule' | 'empty';
+    total: number; unlocks: number; first: string | null;
+    vsPct: number | null;                       // vs zwykle do tej pory (dziś)
+    week: { label: string; value: number }[];   // 7 dni, minuty
+    top: { p: string; l: string; m: number; icon?: string; color: string }[];
+    remoteAt?: number | null;                   // komputer: kiedy telefon wysłał
+  };
   // Przypięta notatka (2026-11-14, user: listy wydatków tu "nie chcę" → notatka:
   // tekst / lista z odhaczaniem / rysunek S-Pen). `null` = brak przypiętej.
   note: Note | null;
@@ -205,6 +215,16 @@ export function DashboardScreen(d: DashData) {
             </Tile>
           </Row>
     </>,
+    screen: <>
+          {/* Czas z telefonem (2026-11-22, user: "zamiast #JedzeniePerMiesiąc statystyki użycia
+              innych aplikacji, ilość włączeń telefonu… po otwarciu więcej szczegółów"). Lewa
+              strona: dziś + odblokowania + porównanie; prawa: tydzień; dół: 3 najczęstsze appki. */}
+          <Row>
+            <Tile span={4} onPress={() => d.onOpen('screen')} accessibilityLabel="Czas z telefonem">
+              <ScreenTileBody sc={d.screen} />
+            </Tile>
+          </Row>
+    </>,
     note: <>
           <Row flex={1}>
             <Tile span={3} onPress={() => d.onOpen(d.note ? 'note' : 'noteNew', d.note?.id)} style={{ overflow: 'hidden' }}>
@@ -280,6 +300,63 @@ export function DashboardScreen(d: DashData) {
   );
 }
 
+const WD_LETTER = ['nd', 'pn', 'wt', 'śr', 'cz', 'pt', 'sb'];
+function ScreenTileBody({ sc }: { sc: DashData['screen'] }) {
+  if (sc.state !== 'ok') {
+    const msg = sc.state === 'noAccess' ? 'Stuknij i zezwól na dostęp do danych o użyciu'
+      : sc.state === 'noModule' ? 'Wymaga nowego APK — wtedy policzy czas w appkach i odblokowania'
+      : Platform.OS === 'web' ? 'Dane przyjdą z telefonu (SOEN z dostępem do danych o użyciu)' : 'Zbieram dane…';
+    return (
+      <>
+        <Cap l="Czas z telefonem" />
+        <View style={st.scEmpty}>
+          <Smartphone size={18} color={C.dim} />
+          <Text style={[T.small, { flex: 1 }]} numberOfLines={2}>{msg}</Text>
+        </View>
+      </>
+    );
+  }
+  const big = fmtShort(sc.total);
+  const vs = sc.vsPct;
+  const today = new Date().getDay();
+  return (
+    <>
+      <Cap l={Platform.OS === 'web' ? 'Telefon dziś' : 'Czas z telefonem dziś'} r={sc.remoteAt ? `z telefonu ${new Date(sc.remoteAt).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}` : sc.first ? `od ${sc.first}` : undefined} />
+      <View style={st.scMain}>
+        <View style={st.scLeft}>
+          <View style={st.scBigRow}>
+            <Text style={T.num} numberOfLines={1}>{big.big}</Text>
+            <Text style={[T.unit, st.scUnit]}>{big.unit}</Text>
+          </View>
+          <View style={st.scMeta}>
+            <LockOpen size={10} color={C.mut} />
+            <Text style={T.small} numberOfLines={1}>{sc.unlocks} odblok.</Text>
+            {vs != null && Math.abs(vs) >= 5 ? (
+              <Text style={[T.small, { color: vs > 10 ? '#FB923C' : vs < -10 ? C.ok : C.mut }]} numberOfLines={1}>
+                {vs > 0 ? '▲' : '▼'} {Math.abs(vs)}%
+              </Text>
+            ) : null}
+          </View>
+        </View>
+        <View style={st.scWeek}>
+          <Bars height={30} values={sc.week.map((w) => w.value)} labels={sc.week.map((_, i) => WD_LETTER[(today - 6 + i + 7) % 7])} />
+        </View>
+      </View>
+      {sc.top.length > 0 && (
+        <View style={st.scApps}>
+          {sc.top.map((a) => (
+            <View key={a.p} style={st.scApp}>
+              {a.icon ? <Image source={{ uri: a.icon }} style={st.scIcon} /> : <View style={[st.scIcon, { backgroundColor: a.color + '55' }]} />}
+              <Text style={[T.small, { color: C.txt, flexShrink: 1 }]} numberOfLines={1}>{a.l}</Text>
+              <Text style={[T.small, st.scAppT]} numberOfLines={1}>{fmtDur(a.m).replace(' min', 'm').replace(' h', 'h')}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </>
+  );
+}
+
 const BAT_TONE = { charge: '#4ADE80', low: '#F87171', mid: '#FB923C', ok: C.txt };
 const BAT_RED_PCT = 25; // czerwień na kaflu najpóźniej od 25% (próg powiadomienia może być niższy)
 function BatteryRow({ icon, b, lowPct, at }: { icon: 'phone' | 'watch' | 'laptop'; b: { level: number; charging: boolean } | null; lowPct: number; at?: number }) {
@@ -336,4 +413,15 @@ const st = StyleSheet.create({
   nextWhen: { color: 'rgba(0,0,0,.55)' },
   nextTitle: { fontFamily: F.xb, fontSize: 12.5, lineHeight: 15, letterSpacing: 0.2, color: '#000' },
   noteEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  scEmpty: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 },
+  scMain: { flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginTop: 6 },
+  scLeft: { flex: 1, minWidth: 0 },
+  scBigRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
+  scUnit: { marginTop: 0 },
+  scMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+  scWeek: { flex: 1.15 },
+  scApps: { flexDirection: 'row', gap: 6, marginTop: 8 },
+  scApp: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.in, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 4 },
+  scIcon: { width: 14, height: 14, borderRadius: 4 },
+  scAppT: { color: C.mut, fontVariant: ['tabular-nums'], flexShrink: 0 },
 });
