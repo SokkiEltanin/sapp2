@@ -429,7 +429,6 @@ export default function FinancesScreen() {
           </TouchableOpacity>
           <FitList
             data={recent}
-            tailInset={58}
             emptyText="Brak transakcji — dodaj pierwszą przyciskiem +"
             renderItem={(e) => (
               // Wiersz jak w liście Transakcji (2026-11-17, user: "coś mi nie gra z Finansami"):

@@ -163,12 +163,8 @@ export function Cap({ l, r, onR }: { l: string; r?: string | number; onR?: () =>
  * równo. Puste sloty = "ghost" wiersze, więc kafelek z 1 transakcją
  * nie wygląda jak dziura.
  * ------------------------------------------------------------------ */
-export function FitList<I>({ data, minRowH = 30, maxRowH = 44, gap = S.rowGap, renderItem, emptyText, tailInset }: {
+export function FitList<I>({ data, minRowH = 30, maxRowH = 44, gap = S.rowGap, renderItem, emptyText }: {
   data: I[];
-  // Wcięcie z prawej dla 2 OSTATNICH wierszy (2026-11-22, Finanse: "na dole jest miejsce, a nie
-  // pokazuje jeszcze jednej transakcji") — lista wypełnia kafel do końca, a pływający przycisk
-  // nie zasłania kwoty w ostatnich wierszach (zamiast pustego pasa pod listą).
-  tailInset?: number;
   minRowH?: number;
   maxRowH?: number;
   gap?: number;
@@ -183,10 +179,10 @@ export function FitList<I>({ data, minRowH = 30, maxRowH = 44, gap = S.rowGap, r
   return (
     <View style={{ flex: 1, minHeight: 0, gap }} onLayout={(e) => setH(e.nativeEvent.layout.height)}>
       {items.map((it, i) => (
-        <View key={i} style={{ height: rowH, marginRight: tailInset && i >= n - 2 ? tailInset : 0 }}>{renderItem(it, i)}</View>
+        <View key={i} style={{ height: rowH }}>{renderItem(it, i)}</View>
       ))}
       {Array.from({ length: ghosts }).map((_, i) => (
-        <View key={'g' + i} style={[st.ghost, { height: rowH, opacity: 1 - (i / Math.max(ghosts, 1)) * 0.7 }, tailInset && items.length + i >= n - 2 ? { marginRight: tailInset } : null]}>
+        <View key={'g' + i} style={[st.ghost, { height: rowH, opacity: 1 - (i / Math.max(ghosts, 1)) * 0.7 }]}>
           {i === 0 && data.length === 0 && emptyText ? <Text style={T.small}>{emptyText}</Text> : null}
         </View>
       ))}
