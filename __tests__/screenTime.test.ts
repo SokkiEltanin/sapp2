@@ -1,4 +1,4 @@
-import { fromRaw, fmtDur, fmtShort, catOf, byCategory, vsUsual, mergeScreenDays, daysToFetch, dayStarts, ymd, peakHour, nightMinutes, avgBefore, type ScreenDay } from '@/utils/screenTime';
+import { avgHours, fromRaw, fmtDur, fmtShort, catOf, byCategory, vsUsual, mergeScreenDays, daysToFetch, dayStarts, ymd, peakHour, nightMinutes, avgBefore, type ScreenDay } from '@/utils/screenTime';
 
 const H = (arr: Record<number, number>) => Array.from({ length: 24 }, (_, i) => arr[i] ?? 0);
 const D = (date: string, total: number, hours: number[] = H({}), x: Partial<ScreenDay> = {}): ScreenDay =>
@@ -62,5 +62,14 @@ describe('czas z telefonem', () => {
     const d = D('2026-11-22', 0, H({ 1: 15, 3: 5, 21: 40 }));
     expect(peakHour(d)).toEqual({ h: 21, m: 40 });
     expect(nightMinutes(d)).toBe(20);
+  });
+  it('zwykły rozkład godzin', () => {
+    const now = new Date(2026, 10, 22, 9);
+    expect(avgHours({}, now)).toBeNull();
+    const days = { '2026-11-20': D('2026-11-20', 30, H({ 8: 10, 20: 20 })), '2026-11-21': D('2026-11-21', 30, H({ 8: 30 })), '2026-11-22': D('2026-11-22', 99, H({ 8: 99 })) };
+    const a = avgHours(days, now)!;
+    expect(a[8]).toBe(20);
+    expect(a[20]).toBe(10);
+    expect(a[3]).toBe(0);
   });
 });

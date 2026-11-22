@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Platform, Linking, Modal, Pressable } from 'react-native';
-import { ChevronLeft, ChevronRight, Smartphone, Moon, Timer, Flame, AppWindow, Hourglass, X } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Smartphone, Timer, Hourglass, X } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { SheetCard, Legend } from '@/components/design/SheetCard';
+import DayChart from './DayChart';
 import { useScreenTimeStore, useAppIconsStore } from '@/store/screenTimeStore';
 import { useAppCategoryStore } from '@/store/appCategoryStore';
 import { openScreenAccess, refreshScreenTime, screenTimeAvailable } from '@/services/screenTime';
 import {
-  fmtDur, byCategory, catOf, isFun, funMinutes, FUN_CATS, CAT_LABEL, CAT_COLOR, vsUsual, avgBefore, peakHour, nightMinutes, lastScreenDays, ymd,
+  fmtDur, byCategory, catOf, isFun, funMinutes, FUN_CATS, CAT_LABEL, CAT_COLOR, vsUsual, avgBefore, avgHours, lastScreenDays, ymd,
   type ScreenDay, type ScreenApp, type ScreenCat, type AppPrefs,
 } from '@/utils/screenTime';
 import { haptic } from '@/utils/haptics';
@@ -105,8 +106,9 @@ function DayView({ d, days, now, isToday }: { d: ScreenDay; days: Record<string,
   const [editApp, setEditApp] = useState<ScreenApp | null>(null);
   const vs = isToday ? vsUsual(days, now) : null;
   const avg = avgBefore(days, isToday ? now : new Date(`${d.date}T12:00:00`));
-  const peak = peakHour(d);
-  const night = nightMinutes(d);
+  const usual = useMemo(() => avgHours(days, isToday ? now : new Date(`${d.date}T12:00:00`)), [days, d.date, isToday, now]);
+  const [hourSel, setHourSel] = useState<number | null>(null);
+  useEffect(() => { setHourSel(null); }, [d.date]);
   const cats = byCategory(d.apps, prefs);
   const fun = funMinutes(d, prefs);
   const opens = d.apps.reduce((a, x) => a + x.n, 0);
@@ -139,17 +141,25 @@ function DayView({ d, days, now, isToday }: { d: ScreenDay; days: Record<string,
         <View style={s.stripSep} />
         <Stat l="Rozrywka" v={fmtDur(fun)} sub={d.total ? `${Math.round((fun / d.total) * 100)}% czasu` : undefined} />
         <View style={s.stripSep} />
-        <Stat l="Pierwsze odbl." v={d.first ?? '—'} />
+        <Stat l="Otwarcia appek" v={String(opens)} sub={d.unlocks ? `~${Math.max(1, Math.round(opens / d.unlocks))} na odblok.` : undefined} />
       </View>
 
-      <HourChart d={d} />
-
-      <SheetCard title="Szczegóły dnia">
-        <DetailRow Icon={Flame} l="Najwięcej" v={peak && peak.m > 0 ? `${peak.h}:00–${peak.h + 1}:00` : '—'} sub={peak && peak.m > 0 ? fmtDur(peak.m) : undefined} />
-        <DetailRow Icon={Timer} l="Najdłużej bez przerwy" v={d.longest ? fmtDur(d.longest.m) : '—'} sub={d.longest?.l} />
-        <DetailRow Icon={Hourglass} l="Średnio na odblokowanie" v={d.total && d.unlocks ? `~${Math.max(1, Math.round(d.total / d.unlocks))} min` : '—'} sub={`ekran włączony ${d.screenOns}×`} />
-        <DetailRow Icon={AppWindow} l="Otwarcia appek" v={String(opens)} sub={d.unlocks ? `~${Math.max(1, Math.round(opens / d.unlocks))} na odblok.` : undefined} />
-        <DetailRow Icon={Moon} l="W nocy (0–6)" v={fmtDur(night)} color={night >= 30 ? colors.accent.orange : undefined} last />
+      {/* Doba (2026-11-22): szczyt, noc, pierwsze odblokowanie, "teraz" i "zwykle" NA wykresie —
+          bez osobnych wierszy pod spodem; zostają tylko dwie liczby o sesjach. */}
+      <SheetCard title="W ciągu dnia" right={hourSel != null ? (
+        <Text style={s.hourSel}>{hourSel}:00–{hourSel + 1}:00 · {fmtDur(d.hours[hourSel])}{d.unlockHours ? ` · ${d.unlockHours[hourSel]} odbl.` : ''}{usual ? ` · zwykle ${fmtDur(usual[hourSel])}` : ''}</Text>
+      ) : <Text style={s.cardRight}>stuknij słupek</Text>}>
+        <DayChart d={d} usual={usual} isToday={isToday} now={now} sel={hourSel} onSelect={setHourSel} />
+        <View style={s.sessRow}>
+          <View style={s.sess}>
+            <Timer size={13} color={colors.text.muted} />
+            <Text style={s.sessTxt} numberOfLines={1}>najdłużej <Text style={s.sessV}>{d.longest ? fmtDur(d.longest.m) : '—'}</Text>{d.longest ? ` · ${d.longest.l}` : ''}</Text>
+          </View>
+          <View style={s.sess}>
+            <Hourglass size={13} color={colors.text.muted} />
+            <Text style={s.sessTxt} numberOfLines={1}><Text style={s.sessV}>{d.total && d.unlocks ? `~${Math.max(1, Math.round(d.total / d.unlocks))} min` : '—'}</Text> na odblok. · ekran {d.screenOns}×</Text>
+          </View>
+        </View>
       </SheetCard>
 
       {cats.length > 0 && (
@@ -190,7 +200,7 @@ function DayView({ d, days, now, isToday }: { d: ScreenDay; days: Record<string,
               <View key={w.date} style={s.weekCol}>
                 <Text style={[s.weekVal, on && { color: colors.text.bright }]} numberOfLines={1}>{v ? fmtDur(v).replace(' min', 'm').replace(' h', 'h') : '—'}</Text>
                 <View style={s.weekTrack}>
-                  <View style={[s.weekBar, { height: Math.max(3, (v / weekMax) * 70), backgroundColor: on ? colors.text.bright : colors.ui.in2 }]} />
+                  <View style={[s.weekBar, { height: Math.max(3, (v / weekMax) * 70), backgroundColor: on ? colors.text.bright : colors.text.secondary, opacity: on ? 1 : 0.45 }]} />
                 </View>
                 <Text style={[s.weekDay, on && { color: colors.text.bright }]}>{WD[new Date(`${w.date}T12:00:00`).getDay()]}</Text>
                 <Text style={s.weekUnl}>{w.d ? `${w.d.unlocks}×` : ''}</Text>
@@ -205,50 +215,6 @@ function DayView({ d, days, now, isToday }: { d: ScreenDay; days: Record<string,
   );
 }
 
-// Wykres godzinowy (2026-11-22, user: "ładniej, z liczbami nad słupkami i lepszymi godzinami,
-// które mówią dokładnie, kiedy to było — teraz zgadywanie"). Zakres od pierwszej używanej
-// godziny (min. od 6:00), liczba minut nad słupkiem, godzina pod co drugim, pod spodem
-// odblokowania w tej godzinie (nowe APK). Stuknięcie w słupek = dokładnie "8:00–9:00 · …".
-function HourChart({ d }: { d: ScreenDay }) {
-  const s = makeS();
-  const first = d.hours.findIndex((m, h) => m > 0 || (d.unlockHours?.[h] ?? 0) > 0);
-  const start = first >= 0 && first < 6 ? first : 6;
-  const hrs = Array.from({ length: 24 - start }, (_, i) => start + i);
-  const max = Math.max(1, ...d.hours);
-  const peak = peakHour(d);
-  const [sel, setSel] = useState<number | null>(null);
-  const h = sel ?? (peak && peak.m > 0 ? peak.h : null);
-  const unl = (x: number) => d.unlockHours?.[x] ?? null;
-  const H = 74;
-  return (
-    <SheetCard title="W ciągu dnia" right={h != null ? (
-      <Text style={s.hourSel}>{h}:00–{h + 1}:00 · {fmtDur(d.hours[h])}{unl(h) != null ? ` · ${unl(h)} odblok.` : ''}</Text>
-    ) : undefined}>
-      <View style={[s.hours, { height: H + 14 }]}>
-        {hrs.map((x) => {
-          const m = d.hours[x];
-          const on = x === h;
-          return (
-            <TouchableOpacity key={x} style={s.hourCol} activeOpacity={0.7} onPress={() => { haptic.tap(); setSel(x); }} accessibilityLabel={`${x}:00, ${fmtDur(m)}`}>
-              {m > 0 && <Text style={[s.hourVal, on && { color: colors.text.bright }]} numberOfLines={1}>{m}</Text>}
-              <View style={[s.hourBar, { height: m > 0 ? Math.max(3, (m / max) * H) : 2, backgroundColor: m === 0 ? colors.ui.in2 : on ? colors.text.bright : colors.text.secondary }]} />
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-      {d.unlockHours && (
-        <View style={s.hourRow}>
-          {hrs.map((x) => <Text key={x} style={[s.hourUnl, x === h && { color: colors.text.bright }]} numberOfLines={1}>{unl(x) ? unl(x) : ''}</Text>)}
-        </View>
-      )}
-      <View style={s.hourRow}>
-        {hrs.map((x) => <Text key={x} style={[s.hourLab, x === h && { color: colors.text.bright }]}>{x % 2 === 0 ? x : ''}</Text>)}
-      </View>
-      <Text style={s.hourNote}>Nad słupkiem minuty{d.unlockHours ? ', pod nim (niebieskie) odblokowania' : ''}. Stuknij słupek.</Text>
-    </SheetCard>
-  );
-}
-
 function AppRow({ a, max, prefs, onPress }: { a: ScreenApp; max: number; prefs: AppPrefs; onPress: () => void }) {
   const s = makeS();
   const icon = useAppIconsStore((st) => st.icons[a.p]);
@@ -257,8 +223,8 @@ function AppRow({ a, max, prefs, onPress }: { a: ScreenApp; max: number; prefs: 
   return (
     <TouchableOpacity style={s.appRow} onPress={() => { haptic.tap(); onPress(); }} activeOpacity={0.7} accessibilityLabel={`${a.l} — zmień kategorię`}>
       {icon ? <Image source={{ uri: icon }} style={s.appIcon} /> : (
-        <View style={[s.appIcon, s.appInitial, { backgroundColor: CAT_COLOR[cat] + '33' }]}>
-          <Text style={[s.appInitialTxt, { color: CAT_COLOR[cat] }]}>{(a.l || a.p).slice(0, 1).toUpperCase()}</Text>
+        <View style={[s.appIcon, s.appInitial]}>
+          <Text style={s.appInitialTxt}>{(a.l || a.p).slice(0, 1).toUpperCase()}</Text>
         </View>
       )}
       <View style={{ flex: 1, minWidth: 0 }}>
@@ -266,7 +232,7 @@ function AppRow({ a, max, prefs, onPress }: { a: ScreenApp; max: number; prefs: 
           <Text style={s.appName} numberOfLines={1}>{a.l}</Text>
           <Text style={s.appVal}>{fmtDur(a.m)}</Text>
         </View>
-        <View style={s.appTrack}><View style={[s.appFill, { width: `${Math.max(2, (a.m / max) * 100)}%`, backgroundColor: CAT_COLOR[cat] }]} /></View>
+        <View style={s.appTrack}><View style={[s.appFill, { width: `${Math.max(2, (a.m / max) * 100)}%` }]} /></View>
         <Text style={s.appSub} numberOfLines={1}>{CAT_LABEL[cat]}{fun ? ' · rozrywka' : ''}{a.n ? ` · otwarta ${a.n}×` : ''}</Text>
       </View>
     </TouchableOpacity>
@@ -348,20 +314,6 @@ function Stat({ l, v, sub }: { l: string; v: string; sub?: string }) {
   );
 }
 
-function DetailRow({ Icon, l, v, sub, color, last }: { Icon: any; l: string; v: string; sub?: string; color?: string; last?: boolean }) {
-  const s = makeS();
-  return (
-    <View style={[s.dRow, !last && s.dRowLine]}>
-      <Icon size={14} color={colors.text.muted} />
-      <Text style={s.dL} numberOfLines={1}>{l}</Text>
-      <View style={s.dRight}>
-        <Text style={[s.dV, color ? { color } : null]} numberOfLines={1}>{v}</Text>
-        {sub ? <Text style={s.dSub} numberOfLines={1}>{sub}</Text> : null}
-      </View>
-    </View>
-  );
-}
-
 const makeS = themedStyles((c) => StyleSheet.create({
   headRow: { flexDirection: 'row', alignItems: 'center', paddingBottom: spacing[2] },
   title: { flex: 1, fontSize: 18, fontFamily: 'Inter_900Black', color: c.text.bright },
@@ -377,12 +329,6 @@ const makeS = themedStyles((c) => StyleSheet.create({
   statL: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
   statV: { fontSize: 20, fontFamily: 'Inter_900Black', color: c.text.bright, marginTop: 2, fontVariant: ['tabular-nums'] },
   statSub: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 1 },
-  dRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9 },
-  dRowLine: { borderBottomWidth: 1, borderBottomColor: c.ui.line },
-  dL: { flex: 1, fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.secondary },
-  dRight: { alignItems: 'flex-end', maxWidth: '50%' },
-  dV: { fontSize: 14, fontFamily: 'Inter_900Black', color: c.text.primary, fontVariant: ['tabular-nums'] },
-  dSub: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 1 },
   popBack: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center', padding: spacing[4] },
   pop: { width: '100%', maxWidth: 420, backgroundColor: c.bg.card, borderRadius: radius.xl, padding: spacing[4], gap: 10, borderWidth: 1, borderColor: c.border.default },
   popHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -393,16 +339,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
   popLabel: { fontSize: 10.5, fontFamily: 'Inter_800ExtraBold', color: c.text.muted, letterSpacing: 0.4, textTransform: 'uppercase', marginTop: 4 },
   popDone: { alignItems: 'center', paddingVertical: 12, borderRadius: radius.md, backgroundColor: c.text.bright, marginTop: 4 },
   popDoneTxt: { fontSize: 14, fontFamily: 'Inter_900Black', color: c.bg.primary },
-  hours: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
-  hourCol: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', height: '100%' },
-  hourBar: { width: '100%', borderTopLeftRadius: 3, borderTopRightRadius: 3 },
-  hourVal: { fontSize: 8.5, fontFamily: 'Inter_800ExtraBold', color: c.text.muted, marginBottom: 2, fontVariant: ['tabular-nums'] },
-  hourRow: { flexDirection: 'row', gap: 2, marginTop: 3 },
-  hourUnl: { flex: 1, textAlign: 'center', fontSize: 8.5, fontFamily: 'Inter_700Bold', color: c.accent.blue },
-  hourLab: { flex: 1, marginHorizontal: -6, textAlign: 'center', fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
   hourSel: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },
+  sessRow: { gap: 6, marginTop: 12 },
+  sess: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.ui.in2, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 8 },
+  sessTxt: { flex: 1, fontSize: 11, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
+  sessV: { fontSize: 12.5, fontFamily: 'Inter_900Black', color: c.text.primary },
   hourNote: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[2] },
-  axis: { fontSize: 9.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
   stack: { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', gap: 2 },
   catList: { marginTop: spacing[2], gap: 6 },
   catRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -413,13 +355,13 @@ const makeS = themedStyles((c) => StyleSheet.create({
   cardRight: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
   appRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
   appIcon: { width: 30, height: 30, borderRadius: 8 },
-  appInitial: { alignItems: 'center', justifyContent: 'center' },
-  appInitialTxt: { fontSize: 13, fontFamily: 'Inter_900Black' },
+  appInitial: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.ui.in2 },
+  appInitialTxt: { fontSize: 13, fontFamily: 'Inter_900Black', color: c.text.secondary },
   appTop: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
   appName: { flex: 1, fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary },
   appVal: { fontSize: 12.5, fontFamily: 'Inter_800ExtraBold', color: c.text.primary, fontVariant: ['tabular-nums'] },
   appTrack: { height: 4, borderRadius: 2, backgroundColor: c.ui.in2, marginTop: 4, overflow: 'hidden' },
-  appFill: { height: '100%', borderRadius: 2 },
+  appFill: { height: '100%', borderRadius: 2, backgroundColor: c.text.secondary },
   appSub: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 3 },
   catChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   catChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default },

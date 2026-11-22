@@ -152,6 +152,14 @@ export function peakHour(d: ScreenDay): { h: number; m: number } | null {
   d.hours.forEach((m, h) => { if (m > bm) { bm = m; best = h; } });
   return best < 0 ? null : { h: best, m: bm };
 }
+/** Zwykły rozkład dnia (2026-11-22, linia "zwykle" na wykresie godzin): średnie minuty w każdej
+ *  godzinie z poprzednich `n` dni z danymi (bez dnia `now`). null = brak historii. */
+export function avgHours(days: Record<string, ScreenDay>, now: Date, n = 14): number[] | null {
+  const prev = lastScreenDays(days, now, n + 1).slice(0, n).map((x) => x.d).filter((d): d is ScreenDay => !!d && d.total > 0);
+  if (!prev.length) return null;
+  return Array.from({ length: 24 }, (_, h) => Math.round((prev.reduce((a, d) => a + (d.hours[h] ?? 0), 0) / prev.length) * 10) / 10);
+}
+
 /** Minuty w nocy (0:00–5:59). */
 export const nightMinutes = (d: ScreenDay) => d.hours.slice(0, 6).reduce((a, b) => a + b, 0);
 

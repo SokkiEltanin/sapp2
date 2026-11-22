@@ -2458,8 +2458,10 @@ w telefonie a słodycze/zakupy; oznaczyć appki, które to rozrywka”.
 - Kategorie appek: `store/appCategoryStore.ts` (`cats`, `fun`, sync w doc `prefs`), `catOf(a, prefs)`, `isFun`,
   `FUN_CATS` = społeczności/wideo/gry; w `ScreenTimeSheet` stuknięcie appki → `AppCatPanel` (POPUP — Modal na
   środku, 2026-11-22). Układ panelu (2026-11-22, user: „za dużo kafelków”): pasek 3 liczb (`Stat`: odblokowania,
-  rozrywka, pierwsze odblokowanie) → wykres godzin → „Szczegóły dnia” jako wiersze (`DetailRow`: najwięcej,
-  najdłużej, średnio na odblokowanie + włączenia ekranu, otwarcia appek, noc) → kategorie → appki → 7 dni; wykres godzin `HourChart` (minuty nad słupkiem, godziny co 2, odblokowania na godzinę z
+  rozrywka, otwarcia appek) → `components/screen/DayChart.tsx` (2026-11-22, user: „zaznaczyć na wykresie, nie pisać
+  na dole”): doba 0–24, szczyt pomarańczowy + „szczyt”, noc 0–6 z sumą, linia „zwykle” (`avgHours` z 14 dni),
+  kreski „pierwsze odblokowanie” i „teraz”, odblokowania pod osią; pod wykresem 2 linijki (najdłużej, min na
+  odblokowanie + ekran ×) → kategorie → appki (paski BIAŁE, bez kolorów kategorii) → 7 dni; wykres godzin `HourChart` (minuty nad słupkiem, godziny co 2, odblokowania na godzinę z
   natywnego `uh` — od nowego APK, stuknięcie = dokładny przedział).
 
 ## ZEGAREK: OKRĄGŁY UKŁAD + PIERWSZY EKRAN (2026-11-22)
