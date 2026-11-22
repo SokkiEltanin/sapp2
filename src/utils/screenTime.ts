@@ -16,13 +16,14 @@ export interface ScreenDay {
   unlockHours?: number[]; // 24 × odblokowania (od APK z 2026-11-22; starsze dni bez)
   longest: { p: string; l: string; m: number } | null; // najdłużej bez przerwy w jednej appce
   t: number;             // kiedy odczytano (ms)
+  v?: number;            // wersja liczenia w module (brak = 1; v2 bez nakładania i "od północy")
 }
 
 /** Surowy dzień z modułu natywnego (milisekundy). */
 export interface RawScreenDay {
   s: number; total: number; unlocks: number; screenOns: number; first: number;
   apps: { p: string; l: string; ms: number; n: number; c: number }[];
-  hours: number[]; longest?: { p: string; l: string; ms: number } | null; uh?: number[];
+  hours: number[]; longest?: { p: string; l: string; ms: number } | null; uh?: number[]; v?: number;
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -49,6 +50,7 @@ export function fromRaw(r: RawScreenDay, t: number): ScreenDay {
     ...(Array.isArray(r.uh) && r.uh.length === 24 ? { unlockHours: r.uh.map((x) => x | 0) } : {}),
     longest: r.longest && r.longest.ms > 0 ? { p: r.longest.p, l: r.longest.l || r.longest.p, m: min(r.longest.ms) } : null,
     t,
+    ...(r.v ? { v: r.v } : {}),
   };
 }
 
@@ -161,13 +163,14 @@ export function mergeScreenDays(cur: Record<string, ScreenDay>, add: ScreenDay[]
   return Object.fromEntries(keys.map((k) => [k, out[k]]));
 }
 
-/** Dni do (ponownego) pobrania: dziś zawsze, wcześniejsze — brak albo odczyt sprzed końca dnia. */
-export function daysToFetch(days: Record<string, ScreenDay>, now: Date, n = 7): number[] {
+/** Dni do (ponownego) pobrania: dziś zawsze, wcześniejsze — brak, odczyt sprzed końca dnia albo
+ *  policzone starszą wersją modułu (`v` < `version`, np. błąd "od północy" w v1). */
+export function daysToFetch(days: Record<string, ScreenDay>, now: Date, n = 7, version = 1): number[] {
   const starts = dayStarts(now, n);
   return starts.filter((s, i) => {
     if (i === starts.length - 1) return true;
     const d = days[ymd(new Date(s))];
     const end = starts[i + 1];
-    return !d || d.t < end;
+    return !d || d.t < end || (d.v ?? 1) < version;
   });
 }

@@ -33,7 +33,9 @@ export async function refreshScreenTime(force = false): Promise<void> {
   last = Date.now();
   try {
     const now = new Date();
-    const starts = daysToFetch(useScreenTimeStore.getState().days, now, 7);
+    let ver = 1;
+    try { ver = Number(m.version?.() ?? 1) || 1; } catch { /* stary APK */ }
+    const starts = daysToFetch(useScreenTimeStore.getState().days, now, 7, ver);
     const windows = starts.map((s) => [s, new Date(new Date(s).getFullYear(), new Date(s).getMonth(), new Date(s).getDate() + 1).getTime()]);
     const raw: RawScreenDay[] = JSON.parse(await m.getDays(JSON.stringify(windows)));
     const t = Date.now();

@@ -99,12 +99,28 @@ class UsageStatsModule(private val ctx: ReactApplicationContext) : ReactContextB
     }
   }
 
+  // Wersja liczenia (JS pobiera ponownie dni policzone starszą wersją). v2 (2026-11-22, user:
+  // "17 h 19 min w środę"): pauza bez wcześniejszego wznowienia liczona od ostatniego włączenia
+  // ekranu (było: od północy), czasy appek i suma jako SUMA PRZEDZIAŁÓW bez nakładania.
+  @ReactMethod(isBlockingSynchronousMethod = true)
+  fun version(): Int = 2
+
+  private fun merged(list: List<LongArray>): ArrayList<LongArray> {
+    val out = ArrayList<LongArray>()
+    for (iv in list.sortedBy { it[0] }) {
+      val last = if (out.isEmpty()) null else out[out.size - 1]
+      if (last != null && iv[0] <= last[1]) { if (iv[1] > last[1]) last[1] = iv[1] }
+      else out.add(longArrayOf(iv[0], iv[1]))
+    }
+    return out
+  }
+
   private fun day(usm: UsageStatsManager, pm: PackageManager, home: Set<String>, s: Long, e: Long): JSONObject {
     val events = usm.queryEvents(s, e)
     val ev = UsageEvents.Event()
     val open = HashMap<String, Long>()      // pakiet/aktywność → początek
     val seen = HashSet<String>()
-    val time = HashMap<String, Long>()
+    val spans = HashMap<String, ArrayList<LongArray>>() // pakiet → przedziały na ekranie
     val launches = HashMap<String, Int>()
     val hours = LongArray(24)
     val unlockHours = IntArray(24)   // odblokowania w każdej godzinie (2026-11-22, wykres "kiedy")
@@ -113,14 +129,12 @@ class UsageStatsModule(private val ctx: ReactApplicationContext) : ReactContextB
     var screenOns = 0
     var first = 0L
     var lastPkg: String? = null
-    var longPkg = ""
-    var longMs = 0L
+    var lastOn = s      // ostatnie włączenie ekranu (albo początek dnia)
+    var lastOff = 0L    // ostatnie wyłączenie ekranu
     fun close(key: String, a: Long, b: Long) {
       val p = key.substringBefore('/')
       if (b <= a || home.contains(p)) return
-      time[p] = (time[p] ?: 0L) + (b - a)
-      addHours(hours, a, b)
-      if (b - a > longMs) { longMs = b - a; longPkg = p }
+      spans.getOrPut(p) { ArrayList() }.add(longArrayOf(a, b))
     }
     while (events.hasNextEvent()) {
       events.getNextEvent(ev)
@@ -136,15 +150,21 @@ class UsageStatsModule(private val ctx: ReactApplicationContext) : ReactContextB
         }
         UsageEvents.Event.ACTIVITY_PAUSED, 23 -> {
           val key = p + "/" + (ev.className ?: "")
-          val st = open.remove(key) ?: (if (!seen.contains(key)) s else null)
-          seen.add(key)
+          val st = open.remove(key)
           if (st != null) close(key, st, t)
+          else if (!seen.contains(key)) {
+            // appka była na ekranie przed początkiem okna: od ostatniego włączenia ekranu
+            // (albo do wyłączenia, jeśli ekran zgasł wcześniej niż przyszła pauza)
+            close(key, lastOn, if (lastOff > lastOn) lastOff else t)
+          }
+          seen.add(key)
         }
-        15 -> screenOns++
+        15 -> { screenOns++; lastOn = t }
         16 -> {
           for ((k, st) in open) close(k, st, t)
           open.clear()
           lastPkg = null
+          lastOff = t
         }
         18 -> {
           unlocks++
@@ -157,14 +177,31 @@ class UsageStatsModule(private val ctx: ReactApplicationContext) : ReactContextB
     val end = Math.min(e, System.currentTimeMillis())
     for ((k, st) in open) close(k, st, end)
 
+    // Czasy bez nakładania: appka = suma jej scalonych przedziałów; suma dnia i godziny =
+    // scalone przedziały wszystkich appek (dwa okna naraz nie liczą się podwójnie).
+    val time = HashMap<String, Long>()
+    var longPkg = ""
+    var longMs = 0L
+    val all = ArrayList<LongArray>()
+    for ((p, list) in spans) {
+      var sum = 0L
+      for (iv in merged(list)) {
+        val d = iv[1] - iv[0]
+        sum += d
+        if (d > longMs) { longMs = d; longPkg = p }
+      }
+      time[p] = sum
+      all.addAll(list)
+    }
+    var total = 0L
+    for (iv in merged(all)) { total += iv[1] - iv[0]; addHours(hours, iv[0], iv[1]) }
+
     val apps = JSONArray()
     val pkgs = HashSet<String>(time.keys)
     pkgs.addAll(launches.keys)
-    var total = 0L
     for (p in pkgs) {
       if (home.contains(p)) continue
       val ms = time[p] ?: 0L
-      total += ms
       val (label, cat) = labelOf(pm, p)
       apps.put(JSONObject().put("p", p).put("l", label).put("ms", ms).put("n", launches[p] ?: 0).put("c", cat))
     }
@@ -173,7 +210,7 @@ class UsageStatsModule(private val ctx: ReactApplicationContext) : ReactContextB
     val uj = JSONArray()
     for (u in unlockHours) uj.put(u)
     val o = JSONObject().put("s", s).put("total", total).put("unlocks", unlocks).put("screenOns", screenOns)
-      .put("first", first).put("apps", apps).put("hours", hj).put("uh", uj)
+      .put("first", first).put("apps", apps).put("hours", hj).put("uh", uj).put("v", 2)
     if (longMs > 0) o.put("longest", JSONObject().put("p", longPkg).put("l", labelOf(pm, longPkg).first).put("ms", longMs))
     return o
   }

@@ -2373,8 +2373,12 @@ więcej szczegółów”. Rząd Dashboardu `screen` (utils/dashboardLayout.ts) �
 - **Natywnie:** `plugins/withUsageStats.js` → moduł `UsageStats` (hasAccess, openAccessSettings, getDays,
   getIcons). Uprawnienia PACKAGE_USAGE_STATS (+ tools:ignore) i QUERY_ALL_PACKAGES (nazwy/ikony appek od Androida
   11) dodaje plugin w manifeście. Dzień liczony ze zdarzeń: ACTIVITY_RESUMED/PAUSED/STOPPED (per aktywność, sesja
-  przez północ liczona od początku okna), ekran wył. (16) zamyka sesje, odblokowania = KEYGUARD_HIDDEN (18),
-  włączenia ekranu = 15. Bez ekranu głównego (HOME) i paska systemu. Godziny = sesje rozłożone na 24 h.
+  bez wcześniejszego wznowienia liczona od OSTATNIEGO WŁĄCZENIA EKRANU (15) albo do wyłączenia (16) — v1 liczyło
+  od północy → „17 h 19 min” w środę), ekran wył. (16) zamyka sesje, odblokowania = KEYGUARD_HIDDEN (18),
+  włączenia ekranu = 15. Bez ekranu głównego (HOME) i paska systemu. Czasy appek, suma i godziny = SCALONE
+  przedziały (dwa okna/aktywności naraz nie liczą się podwójnie). **Wersja liczenia** `version()` (sync, =2) +
+  `v` w dniu: `daysToFetch(..., version)` pobiera ponownie dni z niższym `v` (stary APK → 1 → nic). Zmiana
+  sposobu liczenia = podbij wersję w pluginie, a ostatnie 7 dni przeliczy się samo.
 - **JS:** `utils/screenTime.ts` (czyste: fromRaw, kategorie — znane pakiety przed ApplicationInfo.category,
   vsUsual = porównanie z poprzednimi dniami DO TEJ SAMEJ GODZINY, daysToFetch, merge), `store/screenTimeStore.ts`
   (`screen-time-v1`, 90 dni; ikony osobno w `cache-app-icons-v1` — prefiks `cache-` = poza kopią),
@@ -2430,8 +2434,10 @@ w telefonie a słodycze/zakupy; oznaczyć appki, które to rozrywka”.
 - UI: kafel „Twoje wzorce” w Daily (nad Ciekawostką), `components/insights/InsightsSheet.tsx` (filtry, karta = zdanie +
   2 paski, siła, liczba dni; stan pusty = ile dni jakich danych).
 - Kategorie appek: `store/appCategoryStore.ts` (`cats`, `fun`, sync w doc `prefs`), `catOf(a, prefs)`, `isFun`,
-  `FUN_CATS` = społeczności/wideo/gry; w `ScreenTimeSheet` stuknięcie appki → `AppCatPanel`. Fakty „Rozrywka”
-  i „Otwarcia appek”; wykres godzin `HourChart` (minuty nad słupkiem, godziny co 2, odblokowania na godzinę z
+  `FUN_CATS` = społeczności/wideo/gry; w `ScreenTimeSheet` stuknięcie appki → `AppCatPanel` (POPUP — Modal na
+  środku, 2026-11-22). Układ panelu (2026-11-22, user: „za dużo kafelków”): pasek 3 liczb (`Stat`: odblokowania,
+  rozrywka, pierwsze odblokowanie) → wykres godzin → „Szczegóły dnia” jako wiersze (`DetailRow`: najwięcej,
+  najdłużej, średnio na odblokowanie + włączenia ekranu, otwarcia appek, noc) → kategorie → appki → 7 dni; wykres godzin `HourChart` (minuty nad słupkiem, godziny co 2, odblokowania na godzinę z
   natywnego `uh` — od nowego APK, stuknięcie = dokładny przedział).
 
 ## ZEGAREK: OKRĄGŁY UKŁAD + PIERWSZY EKRAN (2026-11-22)

@@ -41,6 +41,12 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-22 — Czas z telefonem: naprawa „17 h 19 min” + czytelniejszy panel** (ARCHITECTURE „CZAS Z TELEFONEM”).
+Liczenie = nowe APK (moduł v2), panel i popup kategorii = OTA.
+- [ ] Po instalacji APK: środa i reszta tygodnia przeliczone (bez 17 h), „zwykle do tej pory” realne;
+  porównać wczoraj z Cyfrową równowagą.
+- [ ] Stuknięcie appki → popup kategorii; pasek 3 liczb + „Szczegóły dnia” czytelne.
+
 **2026-11-22 — Notatki: kolor i wzór strony + ołówek i zakreślacz** (ARCHITECTURE „Strona notatki”, „Narzędzia”). OTA.
 - [ ] Wiadro w nagłówku notatki → Papier + Linie: czy linie wypadają pod wierszami na telefonie (natywnie 22 px)
   i czy biały tekst/rysunek zrobił się czarny. Kafel Dashboardu i lista notatek pokazują to samo.
@@ -58,8 +64,8 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 wymagają nowego APK (moduł UsageStats `uh`), reszta OTA.
 - [ ] Po 2–3 tygodniach danych: czy wzorce mają sens (praca → słodycze, rozrywka → humor/energia/sen itd.).
 - [ ] Oznaczyć źle złapane appki (Czas z telefonem → stuknij appkę).
-- [ ] Podejrzane: „zwykle do tej pory 2 h 40 min” przy 13 min dziś — porównać wczoraj z Cyfrową równowagą
-  (czy liczenie sesji per aktywność nie dubluje czasu na Samsungu).
+- [x] Podejrzane „zwykle do tej pory” — przyczyna: sesja bez początku liczona od północy (17 h w środę) + nakładanie
+  okien; naprawione w module v2 (patrz wyżej).
 
 **2026-11-22 — Bateria i czas z telefonem na komputerze: scalanie zamiast zastępowania** (ARCHITECTURE „DANE Z
 TELEFONU NA KOMPUTERZE”). Historia baterii 30 dni (było 4), komputer pokazuje ostatni odczyt z godziną. Tylko JS.

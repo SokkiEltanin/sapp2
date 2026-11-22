@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Platform, Linking } from 'react-native';
-import { ChevronLeft, ChevronRight, Smartphone, LockOpen, Sun, Moon, Timer, Flame, Gamepad2, AppWindow } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Platform, Linking, Modal, Pressable } from 'react-native';
+import { ChevronLeft, ChevronRight, Smartphone, Moon, Timer, Flame, AppWindow, Hourglass, X } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
@@ -132,18 +132,25 @@ function DayView({ d, days, now, isToday }: { d: ScreenDay; days: Record<string,
         ) : null}
       </View>
 
-      <View style={s.grid}>
-        <Fact Icon={LockOpen} l="Odblokowania" v={String(d.unlocks)} sub={avg ? `śr. ${Math.round(avg.unlocks)}` : undefined} />
-        <Fact Icon={Smartphone} l="Włączenia ekranu" v={String(d.screenOns)} sub={d.total && d.unlocks ? `~${Math.max(1, Math.round(d.total / d.unlocks))} min na odblok.` : undefined} />
-        <Fact Icon={Sun} l="Pierwsze odblokowanie" v={d.first ?? '—'} />
-        <Fact Icon={Timer} l="Najdłużej bez przerwy" v={d.longest ? fmtDur(d.longest.m) : '—'} sub={d.longest?.l} />
-        <Fact Icon={Flame} l="Najwięcej" v={peak && peak.m > 0 ? `${peak.h}:00–${peak.h + 1}:00` : '—'} sub={peak && peak.m > 0 ? fmtDur(peak.m) : undefined} />
-        <Fact Icon={Moon} l="W nocy (0–6)" v={fmtDur(night)} color={night >= 30 ? colors.accent.orange : undefined} />
-        <Fact Icon={Gamepad2} l="Rozrywka" v={fmtDur(fun)} sub={d.total ? `${Math.round((fun / d.total) * 100)}% czasu · zmień w appkach niżej` : undefined} />
-        <Fact Icon={AppWindow} l="Otwarcia appek" v={String(opens)} sub={d.unlocks ? `~${Math.max(1, Math.round(opens / d.unlocks))} na odblokowanie` : undefined} />
+      {/* Najważniejsze 3 liczby w jednym pasku (2026-11-22, user: "za dużo kafelków,
+          nieczytelne") — reszta jako lista "Szczegóły dnia" pod wykresem. */}
+      <View style={s.strip}>
+        <Stat l="Odblokowania" v={String(d.unlocks)} sub={avg ? `śr. ${Math.round(avg.unlocks)}` : undefined} />
+        <View style={s.stripSep} />
+        <Stat l="Rozrywka" v={fmtDur(fun)} sub={d.total ? `${Math.round((fun / d.total) * 100)}% czasu` : undefined} />
+        <View style={s.stripSep} />
+        <Stat l="Pierwsze odbl." v={d.first ?? '—'} />
       </View>
 
       <HourChart d={d} />
+
+      <SheetCard title="Szczegóły dnia">
+        <DetailRow Icon={Flame} l="Najwięcej" v={peak && peak.m > 0 ? `${peak.h}:00–${peak.h + 1}:00` : '—'} sub={peak && peak.m > 0 ? fmtDur(peak.m) : undefined} />
+        <DetailRow Icon={Timer} l="Najdłużej bez przerwy" v={d.longest ? fmtDur(d.longest.m) : '—'} sub={d.longest?.l} />
+        <DetailRow Icon={Hourglass} l="Średnio na odblokowanie" v={d.total && d.unlocks ? `~${Math.max(1, Math.round(d.total / d.unlocks))} min` : '—'} sub={`ekran włączony ${d.screenOns}×`} />
+        <DetailRow Icon={AppWindow} l="Otwarcia appek" v={String(opens)} sub={d.unlocks ? `~${Math.max(1, Math.round(opens / d.unlocks))} na odblok.` : undefined} />
+        <DetailRow Icon={Moon} l="W nocy (0–6)" v={fmtDur(night)} color={night >= 30 ? colors.accent.orange : undefined} last />
+      </SheetCard>
 
       {cats.length > 0 && (
         <SheetCard title="Na co idzie czas">
@@ -163,7 +170,7 @@ function DayView({ d, days, now, isToday }: { d: ScreenDay; days: Record<string,
         </SheetCard>
       )}
 
-      <SheetCard title="Aplikacje" right={<Text style={s.cardRight}>{d.apps.filter((a) => a.m > 0).length} użytych</Text>}>
+      <SheetCard title="Aplikacje" right={<Text style={s.cardRight}>stuknij = kategoria</Text>}>
         {apps.map((a) => <AppRow key={a.p} a={a} max={appMax} prefs={prefs} onPress={() => setEditApp(a)} />)}
         {d.apps.length > 8 && (
           <TouchableOpacity onPress={() => { haptic.tap(); setShowAll((v) => !v); }} style={s.more}>
@@ -193,7 +200,7 @@ function DayView({ d, days, now, isToday }: { d: ScreenDay; days: Record<string,
         </View>
       </SheetCard>
 
-      <Text style={s.note}>Liczony jest czas, gdy appka była na ekranie (bez ekranu głównego). Odblokowania = ile razy telefon został odblokowany; liczby pod tygodniem to odblokowania danego dnia. Zależność czasu z telefonem od humoru znajdziesz w statystykach humoru.</Text>
+      <Text style={s.note}>Liczony czas, gdy appka była na ekranie (bez ekranu głównego). Pod tygodniem — odblokowania danego dnia.</Text>
     </>
   );
 }
@@ -235,9 +242,9 @@ function HourChart({ d }: { d: ScreenDay }) {
         </View>
       )}
       <View style={s.hourRow}>
-        {hrs.map((x) => <Text key={x} style={[s.hourLab, x === h && { color: colors.text.bright }]} numberOfLines={1}>{x % 2 === 0 ? x : ''}</Text>)}
+        {hrs.map((x) => <Text key={x} style={[s.hourLab, x === h && { color: colors.text.bright }]}>{x % 2 === 0 ? x : ''}</Text>)}
       </View>
-      <Text style={s.hourNote}>Liczby nad słupkami = minuty w danej godzinie{d.unlockHours ? '; pod nimi — ile razy odblokowano telefon' : ''}. Stuknij słupek, żeby zobaczyć dokładnie.</Text>
+      <Text style={s.hourNote}>Nad słupkiem minuty{d.unlockHours ? ', pod nim (niebieskie) odblokowania' : ''}. Stuknij słupek.</Text>
     </SheetCard>
   );
 }
@@ -273,42 +280,84 @@ function AppCatPanel({ app, prefs, onClose }: { app: ScreenApp | null; prefs: Ap
   const s = makeS();
   const setCat = useAppCategoryStore((st) => st.setCat);
   const setFun = useAppCategoryStore((st) => st.setFun);
-  if (!app) return null;
-  const cat = catOf(app, prefs);
-  const fun = isFun(app, prefs);
-  const auto = catOf(app);
+  const icon = useAppIconsStore((st) => (app ? st.icons[app.p] : undefined));
+  // Popup (2026-11-22, user: "jak kliknę, to popup z edycją kategorii, a nie pod spodem — trzeba
+  // scrollować bez sensu").
   return (
-    <SheetCard title={`Kategoria: ${app.l}`} right={<TouchableOpacity onPress={() => { haptic.tap(); onClose(); }} hitSlop={8}><Text style={s.catDone}>Gotowe</Text></TouchableOpacity>}>
-      <View style={s.catChips}>
-        {CAT_ORDER.map((c) => (
-          <TouchableOpacity key={c} onPress={() => { haptic.tap(); setCat(app.p, c === auto ? null : c); }}
-            style={[s.catChip, cat === c && { backgroundColor: CAT_COLOR[c] + '33', borderColor: CAT_COLOR[c] }]}>
-            <View style={[s.catDot, { backgroundColor: CAT_COLOR[c] }]} />
-            <Text style={[s.catChipTxt, cat === c && { color: colors.text.bright }]}>{CAT_LABEL[c]}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      <View style={s.funRow}>
-        <Text style={s.funTxt}>Liczy się jako rozrywka</Text>
-        {([true, false] as const).map((v) => (
-          <TouchableOpacity key={String(v)} onPress={() => { haptic.tap(); setFun(app.p, v === FUN_CATS.has(cat) ? null : v); }}
-            style={[s.funBtn, fun === v && s.funBtnOn]}>
-            <Text style={[s.funBtnTxt, fun === v && s.funBtnTxtOn]}>{v ? 'Tak' : 'Nie'}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      <Text style={s.hourNote}>Rozrywka domyślnie = społeczności, wideo i gry. To, co tu ustawisz, liczy się też we wzorcach zachowań (np. rozrywka a słodycze) i na komputerze.</Text>
-    </SheetCard>
+    <Modal visible={!!app} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <Pressable style={s.popBack} onPress={onClose}>
+        {app && (() => {
+          const cat = catOf(app, prefs);
+          const fun = isFun(app, prefs);
+          const auto = catOf(app);
+          return (
+            <Pressable style={s.pop} onPress={() => {}}>
+              <View style={s.popHead}>
+                {icon ? <Image source={{ uri: icon }} style={s.popIcon} /> : (
+                  <View style={[s.popIcon, s.appInitial, { backgroundColor: CAT_COLOR[cat] + '33' }]}>
+                    <Text style={[s.appInitialTxt, { color: CAT_COLOR[cat] }]}>{(app.l || app.p).slice(0, 1).toUpperCase()}</Text>
+                  </View>
+                )}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={s.popTitle} numberOfLines={1}>{app.l}</Text>
+                  <Text style={s.popSub} numberOfLines={1}>{fmtDur(app.m)}{app.n ? ` · otwarta ${app.n}×` : ''}</Text>
+                </View>
+                <TouchableOpacity onPress={() => { haptic.tap(); onClose(); }} style={s.popClose} hitSlop={8} accessibilityLabel="Zamknij">
+                  <X size={16} color={colors.text.primary} />
+                </TouchableOpacity>
+              </View>
+              <Text style={s.popLabel}>Kategoria</Text>
+              <View style={s.catChips}>
+                {CAT_ORDER.map((c) => (
+                  <TouchableOpacity key={c} onPress={() => { haptic.tap(); setCat(app.p, c === auto ? null : c); }}
+                    style={[s.catChip, cat === c && { backgroundColor: CAT_COLOR[c] + '33', borderColor: CAT_COLOR[c] }]}>
+                    <View style={[s.catDot, { backgroundColor: CAT_COLOR[c] }]} />
+                    <Text style={[s.catChipTxt, cat === c && { color: colors.text.bright }]}>{CAT_LABEL[c]}{c === auto ? ' ·auto' : ''}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={s.funRow}>
+                <Text style={s.funTxt}>Liczy się jako rozrywka</Text>
+                {([true, false] as const).map((v) => (
+                  <TouchableOpacity key={String(v)} onPress={() => { haptic.tap(); setFun(app.p, v === FUN_CATS.has(cat) ? null : v); }}
+                    style={[s.funBtn, fun === v && s.funBtnOn]}>
+                    <Text style={[s.funBtnTxt, fun === v && s.funBtnTxtOn]}>{v ? 'Tak' : 'Nie'}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={s.hourNote}>Rozrywka domyślnie = społeczności, wideo i gry. Ustawienie liczy się też we wzorcach zachowań i na komputerze.</Text>
+              <TouchableOpacity onPress={() => { haptic.tap(); onClose(); }} style={s.popDone}>
+                <Text style={s.popDoneTxt}>Gotowe</Text>
+              </TouchableOpacity>
+            </Pressable>
+          );
+        })()}
+      </Pressable>
+    </Modal>
   );
 }
 
-function Fact({ Icon, l, v, sub, color }: { Icon: any; l: string; v: string; sub?: string; color?: string }) {
+function Stat({ l, v, sub }: { l: string; v: string; sub?: string }) {
   const s = makeS();
   return (
-    <View style={s.fact}>
-      <View style={s.factHead}><Icon size={11} color={colors.text.muted} /><Text style={s.factL} numberOfLines={1}>{l}</Text></View>
-      <Text style={[s.factV, color ? { color } : null]} numberOfLines={1}>{v}</Text>
-      {sub ? <Text style={s.factSub} numberOfLines={1}>{sub}</Text> : null}
+    <View style={s.stat}>
+      <Text style={s.statL} numberOfLines={1}>{l}</Text>
+      <Text style={s.statV} numberOfLines={1} adjustsFontSizeToFit>{v}</Text>
+      {sub ? <Text style={s.statSub} numberOfLines={1}>{sub}</Text> : null}
+    </View>
+  );
+}
+
+function DetailRow({ Icon, l, v, sub, color, last }: { Icon: any; l: string; v: string; sub?: string; color?: string; last?: boolean }) {
+  const s = makeS();
+  return (
+    <View style={[s.dRow, !last && s.dRowLine]}>
+      <Icon size={14} color={colors.text.muted} />
+      <Text style={s.dL} numberOfLines={1}>{l}</Text>
+      <View style={s.dRight}>
+        <Text style={[s.dV, color ? { color } : null]} numberOfLines={1}>{v}</Text>
+        {sub ? <Text style={s.dSub} numberOfLines={1}>{sub}</Text> : null}
+      </View>
     </View>
   );
 }
@@ -322,19 +371,35 @@ const makeS = themedStyles((c) => StyleSheet.create({
   big: { fontSize: 38, lineHeight: 42, fontFamily: 'Inter_900Black', color: c.text.bright, letterSpacing: -1.2, fontVariant: ['tabular-nums'] },
   readAt: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 1 },
   heroSub: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.muted, marginTop: 2 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  fact: { flexGrow: 1, flexBasis: '45%', backgroundColor: c.ui.in, borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 10 },
-  factHead: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  factL: { flex: 1, fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.3 },
-  factV: { fontSize: 15, fontFamily: 'Inter_900Black', color: c.text.primary, marginTop: 3, fontVariant: ['tabular-nums'] },
-  factSub: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 1 },
+  strip: { flexDirection: 'row', alignItems: 'stretch', backgroundColor: c.ui.in, borderRadius: radius.lg, paddingVertical: 12, paddingHorizontal: 4 },
+  stripSep: { width: 1, backgroundColor: c.ui.line, marginVertical: 2 },
+  stat: { flex: 1, alignItems: 'center', paddingHorizontal: 6 },
+  statL: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  statV: { fontSize: 20, fontFamily: 'Inter_900Black', color: c.text.bright, marginTop: 2, fontVariant: ['tabular-nums'] },
+  statSub: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 1 },
+  dRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9 },
+  dRowLine: { borderBottomWidth: 1, borderBottomColor: c.ui.line },
+  dL: { flex: 1, fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.secondary },
+  dRight: { alignItems: 'flex-end', maxWidth: '50%' },
+  dV: { fontSize: 14, fontFamily: 'Inter_900Black', color: c.text.primary, fontVariant: ['tabular-nums'] },
+  dSub: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 1 },
+  popBack: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center', padding: spacing[4] },
+  pop: { width: '100%', maxWidth: 420, backgroundColor: c.bg.card, borderRadius: radius.xl, padding: spacing[4], gap: 10, borderWidth: 1, borderColor: c.border.default },
+  popHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  popIcon: { width: 40, height: 40, borderRadius: 10 },
+  popTitle: { fontSize: 16, fontFamily: 'Inter_900Black', color: c.text.bright },
+  popSub: { fontSize: 11.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: 1 },
+  popClose: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: c.ui.in },
+  popLabel: { fontSize: 10.5, fontFamily: 'Inter_800ExtraBold', color: c.text.muted, letterSpacing: 0.4, textTransform: 'uppercase', marginTop: 4 },
+  popDone: { alignItems: 'center', paddingVertical: 12, borderRadius: radius.md, backgroundColor: c.text.bright, marginTop: 4 },
+  popDoneTxt: { fontSize: 14, fontFamily: 'Inter_900Black', color: c.bg.primary },
   hours: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
   hourCol: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', height: '100%' },
   hourBar: { width: '100%', borderTopLeftRadius: 3, borderTopRightRadius: 3 },
   hourVal: { fontSize: 8.5, fontFamily: 'Inter_800ExtraBold', color: c.text.muted, marginBottom: 2, fontVariant: ['tabular-nums'] },
   hourRow: { flexDirection: 'row', gap: 2, marginTop: 3 },
   hourUnl: { flex: 1, textAlign: 'center', fontSize: 8.5, fontFamily: 'Inter_700Bold', color: c.accent.blue },
-  hourLab: { flex: 1, textAlign: 'center', fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  hourLab: { flex: 1, marginHorizontal: -6, textAlign: 'center', fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
   hourSel: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },
   hourNote: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[2] },
   axis: { fontSize: 9.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
@@ -359,8 +424,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   catChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   catChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default },
   catChipTxt: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
-  catDone: { fontSize: 12, fontFamily: 'Inter_900Black', color: c.text.bright },
-  funRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing[3] },
+  funRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   funTxt: { flex: 1, fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary },
   funBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
   funBtnOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },

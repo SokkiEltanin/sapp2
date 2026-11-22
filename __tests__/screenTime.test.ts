@@ -53,6 +53,10 @@ describe('czas z telefonem', () => {
     // 20.11 pełny, 21.11 odczytany w trakcie dnia → do ponowienia, dziś zawsze
     const days = { '2026-11-20': D('2026-11-20', 1), '2026-11-21': D('2026-11-21', 1, H({}), { t: new Date(2026, 10, 21, 15).getTime() }) };
     expect(daysToFetch(days, now, 3).map((s) => ymd(new Date(s)))).toEqual(['2026-11-21', '2026-11-22']);
+    // nowy moduł (v2): dni policzone v1 pobierane ponownie, v2 — nie
+    expect(daysToFetch(days, now, 3, 2).map((s) => ymd(new Date(s)))).toEqual(['2026-11-20', '2026-11-21', '2026-11-22']);
+    const v2 = { ...days, '2026-11-20': { ...days['2026-11-20'], v: 2 } };
+    expect(daysToFetch(v2, now, 3, 2).map((s) => ymd(new Date(s)))).toEqual(['2026-11-21', '2026-11-22']);
   });
   it('szczyt i noc', () => {
     const d = D('2026-11-22', 0, H({ 1: 15, 3: 5, 21: 40 }));
