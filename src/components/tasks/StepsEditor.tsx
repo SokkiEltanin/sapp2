@@ -13,6 +13,8 @@ import type { Subtask } from '@/types/calendar';
 // 2026-11-22, user: "edytować kamienie milowe albo zmieniać ich kolejność": stuknięcie w
 // treść kroku = edycja tekstu + strzałki wyżej/niżej; ✓ albo Enter kończy (tekst zapisuje się
 // też przy wyjściu z pola).
+// 2026-11-22, user: "edycja kamieni milowych i X po lewej, a odznaczanie po prawej": × i
+// przyciski edycji (✓ ↑ ↓) po lewej, kółko "zrobione" po prawej — pod kciukiem.
 export default function StepsEditor({ steps, onChange, accent, placeholder = 'Dodaj krok, np. „Napisać wstęp”', editable = true }: {
   steps: Subtask[]; onChange: (steps: Subtask[]) => void; accent?: string; placeholder?: string; editable?: boolean;
 }) {
@@ -65,35 +67,35 @@ export default function StepsEditor({ steps, onChange, accent, placeholder = 'Do
     <View style={s.wrap}>
       {steps.map((st, i) => (
         <View key={st.id} style={s.row}>
-          {/* Linia łącząca kroki — oś "drogi do celu". */}
+          {/* Linia łącząca kroki — oś "drogi do celu" (po prawej, pod kółkami). */}
           {i < steps.length - 1 && <View style={[s.line, st.done && { backgroundColor: tint }]} />}
-          <TouchableOpacity onPress={() => toggle(st.id)} hitSlop={6} style={[s.dot, st.done && { backgroundColor: tint, borderColor: tint }, st.id === firstOpen && { borderColor: tint }]}
-            accessibilityLabel={st.done ? `Odznacz: ${st.title}` : `Zrobione: ${st.title}`}>
-            {st.done ? <Check size={13} color={colors.bg.primary} /> : <Text style={[s.num, st.id === firstOpen && { color: tint }]}>{i + 1}</Text>}
-          </TouchableOpacity>
           {editId === st.id ? (
             <>
-              <TextInput value={draft} onChangeText={setDraft} autoFocus style={s.editInput} onBlur={commit}
-                onSubmitEditing={finish} returnKeyType="done" submitBehavior="blurAndSubmit" multiline={false} />
+              <TouchableOpacity onPress={finish} hitSlop={6} style={[s.miniBtn, s.miniOk]} accessibilityLabel="Zapisz krok">
+                <Check size={15} color={colors.bg.primary} />
+              </TouchableOpacity>
               <TouchableOpacity onPress={() => move(st.id, -1)} disabled={i === 0} hitSlop={6} style={[s.miniBtn, i === 0 && s.miniOff]} accessibilityLabel="Krok wyżej">
                 <ChevronUp size={16} color={colors.text.primary} />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => move(st.id, 1)} disabled={i === steps.length - 1} hitSlop={6} style={[s.miniBtn, i === steps.length - 1 && s.miniOff]} accessibilityLabel="Krok niżej">
                 <ChevronDown size={16} color={colors.text.primary} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={finish} hitSlop={6} style={[s.miniBtn, s.miniOk]} accessibilityLabel="Zapisz krok">
-                <Check size={15} color={colors.bg.primary} />
-              </TouchableOpacity>
+              <TextInput value={draft} onChangeText={setDraft} autoFocus style={s.editInput} onBlur={commit}
+                onSubmitEditing={finish} returnKeyType="done" submitBehavior="blurAndSubmit" multiline={false} />
             </>
           ) : (
             <>
-              <Text onPress={editable ? () => startEdit(st) : undefined} suppressHighlighting
-                style={[s.title, st.done && s.titleDone, st.id === firstOpen && s.titleNext]} numberOfLines={2}>{st.title}</Text>
-              <TouchableOpacity onPress={() => remove(st.id)} hitSlop={8} accessibilityLabel={`Usuń krok ${st.title}`}>
+              <TouchableOpacity onPress={() => remove(st.id)} hitSlop={8} style={s.del} accessibilityLabel={`Usuń krok ${st.title}`}>
                 <X size={14} color={colors.text.muted} />
               </TouchableOpacity>
+              <Text onPress={editable ? () => startEdit(st) : undefined} suppressHighlighting
+                style={[s.title, st.done && s.titleDone, st.id === firstOpen && s.titleNext]} numberOfLines={2}>{st.title}</Text>
             </>
           )}
+          <TouchableOpacity onPress={() => toggle(st.id)} hitSlop={6} style={[s.dot, st.done && { backgroundColor: tint, borderColor: tint }, st.id === firstOpen && { borderColor: tint }]}
+            accessibilityLabel={st.done ? `Odznacz: ${st.title}` : `Zrobione: ${st.title}`}>
+            {st.done ? <Check size={13} color={colors.bg.primary} /> : <Text style={[s.num, st.id === firstOpen && { color: tint }]}>{i + 1}</Text>}
+          </TouchableOpacity>
         </View>
       ))}
       <View style={s.addRow}>
@@ -110,14 +112,15 @@ export default function StepsEditor({ steps, onChange, accent, placeholder = 'Do
 const makeS = themedStyles((c) => StyleSheet.create({
   wrap: { gap: 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: 7, position: 'relative' },
-  line: { position: 'absolute', left: 12, top: 33, height: 16, width: 2, backgroundColor: c.border.default, borderRadius: 1 },
+  line: { position: 'absolute', right: 12, top: 33, height: 16, width: 2, backgroundColor: c.border.default, borderRadius: 1 },
   dot: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: c.border.default, alignItems: 'center', justifyContent: 'center' },
   num: { fontSize: 11, fontFamily: 'Inter_900Black', color: c.text.muted },
   title: { flex: 1, fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.primary },
   titleDone: { color: c.text.muted, textDecorationLine: 'line-through' },
   titleNext: { color: c.text.bright, fontFamily: 'Inter_800ExtraBold' },
-  editInput: { flex: 1, minWidth: 0, marginRight: -4, borderWidth: 1, borderColor: c.text.secondary, borderRadius: radius.md, paddingHorizontal: spacing[2], paddingVertical: 6, fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.bright },
-  miniBtn: { width: 28, height: 30, marginLeft: -4, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, alignItems: 'center', justifyContent: 'center' },
+  del: { width: 18, alignItems: 'center' },
+  editInput: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: c.text.secondary, borderRadius: radius.md, paddingHorizontal: spacing[2], paddingVertical: 6, fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.bright },
+  miniBtn: { width: 28, height: 30, marginRight: -4, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, alignItems: 'center', justifyContent: 'center' },
   miniOff: { opacity: 0.3 },
   miniOk: { backgroundColor: c.text.bright, borderColor: c.text.bright },
   addRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[2] },

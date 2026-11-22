@@ -674,7 +674,8 @@ krok), `progressLine`, `doneStats` (dziś / tydzień / seria dni), `cheer`.
   „› następny krok”, pasek postępu na dole. Tap → `TaskDetailSheet` (postęp
   segmentami, oś kroków `StepsEditor`, Edytuj / Usuń / Ukończ — edycja i usuwanie
   otwierają się po zamknięciu szczegółów, `onClosed`).
-- `StepsEditor` też w `AddTaskCard` (kroki przy tworzeniu/edycji).
+- `StepsEditor` też w `AddTaskCard` (kroki przy tworzeniu/edycji). Układ wiersza (2026-11-22): × i edycja
+  (✓ ↑ ↓ + pole) po LEWEJ, kółko „zrobione” z osią kroków po PRAWEJ (pod kciukiem).
 - **Kopia robocza** (2026-11-16) `store/taskDraftStore.ts` (`task-draft-v1`, tylko to
   urządzenie): AddTaskCard zapisuje każdą zmianę pod kluczem 'new' / id zadania;
   zamknięcie okna jej nie kasuje (pasek „Przywrócono szkic · Wyczyść”), kasuje zapis
