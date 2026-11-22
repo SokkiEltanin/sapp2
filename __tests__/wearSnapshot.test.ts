@@ -53,3 +53,17 @@ describe('zegarek: zmiany pracy i humor', () => {
     expect(wearMoodToday([], NOW)).toEqual({ n: 0, mood: null, energy: null });
   });
 });
+
+describe('zegarek: najbliższe wydarzenie', () => {
+  const { wearNext } = require('@/utils/wearSnapshot');
+  it('trwające i przyszłe z godziną, tag osobno, bez całodniowych i minionych', () => {
+    const n = wearNext([
+      Ev({ title: 'Minione', startTime: '08:00', endTime: '09:00' }),
+      Ev({ title: '[PUR] Seminarium', startTime: '11:30', endTime: '13:00', color: '#38BDF8' }),
+      Ev({ title: 'Urodziny', allDay: true }),
+      Ev({ title: 'Jutro', date: '2026-11-15', startTime: '07:00' }),
+      Ev({ title: 'Za tydzień+', date: '2026-11-25', startTime: '07:00' }),
+    ] as any, NOW);
+    expect(n.map((x: any) => [x.title, x.tag, new Date(x.s).getHours()])).toEqual([['Seminarium', 'PUR', 11], ['Jutro', null, 7]]);
+  });
+});

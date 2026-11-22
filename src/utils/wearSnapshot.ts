@@ -25,7 +25,11 @@ export interface WearSnapshot {
   work?: WearShift[];
   // Humor dziś (zegarek pokazuje "zapisane" albo zachętę) — dzień = `day` snapshotu.
   mood?: { n: number; mood: number | null; energy: number | null };
+  // Najbliższe wydarzenie z godziną (2026-11-22, user: "zamiast liczby zadań najbliższy event z
+  // odliczaniem jak na Dashboardzie") — czasy bezwzględne, zegarek odlicza sam.
+  next?: WearNext[];
 }
+export interface WearNext { title: string; tag: string | null; s: number; e: number; color: string }
 export interface WearShift { name: string; color: string; s: number; e: number; rate: number }
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -91,6 +95,25 @@ export function wearMoodToday(entries: MoodEntry[], now: Date = new Date()): Wea
   return { n: today.length, mood: last ? Math.round(last.mood * 100) / 100 : null, energy: last ? Math.round(last.energy * 100) / 100 : null };
 }
 
+/** Dwa najbliższe wydarzenia z godziną (trwające też), do 7 dni naprzód. */
+export function wearNext(events: CalendarEvent[], now: Date = new Date()): WearNext[] {
+  const horizon = now.getTime() + 7 * 86400000;
+  const out: WearNext[] = [];
+  for (const e of events) {
+    if (e.allDay || !e.startTime || !e.date) continue;
+    const [y, m, d] = e.date.slice(0, 10).split('-').map(Number);
+    const [sh, sm] = e.startTime.split(':').map(Number);
+    const s = new Date(y, m - 1, d, sh, sm).getTime();
+    let end = s;
+    if (e.endTime) { const [eh, em] = e.endTime.split(':').map(Number); end = new Date(y, m - 1, d, eh, em).getTime(); if (end < s) end += 86400000; }
+    if (end <= now.getTime() && s <= now.getTime()) continue;
+    if (s > horizon) continue;
+    const tm = /^\s*\[([^\]]+)\]\s*/.exec(e.title ?? '');
+    out.push({ title: (tm ? e.title.slice(tm[0].length) : e.title ?? '').trim() || 'Wydarzenie', tag: tm ? tm[1] : null, s, e: Math.max(end, s), color: e.color || '#A3A3A3' });
+  }
+  return out.sort((a, b) => a.s - b.s).slice(0, 2);
+}
+
 export interface WearExtras { employers?: Employer[]; expenses?: Expense[]; mood?: MoodEntry[] }
 
 export function buildWearSnapshot(tasks: Task[], events: CalendarEvent[], now: Date = new Date(), extras: WearExtras = {}): WearSnapshot {
@@ -105,5 +128,6 @@ export function buildWearSnapshot(tasks: Task[], events: CalendarEvent[], now: D
     events: wearEvents(events, now),
     work: extras.employers?.length ? wearShifts(extras.employers, events, extras.expenses ?? [], now) : [],
     mood: wearMoodToday(extras.mood ?? [], now),
+    next: wearNext(events, now),
   };
 }

@@ -68,6 +68,7 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
         override fun run() {
             if (!resumed) return
             updateTicker()
+            updateHero()
             updateHeart()
             ui.postDelayed(this, 100)
         }
@@ -96,8 +97,11 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
         }
         list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val side = (resources.displayMetrics.widthPixels * 0.13).roundToInt()
-        list.setPadding(side, dp(26), side, dp(40))
+        list.setPadding(side, 0, side, dp(70))
         scroll.addView(list)
+        // Okrągły ekran (2026-11-22, user: "dostosować wszystko pod koło"): wiersze przy górnej
+        // i dolnej krawędzi zmniejszają się i bledną (jak listy Wear OS), nic nie ucina się na łuku.
+        scroll.setOnScrollChangeListener { _, _, _, _, _ -> curve() }
         scroll.setOnGenericMotionListener { v, ev ->
             if (ev.action == MotionEvent.ACTION_SCROLL && ev.isFromSource(InputDevice.SOURCE_ROTARY_ENCODER)) {
                 val delta = -ev.getAxisValue(MotionEvent.AXIS_SCROLL) * ViewConfiguration.get(this).scaledVerticalScrollFactor
@@ -105,7 +109,12 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
                 true
             } else false
         }
-        setContentView(scroll)
+        // Łuk postępu wokół krawędzi ekranu — nad listą, nie przewija się.
+        val root = android.widget.FrameLayout(this)
+        root.addView(scroll)
+        arcView = ArcView(this).apply { isClickable = false; isFocusable = false }
+        root.addView(arcView, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, android.widget.FrameLayout.LayoutParams.MATCH_PARENT))
+        setContentView(root)
         render(prefs.getString(Snapshot.KEY, null))
     }
 
@@ -145,9 +154,11 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
 
     override fun onSensorChanged(e: SensorEvent) {
         if (e.sensor.type != Sensor.TYPE_HEART_RATE || e.values.isEmpty()) return
-        hrContact = e.accuracy != SensorManager.SENSOR_STATUS_NO_CONTACT
         val v = e.values[0].roundToInt()
-        if (v > 0) bpm = v
+        // Samsung zgłasza "brak kontaktu" także w pierwszych sekundach pomiaru (user: "pisało załóż
+        // zegarek, mimo że miałem założony") — brak kontaktu tylko, gdy nie ma żadnego odczytu.
+        if (v > 0) { bpm = v; hrContact = true }
+        else if (e.accuracy == SensorManager.SENSOR_STATUS_NO_CONTACT && bpm == 0) hrContact = false
         showHeart()
     }
 
@@ -169,7 +180,7 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
     private fun heartText(): String = when {
         !hasHrPermission() -> "stuknij, żeby mierzyć"
         sensors.getDefaultSensor(Sensor.TYPE_HEART_RATE) == null -> "brak czujnika"
-        !hrContact -> "załóż zegarek"
+        !hrContact -> "brak odczytu — popraw zegarek"
         bpm <= 0 -> "mierzę…"
         else -> "$bpm"
     }
@@ -296,10 +307,6 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
             list.addView(text("Otwórz SOEN na telefonie — dane pojawią się tutaj.", 14f, "#F2F2F2", center = true, maxLines = 3).apply { setPadding(0, dp(10), 0, 0) })
             return
         }
-        val at = snap.optLong("t", 0L)
-        list.addView(text(if (at > 0) "SOEN · " + SimpleDateFormat("HH:mm", pl).format(Date(at)) else "SOEN", 10f, "#A3A3A3", bold = true, center = true))
-        renderWork()
-
         // Zadania (bez wydatków — 2026-11-16)
         val tasks = snap.optJSONArray("tasks")
         var open = 0
@@ -310,14 +317,15 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
             open++
             if (t.optBoolean("overdue")) overdue++
         }
-        list.addView(text(if (open == 0) "✓" else "$open", 30f, if (overdue > 0) "#F87171" else "#F2F2F2", bold = true, center = true).apply { setPadding(0, dp(2), 0, 0) })
-        list.addView(text(if (open == 0) "wszystko zrobione" else "do zrobienia" + (if (overdue > 0) " · $overdue zaległe" else ""), 11f, "#A3A3A3", center = true))
+        // Pierwszy ekran = cały okrąg: praca (licznik) albo najbliższe wydarzenie z odliczaniem.
+        renderHero(snap, open, overdue)
 
         renderMood(snap)
         renderHeart()
+        list.post { curve() }
 
         list.addView(section("ZADANIA"))
-        if (tasks == null || tasks.length() == 0) list.addView(text("Nic do zrobienia", 13f, "#A3A3A3"))
+        if (tasks == null || tasks.length() == 0) list.addView(text("Nic do zrobienia", 13f, "#A3A3A3", center = true))
         else for (i in 0 until tasks.length()) {
             val t = tasks.optJSONObject(i) ?: continue
             val id = t.optString("id")
@@ -337,12 +345,12 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
                 isClickable = true
                 setOnClickListener { if (isOpen) expanded.remove(id) else expanded.add(id); render(prefs.getString(Snapshot.KEY, null)) }
             }
-            row.addView(text(if (isOpen) "▾" else "▸", 14f, "#A3A3A3").apply { setPadding(0, 0, dp(8), 0) })
-            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-            col.addView(text(t.optString("title"), 14f, "#F2F2F2", maxLines = 2))
+            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+            col.addView(text(t.optString("title"), 14f, "#F2F2F2", center = true, maxLines = 2))
             val sub = t.optString("sub").replace(Regex("^\\d+/\\d+( · )?"), "")
             val meta = listOfNotNull(if (n > 0) "kroki $stepsDone/$n" else null, sub.ifEmpty { null }).joinToString(" · ")
-            if (meta.isNotEmpty()) col.addView(text(meta, 11f, if (t.optBoolean("overdue")) "#F87171" else "#A3A3A3"))
+            val meta2 = if (n > 0) meta + (if (isOpen) "  ▴" else "  ▾") else meta
+            if (meta2.isNotEmpty()) col.addView(text(meta2, 11f, if (t.optBoolean("overdue")) "#F87171" else "#A3A3A3", center = true))
             row.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             list.addView(row)
 
@@ -379,73 +387,153 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
         val events = snap.optJSONArray("events")
         if (events == null || events.length() == 0) {
             list.addView(section("KALENDARZ"))
-            list.addView(text("Dziś i jutro nic w kalendarzu", 13f, "#A3A3A3", maxLines = 2))
+            list.addView(text("Dziś i jutro nic w kalendarzu", 13f, "#A3A3A3", center = true, maxLines = 2))
         } else {
             var lastDay = ""
             for (i in 0 until events.length()) {
                 val e = events.optJSONObject(i) ?: continue
                 val day = e.optString("day")
                 if (day != lastDay) { list.addView(section(if (day == "jutro") "JUTRO" else "DZIŚ")); lastDay = day }
-                val row = LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    setPadding(0, dp(4), 0, dp(4))
-                }
-                val bar = android.view.View(this).apply {
-                    background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(2).toFloat(); setColor(try { Color.parseColor(e.optString("color", "#A3A3A3")) } catch (x: Exception) { Color.GRAY }) }
-                }
-                row.addView(bar, LinearLayout.LayoutParams(dp(3), dp(28)).apply { setMargins(0, 0, dp(8), 0) })
-                val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-                col.addView(text(e.optString("time"), 10f, "#A3A3A3", bold = true))
-                col.addView(text(e.optString("title"), 13f, "#F2F2F2", maxLines = 2))
-                row.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-                list.addView(row)
+                val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(0, dp(4), 0, dp(4)) }
+                val ec = try { Color.parseColor(e.optString("color", "#A3A3A3")) } catch (x: Exception) { Color.GRAY }
+                val timeLine = SpannableString("● " + e.optString("time"))
+                timeLine.setSpan(ForegroundColorSpan(ec), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                col.addView(text("", 10f, "#A3A3A3", bold = true, center = true).apply { text = timeLine })
+                col.addView(text(e.optString("title"), 13f, "#F2F2F2", center = true, maxLines = 2))
+                list.addView(col)
             }
         }
     }
 
-    // Karta pracy: w trakcie zmiany licznik na żywo, przed zmianą — kiedy i ile wyjdzie.
-    private fun renderWork() {
-        val now = System.currentTimeMillis()
-        val c = currentShift(now)
-        val n = if (c == null) nextShift(now) else null
-        val o = c ?: n ?: return
-        val accent = try { Color.parseColor(o.optString("color", "#4ADE80")) } catch (e: Exception) { Color.parseColor("#4ADE80") }
-        val s = o.optLong("s"); val e = o.optLong("e"); val rate = o.optDouble("rate", 0.0)
+    // ── Pierwszy ekran (2026-11-22, user: "ten ekran na głównej bym podzielił; zamiast liczby zadań
+    // najbliższy event jak na Dashboardzie z odliczaniem"): cały okrąg. W pracy — licznik zarobków,
+    // inaczej najbliższe wydarzenie (snapshot "next", czasy bezwzględne → odliczanie na żywo).
+    // Trwające wydarzenie/zmiana = łuk postępu wokół krawędzi. Na dole podpowiedź: niżej zadania.
+    private var heroClock: TextView? = null
+    private var heroCount: TextView? = null
+    private var heroSub: TextView? = null
+    private var arcView: ArcView? = null
+    private var heroEv: JSONObject? = null
+
+    private fun nextEvent(snap: JSONObject?, now: Long): JSONObject? {
+        val a = snap?.optJSONArray("next") ?: return null
+        for (i in 0 until a.length()) { val o = a.optJSONObject(i) ?: continue; if (o.optLong("e") > now || o.optLong("s") > now) return o }
+        return null
+    }
+
+    private fun countdown(ms: Long): String {
+        val m = Math.max(0L, (ms + 59999) / 60000)
+        return when {
+            m >= 48 * 60 -> "${m / 1440} dni"
+            m >= 24 * 60 -> "${m / 1440} d ${(m % 1440) / 60} h"
+            m >= 60 -> if (m % 60 == 0L) "${m / 60} h" else "${m / 60} h ${m % 60} min"
+            else -> "$m min"
+        }
+    }
+
+    private fun whenLabel(s: Long, e: Long, now: Long): String {
         val hm = SimpleDateFormat("HH:mm", pl)
-        val card = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(10), dp(8), dp(10), dp(10))
-            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(18).toFloat(); setColor(Color.parseColor("#141414")); setStroke(dp(1), (accent and 0x00FFFFFF) or 0x66000000) }
-        }
-        val total = (e - s) / 3600000.0 * rate
-        if (c != null) {
-            card.addView(text("W PRACY · " + o.optString("name").uppercase(pl), 10f, "#A3A3A3", bold = true, center = true).apply { letterSpacing = 0.06f })
-            tickAmount = text("", 24f, "#F2F2F2", bold = true, center = true).apply { setTextColor(accent); fontFeatureSettings = "tnum" }
-            card.addView(tickAmount)
-            card.addView(text(String.format(pl, "%.2f zł/h · %.4f zł/s", rate, rate / 3600), 10f, "#A3A3A3", center = true))
-            val track = android.widget.FrameLayout(this).apply {
-                background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(3).toFloat(); setColor(Color.parseColor("#2A2A2A")) }
-            }
-            val fill = android.view.View(this).apply {
-                background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(3).toFloat(); setColor(accent) }
-            }
-            track.addView(fill, android.widget.FrameLayout.LayoutParams(dp(4), dp(6)))
-            track.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ -> tickTrackW = v.width }
-            tickFill = fill
-            card.addView(track, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(6)).apply { setMargins(0, dp(6), 0, dp(4)) })
-            tickSub = text("", 10f, "#A3A3A3", center = true)
-            card.addView(tickSub)
-            card.addView(text(String.format(pl, "cała zmiana ≈ %.0f zł", total), 10f, "#8A8A8A", center = true))
+        val day = SimpleDateFormat("yyyyMMdd", Locale.US)
+        val d0 = day.format(Date(now)); val ds = day.format(Date(s))
+        val tom = day.format(Date(now + 86400000L))
+        val dayTxt = when (ds) { d0 -> "dziś"; tom -> "jutro"; else -> SimpleDateFormat("EEE d MMM", pl).format(Date(s)) }
+        return dayTxt + " " + hm.format(Date(s)) + (if (e > s) "–" + hm.format(Date(e)) else "")
+    }
+
+    private fun renderHero(snap: JSONObject, open: Int, overdue: Int) {
+        heroClock = null; heroCount = null; heroSub = null; heroEv = null
+        arcView?.let { it.s = 0; it.e = 0 }
+        val now = System.currentTimeMillis()
+        val dm = resources.displayMetrics
+        val page = android.widget.FrameLayout(this)
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
+        page.addView(col, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, android.widget.FrameLayout.LayoutParams.MATCH_PARENT))
+        heroClock = text(SimpleDateFormat("HH:mm", pl).format(Date(now)), 11f, "#A3A3A3", bold = true, center = true)
+        col.addView(heroClock)
+
+        val shift = currentShift(now)
+        if (shift != null) {
+            val accent = try { Color.parseColor(shift.optString("color", "#4ADE80")) } catch (e: Exception) { Color.parseColor("#4ADE80") }
+            val rate = shift.optDouble("rate", 0.0)
+            col.addView(text("W PRACY · " + shift.optString("name").uppercase(pl), 10f, "#A3A3A3", bold = true, center = true).apply { letterSpacing = 0.06f; setPadding(0, dp(8), 0, dp(2)) })
+            tickAmount = text("", 26f, "#F2F2F2", bold = true, center = true).apply { setTextColor(accent); fontFeatureSettings = "tnum" }
+            col.addView(tickAmount)
+            col.addView(text(String.format(pl, "%.2f zł/h · %.4f zł/s", rate, rate / 3600), 10f, "#A3A3A3", center = true))
+            tickSub = text("", 11f, "#D6D6D6", center = true).apply { setPadding(0, dp(6), 0, 0) }
+            col.addView(tickSub)
+            val total = (shift.optLong("e") - shift.optLong("s")) / 3600000.0 * rate
+            col.addView(text(String.format(pl, "cała zmiana ≈ %.0f zł", total), 10f, "#8A8A8A", center = true))
+            arcView?.let { it.color = accent; it.s = shift.optLong("s"); it.e = shift.optLong("e") }
         } else {
-            val day = if (SimpleDateFormat("yyyyMMdd", Locale.US).format(Date(s)) == SimpleDateFormat("yyyyMMdd", Locale.US).format(Date(now))) "dziś" else "jutro"
-            card.addView(text("PRACA " + day.uppercase(pl) + " · " + o.optString("name").uppercase(pl), 10f, "#A3A3A3", bold = true, center = true).apply { letterSpacing = 0.06f })
-            card.addView(text(hm.format(Date(s)) + "–" + hm.format(Date(e)), 16f, "#F2F2F2", bold = true, center = true))
-            card.addView(text(String.format(pl, "zarobisz ≈ %.0f zł · za %s", total, dur(s - now)), 10f, "#A3A3A3", center = true, maxLines = 2))
+            val ev = nextEvent(snap, now)
+            if (ev != null) {
+                heroEv = ev
+                val ec = try { Color.parseColor(ev.optString("color", "#A3A3A3")) } catch (x: Exception) { Color.GRAY }
+                val tag = if (ev.isNull("tag")) "" else ev.optString("tag")
+                if (tag.isNotEmpty()) col.addView(text(tag, 10f, "#F2F2F2", bold = true, center = true).apply {
+                    setPadding(dp(8), dp(2), dp(8), dp(2))
+                    background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor((ec and 0x00FFFFFF) or 0x55000000) }
+                }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER_HORIZONTAL; setMargins(0, dp(8), 0, dp(2)) })
+                heroCount = text("", 30f, "#F2F2F2", bold = true, center = true).apply { fontFeatureSettings = "tnum" }
+                col.addView(heroCount)
+                col.addView(text(whenLabel(ev.optLong("s"), ev.optLong("e"), now), 11f, "#A3A3A3", bold = true, center = true))
+                col.addView(text(ev.optString("title"), 15f, "#F2F2F2", bold = true, center = true, maxLines = 2).apply { setPadding(dp(6), dp(8), dp(6), 0) })
+                // zmiana z kalendarza → ile z niej wyjdzie
+                val sh = shifts
+                if (sh != null) for (i in 0 until sh.length()) {
+                    val o = sh.optJSONObject(i) ?: continue
+                    if (o.optLong("s") == ev.optLong("s")) {
+                        col.addView(text(String.format(pl, "zarobisz ≈ %.0f zł", (o.optLong("e") - o.optLong("s")) / 3600000.0 * o.optDouble("rate", 0.0)), 11f, "#4ADE80", center = true))
+                    }
+                }
+                heroSub = text("", 11f, "#D6D6D6", center = true).apply { setPadding(0, dp(4), 0, 0) }
+                col.addView(heroSub)
+                arcView?.let { it.color = ec; it.s = ev.optLong("s"); it.e = ev.optLong("e") }
+            } else {
+                col.addView(text("Nic w kalendarzu", 16f, "#F2F2F2", bold = true, center = true).apply { setPadding(0, dp(10), 0, 0) })
+                col.addView(text("na najbliższy tydzień", 11f, "#A3A3A3", center = true))
+            }
         }
-        list.addView(card, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(6), 0, dp(4)) })
+        val hint = (if (open == 0) "✓ zadania zrobione" else "▾ $open do zrobienia") + (if (overdue > 0) " · $overdue zaległe" else "")
+        col.addView(text(hint, 11f, if (overdue > 0) "#F87171" else "#A3A3A3", bold = true, center = true).apply { setPadding(0, dp(14), 0, 0) })
+        // strona = cała wysokość ekranu (minus boczne marginesy listy nie dotyczą wysokości)
+        list.addView(page, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dm.heightPixels))
         updateTicker()
+        updateHero()
+    }
+
+    private fun updateHero() {
+        val now = System.currentTimeMillis()
+        heroClock?.let { val t = SimpleDateFormat("HH:mm", pl).format(Date(now)); if (it.text.toString() != t) it.text = t }
+        val ev = heroEv
+        if (ev != null) {
+            val s = ev.optLong("s"); val e = ev.optLong("e")
+            // wydarzenie się skończyło (albo zaczęło, gdy nie ma końca) → następne
+            if (now >= e && now >= s) { heroEv = null; render(prefs.getString(Snapshot.KEY, null)); return }
+            val txt = if (now < s) countdown(s - now) else "teraz"
+            heroCount?.let { if (it.text.toString() != txt) it.text = txt }
+            val sub = if (now >= s) "trwa · zostało " + countdown(e - now) else ""
+            heroSub?.let { if (it.text.toString() != sub) it.text = sub }
+        }
+        arcView?.invalidate()
+    }
+
+    // Wiersze przy krawędziach okręgu: mniejsze i przygaszone (pierwszy ekran bez zmian).
+    private fun curve() {
+        val h = scroll.height
+        if (h <= 0) return
+        val y0 = scroll.scrollY
+        for (i in 0 until list.childCount) {
+            val c = list.getChildAt(i)
+            if (c.height >= h - 2) { c.scaleX = 1f; c.scaleY = 1f; c.alpha = 1f; continue }
+            val mid = c.top + c.height / 2f - y0
+            val d = Math.abs(mid - h / 2f) / (h / 2f)
+            val k = ((d - 0.55f) / 0.45f).coerceIn(0f, 1f)
+            val sc = 1f - 0.22f * k
+            c.pivotX = c.width / 2f; c.pivotY = c.height / 2f
+            c.scaleX = sc; c.scaleY = sc
+            c.alpha = 1f - 0.65f * k
+        }
     }
 
     // Humor dziś: z telefonu (snapshot "mood") + zapisane na zegarku po ostatnim snapshotcie.
@@ -504,7 +592,7 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
         list.addView(row, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(4), 0, 0) })
     }
 
-    private fun section(label: String) = text(label, 10f, "#A3A3A3", bold = true).apply {
+    private fun section(label: String) = text(label, 10f, "#A3A3A3", bold = true, center = true).apply {
         letterSpacing = 0.08f
         setPadding(0, dp(14), 0, dp(2))
     }
@@ -520,4 +608,25 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).roundToInt()
+}
+
+// Łuk postępu wokół okrągłego ekranu (trwające wydarzenie / zmiana w pracy).
+class ArcView(ctx: android.content.Context) : android.view.View(ctx) {
+    var color: Int = Color.WHITE
+    var s: Long = 0
+    var e: Long = 0
+    private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; color = 0xFF1E1E1E.toInt() }
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
+    private val r = android.graphics.RectF()
+    override fun onDraw(c: android.graphics.Canvas) {
+        val now = System.currentTimeMillis()
+        if (e <= s || now < s || now > e) return
+        val w = 5f * resources.displayMetrics.density
+        track.strokeWidth = w; fill.strokeWidth = w; fill.color = color
+        val size = Math.min(width, height).toFloat()
+        val cx = width / 2f; val cy = height / 2f
+        r.set(cx - size / 2 + w, cy - size / 2 + w, cx + size / 2 - w, cy + size / 2 - w)
+        c.drawArc(r, -90f, 360f, false, track)
+        c.drawArc(r, -90f, 360f * ((now - s).toFloat() / (e - s)), false, fill)
+    }
 }

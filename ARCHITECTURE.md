@@ -2415,3 +2415,17 @@ w telefonie a słodycze/zakupy; oznaczyć appki, które to rozrywka”.
   `FUN_CATS` = społeczności/wideo/gry; w `ScreenTimeSheet` stuknięcie appki → `AppCatPanel`. Fakty „Rozrywka”
   i „Otwarcia appek”; wykres godzin `HourChart` (minuty nad słupkiem, godziny co 2, odblokowania na godzinę z
   natywnego `uh` — od nowego APK, stuknięcie = dokładny przedział).
+
+## ZEGAREK: OKRĄGŁY UKŁAD + PIERWSZY EKRAN (2026-11-22)
+
+User: „dostosować wszystko pod koło; ekran główny podzielić — zamiast liczby zadań najbliższy event z odliczaniem jak
+na Dashboardzie; tętno pisało »załóż zegarek« mimo założonego”.
+- Snapshot `next` (utils/wearSnapshot.ts `wearNext`): 2 najbliższe wydarzenia z godziną (trwające też), tag z [XX]
+  osobno, czasy w ms.
+- `MainActivity.renderHero`: pierwsza „strona” = wysokość ekranu: zegar, w pracy licznik zarobków, inaczej tag +
+  odliczanie (`countdown`) + kiedy + tytuł (+ „zarobisz ≈” gdy to zmiana) + „trwa · zostało”; na dole „▾ N do zrobienia”.
+  `ArcView` nad listą = łuk postępu trwającego wydarzenia/zmiany wokół krawędzi. `updateHero` co 100 ms (koniec
+  wydarzenia → następne).
+- `curve()`: wiersze przy górnej/dolnej krawędzi mniejsze (−22%) i przygaszone; zadania, sekcje i kalendarz wyśrodkowane.
+- Kafelek: najbliższe wydarzenie („za 2 h 15 min”, odświeżanie ~5 min) + liczba zadań.
+- Tętno: „brak kontaktu” tylko gdy nie było żadnego odczytu (Samsung zgłasza NO_CONTACT na starcie pomiaru).
