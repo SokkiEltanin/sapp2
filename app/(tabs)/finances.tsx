@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Plus, Package, Car, ChevronRight, RefreshCw, TrendingUp } from 'lucide-react-native';
+import { Plus, Package, Car, ChevronRight, RefreshCw, TrendingUp, Target } from 'lucide-react-native';
 import TrendSheet from '@/components/finances/TrendSheet';
 import { spacing, radius, themedStyles } from '@/theme';
 import { Screen, Row, Tile, Cap, FitList, Item, Price, StackBar } from '@/ui/layout';
@@ -258,10 +258,11 @@ export default function FinancesScreen() {
   const varCats = useMemo(() => variableByCategory(expenses, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`), [expenses, now, catVersion]);
   const fixedCats = useMemo(() => fixedByCategory(expenses, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`), [expenses, now, catVersion]);
   const incomeCats = useMemo(() => incomeByCategory(expenses, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`), [expenses, now]);
-  const [catTab, setCatTab] = useState<'food' | 'fixed' | 'variable' | 'income'>('food');
+  const [catTab, setCatTab] = useState<'food' | 'fixed' | 'variable' | 'income' | 'limits'>('food');
   const [trendOpen, setTrendOpen] = useState(false);
   const foodCats = wydatkiData.food.categories;
-  const catBars = catTab === 'food' ? foodCats : catTab === 'fixed' ? fixedCats : catTab === 'income' ? incomeCats : varCats;
+  const catBars = catTab === 'food' ? foodCats : catTab === 'fixed' ? fixedCats : catTab === 'income' ? incomeCats : catTab === 'limits' ? [] : varCats;
+  const budOver = budgetStats.some((b) => b.level === 'over');
 
   return (
     <Screen
@@ -312,29 +313,39 @@ export default function FinancesScreen() {
         </Tile>
       </Row>
 
-      {/* Budżety (2026-11-22, user: "nadal chaos — nie widać, limity trzeba inaczej"): bez
-          pigułek i przełączania — KAŻDY budżet to jeden wiersz: nazwa · pasek · "wydane / limit"
-          (najpilniejsze pierwsze, max 3). Nagłówek mówi stan jednym słowem; szczegóły (ile
-          zostało na dzień, tempo, miesiące) w BudgetSheet po stuknięciu. */}
+      {/* Kategorie (2026-11-14, user: "3 główne JEDZENIE, STAŁE, ZMIENNE i one na
+          mniejsze") — jeden kafel z przełącznikiem zamiast osobnych kafli.
+          Budżety (2026-11-22, user: "kafelek budżetów wywalić, niech będą gdzieś jako zakładka"):
+          ikona-zakładka 🎯 na końcu (czerwona kropka = coś przekroczone) → wiersze limitów
+          (nazwa · pasek · wydane/limit), stuknięcie = BudgetSheet. */}
       <Row>
-        <Tile span={4} onPress={() => { haptic.tap(); setBudgetOpen(true); }}>
-          {budgetStats.length === 0 ? (
-            <>
-              <Cap l="Budżet" r="ustaw limit" />
-              <Text style={[T.small, s.emptyInline]}>Limit na jedzenie, słodycze, zmienne albo kategorię — ile zostało na dzień</Text>
-            </>
-          ) : (() => {
-            const over = budgetStats.filter((b) => b.level === 'over').length;
-            const warn = budgetStats.filter((b) => b.level === 'warn' || b.level === 'pace').length;
-            const more = budgetStats.length - 3;
-            return (
+        <Tile span={4}>
+          <View style={s.catHead}>
+            {(['food', 'fixed', 'variable', 'income'] as const).map((k) => (
+              <TouchableOpacity key={k} onPress={() => { haptic.tap(); setCatTab(k); }} hitSlop={6} style={[s.catTab, catTab === k && s.catTabOn]}>
+                <Text style={[s.catTabLabel, catTab === k && s.catTabLabelOn]}>{k === 'food' ? 'Jedzenie' : k === 'fixed' ? 'Stałe' : k === 'income' ? 'Wpływy' : 'Zmienne'}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity onPress={() => { haptic.tap(); setCatTab('limits'); }} hitSlop={6} style={[s.catTab, s.catTabIcon, catTab === 'limits' && s.catTabOn]} accessibilityLabel="Limity (budżety)">
+              <Target size={13} color={catTab === 'limits' ? C.bg : C.mut} />
+              {budOver && catTab !== 'limits' && <View style={s.budDot} />}
+            </TouchableOpacity>
+            {catTab === 'limits' ? (
+              <Text style={s.catTotal}>limity</Text>
+            ) : (
               <>
-                <View style={s.budHead}>
-                  <Text style={T.cap}>Budżety</Text>
-                  <Text style={[T.capR, over ? { color: C.warnTxt } : warn ? { color: '#FDBA74' } : null]}>
-                    {over ? `${over} przekroczon${over === 1 ? 'y' : 'e'}` : warn ? `${warn} blisko limitu` : 'w normie'}{more > 0 ? ` · +${more}` : ''}
-                  </Text>
-                </View>
+                <Text style={s.catTotal} numberOfLines={1}>{money(catBars.reduce((a2, c) => a2 + c.amount, 0))}</Text>
+                <TouchableOpacity onPress={() => { haptic.tap(); setTrendOpen(true); }} hitSlop={8} style={s.trendBtn} accessibilityLabel="Trend 12 miesięcy">
+                  <TrendingUp size={15} color={C.mut} />
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+          {catTab === 'limits' ? (
+            <TouchableOpacity onPress={() => { haptic.tap(); setBudgetOpen(true); }} activeOpacity={0.7} style={s.barSpace}>
+              {budgetStats.length === 0 ? (
+                <Text style={[T.small, s.emptyInline, { marginTop: 0 }]}>Ustaw limit na jedzenie, słodycze albo kategorię ›</Text>
+              ) : (
                 <View style={s.budRows}>
                   {budgetStats.slice(0, 3).map((b) => (
                     <View key={b.budget.id} style={s.budRow}>
@@ -346,29 +357,11 @@ export default function FinancesScreen() {
                       </Text>
                     </View>
                   ))}
+                  {budgetStats.length > 3 && <Text style={[T.small, { color: C.mut }]}>+{budgetStats.length - 3} więcej ›</Text>}
                 </View>
-              </>
-            );
-          })()}
-        </Tile>
-      </Row>
-
-      {/* Kategorie (2026-11-14, user: "3 główne JEDZENIE, STAŁE, ZMIENNE i one na
-          mniejsze") — jeden kafel z przełącznikiem zamiast osobnych kafli. */}
-      <Row>
-        <Tile span={4}>
-          <View style={s.catHead}>
-            {(['food', 'fixed', 'variable', 'income'] as const).map((k) => (
-              <TouchableOpacity key={k} onPress={() => { haptic.tap(); setCatTab(k); }} hitSlop={6} style={[s.catTab, catTab === k && s.catTabOn]}>
-                <Text style={[s.catTabLabel, catTab === k && s.catTabLabelOn]}>{k === 'food' ? 'Jedzenie' : k === 'fixed' ? 'Stałe' : k === 'income' ? 'Wpływy' : 'Zmienne'}</Text>
-              </TouchableOpacity>
-            ))}
-            <Text style={s.catTotal}>{money(catBars.reduce((a2, c) => a2 + c.amount, 0))} PLN</Text>
-            <TouchableOpacity onPress={() => { haptic.tap(); setTrendOpen(true); }} hitSlop={8} style={s.trendBtn} accessibilityLabel="Trend 12 miesięcy">
-              <TrendingUp size={15} color={C.mut} />
+              )}
             </TouchableOpacity>
-          </View>
-          {catBars.length === 0 ? (
+          ) : catBars.length === 0 ? (
             <Text style={[T.small, s.emptyInline]}>Brak w tym miesiącu</Text>
           ) : (
             <TouchableOpacity onPress={() => { if (catTab === 'income') setTrendOpen(true); else { setWydatkiTab(catTab); setWydatkiOpen(true); } }} activeOpacity={0.7} style={s.barSpace}>
@@ -504,7 +497,7 @@ export default function FinancesScreen() {
         />
       </LazyMount>
       <LazyMount visible={trendOpen}>
-        <TrendSheet visible={trendOpen} onClose={() => setTrendOpen(false)} initial={catTab} />
+        <TrendSheet visible={trendOpen} onClose={() => setTrendOpen(false)} initial={catTab === 'limits' ? 'food' : catTab} />
       </LazyMount>
       <LazyMount visible={budgetOpen}>
         <BudgetSheet visible={budgetOpen} onClose={() => setBudgetOpen(false)} />
@@ -576,7 +569,6 @@ const makeS = themedStyles((c) => StyleSheet.create({
   barSpace: { marginTop: spacing[3] },
   sideCol: { gap: S.gap },
   budgetOf: { fontSize: 11, fontFamily: 'Inter_700Bold', color: C.mut },
-  budHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 },
   budRows: { gap: 10 },
   budRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   budName: { width: 78, fontSize: 12, fontFamily: 'Inter_700Bold', color: C.txt },
@@ -623,10 +615,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
   editSaveBtn: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md, backgroundColor: c.text.bright },
   editSaveLabel: { fontSize: 12.5, fontFamily: 'Inter_900Black', color: c.bg.primary },
   catHead: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  catTab: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999 },
+  catTab: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
   catTabOn: { backgroundColor: C.txt },
+  catTabIcon: { paddingHorizontal: 7, paddingVertical: 5 },
+  budDot: { position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: 3, backgroundColor: C.warn },
   catTabLabel: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: C.mut },
   catTabLabelOn: { color: C.bg },
-  catTotal: { marginLeft: 'auto', fontSize: 10, fontFamily: 'Inter_700Bold', color: C.mut },
+  catTotal: { marginLeft: 'auto', flexShrink: 1, fontSize: 10, fontFamily: 'Inter_700Bold', color: C.mut, fontVariant: ['tabular-nums'] },
   trendBtn: { marginLeft: 8, padding: 2 },
 }));
