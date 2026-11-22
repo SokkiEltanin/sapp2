@@ -1878,6 +1878,9 @@ podładować; paski naładowania zamiast Ciekawostki na Dashboardzie”.
   prośba do zegarka). Komputer: `store/deviceBatteryStore.ts` + doc `devices` w cloudSync
   (telefon pisze przy zmianie / co 10 min, web czyta) → 3 paski: Komputer, Telefon, Zegarek. Ciekawostki → `utils/facts.ts`, kafel w Daily zamiast planu dnia
   (plan dnia, DayPlanTagsSheet, dayPlanStore, utils/dayPlan USUNIĘTE).
+- Panel `components/battery/BatterySheet.tsx` (2026-11-22, user: „ucina, nie da się przewinąć”): zakres
+  wykresów ładowanie / 24 h / 7 dni / 30 dni (historia 30 dni), szerokość wykresu z `onLayout` (nie z
+  ekranu), palec po wykresie = kreska + wartość i czas najbliższej próbki (responder).
 
 ## KOLEKCJA: KARTY MIESIĘCY + REKORDY (2026-11-17)
 

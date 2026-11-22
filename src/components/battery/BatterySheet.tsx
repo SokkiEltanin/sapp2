@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { View, Text, StyleSheet, Platform, useWindowDimensions } from 'react-native';
+import { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, Platform, TouchableOpacity, type LayoutChangeEvent, type GestureResponderEvent } from 'react-native';
 import Svg, { Polyline, Polygon, Line } from 'react-native-svg';
 import { Smartphone, Watch, Laptop, Zap, Thermometer } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
@@ -7,12 +7,19 @@ import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useDeviceBatteryStore } from '@/store/deviceBatteryStore';
 import { analyzeBattery, ageLabel, tempTone, type BatSample } from '@/utils/deviceBattery';
+import { haptic } from '@/utils/haptics';
 
 // Szczegóły baterii (2026-11-17, user: "klikam → zakładka z całym info: ile, kiedy ostatnio
 // ładowane, kiedy ostatni odczyt, temperatura i wykresy, czy się grzeje, zużycie od
 // ostatniego ładowania"). Dane: historia z natywnego BatteryLog (telefon dopisuje zegarek
 // co ~15 min i siebie), na komputerze z chmury. Analiza: utils/deviceBattery.ts.
 type Now = { level: number; charging: boolean; t?: number; temp?: number } | null;
+
+// Zakres wykresów (2026-11-22, user: "dane z baterii ucina i nie można przescrollować w prawo
+// ani w lewo"): od ładowania / 24 h / 7 dni / 30 dni (historia trzyma 30 dni, starsze niż 2 doby
+// przerzedzone). Przesunięcie palcem po wykresie = odczyt w tym miejscu (kreska + wartość + czas).
+type Range = 'charge' | 'd1' | 'd7' | 'd30';
+const RANGES: [Range, string, number][] = [['charge', 'ładowanie', 0], ['d1', '24 h', 1], ['d7', '7 dni', 7], ['d30', '30 dni', 30]];
 
 const TONE = { ok: colors.text.primary, warm: colors.accent.orange, hot: colors.accent.red };
 const fmtH = (h: number) => (h < 1 ? `${Math.round(h * 60)} min` : h < 48 ? `${Math.round(h)} h` : `${Math.round(h / 24)} dni`);
@@ -44,9 +51,12 @@ function Device({ name, icon, now, log }: { name: string; icon: 'phone' | 'watch
   const s = makeS();
   const Icon = icon === 'phone' ? Smartphone : icon === 'watch' ? Watch : Laptop;
   const a = useMemo(() => analyzeBattery(log), [log]);
-  const last24 = useMemo(() => log.filter((x) => Date.now() - x.t <= 24 * 3600000), [log]);
-  const levelPts = (a.sinceCharge.length >= 2 ? a.sinceCharge : last24).map((x) => ({ t: x.t, v: x.l }));
-  const tempPts = last24.filter((x) => x.tp != null).map((x) => ({ t: x.t, v: x.tp! }));
+  const [range, setRange] = useState<Range>('charge');
+  const days = RANGES.find((r) => r[0] === range)![2];
+  const inRange = useMemo(() => (days ? log.filter((x) => Date.now() - x.t <= days * 24 * 3600000) : log.filter((x) => Date.now() - x.t <= 24 * 3600000)), [log, days]);
+  const levelSrc = range === 'charge' ? (a.sinceCharge.length >= 2 ? a.sinceCharge : inRange) : inRange;
+  const levelPts = levelSrc.map((x) => ({ t: x.t, v: x.l }));
+  const tempPts = inRange.filter((x) => x.tp != null).map((x) => ({ t: x.t, v: x.tp! }));
   const temp = now?.temp ?? a.tempNow;
   const level = now?.level ?? log.at(-1)?.l ?? null;
   const charging = now?.charging ?? log.at(-1)?.c ?? false;
@@ -70,15 +80,24 @@ function Device({ name, icon, now, log }: { name: string; icon: 'phone' | 'watch
           sub={a.tempMax24h != null ? `max 24 h: ${a.tempMax24h.toFixed(1)} °C` : undefined} />
       </View>}
 
+      {log.length >= 2 && (
+        <View style={s.ranges}>
+          {RANGES.map(([k, l]) => (
+            <TouchableOpacity key={k} onPress={() => { haptic.tap(); setRange(k); }} style={[s.range, range === k && s.rangeOn]}>
+              <Text style={[s.rangeTxt, range === k && s.rangeTxtOn]} numberOfLines={1}>{l}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
       {levelPts.length >= 2 && (
         <>
-          <Text style={s.chartLabel}>{a.sinceCharge.length >= 2 ? 'Poziom od ostatniego ładowania' : 'Poziom — ostatnie 24 h'}</Text>
+          <Text style={s.chartLabel}>Poziom{range === 'charge' ? (a.sinceCharge.length >= 2 ? ' od ostatniego ładowania' : ' — ostatnie 24 h') : ` — ${RANGES.find((r) => r[0] === range)![1]}`}</Text>
           <Chart pts={levelPts} min={0} max={100} unit="%" color={icon === 'watch' ? '#A78BFA' : '#60A5FA'} />
         </>
       )}
       {tempPts.length >= 2 && (
         <>
-          <View style={s.chartHead}><Thermometer size={12} color={colors.text.muted} /><Text style={s.chartLabel}>Temperatura — ostatnie 24 h</Text></View>
+          <View style={s.chartHead}><Thermometer size={12} color={colors.text.muted} /><Text style={s.chartLabel}>Temperatura — {range === 'charge' ? 'ostatnie 24 h' : RANGES.find((r) => r[0] === range)![1]}</Text></View>
           <Chart pts={tempPts} min={Math.min(25, ...tempPts.map((p) => p.v))} max={Math.max(45, ...tempPts.map((p) => p.v))} unit="°" color={colors.accent.orange} mark={42} />
         </>
       )}
@@ -92,41 +111,65 @@ function Fact({ l, v, sub, color }: { l: string; v: string; sub?: string; color?
   return (
     <View style={s.fact}>
       <Text style={s.factL}>{l}</Text>
-      <Text style={[s.factV, color ? { color } : null]} numberOfLines={1}>{v}</Text>
+      <Text style={[s.factV, color ? { color } : null]} numberOfLines={2}>{v}</Text>
       {sub ? <Text style={s.factSub} numberOfLines={1}>{sub}</Text> : null}
     </View>
   );
 }
 
-// Prosty wykres liniowy (oś czasu = rzeczywisty czas próbek) + linia ostrzegawcza `mark`.
+// Wykres liniowy (oś czasu = rzeczywisty czas próbek) + linia ostrzegawcza `mark`. Szerokość
+// z onLayout (wcześniej liczona z ekranu bez marginesów arkusza → wykres wychodził poza kartę).
+// Palcem po wykresie: kreska + wartość i czas najbliższej próbki.
 function Chart({ pts, min, max, unit, color, mark }: { pts: { t: number; v: number }[]; min: number; max: number; unit: string; color: string; mark?: number }) {
   const s = makeS();
-  const { width: winW } = useWindowDimensions();
-  const W = Math.min(winW, 560) - spacing[4] * 2 - spacing[3] * 2 - 40;
+  const [W, setW] = useState(0);
+  const [touch, setTouch] = useState<number | null>(null);
   const H = 90;
   const t0 = pts[0].t, t1 = pts[pts.length - 1].t || t0 + 1;
   const x = (t: number) => ((t - t0) / Math.max(1, t1 - t0)) * W;
   const y = (v: number) => H - ((v - min) / Math.max(1, max - min)) * H;
   const line = pts.map((p) => `${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ');
   const area = `0,${H} ${line} ${W.toFixed(1)},${H}`;
+  const pick = (e: GestureResponderEvent) => {
+    if (W <= 0) return;
+    const t = t0 + (Math.max(0, Math.min(W, e.nativeEvent.locationX)) / W) * (t1 - t0);
+    let best = 0;
+    pts.forEach((p, i) => { if (Math.abs(p.t - t) < Math.abs(pts[best].t - t)) best = i; });
+    setTouch(best);
+  };
+  const tp = touch != null ? pts[touch] : null;
   return (
     <View style={s.chart}>
       <View style={[s.yAxis, { height: H }]}>
         <Text style={s.axis}>{Math.round(max)}{unit}</Text>
         <Text style={s.axis}>{Math.round(min)}{unit}</Text>
       </View>
-      <View>
-        <Svg width={W} height={H}>
-          <Line x1={0} y1={0} x2={W} y2={0} stroke={colors.ui.line} strokeWidth={1} />
-          <Line x1={0} y1={H / 2} x2={W} y2={H / 2} stroke={colors.ui.line} strokeWidth={1} strokeDasharray="3,4" />
-          <Line x1={0} y1={H} x2={W} y2={H} stroke={colors.ui.line} strokeWidth={1} />
-          {mark != null && mark > min && mark < max && <Line x1={0} y1={y(mark)} x2={W} y2={y(mark)} stroke={colors.accent.red} strokeWidth={1} strokeDasharray="4,4" opacity={0.6} />}
-          <Polygon points={area} fill={color} opacity={0.15} />
-          <Polyline points={line} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-        </Svg>
+      <View style={{ flex: 1 }} onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}>
+        <View style={{ height: H }}
+          onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true}
+          onResponderTerminationRequest={() => false}
+          onResponderGrant={pick} onResponderMove={pick} onResponderRelease={() => setTouch(null)} onResponderTerminate={() => setTouch(null)}>
+          {W > 0 && (
+            <Svg width={W} height={H}>
+              <Line x1={0} y1={0} x2={W} y2={0} stroke={colors.ui.line} strokeWidth={1} />
+              <Line x1={0} y1={H / 2} x2={W} y2={H / 2} stroke={colors.ui.line} strokeWidth={1} strokeDasharray="3,4" />
+              <Line x1={0} y1={H} x2={W} y2={H} stroke={colors.ui.line} strokeWidth={1} />
+              {mark != null && mark > min && mark < max && <Line x1={0} y1={y(mark)} x2={W} y2={y(mark)} stroke={colors.accent.red} strokeWidth={1} strokeDasharray="4,4" opacity={0.6} />}
+              <Polygon points={area} fill={color} opacity={0.15} />
+              <Polyline points={line} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+              {tp && <Line x1={x(tp.t)} y1={0} x2={x(tp.t)} y2={H} stroke={colors.text.bright} strokeWidth={1} />}
+            </Svg>
+          )}
+          {tp && W > 0 && (
+            <View pointerEvents="none" style={[s.tip, { left: Math.max(0, Math.min(W - 110, x(tp.t) - 55)) }]}>
+              <Text style={s.tipV}>{Math.round(tp.v * 10) / 10}{unit}</Text>
+              <Text style={s.tipT}>{dayHm(tp.t)}</Text>
+            </View>
+          )}
+        </View>
         <View style={s.xAxis}>
           <Text style={s.axis}>{dayHm(t0)}</Text>
-          <Text style={s.axis}>{hm(t1)}</Text>
+          <Text style={s.axis}>{t1 - t0 > 20 * 3600000 ? dayHm(t1) : hm(t1)}</Text>
         </View>
       </View>
     </View>
@@ -149,6 +192,14 @@ const makeS = themedStyles((c) => StyleSheet.create({
   chartHead: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   chartLabel: { fontSize: 10.5, fontFamily: 'Inter_800ExtraBold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 4 },
   chart: { flexDirection: 'row', gap: 4 },
+  ranges: { flexDirection: 'row', gap: 4, marginTop: 4 },
+  range: { flex: 1, alignItems: 'center', paddingVertical: 5, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
+  rangeOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
+  rangeTxt: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary },
+  rangeTxtOn: { color: c.bg.primary },
+  tip: { position: 'absolute', top: 2, width: 110, alignItems: 'center', backgroundColor: c.bg.card, borderRadius: 8, borderWidth: 1, borderColor: c.border.default, paddingVertical: 3 },
+  tipV: { fontSize: 13, fontFamily: 'Inter_900Black', color: c.text.bright },
+  tipT: { fontSize: 9.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
   yAxis: { width: 34, justifyContent: 'space-between' },
   xAxis: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 },
   axis: { fontSize: 9.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
