@@ -147,7 +147,7 @@ function DayView({ d, days, now, isToday }: { d: ScreenDay; days: Record<string,
       {/* Doba (2026-11-22): szczyt, noc, pierwsze odblokowanie, "teraz" i "zwykle" NA wykresie —
           bez osobnych wierszy pod spodem; zostają tylko dwie liczby o sesjach. */}
       <SheetCard title="W ciągu dnia" right={hourSel != null ? (
-        <Text style={s.hourSel}>{hourSel}:00–{hourSel + 1}:00 · {fmtDur(d.hours[hourSel])}{d.unlockHours ? ` · ${d.unlockHours[hourSel]} odbl.` : ''}{usual ? ` · zwykle ${fmtDur(usual[hourSel])}` : ''}</Text>
+        <Text style={s.hourSel} numberOfLines={1}>{hourSel}–{hourSel + 1} · {fmtDur(d.hours[hourSel])}{d.unlockHours ? ` · ${d.unlockHours[hourSel]}× odbl.` : ''}{usual ? ` · zwykle ${Math.round(usual[hourSel])}` : ''}</Text>
       ) : <Text style={s.cardRight}>stuknij słupek</Text>}>
         <DayChart d={d} usual={usual} isToday={isToday} now={now} sel={hourSel} onSelect={setHourSel} />
         <View style={s.sessRow}>
