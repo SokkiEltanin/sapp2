@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Platform, Linking } from 'react-native';
 import { ChevronLeft, ChevronRight, Smartphone, LockOpen, Sun, Moon, Timer, Flame } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -69,6 +69,12 @@ export default function ScreenTimeSheet({ visible, onClose }: { visible: boolean
           <Text style={s.accessTxt}>Android pokazuje te dane tylko appkom z osobnym dostępem. Na liście znajdź SOEN i włącz przełącznik — potem wróć tutaj. Nic nie wychodzi poza Twój telefon i Twoje konto.</Text>
           <TouchableOpacity style={s.accessBtn} onPress={() => { haptic.tap(); openScreenAccess(); }}>
             <Text style={s.accessBtnTxt}>Otwórz ustawienia dostępu</Text>
+          </TouchableOpacity>
+          {/* Android 13+ blokuje ten dostęp appkom z pliku APK (2026-11-22, zrzut usera
+              "App was denied access / Controlled by restricted setting"). */}
+          <Text style={s.accessHow}>Przełącznik szary i „App was denied access”? Android blokuje to appkom z pliku APK. Zrób raz: Ustawienia → Aplikacje → SOEN → ⋮ (prawy górny róg) → „Zezwól na ustawienia z ograniczeniami” (Allow restricted settings) → potwierdź PIN-em. Potem wróć tutaj i włącz przełącznik.</Text>
+          <TouchableOpacity onPress={() => { haptic.tap(); Linking.openSettings().catch(() => {}); }} hitSlop={8}>
+            <Text style={s.accessLink}>Otwórz informacje o aplikacji SOEN</Text>
           </TouchableOpacity>
         </View>
       ) : !d ? (
@@ -278,6 +284,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
   accessTitle: { fontSize: 15, fontFamily: 'Inter_900Black', color: c.text.bright, textAlign: 'center' },
   accessTxt: { fontSize: 12, lineHeight: 17, fontFamily: 'Inter_600SemiBold', color: c.text.muted, textAlign: 'center' },
   accessBtn: { marginTop: spacing[1], backgroundColor: c.text.primary, borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 10 },
+  accessHow: { fontSize: 11.5, lineHeight: 16, fontFamily: 'Inter_600SemiBold', color: c.text.secondary, textAlign: 'center', marginTop: spacing[2] },
+  accessLink: { fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.text.bright, textDecorationLine: 'underline' },
   accessBtnTxt: { fontSize: 13, fontFamily: 'Inter_900Black', color: '#000' },
   note: { fontSize: 10.5, lineHeight: 15, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[3] },
 }));
