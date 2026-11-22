@@ -641,7 +641,9 @@ opcjonalnym tekstem, zapisywanym w formie pamiętnika DZIEŃ DATA")
   "bliżej kciuka" priorytet co (dawny, usunięty 2026-11-22) FAB wklejania paragonu w
   `AddExpenseModal`. **Wklejanie paragonu (2026-11-22)**: wklejka do pola (≥ 30 znaków naraz
   i nowa linia) od razu rozpoznaje paragon i zwija pole do linijki „Paragon rozpoznany · N poz.
-  · wklej inny”; ręcznie wpisany tekst — przycisk „Rozpoznaj paragon” (też zwija). `MoodEnergyGrid.tsx` sam w sobie bez zmian, przeniesiony
+  · wklej inny”; ręcznie wpisany tekst — przycisk „Rozpoznaj paragon” (też zwija).
+  **Data** = pigułka z kalendarzem po prawej od „Sklep / firma” (`fmtDatePill`: Dziś / Wczoraj /
+  20.11 + godzina z banku); przychód/własny — sam wiersz „Data” z pigułką. Bez chipów Dziś/Wczoraj. `MoodEnergyGrid.tsx` sam w sobie bez zmian, przeniesiony
   tylko w kolejności renderu w `MoodModal.tsx`.
 - **Świadomie NIE w tej rundzie**: przypomnienia rano/wieczorem (sapp ma
   `scheduleDailyMoodReminder`/`scheduleMorningMoodReminder` — port wymaga najpierw

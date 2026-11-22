@@ -637,38 +637,34 @@ export default function AddExpenseModal({
         </View>
       )}
 
-      {type === 'expense' && !own && (
+      {/* Data jako pigułka obok sklepu (2026-11-22, user: "data zawsze z paragonu albo ten sam
+          dzień, rzadko zmieniam — wystarczy mały przycisk z kalendarzem po prawej od sklepu"). */}
+      {type === 'expense' && !own ? (
         <View style={s.section}>
           <Text style={s.label}>Sklep / firma</Text>
-          <TextInput
-            value={storeName}
-            onChangeText={setStoreName}
-            placeholder="np. Lidl, Orlen…"
-            placeholderTextColor={colors.text.muted}
-            style={s.textInput}
-          />
-        </View>
-      )}
-
-      <View style={s.section}>
-        <Text style={s.label}>Data</Text>
-        <View style={s.chips}>
-          {[{ key: 'today', label: 'Dziś', v: todayISO() }, { key: 'yesterday', label: 'Wczoraj', v: ymd(new Date(Date.now() - 86400000)) }].map((opt) => (
-            <TouchableOpacity
-              key={opt.key}
-              style={[s.chip, date.slice(0, 10) === opt.v && s.chipActive]}
-              onPress={() => { haptic.tap(); setDate(opt.v + date.slice(10)); }}
-              activeOpacity={0.7}
-            >
-              <Text style={[s.chipLabel, date.slice(0, 10) === opt.v && s.chipLabelActive]}>{opt.label}</Text>
+          <View style={s.storeRow}>
+            <TextInput
+              value={storeName}
+              onChangeText={setStoreName}
+              placeholder="np. Lidl, Orlen…"
+              placeholderTextColor={colors.text.muted}
+              style={[s.textInput, { flex: 1 }]}
+            />
+            <TouchableOpacity style={s.datePill} onPress={openDatePicker} activeOpacity={0.7} accessibilityLabel={`Data: ${fmtDateBadge(date)} — zmień`}>
+              <CalendarDays size={14} color={colors.text.secondary} />
+              <Text style={s.datePillLabel}>{fmtDatePill(date)}</Text>
             </TouchableOpacity>
-          ))}
-          <TouchableOpacity style={s.dateBadge} onPress={openDatePicker} activeOpacity={0.7}>
-            <CalendarDays size={13} color={colors.text.secondary} />
-            <Text style={s.dateBadgeLabel}>{fmtDateBadge(date)}</Text>
+          </View>
+        </View>
+      ) : (
+        <View style={[s.section, s.storeRow, { alignItems: 'center' }]}>
+          <Text style={[s.label, { flex: 1, marginBottom: 0 }]}>Data</Text>
+          <TouchableOpacity style={s.datePill} onPress={openDatePicker} activeOpacity={0.7} accessibilityLabel={`Data: ${fmtDateBadge(date)} — zmień`}>
+            <CalendarDays size={14} color={colors.text.secondary} />
+            <Text style={s.datePillLabel}>{fmtDatePill(date)}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      )}
 
       {type === 'expense' && !own && (
         <View style={s.section}>
@@ -986,6 +982,17 @@ export default function AddExpenseModal({
   );
 }
 
+/** Pigułka daty: "Dziś" / "Wczoraj" / "20.11" (rok, gdy inny niż bieżący) + " · 22:15" z banku. */
+function fmtDatePill(d: string): string {
+  const day = d.slice(0, 10);
+  const hm = d.length >= 16 ? ` · ${d.slice(11, 16)}` : '';
+  if (day === todayISO()) return `Dziś${hm}`;
+  if (day === ymd(new Date(Date.now() - 86400000))) return `Wczoraj${hm}`;
+  const [y, m, dd] = day.split('-');
+  if (!y || !m || !dd) return d;
+  return `${dd}.${m}${y === String(new Date().getFullYear()) ? '' : `.${y}`}${hm}`;
+}
+
 /** "20.11.2026 · 22:15" (z godziną z banku) albo "20.11.2026". */
 function fmtDateBadge(d: string): string {
   const [y, m, dd] = d.slice(0, 10).split('-');
@@ -1055,12 +1062,9 @@ const makeS = themedStyles((c) => StyleSheet.create({
   chipLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   chipLabelActive: { color: c.bg.primary },
   ruleChip: { marginTop: spacing[2], alignSelf: 'flex-start', borderStyle: 'dashed' },
-  dateBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: spacing[2], paddingVertical: 6, borderRadius: radius.full,
-    backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default,
-  },
-  dateBadgeLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
+  storeRow: { flexDirection: 'row', alignItems: 'stretch', gap: spacing[2] },
+  datePill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, minHeight: 38, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, backgroundColor: c.bg.card },
+  datePillLabel: { fontSize: 12.5, fontFamily: 'Inter_800ExtraBold', color: c.text.primary, fontVariant: ['tabular-nums'] },
 
   itemsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[2] },
   addItemBtn: {
