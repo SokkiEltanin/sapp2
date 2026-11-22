@@ -2,12 +2,16 @@ import { goBack } from '@/services/nav';
 import { create } from 'zustand';
 import { removeWithUndo } from '@/services/undo';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, type LayoutChangeEvent } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Platform, type LayoutChangeEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Pin, PinOff, Trash2, Check, X, Plus, Undo2, Eraser, Pencil, Folder, Brush, PenLine, Type, NotebookText, Eye, EyeOff, Hand } from 'lucide-react-native';
+import { ChevronLeft, Pin, PinOff, Trash2, Check, X, Plus, Undo2, Eraser, Pencil, Folder, Brush, PenLine, Type, NotebookText, Eye, EyeOff, Hand, Highlighter, PaintBucket } from 'lucide-react-native';
 import ColorPicker from '@/components/notes/ColorPicker';
+import ColorCreator from '@/components/notes/ColorCreator';
+import PagePattern from '@/components/notes/PagePattern';
+import { PAGE_PRESETS, PATTERNS, pageInk } from '@/utils/notePage';
+import type { NotePageStyle } from '@/types/notes';
 import { StrokesLayer } from '@/components/notes/DrawingCanvas';
 import { useNoteViewStore, tileCutY } from '@/store/noteViewStore';
 import FolderSheet, { type FolderSheetMode } from '@/components/notes/FolderSheet';
@@ -16,7 +20,7 @@ import { spacing, radius, themedStyles } from '@/theme';
 import { useNotesStore, genNoteId } from '@/store/notesStore';
 import type { Note, NoteItem, NoteStroke } from '@/types/notes';
 import { isEmptyNote } from '@/utils/notes';
-import DrawingCanvas, { type DrawTool, type PressureInfo } from '@/components/notes/DrawingCanvas';
+import DrawingCanvas, { type DrawTool, type PressureInfo, type PenKind } from '@/components/notes/DrawingCanvas';
 import RichTextEditor from '@/components/notes/RichTextEditor';
 import { hasFormatting, type TextRun } from '@/utils/richText';
 import { haptic } from '@/utils/haptics';
@@ -30,6 +34,17 @@ import { usePenStore } from '@/store/penStore';
 const PEN_COLORS = ['#F2F2F2', '#EF4444', '#FBBF24', '#22C55E', '#60A5FA', '#A78BFA'];
 // Grubości (2026-11-18): 5 do wyboru w panelu pióra — kółko w podglądzie ma realny rozmiar kreski.
 const PEN_WIDTHS = [2, 4, 6, 9, 14];
+// Narzędzia (2026-11-22, user: "więcej pędzli / ołówków"): rysowanie w DrawingCanvas's strokeEl.
+const PEN_KINDS: [PenKind, string, string, typeof PenLine][] = [
+  ['pen', 'Pióro', 'stała grubość', PenLine],
+  ['brush', 'Pędzel', 'S-Pen: mocniej = grubiej', Brush],
+  ['pencil', 'Ołówek', 'cienki, jak grafit', Pencil],
+  ['marker', 'Zakreślacz', 'szeroki, przezroczysty', Highlighter],
+];
+const kindIcon = (k: PenKind) => (PEN_KINDS.find((x) => x[0] === k) ?? PEN_KINDS[0])[3];
+// Wiersz tekstu strony (RichTextEditor: natywnie 15/22 od 8 px, komputer 16/24 od 12 px) —
+// linie wzoru wypadają pod wierszami.
+const ROW = Platform.OS === 'web' ? { step: 24, top: 12 } : { step: 22, top: 8 };
 
 // Dolna krawędź rysunku w px (kreski trzymane w jednostkach szerokości) — strona
 // rośnie, żeby było miejsce pod najniższą kreską.
@@ -54,7 +69,7 @@ export default function NoteScreen() {
   const [text, setText] = useState(note?.text ?? '');
   const [runs, setRuns] = useState<TextRun[] | undefined>(note?.runs);
   const [items, setItems] = useState<NoteItem[]>(note?.items ?? []);
-  const [tool, setTool] = useState<DrawTool>({ color: PEN_COLORS[0], width: PEN_WIDTHS[1], eraser: false });
+  const [tool, setTool] = useState<DrawTool>({ color: PEN_COLORS[0], width: PEN_WIDTHS[1], eraser: false, kind: 'pen' });
   // Odczyt nacisku (2026-11-18, user: "rysowanie laguje"): stan w małym store poza ekranem —
   // wcześniej useState tutaj przerysowywał CAŁY ekran notatki (edytor tekstu!) 10×/s w trakcie
   // rysowania. Teraz odświeża się tylko <PressureLabel>. Ostatni odczyt zostaje 2 s.
@@ -80,6 +95,9 @@ export default function NoteScreen() {
   const [mode, setMode] = useState<'text' | 'draw'>(note?.kind === 'drawing' || (!!note && !note.text && note.strokes.length > 0) ? 'draw' : 'text');
   const [viewH, setViewH] = useState(0);
   const [pageW, setPageW] = useState(0);
+  const [pageH, setPageH] = useState(0);
+  const [showPage, setShowPage] = useState(false); // panel: kolor i wzór strony
+  const [pageCreator, setPageCreator] = useState(false);
   // Linia "widoczne na Dashboardzie" (2026-11-15) — store/noteViewStore.ts.
   const tile = useNoteViewStore((st) => st.tile);
   const guide = useNoteViewStore((st) => st.guide);
@@ -131,6 +149,15 @@ export default function NoteScreen() {
     setFocusId(it.id);
   };
   const strokesChange = (strokes: NoteStroke[]) => update(note.id, { strokes });
+  // Strona (2026-11-22): zapis od razu (jak kreski) — brak tła i wzoru = pole usunięte.
+  const pg = note.page;
+  const ink = pageInk(pg);
+  const setPage = (patch: Partial<NotePageStyle>) => {
+    const next: NotePageStyle = { ...pg, ...patch };
+    if (!next.bg) delete next.bg;
+    if (!next.pattern || next.pattern === 'none') delete next.pattern;
+    update(note.id, { page: Object.keys(next).length ? next : undefined });
+  };
 
   return (
     <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
@@ -153,6 +180,11 @@ export default function NoteScreen() {
           accessibilityLabel={`Katalog: ${folders.find((f) => f.id === note.folderId)?.name ?? 'brak'}`}>
           <Folder size={18} color={folders.find((f) => f.id === note.folderId)?.color ?? colors.text.muted} />
         </TouchableOpacity>
+        {note.kind !== 'list' && (
+          <TouchableOpacity onPress={() => { haptic.tap(); setShowPage((v) => !v); }} style={[s.headBtn, showPage && s.headBtnOn]} hitSlop={8} accessibilityLabel="Strona: kolor i wzór">
+            <PaintBucket size={17} color={pg?.bg ?? (pg?.pattern ? colors.text.primary : colors.text.muted)} />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity onPress={() => { haptic.tap(); setPinned(note.id, !note.pinned); }} style={s.headBtn} hitSlop={8} accessibilityLabel={note.pinned ? 'Odepnij z Dashboardu' : 'Przypnij na Dashboard'}>
           {note.pinned ? <Pin size={18} color={colors.accent.orange} /> : <PinOff size={18} color={colors.text.muted} />}
         </TouchableOpacity>
@@ -164,13 +196,47 @@ export default function NoteScreen() {
         </TouchableOpacity>
       </View>
 
+      {showPage && note.kind !== 'list' && (
+        <View style={s.pagePanel}>
+          <Text style={s.pageLabel}>Kolor strony</Text>
+          <View style={s.pageRow}>
+            <TouchableOpacity onPress={() => { haptic.tap(); setPage({ bg: undefined }); }} style={[s.pageSwatch, s.pageTheme, !pg?.bg && s.pageSwatchOn]} accessibilityLabel="Kolor strony: jak motyw">
+              <Text style={s.pageThemeTxt}>A</Text>
+            </TouchableOpacity>
+            {PAGE_PRESETS.map((p) => (
+              <TouchableOpacity key={p.bg} onPress={() => { haptic.tap(); setPage({ bg: p.bg }); }}
+                style={[s.pageSwatch, { backgroundColor: p.bg }, pg?.bg?.toUpperCase() === p.bg && s.pageSwatchOn]} accessibilityLabel={`Kolor strony: ${p.label}`} />
+            ))}
+            {!!pg?.bg && !PAGE_PRESETS.some((p) => p.bg === pg.bg?.toUpperCase()) && <View style={[s.pageSwatch, { backgroundColor: pg.bg }, s.pageSwatchOn]} />}
+            <TouchableOpacity onPress={() => { haptic.tap(); setPageCreator(true); }} style={[s.pageSwatch, s.pageCustom]} accessibilityLabel="Własny kolor strony">
+              <Plus size={14} color={colors.text.primary} />
+            </TouchableOpacity>
+          </View>
+          <Text style={s.pageLabel}>Wzór</Text>
+          <View style={s.pageRow}>
+            {PATTERNS.map((p) => {
+              const on = (pg?.pattern ?? 'none') === p.id;
+              return (
+                <TouchableOpacity key={p.id} onPress={() => { haptic.tap(); setPage({ pattern: p.id }); }} style={[s.patBtn, on && s.patBtnOn]} accessibilityLabel={`Wzór strony: ${p.label}`}>
+                  <View style={[s.patPreview, { backgroundColor: pg?.bg ?? colors.bg.primary }]}>
+                    <PagePattern pattern={p.id} width={44} height={30} step={8} top={4} color={ink.pattern ?? colors.text.muted} />
+                  </View>
+                  <Text style={[s.patTxt, on && { color: colors.text.bright }]}>{p.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <ColorCreator visible={pageCreator} initial={pg?.bg} onClose={() => setPageCreator(false)} onPick={(c) => setPage({ bg: c })} />
+        </View>
+      )}
+
       {(note.kind === 'text' || note.kind === 'drawing') && (
         // Klawiatura (2026-11-15, user: "klawiatura zasłania pisanie"): RN 0.81 na
         // Androidzie jest edge-to-edge — okno nie kurczy się pod klawiaturę, a
         // KeyboardAvoidingView bez `behavior` nic nie robi. Realna wysokość klawiatury
         // jako padding — pasek formatowania i przełącznik Tekst/Rysunek nad nią.
         <View style={{ flex: 1, paddingBottom: kb }}>
-          <View style={{ flex: 1 }} onLayout={(e: LayoutChangeEvent) => setViewH(e.nativeEvent.layout.height)}>
+          <View style={[{ flex: 1 }, pg?.bg ? { backgroundColor: pg.bg } : null]} onLayout={(e: LayoutChangeEvent) => setViewH(e.nativeEvent.layout.height)}>
             {viewH > 0 && (
               <RichTextEditor
                 text={text}
@@ -180,6 +246,7 @@ export default function NoteScreen() {
                 editable={mode === 'text'}
                 toolbar={mode === 'text'}
                 page={{
+                  ink: ink.text ? { text: ink.text, muted: ink.muted!, light: ink.light } : undefined,
                   // Nieskończona strona (2026-11-18): "+ strona" na dole dokłada wysokość ekranu.
                   minHeight: Math.max(viewH - 54, strokesBottom(note.strokes, pageW) + 160) + extraPages * Math.max(1, viewH - 54),
                   wrap: (field) => (
@@ -189,7 +256,10 @@ export default function NoteScreen() {
                     // scrollTo — natywny scroll wyłączony, bo wygrywał z kreską (2026-11-18).
                     <GHScrollView ref={pageScroll} style={{ flex: 1 }} scrollEnabled={mode === 'text'} keyboardShouldPersistTaps="handled"
                       scrollEventThrottle={16} onScroll={(e) => { pageY.current = e.nativeEvent.contentOffset.y; }}>
-                      <View onLayout={(e: LayoutChangeEvent) => { setPageW(e.nativeEvent.layout.width); setStorePageW(e.nativeEvent.layout.width); }}>
+                      <View onLayout={(e: LayoutChangeEvent) => { setPageW(e.nativeEvent.layout.width); setPageH(e.nativeEvent.layout.height); setStorePageW(e.nativeEvent.layout.width); }}>
+                        {!!pg?.pattern && pageW > 0 && (
+                          <PagePattern pattern={pg.pattern} width={pageW} height={pageH} step={ROW.step} top={pg.pattern === 'lines' ? ROW.top + ROW.step : ROW.top} color={ink.pattern ?? colors.ui.line} />
+                        )}
                         {field}
                         {guide && cutY != null && (
                           <View style={[s.guide, { top: cutY }]} pointerEvents="none">
@@ -198,13 +268,13 @@ export default function NoteScreen() {
                         )}
                         {mode === 'draw' ? (
                           <View style={StyleSheet.absoluteFill}>
-                            <DrawingCanvas strokes={note.strokes} onChange={strokesChange} tool={tool} onPressure={setPressure} fingerScroll={penScroll} buttonEraser={penButton}
+                            <DrawingCanvas strokes={note.strokes} onChange={strokesChange} tool={tool} light={ink.light} onPressure={setPressure} fingerScroll={penScroll} buttonEraser={penButton}
                               onScrollStart={() => { pageY0.current = pageY.current; }}
                               onScrollBy={(dy) => pageScroll.current?.scrollTo({ y: Math.max(0, pageY0.current - dy), animated: false })} />
                           </View>
                         ) : note.strokes.length > 0 && pageW > 0 ? (
                           <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                            <StrokesLayer strokes={note.strokes} width={pageW} height={Math.max(viewH, strokesBottom(note.strokes, pageW) + 160)} />
+                            <StrokesLayer strokes={note.strokes} width={pageW} height={Math.max(viewH, strokesBottom(note.strokes, pageW) + 160)} light={ink.light} />
                           </View>
                         ) : null}
                       </View>
@@ -233,10 +303,10 @@ export default function NoteScreen() {
           {mode === 'draw' && showPen && (
             <View style={s.penPanel}>
               <View style={s.penKinds}>
-                {([[false, 'Pióro', 'stała grubość', PenLine], [true, 'Pędzel', 'S-Pen: mocniej = grubiej', Brush]] as const).map(([b, label, desc, Icon]) => {
-                  const on = !!tool.brush === b;
+                {PEN_KINDS.map(([k, label, desc, Icon]) => {
+                  const on = tool.kind === k;
                   return (
-                    <TouchableOpacity key={label} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, brush: b, eraser: false })); }} style={[s.penKind, on && s.penKindOn]} accessibilityLabel={label}>
+                    <TouchableOpacity key={k} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, kind: k, eraser: false })); }} style={[s.penKind, on && s.penKindOn]} accessibilityLabel={label}>
                       <Icon size={16} color={on ? colors.bg.primary : colors.text.primary} />
                       <View style={{ flex: 1 }}>
                         <Text style={[s.penKindTxt, on && { color: colors.bg.primary }]}>{label}</Text>
@@ -257,7 +327,7 @@ export default function NoteScreen() {
                   );
                 })}
               </View>
-              <PressureLabel brush={!!tool.brush} style={s.penPressure} />
+              <PressureLabel brush={tool.kind === 'brush'} style={s.penPressure} />
             </View>
           )}
           {mode === 'draw' && (
@@ -288,8 +358,8 @@ export default function NoteScreen() {
                 <View style={s.sep} />
                 {/* Jedno narzędzie: ikona pióra/pędzla + kropka w kolorze i grubości; stuknięcie = panel. */}
                 <TouchableOpacity onPress={() => { haptic.tap(); setShowColors(false); setShowPen((v) => !v); if (tool.eraser) setTool((t) => ({ ...t, eraser: false })); }}
-                  style={[s.penBtn, !tool.eraser && s.toolOn]} accessibilityLabel={`${tool.brush ? 'Pędzel' : 'Pióro'} — zmień narzędzie i grubość`}>
-                  {tool.brush ? <Brush size={15} color={!tool.eraser ? colors.bg.primary : colors.text.primary} /> : <PenLine size={15} color={!tool.eraser ? colors.bg.primary : colors.text.primary} />}
+                  style={[s.penBtn, !tool.eraser && s.toolOn]} accessibilityLabel={`${PEN_KINDS.find((x) => x[0] === tool.kind)?.[1] ?? 'Pióro'} — zmień narzędzie i grubość`}>
+                  {(() => { const KIcon = kindIcon(tool.kind); return <KIcon size={15} color={!tool.eraser ? colors.bg.primary : colors.text.primary} />; })()}
                   <View style={{ width: Math.max(4, tool.width * 0.9), height: Math.max(4, tool.width * 0.9), borderRadius: 8, backgroundColor: tool.color, borderWidth: 1, borderColor: 'rgba(127,127,127,0.6)' }} />
                 </TouchableOpacity>
                 {/* Palec rysuje / przewija — gdy appka wykryła S-Pena (inaczej palec zawsze rysuje). */}
@@ -365,6 +435,19 @@ const makeS = themedStyles((c) => StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing[1], paddingHorizontal: spacing[2], paddingVertical: spacing[2] },
   headBtn: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md },
   delOn: { backgroundColor: c.accent.red },
+  headBtnOn: { backgroundColor: c.ui.in2 },
+  pagePanel: { marginHorizontal: spacing[3], marginBottom: spacing[2], padding: spacing[3], gap: 8, borderRadius: radius.lg, backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default },
+  pageLabel: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: c.text.muted, letterSpacing: 0.3 },
+  pageRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  pageSwatch: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: c.border.default },
+  pageSwatchOn: { borderWidth: 2.5, borderColor: c.accent.orange },
+  pageTheme: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.primary },
+  pageThemeTxt: { fontSize: 12, fontFamily: 'Inter_900Black', color: c.text.secondary },
+  pageCustom: { alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed' },
+  patBtn: { alignItems: 'center', gap: 4, padding: 4, borderRadius: radius.md, borderWidth: 1, borderColor: 'transparent' },
+  patBtnOn: { borderColor: c.text.bright },
+  patPreview: { width: 44, height: 30, borderRadius: 6, overflow: 'hidden', borderWidth: 1, borderColor: c.border.default },
+  patTxt: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.secondary },
   titleInput: { flex: 1, minWidth: 0, fontSize: 18, fontFamily: 'Inter_900Black', color: c.text.primary, paddingVertical: 6 },
   missing: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: c.text.muted, padding: spacing[4] },
   body: { flex: 1, fontSize: 15, lineHeight: 22, fontFamily: 'Inter_500Medium', color: c.text.primary, paddingHorizontal: spacing[4], paddingTop: spacing[2] },
@@ -396,8 +479,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
   moreColors: { borderColor: c.border.default, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   colorPanel: { paddingHorizontal: spacing[3], paddingBottom: spacing[2] },
   penPanel: { marginHorizontal: spacing[3], marginBottom: 6, padding: spacing[3], gap: spacing[3], borderRadius: radius.lg, backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default },
-  penKinds: { flexDirection: 'row', gap: 6 },
-  penKind: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
+  penKinds: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  penKind: { flexGrow: 1, flexBasis: '46%', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
   penKindOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
   penKindTxt: { fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
   penKindDesc: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: c.text.muted },

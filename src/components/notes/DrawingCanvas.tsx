@@ -5,6 +5,7 @@ import { usePenStore } from '@/store/penStore';
 import Svg, { Path } from 'react-native-svg';
 import type { NoteStroke } from '@/types/notes';
 import { addPoint, strokePath, strokesHit, brushFactor, smoothFactor, brushOutline } from '@/utils/notes';
+import { inkOn } from '@/utils/notePage';
 
 // Płótno rysunku (2026-11-14, user: "mam rysik S-PEN"). Wydajność:
 //   • gotowe kreski = osobna warstwa SVG (`StrokesLayer`, memo) — rysuje się raz,
@@ -23,37 +24,57 @@ let strokeSeq = 0;
 const strokeIds = new WeakMap<NoteStroke, number>();
 const strokeId = (s: NoteStroke) => { let id = strokeIds.get(s); if (id == null) { id = ++strokeSeq; strokeIds.set(s, id); } return id; };
 
-const StrokePath = memo(function StrokePath({ s, width }: { s: NoteStroke; width: number }) {
-  return s.w
-    ? <Path d={brushOutline(s.p, s.w, width, s.width * (width / 360))} fill={s.color} />
-    : <Path d={strokePath(s.p, width)} stroke={s.color} strokeWidth={s.width * (width / 360)} strokeLinecap="round" strokeLinejoin="round" fill="none" />;
+// Rodzaje narzędzi (2026-11-22, user: "więcej pędzli / ołówków"): ołówek = cieńszy,
+// półprzezroczysty grafit; zakreślacz = szeroki, przezroczysty, płaskie końce (jedna ścieżka,
+// więc nachodzące odcinki tej samej kreski nie ciemnieją). `light` = jasna strona → biały tusz
+// rysuje się jako czarny (utils/notePage.ts's inkOn).
+function strokeEl(s: NoteStroke, width: number, light: boolean) {
+  const color = inkOn(s.color, light) ?? s.color;
+  const base = s.width * (width / 360);
+  if (s.w) return <Path d={brushOutline(s.p, s.w, width, base)} fill={color} />;
+  if (s.t === 'marker') return <Path d={strokePath(s.p, width)} stroke={color} strokeOpacity={0.38} strokeWidth={base * 2.6} strokeLinecap="square" strokeLinejoin="round" fill="none" />;
+  if (s.t === 'pencil') return <Path d={strokePath(s.p, width)} stroke={color} strokeOpacity={0.72} strokeWidth={Math.max(1, base * 0.6)} strokeLinecap="round" strokeLinejoin="round" fill="none" />;
+  return <Path d={strokePath(s.p, width)} stroke={color} strokeWidth={base} strokeLinecap="round" strokeLinejoin="round" fill="none" />;
+}
+
+const StrokePath = memo(function StrokePath({ s, width, light }: { s: NoteStroke; width: number; light: boolean }) {
+  return strokeEl(s, width, light);
 });
 
-export const StrokesLayer = memo(function StrokesLayer({ strokes, width, height }: { strokes: NoteStroke[]; width: number; height: number }) {
+export const StrokesLayer = memo(function StrokesLayer({ strokes, width, height, light = false }: { strokes: NoteStroke[]; width: number; height: number; light?: boolean }) {
   if (width <= 0) return null;
   return (
     <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
-      {strokes.map((s) => <StrokePath key={strokeId(s)} s={s} width={width} />)}
+      {strokes.map((s) => <StrokePath key={strokeId(s)} s={s} width={width} light={light} />)}
     </Svg>
   );
 });
 
-export interface DrawTool { color: string; width: number; eraser: boolean; brush?: boolean }
+export type PenKind = 'pen' | 'brush' | 'pencil' | 'marker';
+export interface DrawTool { color: string; width: number; eraser: boolean; kind: PenKind }
 /** Odczyt nacisku na żywo (test S-Pen): pressure 0..1 albo null = palec. */
 export type PressureInfo = { stylus: boolean; pressure: number | null; factor: number };
 
 // S-Pen (2026-11-18): `fingerScroll` — palec nie rysuje (gest odpada → przewija strona pod
 // spodem), rysuje tylko rysik; `buttonEraser` — trzymany przycisk S-Pena = gumka na tę kreskę
 // (stan przycisku z natywnego StylusModule, plugins/withStylus.js; stary APK = brak).
+/** Kreska z narzędzia: pędzel niesie grubości punktów, ołówek/zakreślacz — rodzaj `t`. */
+function toStroke(tl: DrawTool, p: number[], widths: number[]): NoteStroke {
+  const base = { color: tl.color, width: tl.width, p };
+  if (tl.kind === 'brush') return { ...base, w: widths.slice(0, p.length / 2) };
+  if (tl.kind === 'pencil' || tl.kind === 'marker') return { ...base, t: tl.kind };
+  return base;
+}
 const ERASE_R = 0.035; // promień gumki w jednostkach szerokości płótna (strokesHit + wskaźnik)
 const stylusButtonDown = (): boolean => {
   try { return !!NativeModules.Stylus?.isButtonDown?.(); } catch { return false; }
 };
 
-export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPressure, fingerScroll = false, buttonEraser = false, onScrollStart, onScrollBy }: {
+export default function DrawingCanvas({ strokes, onChange, tool, light = false, onRatio, onPressure, fingerScroll = false, buttonEraser = false, onScrollStart, onScrollBy }: {
   strokes: NoteStroke[];
   onChange: (strokes: NoteStroke[]) => void;
   tool: DrawTool;
+  light?: boolean; // jasna strona (kolor tuszu, patrz strokeEl)
   onRatio?: (ratio: number) => void; // wysokość / szerokość płótna (do miniatur)
   onPressure?: (info: PressureInfo | null) => void;
   fingerScroll?: boolean;
@@ -181,7 +202,7 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
       current.current = [];
       widths.current = [];
       addPoint(current.current, x, y, 0);
-      if (tl.brush) widths.current.push(fns.current.factorOf(e));
+      if (tl.kind === 'brush') widths.current.push(fns.current.factorOf(e));
       redraw();
     })
     .onUpdate((e) => {
@@ -190,7 +211,7 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
       const x = e.x / sz.w, y = e.y / sz.w;
       if (tl.eraser || stroke.current.erase) { fns.current.erase(x, y); return; }
       if (current.current && addPoint(current.current, x, y)) {
-        if (tl.brush) widths.current.push(smoothFactor(widths.current[widths.current.length - 1], fns.current.factorOf(e)));
+        if (tl.kind === 'brush') widths.current.push(smoothFactor(widths.current[widths.current.length - 1], fns.current.factorOf(e)));
         redraw();
       }
     })
@@ -202,9 +223,7 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
       eraserAt.current = null;
       if (erasedLocal.current) { erasedLocal.current = false; live.current.onChange(latest.current); }
       current.current = null;
-      if (p && p.length >= 2) fns.current.commit([...latest.current, tl.brush
-        ? { color: tl.color, width: tl.width, p, w: widths.current.slice(0, p.length / 2) }
-        : { color: tl.color, width: tl.width, p }]);
+      if (p && p.length >= 2) fns.current.commit([...latest.current, toStroke(tl, p, widths.current)]);
       widths.current = [];
       live.current.onPressure?.(null);
       redraw();
@@ -216,16 +235,14 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
   return (
     <GestureDetector gesture={gesture}>
       <View style={styles.canvas} onLayout={onLayout} collapsable={false}>
-        <StrokesLayer strokes={erasedLocal.current ? latest.current : strokes} width={size.w} height={size.h} />
+        <StrokesLayer strokes={erasedLocal.current ? latest.current : strokes} width={size.w} height={size.h} light={light} />
         {cur && size.w > 0 && (
           <Svg width={size.w} height={size.h} style={StyleSheet.absoluteFill} pointerEvents="none">
-            {tool.brush
-              ? <Path d={brushOutline(cur, widths.current, size.w, tool.width * (size.w / 360))} fill={tool.color} />
-              : <Path d={strokePath(cur, size.w)} stroke={tool.color} strokeWidth={tool.width * (size.w / 360)} strokeLinecap="round" strokeLinejoin="round" fill="none" />}
+            {strokeEl(toStroke(tool, cur, widths.current), size.w, light)}
           </Svg>
         )}
         {er && size.w > 0 && (
-          <View pointerEvents="none" style={[styles.eraser, { left: er.x * size.w - erR, top: er.y * size.w - erR, width: erR * 2, height: erR * 2, borderRadius: erR }]} />
+          <View pointerEvents="none" style={[styles.eraser, light && styles.eraserLight, { left: er.x * size.w - erR, top: er.y * size.w - erR, width: erR * 2, height: erR * 2, borderRadius: erR }]} />
         )}
       </View>
     </GestureDetector>
@@ -235,4 +252,5 @@ export default function DrawingCanvas({ strokes, onChange, tool, onRatio, onPres
 const styles = StyleSheet.create({
   canvas: { flex: 1, overflow: 'hidden' },
   eraser: { position: 'absolute', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.85)', backgroundColor: 'rgba(255,255,255,0.12)' },
+  eraserLight: { borderColor: 'rgba(0,0,0,0.6)', backgroundColor: 'rgba(0,0,0,0.06)' },
 });

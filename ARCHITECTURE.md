@@ -1792,7 +1792,7 @@ Zadania z `task`, notatka → edytor, reszta → ich ekrany. Nowy rodzaj danych 
   nad klawiaturą): B/I/U, wielkość (S/M/L/XL), kolor (paleta + #hex), zakreślacz,
   wyczyść. Podgląd: `NotePreview` (`richStyle.runTextStyle`, skala 0.75).
 - **Pędzel S-Pen**: `NoteStroke.w` (mnożnik grubości na punkt). `DrawingCanvas`
-  (`tool.brush`): nacisk z `stylusData.pressure` (gesture-handler, rysik na Androidzie),
+  (`tool.kind === 'brush'`): nacisk z `stylusData.pressure` (gesture-handler, rysik na Androidzie),
   palcem z szybkości (`utils/notes.ts` brushFactor + smoothFactor), rysowanie jako
   wypełniony kontur (`brushOutline`). Pasek: Pióro/Pędzel + odczyt nacisku na żywo
   (`onPressure`, test rysika).
@@ -1820,6 +1820,23 @@ Zadania z `task`, notatka → edytor, reszta → ich ekrany. Nowy rodzaj danych 
   Ctrl+B/I/U, Enter/wklejanie jako zwykły tekst; model ten sam (tekst + odcinki), DOM
   tylko wyświetla. Render czeka, aż model dogoni DOM (`typed`), żeby szybkie pisanie
   nie cofało kursora. Panel `/note` na komputerze szerszy (≤ 900 px).
+- **Narzędzia** (2026-11-22): `DrawTool.kind` = `PenKind` pen / brush / pencil / marker
+  (panel pióra 2×2 w `app/note.tsx`, `PEN_KINDS`). Kreska niesie rodzaj w `NoteStroke.t`
+  ('pencil' | 'marker'; pióro bez `t`, pędzel = `w`). Rysowanie w JEDNYM miejscu:
+  `DrawingCanvas.tsx` `strokeEl` (gotowe kreski, bieżąca kreska, podglądy) — ołówek cieńszy
+  i półprzezroczysty, zakreślacz ×2,6 szerszy, 38 % krycia, płaskie końce. Nowe narzędzie =
+  `PenKind` + `toStroke` + `strokeEl` + wpis w `PEN_KINDS`.
+- **Strona notatki** (2026-11-22): `Note.page?: { bg?, pattern? }` (`NotePageStyle`, sync
+  razem z notatką). Logika `utils/notePage.ts` (`PAGE_PRESETS`, `PATTERNS`, `pageInk` —
+  kolory tekstu/wzoru dla tła, `inkOn` — prawie-biały tusz na jasnej stronie rysuje się
+  jako czarny, `patternPath` — linie/kratka/kropki jako jedna ścieżka; testy
+  `__tests__/notePage.test.ts`). Wzór: `components/notes/PagePattern.tsx`, krok = wiersz
+  tekstu (natywnie 22 px od 8, komputer 24 px od 12 — `ROW` w `app/note.tsx`), linie pod
+  wierszami. Podpięte: edytor (tło + wzór pod polem, `RichTextEditor page.ink` → kolor
+  tekstu/placeholdera, web `WebRichField ink`), `StrokesLayer`/`DrawingCanvas` `light`,
+  kafel Dashboardu `NotePage` (×k), lista `NotePreview` (miniatura na tle strony,
+  skalowana do wysokości podglądu). Panel: ikona wiadra w nagłówku notatki (nie w listach).
+  Widget notatki na pulpicie — bez tła strony (natywny, osobny APK; patrz NEXT_STEPS).
 - **Wejście do listy**: przycisk „Wszystkie notatki” w nagłówku notatki (z Dashboardu
   otwiera się sama notatka).
 

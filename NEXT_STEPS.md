@@ -41,6 +41,12 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-22 — Notatki: kolor i wzór strony + ołówek i zakreślacz** (ARCHITECTURE „Strona notatki”, „Narzędzia”). OTA.
+- [ ] Wiadro w nagłówku notatki → Papier + Linie: czy linie wypadają pod wierszami na telefonie (natywnie 22 px)
+  i czy biały tekst/rysunek zrobił się czarny. Kafel Dashboardu i lista notatek pokazują to samo.
+- [ ] Ołówek i zakreślacz S-Penem: czy zakreślacz nie jest za szeroki / za blady.
+- [ ] Do decyzji: widget notatki na pulpicie w kolorze strony (wymaga APK — plugin `withNoteWidget.js`).
+
 **2026-11-22 — Odświeżanie w tle, zegarek w kartach, wzorce na Dashboardzie** (nowe APK + Wear). Do sprawdzenia:
 - [ ] Ustawienia → Aplikacja → Odświeżanie w tle: po godzinie „ostatnio …” się zmienia; komputer ma świeży czas z telefonu
   i baterię bez otwierania appki. Bateria telefonu — czy nie widać różnicy.
@@ -54,7 +60,6 @@ wymagają nowego APK (moduł UsageStats `uh`), reszta OTA.
 - [ ] Oznaczyć źle złapane appki (Czas z telefonem → stuknij appkę).
 - [ ] Podejrzane: „zwykle do tej pory 2 h 40 min” przy 13 min dziś — porównać wczoraj z Cyfrową równowagą
   (czy liczenie sesji per aktywność nie dubluje czasu na Samsungu).
-- [ ] POMYSŁ (odłożony, user: „dodatek”): notatki — kolor/tło strony (linie, kratka, kropki) + więcej pędzli (task #67).
 
 **2026-11-22 — Bateria i czas z telefonem na komputerze: scalanie zamiast zastępowania** (ARCHITECTURE „DANE Z
 TELEFONU NA KOMPUTERZE”). Historia baterii 30 dni (było 4), komputer pokazuje ostatni odczyt z godziną. Tylko JS.

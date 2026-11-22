@@ -11,6 +11,7 @@ import {
   type TextRun, type RunStyle, type TextSize,
 } from '@/utils/richText';
 import { haptic } from '@/utils/haptics';
+import { inkOn } from '@/utils/notePage';
 
 // Edytor tekstu z formatowaniem (2026-11-14): pogrubienie, kursywa, podkreślenie,
 // wielkość, kolor tekstu i zakreślacz (paleta + własny kolor #hex). Przybornik na
@@ -32,7 +33,9 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus, page, 
   // Tryb "strona" (2026-11-15, tekst + rysunek w jednej notatce): pole nie przewija się
   // samo, tylko rośnie z treścią, a `page.wrap` owija je (ScrollView + warstwa kresek),
   // żeby rysunek przewijał się razem z tekstem. `minHeight` = co najmniej ekran.
-  page?: { wrap: (field: ReactNode) => ReactNode; minHeight: number };
+  // `ink` (2026-11-22, kolor strony notatki): tekst/placeholder w kolorach strony; na jasnej
+  // stronie prawie-białe kolory liter rysują się jako czarne (utils/notePage.ts's inkOn).
+  page?: { wrap: (field: ReactNode) => ReactNode; minHeight: number; ink?: { text: string; muted: string; light: boolean } };
   editable?: boolean;
   toolbar?: boolean;
 }) {
@@ -102,7 +105,9 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus, page, 
     onChange(t, next);
   };
 
-  const segs = segments(text, fitted);
+  const ink = page?.ink;
+  const segs0 = segments(text, fitted);
+  const segs = ink?.light ? segs0.map((g) => (g.st.c ? { ...g, st: { ...g.st, c: inkOn(g.st.c, true) } } : g)) : segs0;
   const web = Platform.OS === 'web';
 
   const field = web ? (
@@ -117,6 +122,7 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus, page, 
         autoFocus={autoFocus}
         focusTick={focusTick}
         placeholder="Pisz…"
+        ink={ink}
       />
   ) : (
       <TextInput
@@ -124,8 +130,8 @@ export default function RichTextEditor({ text, runs, onChange, autoFocus, page, 
         onChangeText={handleText}
         onSelectionChange={(e) => { sel.current = e.nativeEvent.selection; setSelState(e.nativeEvent.selection); }}
         placeholder="Pisz…"
-        placeholderTextColor={colors.text.muted}
-        style={[page ? [s.body, s.pageBody, { minHeight: page.minHeight }, web && fieldH > 0 ? { height: Math.max(page.minHeight, fieldH) } : null] : s.body, nudge ? { paddingRight: spacing[4] + 1 } : null]}
+        placeholderTextColor={ink?.muted ?? colors.text.muted}
+        style={[page ? [s.body, s.pageBody, { minHeight: page.minHeight }, web && fieldH > 0 ? { height: Math.max(page.minHeight, fieldH) } : null] : s.body, nudge ? { paddingRight: spacing[4] + 1 } : null, ink ? { color: ink.text } : null]}
         multiline
         textAlignVertical="top"
         autoFocus={autoFocus}

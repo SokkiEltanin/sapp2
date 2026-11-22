@@ -71,9 +71,10 @@ function setSel(el: HTMLElement, sel: Sel) {
   s.addRange(r);
 }
 
-export default function WebRichField({ segs, text, onInput, onSelect, onKey, editable, minHeight, autoFocus, focusTick, placeholder }: {
+export default function WebRichField({ segs, text, onInput, onSelect, onKey, editable, minHeight, autoFocus, focusTick, placeholder, ink }: {
   segs: Seg[];
   text: string;
+  ink?: { text: string; muted: string; light: boolean }; // kolor strony notatki
   onInput: (t: string) => void;
   onSelect: (sel: Sel) => void;
   onKey?: (k: 'b' | 'i' | 'u') => void;
@@ -156,7 +157,7 @@ export default function WebRichField({ segs, text, onInput, onSelect, onKey, edi
 
   return createElement('div', { style: { position: 'relative' } },
     !text && placeholder ? createElement('div', {
-      style: { position: 'absolute', left: 16, top: 12, color: '#6E6E6E', pointerEvents: 'none', fontSize: 16, fontFamily: 'Inter_500Medium, system-ui, sans-serif' },
+      style: { position: 'absolute', left: 16, top: 12, color: ink?.muted ?? '#6E6E6E', pointerEvents: 'none', fontSize: 16, fontFamily: 'Inter_500Medium, system-ui, sans-serif' },
     }, placeholder) : null,
     createElement('div', {
       ref,
@@ -167,8 +168,8 @@ export default function WebRichField({ segs, text, onInput, onSelect, onKey, edi
       'aria-multiline': true,
       style: {
         minHeight, outline: 'none', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-        padding: '12px 16px 40px', color: '#D6D6D6', fontSize: 16, lineHeight: '24px',
-        fontFamily: 'Inter_500Medium, system-ui, sans-serif', caretColor: '#F2F2F2', cursor: editable ? 'text' : 'default',
+        padding: '12px 16px 40px', color: ink?.text ?? '#D6D6D6', fontSize: 16, lineHeight: '24px',
+        fontFamily: 'Inter_500Medium, system-ui, sans-serif', caretColor: ink?.light ? '#1A1A1A' : '#F2F2F2', cursor: editable ? 'text' : 'default',
       },
       onInput: () => {
         const el = ref.current;

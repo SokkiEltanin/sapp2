@@ -6,6 +6,7 @@ import { StrokesLayer } from './DrawingCanvas';
 import { runTextStyle } from './richStyle';
 import { segments, hasFormatting } from '@/utils/richText';
 import { C, F } from '@/ui/theme';
+import { pageInk } from '@/utils/notePage';
 
 // Podgląd notatki (2026-11-14): kafel Dashboardu i karta w liście notatek.
 // Lista — pozycje z kwadracikiem do odhaczenia (onToggle) bez otwierania notatki;
@@ -14,6 +15,8 @@ export default function NotePreview({ note, maxLines = 6, onToggle, compact }: {
   note: Note; maxLines?: number; onToggle?: (itemId: string) => void; compact?: boolean;
 }) {
   const [w, setW] = useState(0);
+  // Kolor strony (2026-11-22): miniatura rysunku na tle strony, z tym samym tuszem co w edytorze.
+  const ink = pageInk(note.page);
   // Rysunek — też w notatce tekstowej (tekst + rysunek w jednej, 2026-11-15): tekst na
   // górze, miniatura kresek pod nim.
   const drawing = note.strokes.length > 0 || note.kind === 'drawing' ? (() => {
@@ -23,9 +26,19 @@ export default function NotePreview({ note, maxLines = 6, onToggle, compact }: {
     return (
       <View style={styles.drawBox} onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}>
         {w > 0 && (
-          <View style={{ width: w, height: Math.min(w * ratio, maxLines * 22), overflow: 'hidden' }}>
-            <StrokesLayer strokes={note.strokes} width={w} height={w * ratio} />
-          </View>
+          // Cały rysunek pomniejszony do wysokości podglądu (2026-11-22) — wcześniej ucinany od
+          // góry, więc kreski niżej na stronie dawały pusty prostokąt.
+          (() => {
+            const h = Math.min(w * ratio, maxLines * 22);
+            const dw = Math.min(w, h / ratio);
+            return (
+              <View style={{ width: w, height: h, overflow: 'hidden', borderRadius: 6, backgroundColor: note.page?.bg, alignItems: 'center' }}>
+                <View style={{ width: dw, height: h }}>
+                  <StrokesLayer strokes={note.strokes} width={dw} height={h} light={ink.light} />
+                </View>
+              </View>
+            );
+          })()
         )}
         {note.strokes.length === 0 && !note.text.trim() && <Text style={styles.muted}>Pusty rysunek</Text>}
       </View>
