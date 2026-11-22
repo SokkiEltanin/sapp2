@@ -44,6 +44,8 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 **2026-11-22 — Pogoda 2.0** (ARCHITECTURE „Pogoda 2.0”). OTA. User szuka przykładów do inspiracji — po nich
 kolejna runda (np. kafel pogody na Dashboardzie w tym samym stylu).
 - [ ] Wykres 24 h przewija się płynnie palcem; krzywa i opady czytelne; „jutro” przy północy.
+- [ ] 7 dni: stuknięcie dnia pokazuje opis pod wykresem; powietrze — ocena na górze, szczegóły na dole.
+- [ ] Budżety: przekroczony wygląda na przekroczony (pasek, plakietka, słupki miesięcy, pigułki w Finansach).
 
 **2026-11-22 — Czas z telefonem: naprawa „17 h 19 min” + czytelniejszy panel** (ARCHITECTURE „CZAS Z TELEFONEM”).
 Liczenie = nowe APK (moduł v2), panel i popup kategorii = OTA.

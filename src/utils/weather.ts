@@ -280,3 +280,31 @@ export function humidityLabel(h: number): string {
   if (h < 80) return 'wilgotno';
   return 'bardzo wilgotno';
 }
+
+/** Normy dobowe WHO (µg/m³) dla wyświetlanych zanieczyszczeń. */
+export const AIR_NORMS: { key: 'pm25' | 'pm10' | 'no2' | 'o3'; label: string; norm: number }[] = [
+  { key: 'pm25', label: 'PM2,5', norm: 15 },
+  { key: 'pm10', label: 'PM10', norm: 45 },
+  { key: 'no2', label: 'NO₂', norm: 25 },
+  { key: 'o3', label: 'O₃', norm: 100 },
+];
+
+/** Co z tym zrobić — jedno zdanie do oceny powietrza (2026-11-22, ocena na górze panelu). */
+export function aqiAdvice(aqi: number): string {
+  if (aqi <= 40) return 'Można wietrzyć i ćwiczyć na zewnątrz';
+  if (aqi <= 60) return 'Wrażliwi: ogranicz długi wysiłek na dworze';
+  if (aqi <= 80) return 'Ogranicz wysiłek na zewnątrz, krótko wietrz';
+  return 'Zamknij okna, zostań w środku';
+}
+
+/** Zanieczyszczenie najbliżej (albo najdalej ponad) normy WHO: { label, pct }. */
+export function worstPollutant(air: AirQuality): { label: string; pct: number } | null {
+  let best: { label: string; pct: number } | null = null;
+  for (const n of AIR_NORMS) {
+    const v = air[n.key];
+    if (v == null) continue;
+    const pct = Math.round((v / n.norm) * 100);
+    if (!best || pct > best.pct) best = { label: n.label, pct };
+  }
+  return best;
+}

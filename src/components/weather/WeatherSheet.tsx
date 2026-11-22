@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Linking } from 'react-native';
 import * as LucideIcons from 'lucide-react-native';
-import { MapPin, Navigation, RefreshCw, Search, Radar, ExternalLink, Droplet, Droplets, Wind, Gauge, Sun, Sunrise, Sunset } from 'lucide-react-native';
+import { MapPin, Navigation, RefreshCw, Search, Radar, ExternalLink, Droplets, Wind, Gauge, Sun, Sunrise, Sunset } from 'lucide-react-native';
 import HourlyChart from './HourlyChart';
+import WeeklyChart from './WeeklyChart';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SheetCard, Legend } from '@/components/design/SheetCard';
 import { colors } from '@/theme/colors';
@@ -11,7 +12,7 @@ import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useWeatherStore } from '@/store/weatherStore';
 import { refreshWeather } from '@/hooks/useWeather';
 import { searchCity, type CityHit } from '@/services/weather';
-import { weatherCodeInfo, aqiInfo, rainSummary, cloudSummary, weatherTip, fmtTemp, weatherColor, weatherToneKey, WEATHER_TONES, tempColor, dayRainText, uvLabel, dayLength, humidityLabel } from '@/utils/weather';
+import { weatherCodeInfo, aqiInfo, rainSummary, cloudSummary, weatherTip, fmtTemp, weatherColor, uvLabel, dayLength, humidityLabel, aqiAdvice, worstPollutant, AIR_NORMS } from '@/utils/weather';
 import { haptic } from '@/utils/haptics';
 
 // Układ 2026-11-22 (user: "pogodę zrobiłbym lepiej, brakuje inspiracji"): teraz → jedna karta
@@ -21,18 +22,11 @@ import { haptic } from '@/utils/haptics';
 // UV/wschód-zachód), 24 h godzina po godzinie (temp + szansa opadów), 7 dni,
 // jakość powietrza z normami WHO, a na dole lokalizacja: GPS albo wyszukane
 // miasto (config na samym dole — CLAUDE.md zasada 10).
-const WD = ['nd', 'pn', 'wt', 'śr', 'cz', 'pt', 'sb'];
 const Icon = ({ name, size = 16, color = colors.text.primary }: { name: string; size?: number; color?: string }) => {
   const C = (LucideIcons as any)[name] ?? LucideIcons.Cloud;
   return <C size={size} color={color} />;
 };
 const hm = (t: string) => t.slice(11, 16);
-const dayName = (iso: string, i: number) => {
-  if (i === 0) return 'dziś';
-  if (i === 1) return 'jutro';
-  const [y, m, d] = iso.split('-').map(Number);
-  return WD[new Date(y, m - 1, d).getDay()];
-};
 
 export default function WeatherSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const s = makeS();
@@ -139,6 +133,20 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
             <Text style={s.rain}>{rainSummary(data!.hourly)}{today && today.precipSum > 0 ? ` · dziś ${today.precipSum.toFixed(1).replace('.', ',')} mm` : ''}</Text>
             {!!clouds && <Text style={s.cloudLine}>{clouds}</Text>}
             {tip && <Text style={s.tip}>{tip}</Text>}
+            {/* Ogólna ocena powietrza na górze (2026-11-22) — szczegóły na dole panelu. */}
+            {data!.air && (() => {
+              const a = aqiInfo(data!.air!.aqi);
+              const worst = worstPollutant(data!.air!);
+              return (
+                <View style={s.airTop}>
+                  <View style={[s.airBadge, { backgroundColor: a.color + '26', borderColor: a.color + '66' }]}>
+                    <View style={[s.airDot, { backgroundColor: a.color }]} />
+                    <Text style={[s.airBadgeTxt, { color: a.color }]}>Powietrze {a.label}</Text>
+                  </View>
+                  <Text style={s.airAdvice} numberOfLines={2}>{aqiAdvice(data!.air!.aqi)}{worst ? ` · ${worst.label} ${worst.pct}% normy` : ''}</Text>
+                </View>
+              );
+            })()}
           </View>
 
           {/* Szczegóły "teraz" w JEDNEJ karcie (2026-11-22, user: "za dużo kafelków") — liczba +
@@ -168,61 +176,43 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
               Potem (user: "drugorzędny tekst nie na kolor; dni kafelkowe, żeby było
               widać, gdzie dzień się kończy"): każdy dzień osobny kafelek, opis i opady
               szarym tekstem — kolor zostaje tylko na ikonie i temperaturze. */}
-          <SheetCard title="7 dni">
-            {data!.daily.map((d, i) => {
-              const tone = WEATHER_TONES[weatherToneKey(d.code)];
-              const rain = dayRainText(d);
-              return (
-                <View key={d.date} style={[s.dayRow, i === 0 && s.dayToday]}>
-                  <View style={s.dayTop}>
-                    <View style={s.dayNameCol}>
-                      <Text style={s.dayName}>{dayName(d.date, i)}</Text>
-                      <Text style={s.dayDate}>{Number(d.date.slice(8, 10))}.{d.date.slice(5, 7)}</Text>
-                    </View>
-                    <Icon name={weatherCodeInfo(d.code).icon} size={18} color={tone.color} />
-                    <Text style={s.dayKind} numberOfLines={1}>{tone.label}{rain.wet ? '' : ' · bez opadów'}</Text>
-                    <Text style={s.dayTemps}>
-                      <Text style={[s.dayMax, { color: tempColor(d.max) }]}>{fmtTemp(d.max)}</Text>
-                      <Text style={s.dayMin}>  {fmtTemp(d.min)}</Text>
-                    </Text>
-                  </View>
-                  {rain.wet && (
-                    <View style={s.dayRain}>
-                      <Droplet size={12} color={colors.accent.blue} />
-                      <Text style={s.dayRainTxt} numberOfLines={2}>{rain.text}</Text>
-                    </View>
-                  )}
-                </View>
-              );
-            })}
-            <Text style={s.note}>Duża liczba = najcieplej w dzień, mała = najzimniej w nocy. W nawiasie godziny opadu; % = szansa, mm = ile spadnie.</Text>
+          <SheetCard title="7 dni" right={<Legend items={[{ color: '#FB923C', label: 'dzień' }, { color: '#818CF8', label: 'noc' }, { color: colors.accent.blue, label: 'opad' }]} />}>
+            <WeeklyChart days={data!.daily} />
+            <Text style={s.note}>Stuknij dzień — pod wykresem pogoda i godziny opadów. Liczby nad = najcieplej w dzień, pod = najzimniej w nocy.</Text>
           </SheetCard>
 
+          {/* Powietrze — szczegóły (2026-11-22, user: "ogólny score na górze, na dole szczegóły
+              ładnie"): skala europejskiego indeksu ze znacznikiem + każdy składnik z paskiem
+              "ile z normy WHO". */}
           {data!.air && (() => {
-            const a = aqiInfo(data!.air!.aqi);
+            const air = data!.air!;
+            const a = aqiInfo(air.aqi);
+            const scale = [['#22C55E', 20], ['#A3E635', 20], ['#FBBF24', 20], ['#F97316', 20], ['#EF4444', 20], ['#A855F7', 20]] as const;
+            const pos = Math.min(100, (air.aqi / 120) * 100);
             return (
-              <SheetCard
-                title="Powietrze"
-                right={<View style={s.airHead}><View style={[s.airDot, { backgroundColor: a.color }]} /><Text style={[s.airLabel, { color: a.color }]}>{a.label}</Text><Text style={s.airIdx}>{data!.air!.aqi}</Text></View>}
-              >
-                <View style={s.grid}>
-                  {[
-                    ['PM2,5', data!.air!.pm25, 15],
-                    ['PM10', data!.air!.pm10, 45],
-                    ['NO₂', data!.air!.no2, 25],
-                    ['O₃', data!.air!.o3, 100],
-                  ].filter(([, v]) => v != null).map(([k, v, norm]) => (
-                    <View key={k as string} style={s.gridCell}>
-                      <Text style={[s.gridVal, (v as number) > (norm as number) && { color: colors.accent.red }]}>{Math.round(v as number)}</Text>
-                      {/* ile z normy (2026-11-22) — pełny pasek = norma WHO */}
-                      <View style={s.normTrack}>
-                        <View style={[s.normFill, { width: `${Math.min(100, ((v as number) / (norm as number)) * 100)}%`, backgroundColor: (v as number) > (norm as number) ? colors.accent.red : (v as number) > (norm as number) * 0.7 ? colors.accent.orange : colors.accent.green }]} />
-                      </View>
-                      <Text style={s.gridKey}>{k} · norma {norm}</Text>
-                    </View>
-                  ))}
+              <SheetCard title="Powietrze — szczegóły" right={<Text style={[s.airLabel, { color: a.color }]}>{air.aqi} · {a.label}</Text>}>
+                <View style={s.aqiScale}>
+                  {scale.map(([c], i) => <View key={i} style={{ flex: 1, backgroundColor: c, opacity: 0.85 }} />)}
+                  <View style={[s.aqiMark, { left: `${pos}%` }]} />
                 </View>
-                <Text style={s.note}>µg/m³, normy dobowe WHO. Pełny pasek = norma; czerwone = powyżej.</Text>
+                <View style={s.aqiLabels}>
+                  {['b. dobre', 'dobre', 'umiark.', 'złe', 'b. złe', 'fatalne'].map((l) => <Text key={l} style={s.aqiLab} numberOfLines={1}>{l}</Text>)}
+                </View>
+                <View style={{ marginTop: 10, gap: 10 }}>
+                  {AIR_NORMS.filter((n) => air[n.key] != null).map((n) => {
+                    const v = air[n.key] as number;
+                    const ratio = v / n.norm;
+                    const col = ratio > 1 ? colors.accent.red : ratio > 0.7 ? colors.accent.orange : colors.accent.green;
+                    return (
+                      <View key={n.key} style={s.polRow}>
+                        <Text style={s.polName}>{n.label}</Text>
+                        <View style={s.polTrack}><View style={[s.polFill, { width: `${Math.min(100, ratio * 100)}%`, backgroundColor: col }]} /></View>
+                        <Text style={[s.polVal, ratio > 1 && { color: colors.accent.red }]}>{Math.round(v)}<Text style={s.polNorm}> / {n.norm}</Text></Text>
+                      </View>
+                    );
+                  })}
+                </View>
+                <Text style={s.note}>µg/m³ · pełny pasek = norma dobowa WHO; czerwone = powyżej normy.</Text>
               </SheetCard>
             );
           })()}
@@ -306,35 +296,29 @@ const makeS = themedStyles((c) => StyleSheet.create({
   rain: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary, marginTop: spacing[2] },
   tip: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.accent.orange, marginTop: spacing[1] },
 
-  grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: spacing[3] },
-  gridCell: { width: '50%', paddingRight: spacing[3] },
-  normTrack: { height: 4, borderRadius: 2, backgroundColor: c.ui.in2, marginTop: 4, marginBottom: 4, overflow: 'hidden' },
-  normFill: { height: '100%', borderRadius: 2 },
-  gridVal: { fontSize: 16, fontFamily: 'Inter_900Black', color: c.text.primary },
-  gridKey: { fontSize: 10, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 1 },
 
   section: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: spacing[4], marginBottom: spacing[2] },
 
   nowCard: { backgroundColor: c.ui.in, borderRadius: radius.lg, padding: spacing[3], overflow: 'hidden' },
   // Kafelki dni jak mini-kafelki wyżej (2026-11-17, user: "czarne kafelki — za duży kontrast,
   // wyłamują się ze stylu"): jaśniejsze tło karty zamiast czarnego, bez obwódek; dziś = cienka ramka.
-  dayRow: { backgroundColor: c.ui.in2, borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: spacing[3], gap: 4, marginBottom: 6, borderWidth: 1, borderColor: 'transparent' },
-  dayToday: { borderColor: c.border.default },
-  dayTop: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  dayNameCol: { width: 64 },
-  dayName: { fontSize: 14, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },
-  dayDate: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
-  dayKind: { flex: 1, fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
-  dayTemps: { textAlign: 'right' },
-  dayMax: { fontSize: 18, fontFamily: 'Inter_900Black', fontVariant: ['tabular-nums'] },
-  dayMin: { fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.muted, fontVariant: ['tabular-nums'] },
-  dayRain: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 64 + spacing[2] },
-  dayRainTxt: { flex: 1, fontSize: 12, lineHeight: 16, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
 
-  airHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  airDot: { width: 10, height: 10, borderRadius: 5 },
+  airDot: { width: 8, height: 8, borderRadius: 4 },
+  airTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing[2], paddingTop: spacing[2], borderTopWidth: 1, borderTopColor: c.ui.line },
+  airBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 4, borderRadius: radius.full, borderWidth: 1 },
+  airBadgeTxt: { fontSize: 11.5, fontFamily: 'Inter_900Black' },
+  airAdvice: { flex: 1, fontSize: 11, lineHeight: 15, fontFamily: 'Inter_600SemiBold', color: c.text.secondary },
+  aqiScale: { flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'visible', gap: 2 },
+  aqiMark: { position: 'absolute', top: -4, width: 4, height: 16, marginLeft: -2, borderRadius: 2, backgroundColor: c.text.bright, borderWidth: 1, borderColor: c.bg.card },
+  aqiLabels: { flexDirection: 'row', gap: 2, marginTop: 4 },
+  aqiLab: { flex: 1, textAlign: 'center', fontSize: 9, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  polRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  polName: { width: 46, fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
+  polTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: c.ui.in2, overflow: 'hidden' },
+  polFill: { height: '100%', borderRadius: 3 },
+  polVal: { width: 64, textAlign: 'right', fontSize: 13, fontFamily: 'Inter_900Black', color: c.text.primary, fontVariant: ['tabular-nums'] },
+  polNorm: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
   airLabel: { fontSize: 12.5, fontFamily: 'Inter_900Black' },
-  airIdx: { fontSize: 11.5, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
   note: { fontSize: 10.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: spacing[2] },
 
   locRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: spacing[2] },

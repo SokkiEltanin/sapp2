@@ -19,3 +19,13 @@ describe('panel pogody', () => {
     expect(humidityLabel(45)).toBe('komfortowo');
   });
 });
+
+import { aqiAdvice, worstPollutant } from '../src/utils/weather';
+describe('powietrze', () => {
+  test('rada i najgorszy składnik', () => {
+    expect(aqiAdvice(30)).toMatch(/wietrzyć/);
+    expect(aqiAdvice(95)).toMatch(/Zamknij/);
+    expect(worstPollutant({ aqi: 38, pm25: 12, pm10: 21, no2: 18, o3: 40 })).toEqual({ label: 'PM2,5', pct: 80 });
+    expect(worstPollutant({ aqi: 50, pm25: 5, pm10: 90, no2: null, o3: null })).toEqual({ label: 'PM10', pct: 200 });
+  });
+});
