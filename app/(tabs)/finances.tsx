@@ -2,7 +2,7 @@ import FitText from '@/ui/FitText';
 import { incomeByCategory } from '@/utils/incomeCategory';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Plus, Package, Car, ChevronRight, RefreshCw, TrendingUp } from 'lucide-react-native';
 import TrendSheet from '@/components/finances/TrendSheet';
@@ -15,9 +15,9 @@ import { useQuickAdd, takeQuickAdd } from '@/services/quickAdd';
 import ProductsModal from '@/components/finances/ProductsModal';
 import TransactionsModal from '@/components/finances/TransactionsModal';
 import WydatkiModal from '@/components/dashboard/WydatkiModal';
-import BudgetSheet, { budgetLine, BudgetBar } from '@/components/budgets/BudgetSheet';
+import BudgetSheet, { BudgetBar } from '@/components/budgets/BudgetSheet';
 import { useBudgetsStore } from '@/store/budgetsStore';
-import { budgetStatuses, scopeLabel, type BudgetLevel } from '@/utils/budgets';
+import { budgetStatuses, scopeLabel } from '@/utils/budgets';
 import { variableByCategory } from '@/utils/expenseCategory';
 import { fixedByCategory } from '@/utils/fixedCategory';
 import { useCategoriesVersion } from '@/store/categoriesStore';
@@ -251,8 +251,6 @@ export default function FinancesScreen() {
   const budgets = useBudgetsStore((st) => st.budgets);
   const budgetStats = useMemo(() => budgetStatuses(budgets, expenses, now), [budgets, expenses, now]);
   const [budgetOpen, setBudgetOpen] = useState(false);
-  const [budgetSelId, setBudgetSelId] = useState<string | null>(null);
-  const budSel = budgetStats.find((b) => b.budget.id === budgetSelId) ?? budgetStats[0] ?? null;
   // Zakładka popupu Wydatki: "Podział" → Stałe, kafel Zmienne · kategorie → Zmienne.
   const [wydatkiTab, setWydatkiTab] = useState<'fixed' | 'variable' | 'food'>('fixed');
 
@@ -314,10 +312,10 @@ export default function FinancesScreen() {
         </Tile>
       </Row>
 
-      {/* Budżety (2026-11-17, user: "jak kategorie niżej — przełączam między limitami,
-          wypełnienie pigułki kolorem, czy przekroczyłem; szczegóły dopiero po wejściu; teraz
-          każdy kolejny limit wypycha Ostatnie transakcje w dół, a czerwony za bardzo krzyczy").
-          Stała wysokość: pigułki (tło = % limitu) + jedna linijka wybranego. */}
+      {/* Budżety (2026-11-22, user: "nadal chaos — nie widać, limity trzeba inaczej"): bez
+          pigułek i przełączania — KAŻDY budżet to jeden wiersz: nazwa · pasek · "wydane / limit"
+          (najpilniejsze pierwsze, max 3). Nagłówek mówi stan jednym słowem; szczegóły (ile
+          zostało na dzień, tempo, miesiące) w BudgetSheet po stuknięciu. */}
       <Row>
         <Tile span={4} onPress={() => { haptic.tap(); setBudgetOpen(true); }}>
           {budgetStats.length === 0 ? (
@@ -325,32 +323,33 @@ export default function FinancesScreen() {
               <Cap l="Budżet" r="ustaw limit" />
               <Text style={[T.small, s.emptyInline]}>Limit na jedzenie, słodycze, zmienne albo kategorię — ile zostało na dzień</Text>
             </>
-          ) : (
-            <>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.budChips} style={{ flexGrow: 0, flexShrink: 0 }}>
-                {budgetStats.map((b) => {
-                  const on = b.budget.id === budSel?.budget.id;
-                  return (
-                    // Pigułka = nazwa + % limitu w kolorze stanu (2026-11-22, user: "130/50 wygląda
-                    // dziwnie — ani przekroczony, ani nijak"); pasek wybranego niżej (BudgetBar).
-                    <TouchableOpacity key={b.budget.id} onPress={() => { haptic.tap(); setBudgetSelId(b.budget.id); }} style={[s.budChip, on && s.budChipOn]} activeOpacity={0.8}>
-                      <Text style={[s.budChipTxt, on && s.budChipTxtOn]} numberOfLines={1}>{scopeLabel(b.budget.scope)}</Text>
-                      <Text style={[s.budChipPct, { color: budPctColor(b.level) }]}>{Math.round(b.pct * 100)}%</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-              {budSel && (
-                <View style={s.budLine}>
-                  <Text style={s.budAmt}>{money(budSel.spent)}<Text style={s.budgetOf}> / {money(budSel.budget.limit)} zł</Text></Text>
-                  <Text style={[s.budgetLine, { flex: 1, textAlign: 'right' }, budSel.left < 0 && { color: C.warnTxt }]} numberOfLines={1}>
-                    {budgetLine(budSel)} · {budSel.daysLeft} dni
+          ) : (() => {
+            const over = budgetStats.filter((b) => b.level === 'over').length;
+            const warn = budgetStats.filter((b) => b.level === 'warn' || b.level === 'pace').length;
+            const more = budgetStats.length - 3;
+            return (
+              <>
+                <View style={s.budHead}>
+                  <Text style={T.cap}>Budżety</Text>
+                  <Text style={[T.capR, over ? { color: C.warnTxt } : warn ? { color: '#FDBA74' } : null]}>
+                    {over ? `${over} przekroczon${over === 1 ? 'y' : 'e'}` : warn ? `${warn} blisko limitu` : 'w normie'}{more > 0 ? ` · +${more}` : ''}
                   </Text>
                 </View>
-              )}
-              {budSel && <View style={{ marginTop: 8 }}><BudgetBar s={budSel} height={6} /></View>}
-            </>
-          )}
+                <View style={s.budRows}>
+                  {budgetStats.slice(0, 3).map((b) => (
+                    <View key={b.budget.id} style={s.budRow}>
+                      <Text style={s.budName} numberOfLines={1}>{scopeLabel(b.budget.scope)}</Text>
+                      <View style={{ flex: 1 }}><BudgetBar s={b} height={6} /></View>
+                      <Text style={s.budVal} numberOfLines={1}>
+                        <Text style={b.level === 'over' ? { color: C.warnTxt } : null}>{Math.round(b.spent)}</Text>
+                        <Text style={s.budgetOf}> / {Math.round(b.budget.limit)}</Text>
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </>
+            );
+          })()}
         </Tile>
       </Row>
 
@@ -562,7 +561,6 @@ export default function FinancesScreen() {
 }
 
 // Wypełnienie pigułki budżetu = % limitu, stonowane (user: "czerwony za bardzo się rzuca").
-const budPctColor = (level: BudgetLevel) => (level === 'over' ? C.warnTxt : level === 'warn' || level === 'pace' ? '#FDBA74' : C.mut);
 
 const makeS = themedStyles((c) => StyleSheet.create({
   capRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
@@ -577,16 +575,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
 
   barSpace: { marginTop: spacing[3] },
   sideCol: { gap: S.gap },
-  budChips: { gap: 6, paddingRight: 4 },
-  budChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999, backgroundColor: C.in, borderWidth: 1, borderColor: 'transparent' },
-  budChipPct: { fontSize: 10.5, fontFamily: 'Inter_900Black', fontVariant: ['tabular-nums'] },
-  budChipOn: { borderColor: C.txt },
-  budChipTxt: { fontSize: 11, fontFamily: 'Inter_800ExtraBold', color: C.mut },
-  budChipTxtOn: { color: C.hi },
-  budLine: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 10 },
-  budAmt: { fontSize: 15, fontFamily: 'Inter_900Black', color: C.hi, fontVariant: ['tabular-nums'] },
   budgetOf: { fontSize: 11, fontFamily: 'Inter_700Bold', color: C.mut },
-  budgetLine: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: C.mut },
+  budHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 },
+  budRows: { gap: 10 },
+  budRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  budName: { width: 78, fontSize: 12, fontFamily: 'Inter_700Bold', color: C.txt },
+  budVal: { width: 78, textAlign: 'right', fontSize: 12.5, fontFamily: 'Inter_900Black', color: C.hi, fontVariant: ['tabular-nums'] },
   sideBtn: { flex: 1, padding: 4, gap: 2 },
   emptyInline: { textAlign: 'center', marginTop: spacing[3] },
 

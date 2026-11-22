@@ -2107,7 +2107,8 @@ ostrzeżenie.
   do limitu szary, nadwyżka czerwona, biała kreska = limit (podpis „↑ limit X zł” w sheecie);
   plakietka `budgetBadge` („PRZEKROCZONY · 2,6× limitu” / „81%”); słupki miesięcy dzielone
   (do limitu szare + nadwyżka czerwona), kwota nad słupkiem, kreska limitu NA słupkach.
-  Kafel Finansów: pigułki = nazwa + % w kolorze stanu (bez wypełnienia), pod linią pasek wybranego.
+  Kafel Finansów (2026-11-22, user: „nadal chaos”): BEZ pigułek i wyboru — nagłówek „Budżety · 1 przekroczony /
+  2 blisko limitu / w normie (+N)”, pod nim max 3 wiersze (najpilniejsze): nazwa · `BudgetBar` · „wydane / limit”.
 - **Model** `src/types/budgets.ts` (`scope`: 'all' | 'food' | 'variable' | 'fixed' |
   'cat:<tag>' | 'food:<podkategoria>' (2026-11-15: słodycze, napoje… — kwota z
   `foodStats.foodSplitOf`, tej samej co trend i "Jedzenie" w Wydatkach), `limit` zł/mies.).
