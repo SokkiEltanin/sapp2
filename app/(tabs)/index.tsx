@@ -198,7 +198,19 @@ export default function Dashboard() {
   const countdown = useMemo(() => {
     void now; // przelicz co minutę
     if (!selectedCountdownEvent) return null;
-    return { text: formatCountdown(countdownParts(countdownEventStart(selectedCountdownEvent))), eventTitle: selectedCountdownEvent.title };
+    // Kafel pionowy (2026-11-22, user: "wysoki, a wszystko zbite na środku"): części osobno,
+    // tag z "[JD] …" jako pigułka, kiedy (dzień tygodnia + data + godzina).
+    const ev = selectedCountdownEvent;
+    const start = countdownEventStart(ev);
+    const tm = /^\s*\[([^\]]+)\]\s*/.exec(ev.title ?? '');
+    const wd = start.toLocaleDateString('pl-PL', { weekday: 'short' }).replace('.', '');
+    const when = `${wd} ${start.getDate()}.${String(start.getMonth() + 1).padStart(2, '0')}${ev.startTime ? ` · ${ev.startTime.slice(0, 5)}` : ''}`;
+    const parts = countdownParts(start);
+    return {
+      text: formatCountdown(parts), parts, when,
+      eventTitle: (tm ? ev.title.slice(tm[0].length) : ev.title).trim() || ev.title,
+      tag: tm ? tm[1].trim() : null, color: ev.color ?? null,
+    };
   }, [selectedCountdownEvent, now]);
 
   // "Najbliższe eventy" — wcześniej "Najbliższe 48h" z twardym limitem 48h (user:

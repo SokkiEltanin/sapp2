@@ -486,6 +486,11 @@ lista w NEXT_STEPS.md "Faza 3.12".
 
 ## DASHBOARD [GE]
 
+**Kafel Odliczanie (2026-11-22, user: „wysoki, nie wykorzystujemy tego, wszystko zbite na środku”)**:
+`CountdownBody` w `ui/DashboardScreen.tsx` — pionowo: ogromna liczba (dni → godz. → min), jednostka + reszta
+(„dni 12 h”), dzień i godzina eventu w 2 linijkach, na dole tag z „[JD] …” jako pigułka w kolorze eventu +
+tytuł (tyle linijek, ile się zmieści). Dane: `countdown` w `app/(tabs)/index.tsx` (parts, when, tag, color).
+
 **Przebudowany na nowy system komponentów (Faza 3.2, 2026-11-01), POTEM na kit
 `design/rn/` (Faza 3.10) — ten akapit i poniższe listy komponentów (`StatTile`/
 `FitList`/`Row`/`PricePill` z `src/components/design/`) są HISTORIĄ, te pliki

@@ -15,7 +15,7 @@ import * as LucideIcons from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C, T, F } from './theme';
 import { Screen, Row, Tile, Cap, FitList, Item, Tag, Price, Bars, StackBar, splitTag } from './layout';
-import { countdownParts, formatCountdown } from '@/utils/countdown';
+import { countdownParts, formatCountdown, type CountdownParts } from '@/utils/countdown';
 
 /**
  * Wzorcowy Dashboard 1:1 z app-design.html.
@@ -57,7 +57,7 @@ export type DashData = {
   // (`countdownStore.ts`), kafel liczy do niego w dół. `balance`-owe pola
   // USUNIĘTE stąd razem z nieużywanym dalej kodem w index.tsx (ta funkcja
   // nigdzie indziej się nie pokazywała).
-  countdown: { text: string; eventTitle: string } | null;
+  countdown: { text: string; eventTitle: string; parts?: CountdownParts; when?: string; tag?: string | null; color?: string | null } | null;
   // Lewy górny kafel (2026-11-22, user: "zamiast WYMIAN na Dashboardzie dać zależności"): najsilniejszy
   // wzorzec zachowań (utils/insights.ts). Wymiany: przycisk w Finansach + wyszukiwarka.
   insight: { text: string | null; tone: 'good' | 'bad' | 'neutral'; strength: string | null; count: number; days?: number };
@@ -241,16 +241,8 @@ export function DashboardScreen(d: DashData) {
                 </View>
               )}
             </Tile>
-            <Tile onPress={() => d.onOpen('countdown')} center style={{ justifyContent: 'center', paddingHorizontal: 8 }}>
-              <FitText style={[T.num, { fontSize: 22 }, !d.countdown && { color: C.dim }]} numberOfLines={1} minimumFontScale={0.4}>
-                {d.countdown ? d.countdown.text : '0'}
-              </FitText>
-              {/* 2026-11-09, user: "ten w czerwonym kółku kafelek... on jest wysoki
-                  wiec pozwol tekst zawijać zeby bylo wiadomo do jakiego eventu" —
-                  `numberOfLines:1` obcinał tytuł eventu do "…" mimo że ten kafel
-                  (Row flex:1, sporo wysokości) ma miejsce na więcej. */}
-              <Text style={[T.unit, { textAlign: 'center' }]} numberOfLines={3}>{d.countdown ? d.countdown.eventTitle : 'brak'}</Text>
-              <Text style={T.lab} numberOfLines={1}>Odliczanie</Text>
+            <Tile onPress={() => d.onOpen('countdown')} style={{ paddingHorizontal: 10 }}>
+              <CountdownBody c={d.countdown} />
             </Tile>
           </Row>
     </>,
@@ -380,12 +372,60 @@ function BatteryRow({ icon, b, lowPct, at }: { icon: 'phone' | 'watch' | 'laptop
 }
 
 // Ikona warunków (nazwa z utils/weather.ts's weatherCodeInfo → komponent lucide).
+// Odliczanie (2026-11-22, user: "kafel wysoki, nie wykorzystujemy tego, wszystko zbite na
+// środku"): pionowo — nagłówek u góry, OGROMNA liczba (dni → godziny → minuty) z jednostką,
+// pod nią reszta (np. "11 h"), data i godzina eventu; na dole tag-pigułka + tytuł.
+function CountdownBody({ c }: { c: DashData['countdown'] }) {
+  if (!c) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'space-between' }}>
+        <Text style={T.cap}>Odliczanie</Text>
+        <Text style={[T.num, { fontSize: 34, color: C.dim }]}>0</Text>
+        <Text style={T.small}>Stuknij i wybierz wydarzenie</Text>
+      </View>
+    );
+  }
+  const p = c.parts;
+  const [big, unit, rest] = !p ? [c.text, '', '']
+    : p.past ? ['teraz', '', '']
+    : p.days > 0 ? [String(p.days), p.days === 1 ? 'dzień' : 'dni', `${p.hours} h`]
+    : p.hours > 0 ? [String(p.hours), 'godz.', `${p.minutes} min`]
+    : [String(p.minutes), 'min', ''];
+  const accent = c.color || C.txt;
+  const [whenDay, whenTime] = (c.when ?? '').split(' · ');
+  return (
+    <View style={{ flex: 1 }}>
+      <FitText style={[T.num, st.cdBig]} numberOfLines={1} minimumFontScale={0.5}>{big}</FitText>
+      {!!unit && <Text style={st.cdUnit} numberOfLines={1}>{unit}{rest ? <Text style={st.cdRest}> {rest}</Text> : null}</Text>}
+      {!!whenDay && <Text style={st.cdWhen} numberOfLines={2}>{whenDay}{whenTime ? <Text style={st.cdTime}>{'\n'}{whenTime}</Text> : null}</Text>}
+      {/* tytuł wypełnia resztę wysokości (tyle linijek, ile się zmieści) */}
+      <View style={st.cdFoot}>
+        {!!c.tag && (
+          <View style={[st.cdTag, { backgroundColor: accent + '33' }]}>
+            <Text style={[st.cdTagTxt, { color: accent }]} numberOfLines={1}>{c.tag}</Text>
+          </View>
+        )}
+        <Text style={st.cdTitle} numberOfLines={6}>{c.eventTitle}</Text>
+      </View>
+    </View>
+  );
+}
+
 function WeatherIcon({ name, color = C.txt }: { name: string; color?: string }) {
   const Icon = (LucideIcons as any)[name] ?? LucideIcons.Cloud;
   return <Icon size={16} color={color} style={st.icoR} />;
 }
 
 const st = StyleSheet.create({
+  cdBig: { fontSize: 46, lineHeight: 50, letterSpacing: -1.5, color: C.hi },
+  cdUnit: { fontSize: 13, fontFamily: F.xb, color: C.txt, marginTop: -2 },
+  cdRest: { fontSize: 12, fontFamily: F.b, color: C.mut },
+  cdWhen: { fontSize: 10.5, lineHeight: 13, fontFamily: F.b, color: C.mut, marginTop: 6 },
+  cdTime: { fontFamily: F.xb, color: C.txt },
+  cdFoot: { flex: 1, minHeight: 0, justifyContent: 'flex-end', overflow: 'hidden', gap: 4, marginTop: 6 },
+  cdTag: { alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  cdTagTxt: { fontSize: 9.5, fontFamily: F.xb, letterSpacing: 0.3 },
+  cdTitle: { fontSize: 11.5, lineHeight: 14, fontFamily: F.b, color: C.txt },
   batTile: { justifyContent: 'center', gap: 6, paddingVertical: 8 },
   batRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 6, paddingVertical: 4, marginHorizontal: -6, borderRadius: 8 },
   batRowLow: { backgroundColor: 'rgba(239,68,68,0.16)' },
