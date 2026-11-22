@@ -1,13 +1,7 @@
 package com.sokki.sapp2.wear
 
-import android.Manifest
 import android.app.Activity
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
 import android.os.Handler
 import android.os.Looper
 import android.text.SpannableString
@@ -45,8 +39,8 @@ import kotlin.math.roundToInt
 // przytrzymaniem → /sapp2/toggle) oraz kalendarz/praca dziś i jutro. Bez wydatków. Ostatnie dane zapamiętane — działa też bez telefonu w zasięgu.
 // Bezel (Galaxy Watch) przewija listę.
 // 2026-11-21: licznik zarobków na żywo w czasie zmiany z kalendarza (snapshot "work"),
-// humor palcem (MoodPadActivity), tętno prosto z czujnika zegarka (tylko gdy appka otwarta).
-class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventListener {
+// humor palcem (MoodPadActivity). Tętno usunięte 2026-11-22 (user: "tętna nie chcę mieć widocznego").
+class MainActivity : Activity(), DataClient.OnDataChangedListener {
     private lateinit var scroll: ScrollView
     private lateinit var list: LinearLayout
     private val prefs by lazy { getSharedPreferences(Snapshot.PREFS, MODE_PRIVATE) }
@@ -69,20 +63,10 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
             if (!resumed) return
             updateTicker()
             updateHero()
-            updateHeart()
             ui.postDelayed(this, 100)
         }
     }
 
-    // Tętno
-    private val sensors by lazy { getSystemService(SENSOR_SERVICE) as SensorManager }
-    private var hrSensor: Sensor? = null
-    private var bpm = 0
-    private var hrContact = true
-    private var hrValue: TextView? = null
-    private var hrHeart: TextView? = null
-    private var hrUnit: TextView? = null
-    private var hrOn = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -125,7 +109,6 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
         fetch()
         render(prefs.getString(Snapshot.KEY, null)) // np. po zapisaniu humoru
         scroll.requestFocus()
-        startHeart()
         ui.removeCallbacks(tick)
         ui.post(tick)
     }
@@ -134,66 +117,17 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
         super.onPause()
         resumed = false
         ui.removeCallbacks(tick)
-        stopHeart()
         Wearable.getDataClient(this).removeListener(this)
     }
 
-    // ── Tętno: czujnik zegarka (BODY_SENSORS), tylko gdy appka jest na wierzchu ──
-    private fun hasHrPermission() = checkSelfPermission(Manifest.permission.BODY_SENSORS) == PackageManager.PERMISSION_GRANTED
 
-    private fun startHeart() {
-        if (hrOn || !hasHrPermission()) return
-        hrSensor = sensors.getDefaultSensor(Sensor.TYPE_HEART_RATE) ?: return
-        hrOn = sensors.registerListener(this, hrSensor, SensorManager.SENSOR_DELAY_NORMAL)
-    }
 
-    private fun stopHeart() {
-        if (hrOn) sensors.unregisterListener(this)
-        hrOn = false
-    }
 
-    override fun onSensorChanged(e: SensorEvent) {
-        if (e.sensor.type != Sensor.TYPE_HEART_RATE || e.values.isEmpty()) return
-        val v = e.values[0].roundToInt()
-        // Samsung zgłasza "brak kontaktu" także w pierwszych sekundach pomiaru (user: "pisało załóż
-        // zegarek, mimo że miałem założony") — brak kontaktu tylko, gdy nie ma żadnego odczytu.
-        if (v > 0) { bpm = v; hrContact = true }
-        else if (e.accuracy == SensorManager.SENSOR_STATUS_NO_CONTACT && bpm == 0) hrContact = false
-        showHeart()
-    }
 
-    private fun showHeart() {
-        val t = heartText()
-        val num = t.all { it.isDigit() }
-        hrValue?.text = t
-        hrValue?.setTextSize(TypedValue.COMPLEX_UNIT_SP, if (num) 18f else 12f)
-        hrUnit?.visibility = if (num) android.view.View.VISIBLE else android.view.View.GONE
-    }
 
-    override fun onAccuracyChanged(s: Sensor?, a: Int) {}
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 7 && hasHrPermission()) { startHeart(); render(prefs.getString(Snapshot.KEY, null)) }
-    }
 
-    private fun heartText(): String = when {
-        !hasHrPermission() -> "stuknij, żeby mierzyć"
-        sensors.getDefaultSensor(Sensor.TYPE_HEART_RATE) == null -> "brak czujnika"
-        !hrContact -> "brak odczytu — popraw zegarek"
-        bpm <= 0 -> "mierzę…"
-        else -> "$bpm"
-    }
 
-    // Serce "bije" w rytmie zmierzonego tętna.
-    private fun updateHeart() {
-        val h = hrHeart ?: return
-        if (bpm <= 0 || !hrContact) { h.scaleX = 1f; h.scaleY = 1f; return }
-        val period = 60000.0 / bpm
-        val ph = (System.currentTimeMillis() % period.toLong()) / period
-        val k = if (ph < 0.15) 1 + 0.28 * Math.sin(ph / 0.15 * Math.PI) else 1.0
-        h.scaleX = k.toFloat(); h.scaleY = k.toFloat()
-    }
 
     // ── Licznik zarobków ──
     private fun currentShift(now: Long): JSONObject? {
@@ -298,7 +232,7 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
 
     private fun render(json: String?) {
         list.removeAllViews()
-        tickAmount = null; tickSub = null; tickFill = null; hrValue = null; hrHeart = null; hrUnit = null
+        tickAmount = null; tickSub = null; tickFill = null
         val snap = try { if (json != null) JSONObject(json) else null } catch (e: Exception) { null }
         shifts = snap?.optJSONArray("work")
         activeKey = shiftKey(System.currentTimeMillis())
@@ -321,7 +255,6 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
         renderHero(snap, open, overdue)
 
         renderMood(snap)
-        renderHeart()
         list.post { curve() }
 
         list.addView(section("ZADANIA"))
@@ -330,60 +263,10 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
             val t = tasks.optJSONObject(i) ?: continue
             val id = t.optString("id")
             if (id.isEmpty() || doneLocal.contains(id)) continue
-            val steps = t.optJSONArray("steps")
-            val isOpen = expanded.contains(id)
-            var stepsDone = 0
-            val n = steps?.length() ?: 0
-            for (k in 0 until n) {
-                val st = steps!!.optJSONObject(k) ?: continue
-                if (stepLocal["$id|${st.optString("id")}"] ?: st.optBoolean("done")) stepsDone++
-            }
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(0, dp(6), 0, dp(6))
-                isClickable = true
-                setOnClickListener { if (isOpen) expanded.remove(id) else expanded.add(id); render(prefs.getString(Snapshot.KEY, null)) }
-            }
-            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-            col.addView(text(t.optString("title"), 14f, "#F2F2F2", center = true, maxLines = 2))
-            val sub = t.optString("sub").replace(Regex("^\\d+/\\d+( · )?"), "")
-            val meta = listOfNotNull(if (n > 0) "kroki $stepsDone/$n" else null, sub.ifEmpty { null }).joinToString(" · ")
-            val meta2 = if (n > 0) meta + (if (isOpen) "  ▴" else "  ▾") else meta
-            if (meta2.isNotEmpty()) col.addView(text(meta2, 11f, if (t.optBoolean("overdue")) "#F87171" else "#A3A3A3", center = true))
-            row.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            list.addView(row)
-
-            if (isOpen) {
-                for (k in 0 until n) {
-                    val st = steps!!.optJSONObject(k) ?: continue
-                    val sid = st.optString("id")
-                    val done = stepLocal["$id|$sid"] ?: st.optBoolean("done")
-                    val sr = LinearLayout(this).apply {
-                        orientation = LinearLayout.HORIZONTAL
-                        gravity = Gravity.CENTER_VERTICAL
-                        setPadding(dp(18), dp(5), 0, dp(5))
-                        isClickable = true
-                        setOnClickListener { toggleStep(id, sid, !done) }
-                    }
-                    sr.addView(text(if (done) "●" else "○", 14f, if (done) "#4ADE80" else "#A3A3A3").apply { setPadding(0, 0, dp(8), 0) })
-                    sr.addView(text(st.optString("title"), 13f, if (done) "#8A8A8A" else "#E5E5E5", maxLines = 2).apply {
-                        if (done) paintFlags = paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
-                    }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-                    list.addView(sr)
-                }
-                // Zakończenie całego zadania — tylko przytrzymaniem.
-                val btn = text("Przytrzymaj: zadanie zrobione", 12f, "#000000", bold = true, center = true).apply {
-                    setPadding(dp(10), dp(8), dp(10), dp(8))
-                    background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(18).toFloat(); setColor(Color.parseColor("#D6D6D6")) }
-                    isLongClickable = true
-                    setOnLongClickListener { performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); toggle(id); true }
-                }
-                list.addView(btn, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(18), dp(6), 0, dp(8)) })
-            }
+            list.addView(taskCard(t, id))
         }
 
-        // Kalendarz i praca: dziś + jutro
+        // Kalendarz i praca: dziś + jutro — osobne karty z kolorem wydarzenia.
         val events = snap.optJSONArray("events")
         if (events == null || events.length() == 0) {
             list.addView(section("KALENDARZ"))
@@ -394,15 +277,103 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
                 val e = events.optJSONObject(i) ?: continue
                 val day = e.optString("day")
                 if (day != lastDay) { list.addView(section(if (day == "jutro") "JUTRO" else "DZIŚ")); lastDay = day }
-                val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(0, dp(4), 0, dp(4)) }
                 val ec = try { Color.parseColor(e.optString("color", "#A3A3A3")) } catch (x: Exception) { Color.GRAY }
-                val timeLine = SpannableString("● " + e.optString("time"))
-                timeLine.setSpan(ForegroundColorSpan(ec), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                col.addView(text("", 10f, "#A3A3A3", bold = true, center = true).apply { text = timeLine })
-                col.addView(text(e.optString("title"), 13f, "#F2F2F2", center = true, maxLines = 2))
-                list.addView(col)
+                val card = card(ec)
+                card.addView(text(e.optString("time"), 11f, "#A3A3A3", bold = true).apply { setTextColor((ec and 0x00FFFFFF) or 0xE6000000.toInt()) })
+                card.addView(text(e.optString("title"), 14f, "#F2F2F2", bold = true, maxLines = 2).apply { setPadding(0, dp(2), 0, 0) })
+                list.addView(cardWrap(card, ec))
             }
         }
+    }
+
+    // ── Karty (2026-11-22, user: "lepsze kafelki zadań — przy wyśrodkowanym tekście nie widać, gdzie
+    // koniec zadania, a gdzie zaczyna się kolejne; poczytaj o UI/UX na zegarki"). Wg zasad Wear OS:
+    // każda pozycja = osobna zaokrąglona karta na całą szerokość z odstępem, tekst w karcie od lewej
+    // (czyta się jak listę), nagłówki sekcji wyśrodkowane, cel dotyku min. 48 dp. W naszym stylu:
+    // ciemna karta #1A1A1A i kolor (tag/wydarzenie/zaległe) jako sierp po łuku lewego rogu — jak w telefonie.
+    private fun card(accent: Int?): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        minimumHeight = dp(48)
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(14), dp(10), dp(12), dp(10))
+        background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(22).toFloat(); setColor(Color.parseColor("#1A1A1A")) }
+    }
+
+    /** Karta na kolorowym tle przesunięta o 4 dp → kolorowy sierp po łuku lewego rogu. */
+    private fun cardWrap(card: LinearLayout, accent: Int?): android.view.View {
+        val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(3), 0, dp(3)) }
+        if (accent == null) { card.layoutParams = lp; return card }
+        val wrap = android.widget.FrameLayout(this).apply {
+            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(22).toFloat(); setColor(accent) }
+            layoutParams = lp
+        }
+        wrap.addView(card, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, android.widget.FrameLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(4) })
+        return wrap
+    }
+
+    private fun taskCard(t: JSONObject, id: String): android.view.View {
+        val steps = t.optJSONArray("steps")
+        val isOpen = expanded.contains(id)
+        val n = steps?.length() ?: 0
+        var stepsDone = 0
+        for (k in 0 until n) {
+            val st = steps!!.optJSONObject(k) ?: continue
+            if (stepLocal["$id|${st.optString("id")}"] ?: st.optBoolean("done")) stepsDone++
+        }
+        val overdue = t.optBoolean("overdue")
+        val accent = if (overdue) Color.parseColor("#F87171") else null
+        val card = card(accent).apply {
+            isClickable = true
+            setOnClickListener { if (isOpen) expanded.remove(id) else expanded.add(id); render(prefs.getString(Snapshot.KEY, null)) }
+        }
+        card.addView(text(t.optString("title"), 14f, "#F2F2F2", bold = true, maxLines = if (isOpen) 4 else 2))
+        val sub = t.optString("sub").replace(Regex("^\\d+/\\d+( · )?"), "")
+        val meta = listOfNotNull(if (n > 0) "kroki $stepsDone/$n" else null, sub.ifEmpty { null }).joinToString(" · ")
+        if (meta.isNotEmpty() || n > 0) {
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(3), 0, 0) }
+            row.addView(text(meta, 11f, if (overdue) "#F87171" else "#A3A3A3"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            if (n > 0) row.addView(text(if (isOpen) "▴" else "▾", 12f, "#A3A3A3"))
+            card.addView(row)
+        }
+        // postęp kroków — cienki pasek wewnątrz karty (nie dotyka zaokrągleń)
+        if (n > 0) {
+            val track = android.widget.FrameLayout(this).apply { background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(2).toFloat(); setColor(Color.parseColor("#2E2E2E")) } }
+            val fill = android.view.View(this).apply { background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(2).toFloat(); setColor(Color.parseColor("#4ADE80")) } }
+            track.addView(fill, android.widget.FrameLayout.LayoutParams(0, dp(3)))
+            track.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+                val w = (v.width * stepsDone.toFloat() / n).roundToInt()
+                if (fill.layoutParams.width != w) fill.post { fill.layoutParams = fill.layoutParams.apply { width = w } }
+            }
+            card.addView(track, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(3)).apply { setMargins(0, dp(6), 0, 0) })
+        }
+        if (isOpen) {
+            for (k in 0 until n) {
+                val st = steps!!.optJSONObject(k) ?: continue
+                val sid = st.optString("id")
+                val done = stepLocal["$id|$sid"] ?: st.optBoolean("done")
+                val sr = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    minimumHeight = dp(40)
+                    isClickable = true
+                    setOnClickListener { toggleStep(id, sid, !done) }
+                }
+                sr.addView(text(if (done) "●" else "○", 15f, if (done) "#4ADE80" else "#A3A3A3").apply { setPadding(0, 0, dp(8), 0) })
+                sr.addView(text(st.optString("title"), 13f, if (done) "#8A8A8A" else "#E5E5E5", maxLines = 2).apply {
+                    if (done) paintFlags = paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
+                }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+                card.addView(sr)
+            }
+            // Zakończenie całego zadania — tylko przytrzymaniem.
+            val btn = text("Przytrzymaj: zrobione", 12f, "#000000", bold = true, center = true).apply {
+                setPadding(dp(10), dp(9), dp(10), dp(9))
+                background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(18).toFloat(); setColor(Color.parseColor("#D6D6D6")) }
+                isLongClickable = true
+                setOnLongClickListener { performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); toggle(id); true }
+            }
+            card.addView(btn, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(8), 0, 0) })
+        }
+        return cardWrap(card, accent)
     }
 
     // ── Pierwszy ekran (2026-11-22, user: "ten ekran na głównej bym podzielił; zamiast liczby zadań
@@ -556,7 +527,7 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(10), dp(8), dp(10), dp(8))
             isClickable = true
-            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(18).toFloat(); setColor(Color.parseColor(if (n == 0) "#1F2A1F" else "#141414")) }
+            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(22).toFloat(); setColor(Color.parseColor(if (n == 0) "#1F2A1F" else "#1A1A1A")) }
             setOnClickListener { startActivity(Intent(this@MainActivity, MoodPadActivity::class.java)) }
         }
         if (n > 0 && m != null && en != null) {
@@ -572,25 +543,6 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener, SensorEventLi
         list.addView(row)
     }
 
-    private fun renderHeart() {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(10), dp(6), dp(10), dp(6))
-            isClickable = true
-            setOnClickListener {
-                if (!hasHrPermission()) requestPermissions(arrayOf(Manifest.permission.BODY_SENSORS), 7) else startHeart()
-            }
-        }
-        hrHeart = text("♥", 18f, "#F87171").apply { setPadding(0, 0, dp(8), 0) }
-        row.addView(hrHeart)
-        hrValue = text("", 12f, "#F2F2F2", bold = true)
-        row.addView(hrValue)
-        hrUnit = text(" bpm", 10f, "#A3A3A3")
-        row.addView(hrUnit)
-        showHeart()
-        list.addView(row, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(4), 0, 0) })
-    }
 
     private fun section(label: String) = text(label, 10f, "#A3A3A3", bold = true, center = true).apply {
         letterSpacing = 0.08f

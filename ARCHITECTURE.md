@@ -2440,3 +2440,12 @@ na Dashboardzie; tętno pisało »załóż zegarek« mimo założonego”.
 - Daily: bez kafli wzorców i dobrej rzeczy. Dobra rzecz = pole w MoodModal W MIEJSCU notatki (stare notatki zostają
   w pamiętniku), w gorszy dzień „Pamiętasz?” pod polem; edycja starszych z kart w statystykach humoru i z wyszukiwarki
   (GoodThingSheet przez `/daily?good=`).
+
+## ZEGAREK: KARTY ZAMIAST WYŚRODKOWANEGO TEKSTU, BEZ TĘTNA (2026-11-22)
+
+User: „tętna nie chcę; lepsze kafelki zadań — przy wyśrodkowanym tekście nie widać, gdzie koniec zadania, a gdzie
+kolejne; poczytaj o UI/UX na zegarki”. Wg zasad Wear OS: każda pozycja = osobna zaokrąglona karta (`card`, #1A1A1A,
+promień 22 dp, min. 48 dp), tekst w karcie od lewej, nagłówki sekcji wyśrodkowane, odstęp 6 dp. Kolor (zaległe
+zadanie / kolor wydarzenia) = sierp po łuku lewego rogu (`cardWrap`: karta przesunięta o 4 dp nad kolorem — jak
+w telefonie). Zadanie: tytuł, „kroki x/y · termin” + ▾, cienki pasek postępu w karcie; rozwinięte kroki i
+„Przytrzymaj: zrobione” w tej samej karcie. Tętno usunięte (kod, uprawnienie BODY_SENSORS).
