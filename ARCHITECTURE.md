@@ -2509,6 +2509,17 @@ na Dashboardzie; tętno pisało »załóż zegarek« mimo założonego”.
   w pamiętniku), w gorszy dzień „Pamiętasz?” pod polem; edycja starszych z kart w statystykach humoru i z wyszukiwarki
   (GoodThingSheet przez `/daily?good=`).
 
+## FORMULARZ WYDATKU: PIGUŁKI + POZYCJE W JEDNEJ LINII (2026-11-23)
+
+User: „za dużo napisów, chaos — lepiej jeden przycisk, który się rozsuwa”. `components/finances/AddExpenseModal.tsx`:
+sklep + pigułka daty → kwota (gdy brak pozycji) → „Paragon · N poz.” z przyciskami **Wklej** (panel wklejki, sam rozpoznaje
+i się zwija) i **+ Pozycja** → pozycje w JEDNEJ linii (`ReceiptItemRow` `open`/`onToggle`: checkbox, kropka kategorii, nazwa,
+ilość ×, zniżka na zielono, cena; stuknięcie = pełna edycja, jedna rozwinięta naraz, nowa pozycja od razu rozwinięta) →
+zniżki/rabat w jednej linijce → rząd pigułek (`Pill`): Rozlicz, Kategoria albo Jedzenie (gdy cały wydatek to jedzenie),
+Kategoria przychodu, „Ja · Karta”, notatka, wybrane tagi (× usuwa), „+ tag”. Jeden panel naraz (`panel` state) pod
+rzędem; pigułka ze zmienioną wartością jaśniejsza. Wybór w panelu jednokrotnym (Rozlicz, Jedzenie, Kategoria przychodu)
+zamyka panel. Wszystkie pola i reguły („Zawsze tak dla…”) bez zmian — tylko układ.
+
 ## WZORCE: ROZBICIE DNI PRACY (2026-11-23)
 
 User: „rozbić dni pracy — długie, krótkie itd.” (tylko we wzorcach). `utils/insights.ts`: cechy liczone TYLKO w dni pracy

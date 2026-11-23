@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
-import { Square, CheckSquare, Trash2, Tag as TagIcon, TriangleAlert, Percent } from 'lucide-react-native';
+import { Square, CheckSquare, Trash2, Tag as TagIcon, TriangleAlert, Percent, ChevronUp } from 'lucide-react-native';
 import { parseDiscountInput, setItemDiscount, grossPrice } from '@/utils/receiptDiscount';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -43,12 +43,18 @@ export default function ReceiptItemRow({
   onDelete,
   priceMemory = {},
   knownNames = [],
+  open = true,
+  onToggle,
 }: {
   item: ReceiptItem;
   onChange: (patch: Partial<ReceiptItem>) => void;
   onDelete: () => void;
   priceMemory?: PriceMemory;
   knownNames?: string[];
+  // Zwinięta = jedna linia (2026-11-23, user: "za dużo napisów, chaos" — pozycje paragonu w 1 linii,
+  // stuknięcie = pełna edycja). Rodzic trzyma, która pozycja jest rozwinięta (jedna naraz).
+  open?: boolean;
+  onToggle?: () => void;
 }) {
   const s = makeS();
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
@@ -98,6 +104,25 @@ export default function ReceiptItemRow({
   };
   const hasDiscount = (item.discount ?? 0) > 0;
 
+  if (!open) {
+    return (
+      <TouchableOpacity style={[s.line, !included && s.rowExcluded]} onPress={() => { haptic.tap(); onToggle?.(); }} activeOpacity={0.7}
+        accessibilityLabel={`${item.name || 'Pozycja'}, ${zl(item.price)} — edytuj`}>
+        <TouchableOpacity onPress={() => { haptic.tap(); onChange({ excluded: included }); }} hitSlop={10}>
+          {included ? <CheckSquare size={16} color={colors.text.secondary} /> : <Square size={16} color={colors.text.muted} />}
+        </TouchableOpacity>
+        <View style={[s.lineDot, { backgroundColor: item.kind === 'deposit' ? colors.text.muted : meta?.color ?? colors.ui.in2 }]} />
+        <Text style={[s.lineName, !included && s.textMuted, !item.name && { color: colors.text.muted }]} numberOfLines={1}>
+          {item.name || 'bez nazwy'}
+        </Text>
+        {priceFlag && <TriangleAlert size={12} color={colors.accent.red} />}
+        {item.quantity !== 1 && <Text style={s.lineQty}>{String(round(item.quantity, 3)).replace('.', ',')}×</Text>}
+        {hasDiscount && <Text style={s.lineDisc}>−{item.discount!.toFixed(2).replace('.', ',')}</Text>}
+        <Text style={[s.linePrice, !included && s.textMuted]}>{item.price.toFixed(2).replace('.', ',')}</Text>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <View style={[s.row, item.kind === 'deposit' && s.rowDeposit, !included && s.rowExcluded]}>
       <View style={s.topLine}>
@@ -117,6 +142,11 @@ export default function ReceiptItemRow({
         <TouchableOpacity onPress={onDelete} hitSlop={8}>
           <Trash2 size={16} color={colors.text.muted} />
         </TouchableOpacity>
+        {onToggle && (
+          <TouchableOpacity onPress={() => { haptic.tap(); onToggle(); }} hitSlop={8} accessibilityLabel="Zwiń pozycję">
+            <ChevronUp size={16} color={colors.text.secondary} />
+          </TouchableOpacity>
+        )}
       </View>
 
       {nameSuggestion && (
@@ -247,6 +277,12 @@ const makeS = themedStyles((c) => StyleSheet.create({
     gap: spacing[1], marginBottom: spacing[2],
   },
   rowDeposit: { opacity: 0.75 },
+  line: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
+  lineDot: { width: 7, height: 7, borderRadius: 4 },
+  lineName: { flex: 1, fontSize: 13, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  lineQty: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.muted, fontVariant: ['tabular-nums'] },
+  lineDisc: { fontSize: 11.5, fontFamily: 'Inter_800ExtraBold', color: c.accent.green, fontVariant: ['tabular-nums'] },
+  linePrice: { minWidth: 52, textAlign: 'right', fontSize: 13, fontFamily: 'Inter_900Black', color: c.text.bright, fontVariant: ['tabular-nums'] },
   rowExcluded: { opacity: 0.45 },
   topLine: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   // Tło/obwódka jak `numInput` (2026-11-01, user: "nie mogę edytować poszczególnych

@@ -41,10 +41,17 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-23 — Formularz wydatku uporządkowany + wzorce dni pracy** (ARCHITECTURE „FORMULARZ WYDATKU: PIGUŁKI…”,
+„WZORCE: ROZBICIE DNI PRACY”). OTA.
+- [ ] Wydatek: wklejka z „Wklej” → pozycje w 1 linii; stuknięcie pozycji = edycja, ✓ wyklucza bez rozwijania; pigułki
+  (Rozlicz, Kategoria, Ja · Karta, notatka, tagi) otwierają jeden panel; edycja starego wydatku z bankiem/paragonem.
+- [ ] Wzorce → filtr „Praca”: po kilku tygodniach zmian z godzinami w tytule (np. „10:00 - 21:00”) pojawiają się
+  porównania długa/krótka zmiana, rano/popołudnie, dzień po pracy, praca po krótkim śnie.
+- [ ] Do decyzji (zaproponowane 2026-11-23): prognoza końca miesiąca w Finansach, podsumowanie tygodnia, ten sam styl
+  w Zdrowiu/Pojazdach/Subskrypcjach, Ustawienia z grupami i szukaniem, bateria per appka (szacunek, APK).
+
 **2026-11-22 — Wydatek: wklejka paragonu sama się rozpoznaje i zwija; bez pływającego przycisku; data z banku
-czytelna.** OTA. DO DECYZJI (user pytany): uporządkowanie formularza wydatku — karta podsumowania na górze,
-pozycje paragonu w 1 linii (stuknięcie = edycja), rząd pigułek (rozlicz/kategoria/zapłacono/tagi/notatka)
-rozwijanych pojedynczo, tagi: tylko wybrane + „+ tag”.
+czytelna.** OTA. (Uporządkowanie formularza — zrobione 2026-11-23, wyżej.)
 
 **2026-11-22 — Pogoda 2.0** (ARCHITECTURE „Pogoda 2.0”). OTA. User szuka przykładów do inspiracji — po nich
 kolejna runda (np. kafel pogody na Dashboardzie w tym samym stylu).
