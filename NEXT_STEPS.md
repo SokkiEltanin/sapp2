@@ -41,6 +41,12 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-23 — Mniej kolorów + animowana pogoda** (ARCHITECTURE „MNIEJ KOLORÓW + SCENA POGODY”). OTA.
+- [ ] Kalendarz: zmiany JD (żółte) czytelne z białym tekstem; przytrzymanie tagu w zadaniach usuwa go (Cofnij działa).
+- [ ] Kafel pogody na telefonie: scena nie nachodzi na temperaturę, animacja płynna (bez zacięć przy przewijaniu
+  Dashboardu), staje po przejściu na inną zakładkę. Śnieg/deszcz/burza/noc widać od razu.
+- [ ] Finanse: czerwony/zielony pasek + biała kropka z kubłem; Daily → Miesiąc biało-czarny.
+
 **2026-11-23 — Formularz wydatku uporządkowany + wzorce dni pracy** (ARCHITECTURE „FORMULARZ WYDATKU: PIGUŁKI…”,
 „WZORCE: ROZBICIE DNI PRACY”). OTA.
 - [ ] Wydatek: wklejka z „Wklej” → pozycje w 1 linii; stuknięcie pozycji = edycja, ✓ wyklucza bez rozwijania; pigułki

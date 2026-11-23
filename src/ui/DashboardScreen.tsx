@@ -11,8 +11,9 @@ import NotePreview from '@/components/notes/NotePreview';
 import NotePage from '@/components/notes/NotePage';
 import { noteTitle } from '@/utils/notes';
 import type { Note } from '@/types/notes';
-import * as LucideIcons from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import WeatherScene, { SKY } from '@/components/weather/WeatherScene';
+import type { WeatherToneKey } from '@/utils/weather';
 import { C, T, F } from './theme';
 import { Screen, Row, Tile, Cap, FitList, Item, Tag, Price, Bars, StackBar, splitTag } from './layout';
 import { countdownParts, formatCountdown, type CountdownParts } from '@/utils/countdown';
@@ -33,7 +34,7 @@ export type DashData = {
   };
   // Pogoda ZAMIAST snu (2026-11-13, user: "sen na dashboardzie jest spoko, ale
   // on jest zaraz w zakładce obok") — `null` + `weatherHint` = stan pusty.
-  weather: { temp: string; feels: string; label: string; icon: string; tone: string; place: string; rain: string; aqi?: { value: number; color: string } } | null;
+  weather: { temp: string; feels: string; label: string; icon: string; tone: string; scene: WeatherToneKey; wind: number; place: string; rain: string; aqi?: { value: number; color: string } } | null;
   weatherHint: string;
   foodMonths: { label: string; value: number }[];
   // Czas z telefonem (2026-11-22) — rząd "screen" zamiast #JedzeniePerMiesiąc (ten domyślnie ukryty).
@@ -163,21 +164,31 @@ export function DashboardScreen(d: DashData) {
                 at={Platform.OS === 'web' ? d.batteries.remotePhone?.t : undefined} />
               <BatteryRow icon="watch" b={d.batteries.watch} lowPct={d.batteries.lowPct} at={d.batteries.watch?.t} />
             </Tile>
-            <Tile span={2} onPress={() => d.onOpen('weather')} style={{ justifyContent: 'space-between', overflow: 'hidden' }}>
+            <Tile span={2} onPress={() => d.onOpen('weather')} style={[{ justifyContent: 'flex-end', overflow: 'hidden' }, d.weather && st.wxGlassEdge]}>
               {d.weather ? (
                 <>
-                  {/* Lekki akcent w kolorze pogody (2026-11-14) — bez animacji. */}
+                  {/* Scena pixel-art + "szkło" (2026-11-23, user: "bardziej wizualny, ale minimalistyczny —
+                      widać, że pada / wieje / słońce; pixel art, animacja, glassmorphism, bez lagów"):
+                      odcień nieba u góry, animowana scena (components/weather/WeatherScene.tsx), dół
+                      przyciemniony pod tekst, jasna krawędź kafla. Bez prawdziwego blur (laguje na Androidzie). */}
                   <LinearGradient
-                    colors={[d.weather.tone + '33', 'transparent']}
-                    start={{ x: 1, y: 0 }}
-                    end={{ x: 0.2, y: 0.9 }}
+                    colors={[SKY[d.weather.scene] + '40', SKY[d.weather.scene] + '0D']}
+                    start={{ x: 0.7, y: 0 }}
+                    end={{ x: 0.3, y: 1 }}
                     style={StyleSheet.absoluteFill}
                     pointerEvents="none"
                   />
-                  <WeatherIcon name={d.weather.icon} color={d.weather.tone} />
+                  <WeatherScene scene={d.weather.scene} wind={d.weather.wind} />
+                  <LinearGradient
+                    colors={['transparent', 'rgba(8,8,8,0.68)']}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 0, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                    pointerEvents="none"
+                  />
                   <View>
                     <Text style={T.num} numberOfLines={1}>{d.weather.temp}</Text>
-                    <Text style={T.unit} numberOfLines={1}>odcz. {d.weather.feels} · {d.weather.label}</Text>
+                    <Text style={T.unit} numberOfLines={1}>{d.weather.label} · odcz. {d.weather.feels}</Text>
                   </View>
                   <View style={st.wxFoot}>
                     <Text style={[T.small, { flex: 1 }]} numberOfLines={1}>{d.weather.rain}</Text>
@@ -412,10 +423,6 @@ function CountdownBody({ c }: { c: DashData['countdown'] }) {
   );
 }
 
-function WeatherIcon({ name, color = C.txt }: { name: string; color?: string }) {
-  const Icon = (LucideIcons as any)[name] ?? LucideIcons.Cloud;
-  return <Icon size={16} color={color} style={st.icoR} />;
-}
 
 const st = StyleSheet.create({
   cdBig: { fontSize: 46, lineHeight: 50, letterSpacing: -1.5, color: C.hi },
@@ -435,7 +442,8 @@ const st = StyleSheet.create({
   batAge: { fontFamily: F.b, fontSize: 9, color: C.dim },
   batTrack: { flex: 1, height: 7, borderRadius: 4, backgroundColor: C.in2, overflow: 'hidden' },
   batFill: { height: '100%', borderRadius: 4 },
-  wxFoot: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  wxFoot: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  wxGlassEdge: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
   wxAqi: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   wxDot: { width: 7, height: 7, borderRadius: 4 },
   icoL: { position: 'absolute', top: 10, left: 10 },

@@ -2509,6 +2509,25 @@ na Dashboardzie; tętno pisało »załóż zegarek« mimo założonego”.
   w pamiętniku), w gorszy dzień „Pamiętasz?” pod polem; edycja starszych z kart w statystykach humoru i z wyszukiwarki
   (GoodThingSheet przez `/daily?good=`).
 
+## MNIEJ KOLORÓW + SCENA POGODY (2026-11-23)
+
+User: „dużo kolorów i słupków, ciężko zrozumieć, dla ADHD-owców to masakra” — punkty po kolei:
+- Kalendarz (tydzień/miesiąc): tło chipa wydarzenia `utils/readableColor.ts` `bgForWhiteText` — jasne kolory (żółty JD)
+  przyciemniane mieszaniem z czernią do luminancji ≤ 0,2, ciemne bez zmian.
+- Zadania: przytrzymanie tagu (formularz i szukajka) = `services/taskTags.ts` `removeTaskTag` — zdejmuje tag ze wszystkich
+  zadań (tagi nie mają osobnej listy), z Cofnij.
+- Daily → Miesiąc: paski i prąd w szarościach, kolor zostaje tylko na procentach (`deltaView`). Seria humoru bez emotki.
+- Finanse: `utils/txGroup.ts` — `txColor` = KIERUNEK (wydatek `FLOW_COLOR.out` czerwony, przychód zielony, przelew własny
+  szary), `bucketLabel` = biała kropka + „Jedzenie/Stałe/Zmienne” w podpisie wiersza (kafel i lista Transakcji), `grayRamp`
+  = szarości podziału i kategorii na kaflu Wydatki. Kolory kubłów (`BUCKET_COLOR`) tylko w środku (okno Wydatki, karty).
+  Saldo: wydatki miesiąca na czerwono.
+- Kafel pogody na Dashboardzie: `components/weather/WeatherScene.tsx` — własne sprite'y pixel-art (`utils/pixelSprite.ts`
+  scala piksele w prostokąty, 1 Svg na sprite), sceny wg `weatherToneKey`: słońce (pulsujące promienie), noc (księżyc +
+  migające gwiazdy), chmury (dryf), mgła (pasy), mżawka/deszcz/ulewa (spadające krople), śnieg (płatki z kołysaniem),
+  burza (błysk), wiatr ≥ 25 km/h (smugi; `wind` = max(wiatr, 0,6 × porywy)). Animacje tylko transform/opacity wrapperów
+  (Animated, native driver), 5 wspólnych pętli; stop bez fokusu ekranu, w tle i przy „ogranicz ruch”. „Szkło” = odcień
+  nieba (`SKY`) + przyciemniony dół pod tekst + jasna krawędź — bez prawdziwego blur (laguje na Androidzie).
+
 ## FORMULARZ WYDATKU: PIGUŁKI + POZYCJE W JEDNEJ LINII (2026-11-23)
 
 User: „za dużo napisów, chaos — lepiej jeden przycisk, który się rozsuwa”. `components/finances/AddExpenseModal.tsx`:
