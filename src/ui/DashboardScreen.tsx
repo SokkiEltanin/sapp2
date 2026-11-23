@@ -252,6 +252,7 @@ export function DashboardScreen(d: DashData) {
               <Cap l="Najbliższe eventy" r={`${d.upcoming.filter((x) => x.kind === 'deadline' || (x.minutes ?? 999) < 60).length} ważne · ${d.upcoming.length} razem`} />
               <FitList
                 data={d.upcoming}
+                scroll
                 emptyText="Nic zaplanowanego"
                 renderItem={(x) => {
                   const { tag, title } = splitTag(x.title);

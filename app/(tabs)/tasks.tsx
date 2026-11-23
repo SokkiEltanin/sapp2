@@ -214,6 +214,7 @@ export default function TasksScreen() {
         <Tile span={4} style={s.listTile}>
           <FitList
             data={activeList}
+            scroll
             minRowH={62}
             maxRowH={66}
             renderItem={(t, i) => (

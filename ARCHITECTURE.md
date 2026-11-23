@@ -486,6 +486,11 @@ lista w NEXT_STEPS.md "Faza 3.12".
 
 ## DASHBOARD [GE]
 
+**FitList `scroll` (2026-11-23, user: „jak więcej zadań — strzałki, strony albo scroll kafelka”)**: `src/ui/layout.tsx`
+FitList z `scroll` — gdy elementów jest więcej niż się mieści, lista przewija się w kaflu (te same wysokości
+wierszy) + linijka „przewiń · jeszcze N” / „koniec listy”. Włączone: lista Zadań (`app/(tabs)/tasks.tsx`) i
+„Najbliższe eventy” na Dashboardzie. Finanse — bez (tam „wszystkie ›”).
+
 **Kafel Odliczanie (2026-11-22, user: „wysoki, nie wykorzystujemy tego, wszystko zbite na środku”)**:
 `CountdownBody` w `ui/DashboardScreen.tsx` — pionowo: ogromna liczba (dni → godz. → min), jednostka + reszta
 („dni 12 h”), dzień i godzina eventu w 2 linijkach, na dole tag z „[JD] …” jako pigułka w kolorze eventu +

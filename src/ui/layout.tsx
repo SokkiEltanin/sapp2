@@ -1,6 +1,6 @@
 import FitText from './FitText';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, Animated, Easing, useWindowDimensions, StyleSheet, StyleProp, ViewStyle, Platform } from 'react-native';
+import { View, Text, Pressable, Animated, Easing, useWindowDimensions, StyleSheet, StyleProp, ViewStyle, Platform, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic } from '@/utils/haptics';
 import { C, R, S, T, F } from './theme';
@@ -163,17 +163,39 @@ export function Cap({ l, r, onR }: { l: string; r?: string | number; onR?: () =>
  * równo. Puste sloty = "ghost" wiersze, więc kafelek z 1 transakcją
  * nie wygląda jak dziura.
  * ------------------------------------------------------------------ */
-export function FitList<I>({ data, minRowH = 30, maxRowH = 44, gap = S.rowGap, renderItem, emptyText }: {
+export function FitList<I>({ data, minRowH = 30, maxRowH = 44, gap = S.rowGap, renderItem, emptyText, scroll = false }: {
   data: I[];
   minRowH?: number;
   maxRowH?: number;
   gap?: number;
   renderItem: (item: I, index: number) => React.ReactNode;
   emptyText?: string;
+  // Przewijanie w kaflu (2026-11-23, user: "jak jest więcej zadań, daj strzałki / zmianę strony
+  // albo scroll kafelka"): gdy elementów jest więcej niż się mieści, lista przewija się palcem
+  // (te same wysokości wierszy), a pod nią linijka "przewiń · jeszcze N".
+  scroll?: boolean;
 }) {
   const [h, setH] = useState(0);
-  const n = h > 0 ? Math.max(1, Math.floor((h + gap) / (minRowH + gap))) : 0;
-  const rowH = n > 0 ? Math.min(maxRowH, (h - gap * (n - 1)) / n) : minRowH;
+  const [shown, setShown] = useState(0); // ile wierszy przewinięto (do licznika "jeszcze N")
+  const HINT = 16;
+  const fits = (hh: number) => (hh > 0 ? Math.max(1, Math.floor((hh + gap) / (minRowH + gap))) : 0);
+  const overflow = scroll && h > 0 && data.length > fits(h);
+  const n = fits(overflow ? h - HINT : h);
+  const rowH = n > 0 ? Math.min(maxRowH, ((overflow ? h - HINT : h) - gap * (n - 1)) / n) : minRowH;
+  if (overflow) {
+    const left = Math.max(0, data.length - n - shown);
+    return (
+      <View style={{ flex: 1, minHeight: 0 }} onLayout={(e) => setH(e.nativeEvent.layout.height)}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap }} nestedScrollEnabled showsVerticalScrollIndicator
+          scrollEventThrottle={64} onScroll={(e) => setShown(Math.max(0, Math.round(e.nativeEvent.contentOffset.y / (rowH + gap))))}>
+          {data.map((it, i) => (
+            <View key={i} style={{ height: rowH }}>{renderItem(it, i)}</View>
+          ))}
+        </ScrollView>
+        <Text style={[T.small, st.fitHint]} numberOfLines={1}>{left > 0 ? `przewiń · jeszcze ${left}` : 'koniec listy'}</Text>
+      </View>
+    );
+  }
   const items = data.slice(0, n);
   const ghosts = Math.max(0, n - items.length);
   return (
@@ -348,6 +370,7 @@ const st = StyleSheet.create({
   pulseRing: { position: 'absolute', width: 6, height: 6, borderRadius: 3, backgroundColor: '#000' },
   cap: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 },
   ghost: { backgroundColor: C.ghost, borderRadius: R.inner, justifyContent: 'center', paddingHorizontal: 10 },
+  fitHint: { height: 16, lineHeight: 16, textAlign: 'center', color: C.mut, fontSize: 10 },
   item: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.in, borderRadius: R.inner, paddingHorizontal: 10 },
   tag: { borderRadius: R.tag, paddingHorizontal: 6, paddingVertical: 3, minWidth: 26, alignItems: 'center' },
   tagT: { fontFamily: F.xb, fontSize: 9, letterSpacing: 0.3, includeFontPadding: false },
