@@ -12,7 +12,7 @@ import { haptic } from '@/utils/haptics';
 // więcej słodyczy jak więcej pracuję, rozrywka w telefonie a słodycze i zakupy"). Logika:
 // utils/insights.ts + hooks/useInsights.ts. Karta = zdanie + dwa paski (więcej vs mniej).
 const GROUPS: { id: Group | 'all'; label: string }[] = [
-  { id: 'all', label: 'Wszystkie' }, { id: 'energia', label: 'Energia i humor' }, { id: 'wydatki', label: 'Wydatki' },
+  { id: 'all', label: 'Wszystkie' }, { id: 'praca', label: 'Praca' }, { id: 'energia', label: 'Energia i humor' }, { id: 'wydatki', label: 'Wydatki' },
   { id: 'telefon', label: 'Telefon' }, { id: 'sen', label: 'Sen' },
 ];
 // Ikona wg tego, CO jest mierzone (y), nie wg grupy (2026-11-22, user: "dwa razy energia —
@@ -22,7 +22,7 @@ const Y_ICON: Partial<Record<FeatKey, typeof Zap>> = {
   sweets: Candy, fastfood: Pizza, shop: ShoppingBag, spend: Wallet,
   fun: Smartphone, screen: Smartphone, unlocks: Lock, night: Moon, work: Briefcase, good: Sparkles,
 };
-const GROUP_ICON = { energia: Zap, wydatki: Wallet, telefon: Smartphone, sen: Moon };
+const GROUP_ICON = { praca: Briefcase, energia: Zap, wydatki: Wallet, telefon: Smartphone, sen: Moon };
 const TONE = { good: colors.accent.green, bad: colors.accent.orange, neutral: colors.text.secondary };
 
 export default function InsightsSheet({ visible, onClose, onOpenScreen }: { visible: boolean; onClose: () => void; onOpenScreen?: () => void }) {
@@ -52,7 +52,7 @@ export default function InsightsSheet({ visible, onClose, onOpenScreen }: { visi
       {insights.length === 0 ? (
         <View style={s.empty}>
           <Text style={s.emptyTitle}>Zbieram dane</Text>
-          <Text style={s.emptyTxt}>Wzorzec pokazuje się dopiero, gdy jest pewny: min. 14 dni danych, po 5 w każdej grupie (np. 5 dni pracy i 5 wolnych), wyraźna różnica i test statystyczny z poprawką na to, że sprawdzamy ok. 30 par naraz — żeby nie było przypadkowych „strzałów”. Zwykle po 2–4 tygodniach.</Text>
+          <Text style={s.emptyTxt}>Wzorzec pokazuje się dopiero, gdy jest pewny: min. 14 dni danych, po 5 w każdej grupie (np. 5 dni pracy i 5 wolnych), wyraźna różnica i test statystyczny z poprawką na to, że sprawdzamy ok. 45 par naraz — żeby nie było przypadkowych „strzałów”. Zwykle po 2–4 tygodniach.</Text>
           <View style={s.cov}>
             {Object.entries(coverage).map(([k, n]) => (
               <View key={k} style={s.covItem}><Text style={s.covN}>{n}</Text><Text style={s.covL}>{k}</Text></View>
@@ -63,7 +63,7 @@ export default function InsightsSheet({ visible, onClose, onOpenScreen }: { visi
       ) : list.map((x) => <InsightCard key={x.id} x={x} />)}
 
       <Text style={s.note}>
-        Jak czytać: dni dzielone są na dwie grupy (np. praca vs wolne, więcej vs mniej rozrywki w telefonie — próg to Twoja mediana), a pasek pokazuje średni wynik w każdej. Każdy pokazany wzorzec przeszedł test statystyczny (z poprawką na wiele porównań); „silny” = duża i bardzo pewna różnica, „słaby” = pewna, ale mniejsza.
+        Jak czytać: dni dzielone są na dwie grupy (np. praca vs wolne, więcej vs mniej rozrywki w telefonie — próg to Twoja mediana), a pasek pokazuje średni wynik w każdej. Praca rozbita jest też między samymi dniami pracy: zmiana 10 h+ vs do 8,5 h, od rana (przed 10:00) vs od popołudnia (od 12:00), do późna (21:00+) vs do 19:00, po 7 h+ snu vs poniżej 6,5 h — godziny zmian z tytułu wydarzenia w kalendarzu. Każdy pokazany wzorzec przeszedł test statystyczny (z poprawką na wiele porównań); „silny” = duża i bardzo pewna różnica, „słaby” = pewna, ale mniejsza.
         Rozrywka w telefonie = społeczności, wideo i gry — appki źle złapane zmienisz stukając je w „Czas z telefonem”.
       </Text>
       {onOpenScreen && (

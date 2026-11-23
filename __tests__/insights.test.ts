@@ -62,3 +62,43 @@ describe('wzorce: statystyka', () => {
     expect(computeInsights(buildDays({ days: ds, spend: { from: ds[0], byDay }, workMin: { from: ds[0], byDay: work } }))).toEqual([]);
   });
 });
+
+describe('wzorce: rozbicie dni pracy', () => {
+  const ds = Array.from({ length: 28 }, (_, i) => `2026-10-${String(i + 1).padStart(2, '0')}`);
+  it('długa vs krótka zmiana — tylko między dniami pracy', () => {
+    const work = new Map<string, number>(); const byDay = new Map<string, any>();
+    ds.forEach((d, i) => {
+      const kind = i % 3; // 0 = długa 11 h, 1 = krótka 8 h, 2 = wolne
+      if (kind === 0) work.set(d, 11 * 60);
+      if (kind === 1) work.set(d, 8 * 60);
+      byDay.set(d, { total: 40, sweets: kind === 0 ? 18 + (i % 4) : kind === 1 ? 4 + (i % 3) : 5 + (i % 2), fastfood: 0, shop: 0 });
+    });
+    const f = buildDays({ days: ds, spend: { from: ds[0], byDay }, workMin: { from: ds[0], byDay: work } });
+    expect(f[2].v.shiftLen).toBeUndefined(); // wolne nie wchodzą
+    const x = computeInsights(f).find((i) => i.id === 'shiftLen-sweets')!;
+    expect(x).toBeDefined();
+    expect(x.group).toBe('praca');
+    expect(x.hi.n + x.lo.n).toBe(19); // 10 długich + 9 krótkich
+    expect(x.text).toMatch(/^Na długiej zmianie \(10 h\+\) na słodycze i przekąski idzie średnio \d+ zł, na krótszej \(do 8,5 h\) \d+ zł/);
+  });
+  it('dzień po pracy: własne etykiety i sen następnej nocy', () => {
+    const work = new Map<string, number>(); const health: Record<string, [number | null, number | null]> = {};
+    ds.forEach((d, i) => {
+      const w = i % 2 === 0;
+      if (w) work.set(d, 9 * 60);
+      if (ds[i + 1]) health[ds[i + 1]] = [6000, w ? 340 + (i % 5) : 460 - (i % 5)];
+    });
+    const x = computeInsights(buildDays({ days: ds, health, workMin: { from: ds[0], byDay: work } })).find((i) => i.id === 'work-sleep-next')!;
+    expect(x.text).toMatch(/^Po dniu pracy śpisz średnio .*, po dniu wolnym /);
+    expect(x.hi.label).toBe('Po dniu pracy');
+    expect(x.tone).toBe('bad');
+  });
+  it('godziny zmiany z tytułu (rano / popołudnie / do późna)', () => {
+    const { shiftSpan } = require('@/utils/workEvents');
+    expect(shiftSpan({ title: '[JD] 14:00 - 22:30' })).toEqual({ start: 840, end: 1350 });
+    expect(shiftSpan({ title: 'Praca', startTime: '22:00', endTime: '06:00' })).toEqual({ start: 1320, end: 1800 });
+    expect(shiftSpan({ title: 'Praca (11h)' })).toBeNull();
+    const f = buildDays({ days: ds.slice(0, 1), workMin: { from: ds[0], byDay: new Map([[ds[0], 510]]) }, workShift: new Map([[ds[0], { start: 840, end: 1350 }]]) });
+    expect(f[0].v).toMatchObject({ shiftStart: 840, shiftEnd: 1350, shiftLen: 8.5 });
+  });
+});

@@ -10,7 +10,7 @@ import { useGoodThingsStore } from '@/store/goodThingsStore';
 import { dailyMood } from '@/utils/moodStats';
 import { fvSplitOf } from '@/utils/fixedVariable';
 import { foodSplitOf } from '@/utils/foodStats';
-import { isWorkEvent, shiftMinutes } from '@/utils/workEvents';
+import { isWorkEvent, shiftMinutes, shiftSpan } from '@/utils/workEvents';
 import { funMinutes, nightMinutes, dayStarts, ymd } from '@/utils/screenTime';
 import { buildDays, computeInsights, coverage, type FeatInput } from '@/utils/insights';
 import { todayISO } from '@/utils/date';
@@ -52,6 +52,7 @@ export function useInsights() {
     }
 
     const workBy = new Map<string, number>();
+    const shiftBy = new Map<string, { start: number; end: number }>();
     let workFrom: string | null = null;
     const emps = employers.filter((x) => !x.hidden && x.workMode !== 'manual' && (x.workColor || x.workPrefix));
     if (emps.length) {
@@ -60,6 +61,11 @@ export function useInsights() {
         const d = ev.date.slice(0, 10);
         if (!workFrom || d < workFrom) workFrom = d;
         workBy.set(d, (workBy.get(d) ?? 0) + shiftMinutes(ev));
+        const sp = shiftSpan(ev);
+        if (sp) {
+          const cur = shiftBy.get(d);
+          shiftBy.set(d, cur ? { start: Math.min(cur.start, sp.start), end: Math.max(cur.end, sp.end) } : sp);
+        }
       }
     }
 
@@ -76,6 +82,7 @@ export function useInsights() {
       health: healthLog,
       spend: { from: spendFrom, byDay: spendBy },
       workMin: { from: workFrom, byDay: workBy },
+      workShift: shiftBy,
       screen,
       good: { from: goodFrom, dates: goodDates },
     });

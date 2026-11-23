@@ -2509,6 +2509,16 @@ na Dashboardzie; tętno pisało »załóż zegarek« mimo założonego”.
   w pamiętniku), w gorszy dzień „Pamiętasz?” pod polem; edycja starszych z kart w statystykach humoru i z wyszukiwarki
   (GoodThingSheet przez `/daily?good=`).
 
+## WZORCE: ROZBICIE DNI PRACY (2026-11-23)
+
+User: „rozbić dni pracy — długie, krótkie itd.” (tylko we wzorcach). `utils/insights.ts`: cechy liczone TYLKO w dni pracy
+(≥3 h): `shiftLen` (h), `shiftStart`/`shiftEnd` (minuty od północy; koniec po północy > 1440), `workSleep` (sen przed tym
+dniem). Godziny zmiany: `utils/workEvents.ts` `shiftSpan` (tytuł „14:00 - 22:30” wygrywa z godzinami eventu; samo „(11h)”
+= brak godzin), w `hooks/useInsights.ts` → `FeatInput.workShift` (najwcześniejszy start / najpóźniejszy koniec dnia).
+Progi: zmiana 10 h+ vs ≤8,5 h; start od 12:00 vs przed 10:00; koniec 21:00+ vs ≤19:00; sen 7 h+ vs <6,5 h. Pary „dzień po
+pracy” (`lag` 1, sen/energia/humor) mają własne zdania przez `PairDef.label`. Nowa grupa filtra `praca` (wszystkie pary
+z pracą, w tym stare work-*), ikona Briefcase. Ok. 45 par → korekta BH ostrzejsza, wzorce pracy pojawią się później.
+
 ## ZEGAREK: KARTY ZAMIAST WYŚRODKOWANEGO TEKSTU, BEZ TĘTNA (2026-11-22)
 
 User: „tętna nie chcę; lepsze kafelki zadań — przy wyśrodkowanym tekście nie widać, gdzie koniec zadania, a gdzie

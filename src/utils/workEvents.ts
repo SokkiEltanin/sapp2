@@ -68,6 +68,20 @@ export function shiftMinutes(ev: Pick<CalendarEvent, 'title' | 'startTime' | 'en
   return 0;
 }
 
+/** Zmiana jako minuty od północy dnia startu (koniec po północy > 1440). Tytuł wygrywa
+ *  z godzinami eventu; sam znacznik "(11h)" bez godzin = null (nie wiadomo, kiedy). */
+export function shiftSpan(ev: Pick<CalendarEvent, 'title' | 'startTime' | 'endTime'>): { start: number; end: number } | null {
+  const tr = titleTimeRange(ev.title);
+  if (tr) return { start: tr.startMin, end: tr.endMin };
+  if (ev.startTime && ev.endTime) {
+    const st = hhmmToMin(ev.startTime);
+    let en = hhmmToMin(ev.endTime);
+    if (en <= st) en += 24 * 60;
+    return { start: st, end: en };
+  }
+  return null;
+}
+
 export function shiftHours(ev: Pick<CalendarEvent, 'title' | 'startTime' | 'endTime'>): number {
   return shiftMinutes(ev) / 60;
 }

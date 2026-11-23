@@ -12,7 +12,12 @@
 export type FeatKey =
   | 'mood' | 'energy' | 'sleep' | 'steps'
   | 'spend' | 'sweets' | 'fastfood' | 'shop'
-  | 'work' | 'screen' | 'fun' | 'unlocks' | 'night' | 'good';
+  | 'work' | 'screen' | 'fun' | 'unlocks' | 'night' | 'good'
+  // rozbicie dni pracy (2026-11-23) — tylko w dni pracy (≥3 h):
+  | 'shiftLen'     // godziny pracy tego dnia
+  | 'shiftStart'   // początek pierwszej zmiany, minuty od północy
+  | 'shiftEnd'     // koniec ostatniej zmiany, minuty od północy (po północy > 1440)
+  | 'workSleep';   // sen przed tym dniem pracy (noc zapisana pod tą datą)
 
 export interface DayFeat { date: string; v: Partial<Record<FeatKey, number>> }
 
@@ -22,6 +27,7 @@ export interface FeatInput {
   health?: Record<string, [number | null, number | null]>; // [kroki, sen min]
   spend?: { from: string | null; byDay: Map<string, { total: number; sweets: number; fastfood: number; shop: number }> };
   workMin?: { from: string | null; byDay: Map<string, number> };
+  workShift?: Map<string, { start: number; end: number }>;  // godziny zmian (gdy znane z tytułu/eventu)
   screen?: Record<string, { total: number; fun: number; unlocks: number; night: number }>;
   good?: { from: string | null; dates: Set<string> };
 }
@@ -41,6 +47,12 @@ export function buildDays(inp: FeatInput): DayFeat[] {
       v.spend = s?.total ?? 0; v.sweets = s?.sweets ?? 0; v.fastfood = s?.fastfood ?? 0; v.shop = s?.shop ?? 0;
     }
     if (inp.workMin?.from && date >= inp.workMin.from) v.work = (inp.workMin.byDay.get(date) ?? 0) / 60;
+    if (v.work != null && v.work >= 3) {
+      v.shiftLen = v.work;
+      const sh = inp.workShift?.get(date);
+      if (sh) { v.shiftStart = sh.start; v.shiftEnd = sh.end; }
+      if (v.sleep != null) v.workSleep = v.sleep;
+    }
     const sc = inp.screen?.[date];
     if (sc && sc.total > 0) { v.screen = sc.total; v.fun = sc.fun; v.unlocks = sc.unlocks; v.night = sc.night; }
     if (inp.good?.from && date >= inp.good.from) v.good = inp.good.dates.has(date) ? 1 : 0;
@@ -52,14 +64,16 @@ type Unit = 'zł' | 'min' | 'pkt' | 'h' | 'kroków' | 'razy';
 const UNIT: Record<FeatKey, Unit> = {
   mood: 'pkt', energy: 'pkt', sleep: 'min', steps: 'kroków', spend: 'zł', sweets: 'zł', fastfood: 'zł', shop: 'zł',
   work: 'h', screen: 'min', fun: 'min', unlocks: 'razy', night: 'min', good: 'razy',
+  shiftLen: 'h', shiftStart: 'min', shiftEnd: 'min', workSleep: 'min',
 };
 // Najmniejsza różnica, która coś znaczy (żeby nie pokazywać "0,4 zł więcej").
 const MIN_DIFF: Record<FeatKey, number> = {
   mood: 0.25, energy: 0.25, sleep: 15, steps: 800, spend: 10, sweets: 3, fastfood: 5, shop: 10,
   work: 0.5, screen: 15, fun: 10, unlocks: 6, night: 5, good: 0.1,
+  shiftLen: 0.5, shiftStart: 30, shiftEnd: 30, workSleep: 15,
 };
 
-export type Group = 'energia' | 'wydatki' | 'telefon' | 'sen';
+export type Group = 'praca' | 'energia' | 'wydatki' | 'telefon' | 'sen';
 interface Split { hi: (x: number, med: number) => boolean | null; hiLabel: (med: number) => string; loLabel: (med: number) => string; short: [string, string] }
 
 // Podziały dni dla przyczyn: progi życiowe, gdzie są oczywiste; mediana dla telefonu.
@@ -73,6 +87,12 @@ const SPLIT: Partial<Record<FeatKey, Split>> = {
   night: { hi: (x) => (x >= 20 ? true : x < 5 ? false : null), hiLabel: () => 'Po wieczorze z telefonem po północy (20 min+)', loLabel: () => 'bez nocnego telefonu', short: ['Telefon w nocy', 'Bez nocnego'] },
   sweets: { hi: (x) => x > 0, hiLabel: () => 'Dzień po kupieniu słodyczy', loLabel: () => 'po dniu bez', short: ['Po słodyczach', 'Bez słodyczy'] },
   good: { hi: (x) => x > 0, hiLabel: () => 'W dni z zapisaną dobrą rzeczą', loLabel: () => 'bez niej', short: ['Z dobrą rzeczą', 'Bez'] },
+  // Rozbicie dni pracy (2026-11-23, user: "rozbić dni pracy — długie, krótkie itd."): porównania TYLKO
+  // między dniami pracy, progi życiowe; dni pomiędzy progami nie wchodzą do żadnej grupy.
+  shiftLen: { hi: (x) => (x >= 10 ? true : x <= 8.5 ? false : null), hiLabel: () => 'Na długiej zmianie (10 h+)', loLabel: () => 'na krótszej (do 8,5 h)', short: ['Zmiana 10 h+', 'Do 8,5 h'] },
+  shiftStart: { hi: (x) => (x >= 720 ? true : x < 600 ? false : null), hiLabel: () => 'Na zmianie od popołudnia (od 12:00)', loLabel: () => 'na zmianie od rana (przed 10:00)', short: ['Od popołudnia', 'Od rana'] },
+  shiftEnd: { hi: (x) => (x >= 1260 ? true : x <= 1140 ? false : null), hiLabel: () => 'Po zmianie do późna (21:00+)', loLabel: () => 'po skończonej do 19:00', short: ['Do 21:00+', 'Do 19:00'] },
+  workSleep: { hi: (x) => (x >= 420 ? true : x < 390 ? false : null), hiLabel: () => 'W dzień pracy po 7 h+ snu', loLabel: () => 'po krótszym (poniżej 6,5 h)', short: ['Po 7 h+ snu', 'Po < 6,5 h snu'] },
 };
 
 // Opis skutku: "masz średnio {X} energii" / "wydajesz na słodycze {X}".
@@ -80,18 +100,44 @@ const OUTCOME: Record<FeatKey, string> = {
   mood: 'humor', energy: 'energia', sleep: 'sen', steps: 'kroki', spend: 'wydatki (bez stałych)', sweets: 'słodycze i przekąski',
   fastfood: 'jedzenie na mieście', shop: 'zakupy (zmienne)', work: 'praca', screen: 'czas z telefonem', fun: 'rozrywka w telefonie',
   unlocks: 'odblokowania', night: 'telefon w nocy', good: 'dobra rzecz',
+  shiftLen: 'długość zmiany', shiftStart: 'początek zmiany', shiftEnd: 'koniec zmiany', workSleep: 'sen przed pracą',
 };
 
-export interface PairDef { id: string; x: FeatKey; y: FeatKey; lag?: 0 | 1; group: Group; good: 1 | -1 | 0 }
+export interface PairDef {
+  id: string; x: FeatKey; y: FeatKey; lag?: 0 | 1; group: Group; good: 1 | -1 | 0;
+  label?: { hi: string; lo: string; short: [string, string] };   // gdy zdanie podziału nie pasuje (np. "dzień po")
+}
 // Sensowne pary (przyczyna → skutek). `lag` 1 = skutek dzień później (sen po wieczorze itd.).
 // `good` = czy wzrost skutku jest dobry (kolor), 0 = neutralnie.
+const AFTER_WORK = { hi: 'Dzień po pracy', lo: 'dzień po wolnym', short: ['Po dniu pracy', 'Po wolnym'] as [string, string] };
 export const PAIRS: PairDef[] = [
-  { id: 'work-sweets', x: 'work', y: 'sweets', group: 'wydatki', good: -1 },
-  { id: 'work-fastfood', x: 'work', y: 'fastfood', group: 'wydatki', good: -1 },
-  { id: 'work-shop', x: 'work', y: 'shop', group: 'wydatki', good: -1 },
-  { id: 'work-energy', x: 'work', y: 'energy', group: 'energia', good: 1 },
-  { id: 'work-mood', x: 'work', y: 'mood', group: 'energia', good: 1 },
-  { id: 'work-fun', x: 'work', y: 'fun', group: 'telefon', good: -1 },
+  { id: 'work-sweets', x: 'work', y: 'sweets', group: 'praca', good: -1 },
+  { id: 'work-fastfood', x: 'work', y: 'fastfood', group: 'praca', good: -1 },
+  { id: 'work-shop', x: 'work', y: 'shop', group: 'praca', good: -1 },
+  { id: 'work-energy', x: 'work', y: 'energy', group: 'praca', good: 1 },
+  { id: 'work-mood', x: 'work', y: 'mood', group: 'praca', good: 1 },
+  { id: 'work-fun', x: 'work', y: 'fun', group: 'praca', good: -1 },
+  // dzień po pracy (sen pod datą D+1 = noc po pracy)
+  { id: 'work-sleep-next', x: 'work', y: 'sleep', lag: 1, group: 'praca', good: 1, label: { hi: 'Po dniu pracy', lo: 'po dniu wolnym', short: AFTER_WORK.short } },
+  { id: 'work-energy-next', x: 'work', y: 'energy', lag: 1, group: 'praca', good: 1, label: AFTER_WORK },
+  { id: 'work-mood-next', x: 'work', y: 'mood', lag: 1, group: 'praca', good: 1, label: AFTER_WORK },
+  // długa vs krótka zmiana
+  { id: 'shiftLen-sweets', x: 'shiftLen', y: 'sweets', group: 'praca', good: -1 },
+  { id: 'shiftLen-fastfood', x: 'shiftLen', y: 'fastfood', group: 'praca', good: -1 },
+  { id: 'shiftLen-energy', x: 'shiftLen', y: 'energy', group: 'praca', good: 1 },
+  { id: 'shiftLen-mood', x: 'shiftLen', y: 'mood', group: 'praca', good: 1 },
+  { id: 'shiftLen-fun', x: 'shiftLen', y: 'fun', group: 'praca', good: -1 },
+  // od rana vs od popołudnia
+  { id: 'shiftStart-sweets', x: 'shiftStart', y: 'sweets', group: 'praca', good: -1 },
+  { id: 'shiftStart-fastfood', x: 'shiftStart', y: 'fastfood', group: 'praca', good: -1 },
+  { id: 'shiftStart-energy', x: 'shiftStart', y: 'energy', group: 'praca', good: 1 },
+  // do późna → noc i następny dzień
+  { id: 'shiftEnd-sleep', x: 'shiftEnd', y: 'sleep', lag: 1, group: 'praca', good: 1 },
+  { id: 'shiftEnd-energy', x: 'shiftEnd', y: 'energy', lag: 1, group: 'praca', good: 1, label: { hi: 'Dzień po zmianie do późna (21:00+)', lo: 'po skończonej do 19:00', short: ['Po 21:00+', 'Po do 19:00'] } },
+  // praca po krótkim śnie
+  { id: 'workSleep-sweets', x: 'workSleep', y: 'sweets', group: 'praca', good: -1 },
+  { id: 'workSleep-fastfood', x: 'workSleep', y: 'fastfood', group: 'praca', good: -1 },
+  { id: 'workSleep-energy', x: 'workSleep', y: 'energy', group: 'praca', good: 1 },
   { id: 'fun-sweets', x: 'fun', y: 'sweets', group: 'wydatki', good: -1 },
   { id: 'fun-shop', x: 'fun', y: 'shop', group: 'wydatki', good: -1 },
   { id: 'fun-fastfood', x: 'fun', y: 'fastfood', group: 'wydatki', good: -1 },
@@ -167,6 +213,8 @@ const VERB: Record<FeatKey, (v: string) => string> = {
   fastfood: (v) => `na jedzenie na mieście idzie średnio ${v}`, shop: (v) => `na zakupy (zmienne) idzie średnio ${v}`,
   work: (v) => `pracujesz średnio ${v}`, screen: (v) => `telefon średnio ${v}`, fun: (v) => `rozrywka w telefonie średnio ${v}`,
   unlocks: (v) => `odblokowujesz średnio ${v} razy`, night: (v) => `w nocy telefon średnio ${v}`, good: (v) => v,
+  shiftLen: (v) => `pracujesz średnio ${v}`, shiftStart: (v) => `zaczynasz średnio ${v}`, shiftEnd: (v) => `kończysz średnio ${v}`,
+  workSleep: (v) => `przed pracą śpisz średnio ${v}`,
 };
 
 // ── Statystyka (2026-11-22, user: "rozegrać mądrze, żeby nie było bez sensu strzałów na małych
@@ -254,14 +302,14 @@ export function computeInsights(days: DayFeat[], pairs: PairDef[] = PAIRS, minPe
     const pv = welchP(hi, lo);
     const d = sd > 0 ? (mh - ml) / sd : 0;
     const u = UNIT[p.y];
-    const hiL = split.hiLabel(med), loL = split.loLabel(med);
+    const hiL = p.label?.hi ?? split.hiLabel(med), loL = p.label?.lo ?? split.loLabel(med);
     const up = mh > ml;
     const tone = p.good === 0 ? 'neutral' : (up ? p.good > 0 : p.good < 0) ? 'good' : 'bad';
     cand.push({
       id: p.id, group: p.group, x: p.x, y: p.y,
       text: `${hiL} ${VERB[p.y](fmtVal(mh, u))}, ${loL} ${fmtVal(ml, u)} — ${compare(mh, ml, u)}.`,
       short: `${hiL}: ${OUTCOME[p.y]} ${up ? '↑' : '↓'} ${compare(mh, ml, u)}`,
-      hi: { mean: mh, n: hi.length, label: split.short[0] }, lo: { mean: ml, n: lo.length, label: split.short[1] },
+      hi: { mean: mh, n: hi.length, label: (p.label?.short ?? split.short)[0] }, lo: { mean: ml, n: lo.length, label: (p.label?.short ?? split.short)[1] },
       d, strength: 'słaby', tone, unit: u, p: pv,
     });
   }
