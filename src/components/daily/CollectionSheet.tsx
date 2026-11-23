@@ -119,7 +119,7 @@ export function MonthCardView({ card: c, fresh }: { card: MonthCard; fresh?: boo
       {extra ? <Text style={s.foot}>{extra}</Text> : null}
       {c.top.length > 0 && <Text style={s.foot}>najwięcej: <Text style={s.footHi}>{c.top.map((t) => t.label).join(', ')}</Text></Text>}
       {c.biggest.length > 0 && <Text style={s.foot} numberOfLines={2}>najdroższe (bez stałych): <Text style={s.footHi}>{c.biggest.map((b) => `${b.name} ${money(b.amount)} zł`).join(', ')}</Text></Text>}
-      {c.badges.length > 1 && <Text style={s.foot}>🏆 {c.badges.slice(1).join(' · ')}</Text>}
+      {c.badges.length > 1 && <Text style={s.foot}>odznaki: <Text style={s.footHi}>{c.badges.slice(1).join(' · ')}</Text></Text>}
     </View>
   );
 }

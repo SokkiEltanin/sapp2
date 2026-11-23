@@ -228,7 +228,7 @@ export default function DailyScreen() {
           {lastToday ? (
             <>
               <Text style={[T.rowHi, { color: moodColor(lastToday.mood) }]} numberOfLines={1}>{MOOD_LABELS[roundLevel(lastToday.mood)]}</Text>
-              <Text style={T.small} numberOfLines={1}>{energyText(lastToday.energy)}{moodSeries.days >= 2 ? ` · 🔥 ${moodSeries.days} dni` : ''}</Text>
+              <Text style={T.small} numberOfLines={1}>{energyText(lastToday.energy)}{moodSeries.days >= 2 ? ` · seria ${moodSeries.days} dni` : ''}</Text>
               <View style={st.moodDots}>
                 {moodWeek.map((d, i) => (
                   <View key={d.key} style={st.moodDotCol}>
@@ -244,7 +244,7 @@ export default function DailyScreen() {
             // stuknięcie zapisuje humor (energia średnia); szczegóły dalej po stuknięciu kafla.
             <>
               <Text style={T.rowHi} numberOfLines={1}>Jak minął dzień?</Text>
-              <Text style={T.small} numberOfLines={1}>{moodSeries.days >= 1 ? `🔥 seria ${moodSeries.days} — nie przerwij` : 'stuknij kolor'}</Text>
+              <Text style={T.small} numberOfLines={1}>{moodSeries.days >= 1 ? `seria ${moodSeries.days} dni — nie przerwij` : 'stuknij kolor'}</Text>
               <View style={st.moodQuick}>
                 {([1, 2, 3, 4, 5] as const).map((l) => (
                   <Pressable key={l} hitSlop={6} onPress={() => { haptic.success(); addQuickMood(l); }} accessibilityLabel={`Humor: ${MOOD_LABELS[l]}`}

@@ -28,3 +28,18 @@ export function readableOnDark(hex: string, minLum = MIN_WIDGET_LUM): string {
   }
   return '#FFFFFF';
 }
+
+/** Tło pod BIAŁY tekst (2026-11-23, user: "przyciemnij żółty w kalendarzu — nie widać białego
+ *  tekstu zmian JD"): jasne kolory (żółty, limonka, jasny niebieski) przyciemniane mieszaniem
+ *  z czernią do luminancji ≤ `maxLum` (kontrast z bielą ≥ ~4:1). Ciemne bez zmian. */
+export function bgForWhiteText(hex: string, maxLum = 0.2): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m || luminance(hex) <= maxLum) return hex;
+  const n = parseInt(m[1], 16);
+  const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  for (let k = 0.95; k >= 0; k -= 0.05) {
+    const out = `#${rgb.map((c) => Math.round(c * k).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+    if (luminance(out) <= maxLum) return out;
+  }
+  return '#000000';
+}

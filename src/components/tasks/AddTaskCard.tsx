@@ -1,4 +1,5 @@
 import { useEffect, useState, type RefObject } from 'react';
+import { removeTaskTag } from '@/services/taskTags';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { openPicker } from '@/services/picker';
 import StepsEditor from './StepsEditor';
@@ -251,7 +252,10 @@ export default function AddTaskCard({
               key={t}
               style={[s.tagChip, tag.trim() === t && s.chipActive]}
               onPress={() => { haptic.tap(); setTag(tag.trim() === t ? '' : t); }}
+              onLongPress={() => { if (tag.trim() === t) setTag(''); removeTaskTag(t); }}
+              delayLongPress={450}
               activeOpacity={0.7}
+              accessibilityHint="Przytrzymaj, by usunąć tag ze wszystkich zadań"
             >
               <Text style={[s.chipLabel, tag.trim() === t && s.chipLabelActive]}>#{t}</Text>
             </TouchableOpacity>

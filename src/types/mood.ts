@@ -64,5 +64,3 @@ export const ENERGY_LABELS: Record<MoodLevel, string> = {
 export const ENERGY_COLORS: Record<MoodLevel, string> = {
   1: '#374151', 2: '#6B7280', 3: '#6C9EFF', 4: '#4ECBA8', 5: '#FBBF24',
 };
-export const MOOD_EMOJIS: Record<MoodLevel, string> = { 1: '😩', 2: '😕', 3: '😐', 4: '😊', 5: '🤩' };
-export const ENERGY_EMOJIS: Record<MoodLevel, string> = { 1: '😴', 2: '😌', 3: '⚡', 4: '✨', 5: '🚀' };

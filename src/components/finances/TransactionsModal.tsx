@@ -15,7 +15,7 @@ import { filterTransactions, summarize, activeFilterCount, datePreset, EMPTY_FIL
 import { EXPENSE_CATEGORIES } from '@/utils/expenseCategory';
 import { toDisplayDate } from '@/utils/dateInput';
 import RangeCalendar from '@/components/design/RangeCalendar';
-import { groupTransactions, txDetail, txColor, type GroupMode } from '@/utils/txGroup';
+import { groupTransactions, txDetail, txColor, bucketLabel, type GroupMode } from '@/utils/txGroup';
 import { zl } from '@/utils/money';
 
 // Pełna lista transakcji (Faza 2.4, 2026-11-01) — "Ostatnie transakcje" na ekranie
@@ -279,7 +279,7 @@ const TxRow = memo(function TxRow({ hit, mode, onSelect }: { hit: TxHit; mode: G
   const detail = txDetail(e);
   const time = (e.date ?? '').length > 10 ? e.date.slice(11, 16) : '';
   const when = mode === 'day' ? time : `${toDisplayDate(e.date.slice(0, 10)).slice(0, 5)}${time ? ` ${time}` : ''}`;
-  const sub = [when, detail, e.fvOverride === 'transfer' ? 'przelew własny' : '', match ? `„${match}”` : ''].filter(Boolean).join(' · ');
+  const sub = [bucketLabel(e), when, detail, e.fvOverride === 'transfer' ? 'przelew własny' : '', match ? `„${match}”` : ''].filter(Boolean).join(' · ');
   return (
     <TouchableOpacity style={s.row} onPress={() => { haptic.tap(); onSelect(e); }} activeOpacity={0.7}>
       <View style={[s.rowDot, { backgroundColor: txColor(e) }]} />
@@ -296,7 +296,12 @@ const TxRow = memo(function TxRow({ hit, mode, onSelect }: { hit: TxHit; mode: G
             </Text>
           )}
         </View>
-        {sub ? <Text style={s.rowSub} numberOfLines={1}>{sub}</Text> : null}
+        {sub ? (
+          <View style={s.subRow}>
+            {bucketLabel(e) ? <View style={s.pin} /> : null}
+            <Text style={[s.rowSub, { flex: 1 }]} numberOfLines={1}>{sub}</Text>
+          </View>
+        ) : null}
       </View>
     </TouchableOpacity>
   );
@@ -305,6 +310,8 @@ const TxRow = memo(function TxRow({ hit, mode, onSelect }: { hit: TxHit; mode: G
 const plTx = (n: number) => (n === 1 ? 'transakcja' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'transakcje' : 'transakcji');
 
 const makeS = themedStyles((c) => StyleSheet.create({
+  subRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  pin: { width: 5, height: 5, borderRadius: 3, backgroundColor: c.text.bright },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingBottom: spacing[3],

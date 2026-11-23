@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { bgForWhiteText } from '@/utils/readableColor';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
@@ -144,7 +145,7 @@ export default function MonthViewModal({
                   </View>
                   <View style={s.chips}>
                     {dayEvents.slice(0, MAX_CHIPS_PER_CELL).map((ev) => (
-                      <View key={ev.id} style={[s.chip, { backgroundColor: ev.color ?? colors.accent.blue }]}>
+                      <View key={ev.id} style={[s.chip, { backgroundColor: bgForWhiteText(ev.color ?? colors.accent.blue) }]}>
                         <Text style={s.chipLabel} numberOfLines={1}>{ev.title}</Text>
                       </View>
                     ))}

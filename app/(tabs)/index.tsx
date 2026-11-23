@@ -256,7 +256,7 @@ export default function Dashboard() {
     // ręcznie dodane Subskrypcje.
     // Urodziny z profilu (2026-11-17) — w oknie 14 dni, jak rachunki.
     const bd = nextBirthday(birthDate, now);
-    if (bd && bd.days <= 14) out.push({ key: 'birthday', at: new Date(`${bd.date}T00:00:00`), title: `🎂 Twoje urodziny — ${bd.turns} lat`, color: '#F472B6', kind: 'event', dayOnly: true });
+    if (bd && bd.days <= 14) out.push({ key: 'birthday', at: new Date(`${bd.date}T00:00:00`), title: `Twoje urodziny — ${bd.turns} lat`, color: '#F472B6', kind: 'event', dayOnly: true });
     out.push(...billEntries);
     return out.sort((a, b) => a.at.getTime() - b.at.getTime());
   }, [allEvents, calendarTasks, now, billEntries, birthDate]);

@@ -29,7 +29,7 @@ import { workMonthProgress } from '@/utils/workMonth';
 import { upcomingPayments } from '@/utils/recurringBills';
 import { accountBalance, affectsBalance } from '@/utils/balance';
 import { isOwnTransfer } from '@/utils/fixedVariable';
-import { txDetail, txColor, BUCKET_COLOR } from '@/utils/txGroup';
+import { txDetail, txColor, bucketLabel, grayRamp } from '@/utils/txGroup';
 import { useBalanceStore } from '@/store/balanceStore';
 import { useWydatkiData } from '@/hooks/useWydatkiData';
 import { haptic } from '@/utils/haptics';
@@ -74,11 +74,14 @@ function parseZl(s: string): number {
   return Number.isFinite(v) ? v : 0;
 }
 // Pasek kategorii: 6 największych + reszta szarą "inne" (było kilkanaście kolorów naraz).
+const SPLIT_GRAY = grayRamp(3);
 function topParts(bars: { label: string; amount: number; color: string }[]) {
   const sorted = [...bars].sort((a, b) => b.amount - a.amount);
-  const top = sorted.slice(0, 6).map((c) => ({ label: c.label, value: c.amount, color: c.color }));
+  // Szarości zamiast kolorów kategorii (2026-11-23) — kolory dopiero w oknie Wydatki.
+  const g = grayRamp(Math.min(6, sorted.length));
+  const top = sorted.slice(0, 6).map((c, i) => ({ label: c.label, value: c.amount, color: g[i] }));
   const rest = sorted.slice(6).reduce((a, c) => a + c.amount, 0);
-  return rest > 0 ? [...top, { label: 'Inne', value: rest, color: '#3A3A3A' }] : top;
+  return rest > 0 ? [...top, { label: 'Inne', value: rest, color: '#2E2E2E' }] : top;
 }
 // "dziś 12:23" / "wczoraj 14:58" / "16.11" — data na liście ostatnich transakcji.
 function txWhen(iso: string): string {
@@ -237,11 +240,11 @@ export default function FinancesScreen() {
     // przez `value` — zero zniknęłoby zamiast dać 3px minimum z DESIGN.md), NIE
     // dla `splitTotal` wyżej (ten pokazuje PRAWDZIWĄ sumę, nie podłogę 0,001 ×3).
     return [
-      // Kolory kubłów jak w Ostatnich transakcjach i kartach miesięcy (2026-11-17, user:
-      // "Finanse off style vs Daily") — wcześniej szarości, niespójne z paskami wierszy.
-      { value: Math.max(fixed, 0.001), color: BUCKET_COLOR.fixed, label: 'Stałe' },
-      { value: Math.max(food, 0.001), color: BUCKET_COLOR.food, label: 'Jedzenie' },
-      { value: Math.max(variable, 0.001), color: BUCKET_COLOR.variable, label: 'Zmienne' },
+      // Szarości (2026-11-23, user: "kolory tylko czerwony/zielony = wychodzi/przychodzi,
+      // kategorie białym pinem, kolory dopiero w środku").
+      { value: Math.max(fixed, 0.001), color: SPLIT_GRAY[0], label: 'Stałe' },
+      { value: Math.max(food, 0.001), color: SPLIT_GRAY[1], label: 'Jedzenie' },
+      { value: Math.max(variable, 0.001), color: SPLIT_GRAY[2], label: 'Zmienne' },
     ];
   }, [wydatkiData]);
 
@@ -437,7 +440,10 @@ export default function FinancesScreen() {
                 <View style={[s.txBar, { backgroundColor: txColor(e) }]} />
                 <View style={s.txTextCol}>
                   <Text style={T.row} numberOfLines={1}>{e.storeName || e.note || (isOwnTransfer(e) ? 'Przelew własny' : e.type === 'income' ? 'Przychód' : 'Wydatek')}</Text>
-                  <Text style={T.rowSub} numberOfLines={1}>{[txWhen(e.date), txDetail(e)].filter(Boolean).join(' · ')}</Text>
+                  <View style={s.txSubRow}>
+                    {bucketLabel(e) ? <View style={s.txPin} /> : null}
+                    <Text style={[T.rowSub, { flex: 1 }]} numberOfLines={1}>{[bucketLabel(e), txWhen(e.date), txDetail(e)].filter(Boolean).join(' · ')}</Text>
+                  </View>
                 </View>
                 {pendingFxOf(e) ? <Price amount={0} fx={pendingFxOf(e)} /> : (
                   <Text style={[s.txAmt, e.type === 'income' && { color: C.ok }, isOwnTransfer(e) && { color: C.mut }]}>
@@ -533,7 +539,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   balanceCur: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.mut },
   balanceSumRow: { flexDirection: 'row', gap: spacing[4], marginTop: spacing[2] },
   balanceIn: { fontSize: 12, fontFamily: 'Inter_700Bold', color: C.ok },
-  balanceOut: { fontSize: 12, fontFamily: 'Inter_700Bold', color: C.mut },
+  balanceOut: { fontSize: 12, fontFamily: 'Inter_700Bold', color: C.warn },
 
   sideCol: { gap: S.gap },
   budgetOf: { fontSize: 11, fontFamily: 'Inter_700Bold', color: C.mut },
@@ -551,6 +557,8 @@ const makeS = themedStyles((c) => StyleSheet.create({
 
   txTextCol: { flex: 1, minWidth: 0 },
   txBar: { width: 3, alignSelf: 'stretch', borderRadius: 2, marginVertical: 2 },
+  txSubRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  txPin: { width: 5, height: 5, borderRadius: 3, backgroundColor: C.hi },
   txAmt: { fontSize: 13, fontFamily: 'Inter_900Black', color: C.hi, fontVariant: ['tabular-nums'] },
 
   fab: {

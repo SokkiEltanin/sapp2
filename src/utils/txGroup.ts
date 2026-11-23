@@ -89,13 +89,33 @@ export function txDetail(e: Expense): string {
   return parts.join(' · ');
 }
 
-/** Kolor paska przy wierszu: kubeł (jedzenie / stałe / zmienne), przychód, przelew własny. */
-/** Kolory kubłów — wspólne dla wierszy transakcji i paska „Podział” w Finansach. */
+/** Kolory kubłów — dziś TYLKO w środku (okno Wydatki, karty miesięcy). Na liście i kaflu
+ *  Finansów kolor = kierunek pieniędzy, kubeł = biała kropka z podpisem (2026-11-23). */
 export const BUCKET_COLOR = { fixed: '#60A5FA', food: '#FBBF24', variable: '#C084FC', income: '#22C55E', own: '#6E6E6E' } as const;
 
+// Kierunek pieniędzy (2026-11-23, user: "kolory na finansach: czerwony i zielony — wychodzi
+// i przychodzi, minimalistycznie; rodzaj kategorii to biały pin z podpisem, kolory dopiero w środku").
+export const FLOW_COLOR = { out: '#EF4444', in: '#22C55E', own: '#6E6E6E' } as const;
+
+/** Pasek/kropka przy wierszu: wydatek czerwony, przychód zielony, przelew własny szary. */
 export function txColor(e: Expense): string {
-  if (isOwnTransfer(e)) return BUCKET_COLOR.own;
-  if (e.type === 'income') return BUCKET_COLOR.income;
+  if (isOwnTransfer(e)) return FLOW_COLOR.own;
+  return e.type === 'income' ? FLOW_COLOR.in : FLOW_COLOR.out;
+}
+
+/** Kubeł wydatku słowem (do białej kropki z podpisem); przychód/przelew własny = null. */
+export function bucketLabel(e: Expense): string | null {
+  if (isOwnTransfer(e) || e.type === 'income') return null;
   const b = bucketOf(e);
-  return b === 'food' ? BUCKET_COLOR.food : b === 'fixed' ? BUCKET_COLOR.fixed : BUCKET_COLOR.variable;
+  return b === 'food' ? 'Jedzenie' : b === 'fixed' ? 'Stałe' : 'Zmienne';
+}
+
+/** Odcienie szarości od jasnego do ciemnego — paski podziału bez kolorów kategorii. */
+export function grayRamp(n: number): string[] {
+  if (n <= 1) return ['#E6E6E6'];
+  return Array.from({ length: n }, (_, i) => {
+    const v = Math.round(0xE6 - (0xE6 - 0x4A) * (i / (n - 1)));
+    const h = v.toString(16).padStart(2, '0').toUpperCase();
+    return `#${h}${h}${h}`;
+  });
 }

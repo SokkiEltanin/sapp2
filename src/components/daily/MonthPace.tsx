@@ -43,7 +43,7 @@ export function MonthPaceRows({ expenses, now }: { expenses: Expense[]; now: Dat
           <>
             <View style={s.spark}>
               {power.map((x, i) => (
-                <View key={x.key} style={[s.sparkBar, { height: `${Math.max(6, (x.value / powerMax) * 100)}%`, backgroundColor: i === power.length - 1 ? colors.text.bright : x.value > 0 ? '#FACC15' : colors.ui.dim }]} />
+                <View key={x.key} style={[s.sparkBar, { height: `${Math.max(6, (x.value / powerMax) * 100)}%`, backgroundColor: i === power.length - 1 ? colors.text.bright : x.value > 0 ? colors.text.muted : colors.ui.dim }]} />
               ))}
             </View>
             <Text style={s.sub} numberOfLines={1}>{season.delta != null ? `zima ${season.delta > 0 ? '+' : ''}${season.delta}%` : '12 mies.'}</Text>
@@ -62,7 +62,8 @@ function PaceRow({ p }: { p: MonthPace }) {
     <View style={s.row}>
       <Text style={s.label} numberOfLines={1}>{PACE_LABEL[p.key] ?? p.key}</Text>
       <View style={s.track}>
-        <View style={[s.fill, { width: `${(p.current / max) * 100}%`, backgroundColor: d.color === colors.text.muted ? colors.text.secondary : d.color }]} />
+        {/* Paski biało-czarne (2026-11-23, user: "wydatki miesięczne na biało-czarno, kolorowe tylko liczby, że przekraczamy"). */}
+        <View style={[s.fill, { width: `${(p.current / max) * 100}%`, backgroundColor: colors.text.secondary }]} />
         {p.avg != null && <View style={[s.avgMark, { left: `${(p.avg / max) * 100}%` }]} />}
       </View>
       <Text style={s.value} numberOfLines={1}>{money(p.current)}</Text>
@@ -145,7 +146,7 @@ export default function MonthPaceSheet({ visible, onClose, expenses, onOpenCards
                 <View key={x.key} style={s.col}>
                   <Text style={s.colVal} numberOfLines={1}>{x.value > 0 ? Math.round(x.value) : ''}</Text>
                   <View style={s.colBox}>
-                    <View style={[s.colBar, { height: `${x.value > 0 ? Math.max(4, (x.value / powerMax) * 100) : 0}%`, backgroundColor: i === power.length - 1 ? colors.text.bright : '#FACC15' }]} />
+                    <View style={[s.colBar, { height: `${x.value > 0 ? Math.max(4, (x.value / powerMax) * 100) : 0}%`, backgroundColor: i === power.length - 1 ? colors.text.bright : colors.text.muted }]} />
                   </View>
                   <Text style={[s.colLbl, [11, 12, 1, 2].includes(Number(x.key.slice(5, 7))) && { color: '#93C5FD' }]}>{x.label}</Text>
                 </View>
@@ -177,7 +178,7 @@ const makeS = themedStyles((c) => StyleSheet.create({
   label: { width: 70, fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.primary },
   track: { flex: 1, height: 8, borderRadius: 4, backgroundColor: c.ui.in2, position: 'relative', overflow: 'visible' },
   fill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 4 },
-  avgMark: { position: 'absolute', top: -3, bottom: -3, width: 2, marginLeft: -1, borderRadius: 1, backgroundColor: c.text.bright },
+  avgMark: { position: 'absolute', top: -3, bottom: -3, width: 4, marginLeft: -2, borderRadius: 2, backgroundColor: c.text.bright, borderWidth: 1, borderColor: c.bg.card },
   value: { width: 64, textAlign: 'right', fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.text.bright, fontVariant: ['tabular-nums'] },
   delta: { width: 62, textAlign: 'right', fontSize: 11, fontFamily: 'Inter_800ExtraBold', fontVariant: ['tabular-nums'] },
   spark: { flex: 1, height: 18, flexDirection: 'row', alignItems: 'flex-end', gap: 2 },

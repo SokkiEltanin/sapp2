@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { removeTaskTag } from '@/services/taskTags';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { Search, RotateCcw, Check } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
@@ -31,8 +32,8 @@ export default function TaskSearchSheet({ visible, onClose, onEdit, knownTags }:
   const set = (p: Partial<TaskFilter>) => { haptic.tap(); setF((x) => ({ ...x, ...p })); };
   const restore = (t: Task) => { haptic.success(); useCalendarStore.getState().updateTask(t.id, { status: 'pending', updatedAt: new Date().toISOString() }); };
 
-  const chip = (on: boolean, label: string, onPress: () => void, key: string) => (
-    <TouchableOpacity key={key} style={[s.chip, on && s.chipOn]} onPress={onPress}>
+  const chip = (on: boolean, label: string, onPress: () => void, key: string, onLongPress?: () => void) => (
+    <TouchableOpacity key={key} style={[s.chip, on && s.chipOn]} onPress={onPress} onLongPress={onLongPress} delayLongPress={450}>
       <Text style={[s.chipLabel, on && s.chipLabelOn]}>{label}</Text>
     </TouchableOpacity>
   );
@@ -50,7 +51,7 @@ export default function TaskSearchSheet({ visible, onClose, onEdit, knownTags }:
       <View style={s.chips}>{STATUS.map(([k, l]) => chip(f.status === k, l, () => set({ status: k }), k))}</View>
       <View style={s.chips}>{DUE.map(([k, l]) => chip(f.due === k, l, () => set({ due: k }), k))}</View>
       {knownTags.length > 0 && (
-        <View style={s.chips}>{knownTags.slice(0, 12).map((t) => chip(f.tag === t, `#${t}`, () => set({ tag: f.tag === t ? null : t }), t))}</View>
+        <View style={s.chips}>{knownTags.slice(0, 12).map((t) => chip(f.tag === t, `#${t}`, () => set({ tag: f.tag === t ? null : t }), t, () => { if (f.tag === t) setF((x) => ({ ...x, tag: null })); removeTaskTag(t); }))}</View>
       )}
 
       <View style={s.summary}>

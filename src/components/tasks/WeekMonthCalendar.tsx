@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { bgForWhiteText } from '@/utils/readableColor';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
@@ -110,7 +111,7 @@ export default function WeekMonthCalendar({
               </View>
               <View style={s.chips}>
                 {dayEvents.slice(0, MAX_CHIPS_PER_DAY).map((ev) => (
-                  <View key={ev.id} style={[s.chip, { backgroundColor: ev.color ?? colors.chart.muted }]}>
+                  <View key={ev.id} style={[s.chip, { backgroundColor: ev.color ? bgForWhiteText(ev.color) : colors.chart.muted }]}>
                     <Text style={s.chipLabel} numberOfLines={2}>{ev.title}</Text>
                   </View>
                 ))}
