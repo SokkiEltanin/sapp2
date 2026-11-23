@@ -1,11 +1,11 @@
 import { memo, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, type LayoutChangeEvent } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
-import * as LucideIcons from 'lucide-react-native';
+import PixelWeatherIcon from './PixelWeatherIcon';
 import { Droplet } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { radius, themedStyles } from '@/theme';
-import { weatherCodeInfo, weatherToneKey, WEATHER_TONES, fmtTemp, smoothPath, dayRainText, type WeatherDay } from '@/utils/weather';
+import { weatherToneKey, WEATHER_TONES, fmtTemp, smoothPath, dayRainText, type WeatherDay } from '@/utils/weather';
 import { haptic } from '@/utils/haptics';
 
 // 7 dni jak 24 h (2026-11-22, user: "7 dni zrób jak są 24 h, tylko na tydzień, z wersją noc/dzień"):
@@ -20,10 +20,6 @@ const WD = ['nd', 'pn', 'wt', 'śr', 'cz', 'pt', 'sb'];
 const DAY_C = '#FB923C';
 const NIGHT_C = '#818CF8';
 
-const Icon = ({ name, size, color }: { name: string; size: number; color: string }) => {
-  const C = (LucideIcons as any)[name] ?? LucideIcons.Cloud;
-  return <C size={size} color={color} />;
-};
 const dayName = (iso: string, i: number) => {
   if (i === 0) return 'dziś';
   const [y, m, d] = iso.split('-').map(Number);
@@ -67,7 +63,7 @@ export default memo(function WeeklyChart({ days }: { days: WeatherDay[] }) {
             {days.map((x, i) => (
               <View key={x.date} style={[s.col, { width: col }]}>
                 <Text style={[s.day, i === sel && s.dayOn]}>{dayName(x.date, i)}</Text>
-                <Icon name={weatherCodeInfo(x.code).icon} size={18} color={WEATHER_TONES[weatherToneKey(x.code)].color} />
+                <PixelWeatherIcon code={x.code} size={20} />
               </View>
             ))}
           </View>

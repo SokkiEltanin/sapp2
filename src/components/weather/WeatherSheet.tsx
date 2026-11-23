@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Linking } from 'react-native';
-import * as LucideIcons from 'lucide-react-native';
 import { MapPin, Navigation, RefreshCw, Search, Radar, ExternalLink, Droplets, Wind, Gauge, Sun, Sunrise, Sunset } from 'lucide-react-native';
 import HourlyChart from './HourlyChart';
 import WeeklyChart from './WeeklyChart';
+import WeatherScene, { SKY } from './WeatherScene';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SheetCard, Legend } from '@/components/design/SheetCard';
 import { colors } from '@/theme/colors';
@@ -12,7 +12,7 @@ import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useWeatherStore } from '@/store/weatherStore';
 import { refreshWeather } from '@/hooks/useWeather';
 import { searchCity, type CityHit } from '@/services/weather';
-import { weatherCodeInfo, aqiInfo, rainSummary, cloudSummary, weatherTip, fmtTemp, weatherColor, uvLabel, dayLength, humidityLabel, aqiAdvice, worstPollutant, AIR_NORMS } from '@/utils/weather';
+import { weatherCodeInfo, aqiInfo, rainSummary, cloudSummary, weatherTip, fmtTemp, weatherToneKey, uvLabel, dayLength, humidityLabel, aqiAdvice, worstPollutant, AIR_NORMS } from '@/utils/weather';
 import { haptic } from '@/utils/haptics';
 
 // Układ 2026-11-22 (user: "pogodę zrobiłbym lepiej, brakuje inspiracji"): teraz → jedna karta
@@ -22,10 +22,6 @@ import { haptic } from '@/utils/haptics';
 // UV/wschód-zachód), 24 h godzina po godzinie (temp + szansa opadów), 7 dni,
 // jakość powietrza z normami WHO, a na dole lokalizacja: GPS albo wyszukane
 // miasto (config na samym dole — CLAUDE.md zasada 10).
-const Icon = ({ name, size = 16, color = colors.text.primary }: { name: string; size?: number; color?: string }) => {
-  const C = (LucideIcons as any)[name] ?? LucideIcons.Cloud;
-  return <C size={size} color={color} />;
-};
 const hm = (t: string) => t.slice(11, 16);
 
 export default function WeatherSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
@@ -67,7 +63,7 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
   };
 
   const cur = data?.current;
-  const nowTone = cur ? weatherColor(cur.code, cur.isDay) : colors.text.secondary;
+  const nowKey = cur ? weatherToneKey(cur.code, cur.isDay) : 'cloud';
   const info = cur ? weatherCodeInfo(cur.code, cur.isDay) : null;
   const today = data?.daily[0];
   const tip = data ? weatherTip(data) : null;
@@ -106,11 +102,11 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
 
       {cur && info && (
         <>
-          {/* Karta "teraz" z lekkim gradientem w kolorze pogody (2026-11-14, user:
-              "żeby widzieć czy pochmurnie czy śnieg czy deszcz — bez animacji"). */}
+          {/* Karta "teraz" w stylu kafla Dashboardu (2026-11-23, user: "jak się wchodzi, to ten sam
+              styl"): odcień nieba (SKY) + animowana scena pixel-art zamiast ikony. */}
           <View style={s.nowCard}>
             <LinearGradient
-              colors={[nowTone + '45', nowTone + '14', 'transparent']}
+              colors={[SKY[nowKey] + '45', SKY[nowKey] + '14', 'transparent']}
               locations={[0, 0.55, 1]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -118,7 +114,9 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
               pointerEvents="none"
             />
             <View style={s.nowRow}>
-              <Icon name={info.icon} size={40} color={nowTone} />
+              <View style={s.scene} pointerEvents="none">
+                <WeatherScene scene={nowKey} wind={Math.max(cur.wind, cur.gusts * 0.6)} px={4} inset={4} />
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.nowTemp}>{fmtTemp(cur.temp)}</Text>
                 <Text style={s.nowLabel}>{info.label} · odczuwalna {fmtTemp(cur.feels)}</Text>
@@ -273,6 +271,7 @@ function Detail({ Icon: I, l, v, sub, warn }: { Icon: any; l: string; v: string;
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
+  scene: { width: 92, height: 76, marginLeft: -4 },
   dGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: spacing[3] },
   dCell: { width: '33.33%', paddingRight: spacing[2] },
   dHead: { flexDirection: 'row', alignItems: 'center', gap: 4 },

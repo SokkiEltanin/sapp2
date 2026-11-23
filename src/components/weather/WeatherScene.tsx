@@ -1,7 +1,7 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Animated, Easing, StyleSheet, AppState, AccessibilityInfo, type LayoutChangeEvent } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
-import { useIsFocused } from '@react-navigation/native';
+import { NavigationContext } from '@react-navigation/native';
 import type { WeatherToneKey } from '@/utils/weather';
 import { spriteRects } from '@/utils/pixelSprite';
 
@@ -125,8 +125,23 @@ const wrap = (t: Animated.Value, phase: number, from: number, to: number) => {
   });
 };
 
+// Fokus ekranu bez wymogu nawigacji (scena żyje też w oknie pogody, które może być portalem
+// poza drzewem nawigacji — wtedy po prostu "aktywny").
+function useFocusedSafe(): boolean {
+  const nav = useContext(NavigationContext);
+  const [focused, setFocused] = useState(() => nav?.isFocused?.() ?? true);
+  useEffect(() => {
+    if (!nav) return;
+    setFocused(nav.isFocused());
+    const a = nav.addListener('focus', () => setFocused(true));
+    const b = nav.addListener('blur', () => setFocused(false));
+    return () => { a(); b(); };
+  }, [nav]);
+  return focused;
+}
+
 function useActive(): boolean {
-  const focused = useIsFocused();
+  const focused = useFocusedSafe();
   const [fg, setFg] = useState(AppState.currentState !== 'background');
   const [still, setStill] = useState(false);
   useEffect(() => {
@@ -137,7 +152,9 @@ function useActive(): boolean {
   return focused && fg && !still;
 }
 
-export default memo(function WeatherScene({ scene, wind }: { scene: WeatherToneKey; wind: number }) {
+/** `px` = rozmiar piksela (domyślnie z wymiarów), `inset` = odstęp od prawej/górnej krawędzi.
+ *  Używane w kaflu Dashboardu i w karcie "teraz" okna pogody (ten sam styl, 2026-11-23). */
+export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10 }: { scene: WeatherToneKey; wind: number; px?: number; inset?: number }) {
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const run = useActive() && !!size;
   const fast = useLoop(scene === 'heavy' || scene === 'storm' ? 700 : 950, run);
@@ -153,9 +170,9 @@ export default memo(function WeatherScene({ scene, wind }: { scene: WeatherToneK
   if (!size) return <View style={StyleSheet.absoluteFill} onLayout={onLayout} pointerEvents="none" />;
 
   const { w, h } = size;
-  const px = Math.max(2, Math.round(Math.min(w / 42, h / 26)));
-  const right = 10;
-  const top = 8;
+  const px = pxFixed ?? Math.max(2, Math.round(Math.min(w / 42, h / 26)));
+  const right = inset;
+  const top = Math.max(2, inset - 2);
   const cloudW = CLOUD_BIG[0].length * px;
   const cloudH = CLOUD_BIG.length * px;
   const cloudX = w - right - cloudW;

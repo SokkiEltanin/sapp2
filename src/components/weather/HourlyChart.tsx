@@ -1,10 +1,10 @@
 import { memo, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop, Circle } from 'react-native-svg';
-import * as LucideIcons from 'lucide-react-native';
+import PixelWeatherIcon from './PixelWeatherIcon';
 import { colors } from '@/theme/colors';
 import { themedStyles } from '@/theme';
-import { weatherCodeInfo, weatherColor, fmtTemp, smoothPath, type WeatherHour } from '@/utils/weather';
+import { fmtTemp, smoothPath, type WeatherHour } from '@/utils/weather';
 
 // 24 h jako jeden wykres (2026-11-22, user: "pogodę zrobiłbym lepiej"): godzina + ikona na górze,
 // gładka krzywa temperatury z wartościami nad punktami, pod nią szansa opadu (słupki z %),
@@ -14,11 +14,6 @@ const COL = 46;          // szerokość godziny
 const CURVE_H = 64;      // wysokość pola krzywej
 const TOP_PAD = 18;      // miejsce na etykietę temperatury nad punktem
 const RAIN_H = 30;       // maks. wysokość słupka opadu
-
-const Icon = ({ name, size, color }: { name: string; size: number; color: string }) => {
-  const C = (LucideIcons as any)[name] ?? LucideIcons.Cloud;
-  return <C size={size} color={color} />;
-};
 
 export default memo(function HourlyChart({ hours, isDayAt }: { hours: WeatherHour[]; isDayAt: (t: string) => boolean }) {
   const s = makeS();
@@ -47,7 +42,7 @@ export default memo(function HourlyChart({ hours, isDayAt }: { hours: WeatherHou
             return (
               <View key={h.time} style={s.col}>
                 <Text style={[s.time, i === 0 && s.now, hh === 0 && s.midnight]}>{i === 0 ? 'teraz' : hh === 0 ? 'jutro' : `${hh}:00`}</Text>
-                <Icon name={weatherCodeInfo(h.code, day).icon} size={17} color={weatherColor(h.code, day)} />
+                <PixelWeatherIcon code={h.code} isDay={day} size={20} />
               </View>
             );
           })}
