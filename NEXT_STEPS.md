@@ -46,6 +46,9 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 - [ ] Kafel pogody na telefonie: scena nie nachodzi na temperaturę, animacja płynna (bez zacięć przy przewijaniu
   Dashboardu), staje po przejściu na inną zakładkę. Śnieg/deszcz/burza/noc widać od razu.
 - [ ] Finanse: czerwony/zielony pasek + biała kropka z kubłem; Daily → Miesiąc biało-czarny.
+- [ ] Finanse: kafel Wydatki = 3 kolumny; okno Wydatki z 3 dużymi polami; kalendarz-miesiąc czytelny na telefonie
+  (ile chipów mieści się w dniu, czy „15–21” wystarcza przy zmianach JD).
+- [ ] Okno pogody: scena w karcie „teraz”, ikony pixel-art w 24 h i 7 dni czytelne.
 
 **2026-11-23 — Formularz wydatku uporządkowany + wzorce dni pracy** (ARCHITECTURE „FORMULARZ WYDATKU: PIGUŁKI…”,
 „WZORCE: ROZBICIE DNI PRACY”). OTA.

@@ -2521,6 +2521,15 @@ User: „dużo kolorów i słupków, ciężko zrozumieć, dla ADHD-owców to mas
   szary), `bucketLabel` = biała kropka + „Jedzenie/Stałe/Zmienne” w podpisie wiersza (kafel i lista Transakcji), `grayRamp`
   = szarości podziału i kategorii na kaflu Wydatki. Kolory kubłów (`BUCKET_COLOR`) tylko w środku (okno Wydatki, karty).
   Saldo: wydatki miesiąca na czerwono.
+- Finanse → kafel Wydatki: TYLKO Stałe / Jedzenie / Zmienne (pasek w 3 szarościach `grayRamp(3)` + 3 kolumny z kwotą
+  i udziałem); stuknięcie kolumny = `WydatkiModal` na tej grupie. W oknie zamiast zakładek tekstowych 3 duże pola
+  (pinezka w tym samym odcieniu, kwota miesiąca) + wiersz „Wpływy”; szczegóły (kategorie, transakcje, trend) pod spodem.
+- Kalendarz → miesiąc (`components/tasks/MonthViewModal.tsx`): okno `fixedHeight` 94% ekranu, tylko tygodnie z dniami
+  miesiąca, wysokość wiersza z ekranu (`rowH`) → 2–4 chipy; chip = TAG pogrubiony + `shortChipTitle` („15:00 - 21:00”
+  → „15–21”), „+N” obok numeru dnia.
+- Okno pogody: karta „teraz” z tą samą sceną (`WeatherScene` `px`/`inset`), wykresy 24 h i 7 dni z nieruchomymi ikonami
+  `components/weather/PixelWeatherIcon.tsx` (te same rysunki). Fokus sceny przez `NavigationContext` (działa też poza
+  nawigacją).
 - Kafel pogody na Dashboardzie: `components/weather/WeatherScene.tsx` — własne sprite'y pixel-art (`utils/pixelSprite.ts`
   scala piksele w prostokąty, 1 Svg na sprite), sceny wg `weatherToneKey`: słońce (pulsujące promienie), noc (księżyc +
   migające gwiazdy), chmury (dryf), mgła (pasy), mżawka/deszcz/ulewa (spadające krople), śnieg (płatki z kołysaniem),

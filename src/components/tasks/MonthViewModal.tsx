@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { bgForWhiteText } from '@/utils/readableColor';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { splitTag } from '@/ui/layout';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
@@ -29,9 +30,26 @@ const MONTH_NAMES = [
   'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
   'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień',
 ];
-const MAX_CHIPS_PER_CELL = 2;
+// Czytelniejszy miesiąc (2026-11-23, user: "tydzień super, wszystko widać, a miesiąc mini
+// i nieczytelny — zrób większą zakładkę"): okno na ~całą wysokość (stała, bez skoków),
+// tylko tygodnie z dniami tego miesiąca (4–6), wysokość wiersza z ekranu → mieści się
+// 2–4 chipy; chip = TAG pogrubiony + skrócony tytuł ("15:00 - 21:00" → "15–21"),
+// czcionka jak w tygodniu. Reszta "+N", pełna lista po stuknięciu dnia (DayDetailModal).
+const SHEET_RATIO = 0.94;
+const HEADER_H = 150;   // uchwyt + tytuł + dni tygodnia + marginesy
+const CHIP_H = 25;
 
-// ZAWSZE 6 tygodni (42 komórki), nie "ile akurat trzeba" (2026-11-09, user:
+/** Krótszy tytuł do chipa: godziny bez ":00", "-" → "–". */
+export function shortChipTitle(t: string): string {
+  return t
+    .replace(/(\d{1,2}):00(?!\d)/g, '$1')
+    .replace(/(\d)\s*[-–—]\s*(\d)/g, '$1–$2')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Siatka 42 komórek; od 2026-11-23 okno ma STAŁĄ wysokość (fixedHeight), więc puste tygodnie
+// są odfiltrowane w komponencie — historia: ZAWSZE 6 tygodni (2026-11-09, user:
 // "kalendarz niech ma stałą wysokość najlepiej tę większą, bo tak między
 // miesiącami skacze bez sensu") — miesiąc potrzebuje 4-6 wierszy w zależności
 // od tego na jaki dzień tygodnia wypada 1. dzień (Grudzień 2026: 5, Listopad
@@ -70,7 +88,11 @@ export default function MonthViewModal({
   const [monthCursor, setMonthCursor] = useState(() => new Date());
   const today = todayISO();
 
-  const monthWeeks = useMemo(() => getMonthGrid(monthCursor), [monthCursor]);
+  // Tylko tygodnie z dniami miesiąca — okno ma stałą wysokość, więc mniej tygodni = wyższe wiersze.
+  const monthWeeks = useMemo(() => getMonthGrid(monthCursor).filter((w) => w.some(Boolean)), [monthCursor]);
+  const { height: winH } = useWindowDimensions();
+  const rowH = Math.max(86, Math.floor((winH * SHEET_RATIO - HEADER_H) / Math.max(4, monthWeeks.length)));
+  const maxChips = Math.max(2, Math.floor((rowH - 30) / (CHIP_H + 2)));
   const isCurrentMonth = monthCursor.getFullYear() === new Date().getFullYear()
     && monthCursor.getMonth() === new Date().getMonth();
 
@@ -127,29 +149,37 @@ export default function MonthViewModal({
   );
 
   return (
-    <AppBottomSheet visible={visible} onClose={onClose} header={header}>
+    <AppBottomSheet visible={visible} onClose={onClose} header={header} fixedHeight maxHeightRatio={SHEET_RATIO}>
       {monthWeeks.map((week, i) => (
         <View key={i} style={s.weekRow}>
           {week.map((d, j) => {
-            if (!d) return <View key={j} style={s.cellSlot} />;
+            if (!d) return <View key={j} style={[s.cellSlot, { height: rowH }]} />;
             const dateYMD = ymd(d);
             const isToday = dateYMD === today;
             const isSelected = !isToday && dateYMD === selectedDate;
             const dayEvents = eventsByDay.get(dateYMD) ?? [];
-            const overflow = dayEvents.length - MAX_CHIPS_PER_CELL;
+            const shown = maxChips;
+            const overflow = dayEvents.length - shown;
             return (
-              <TouchableOpacity key={j} style={s.cellSlot} onPress={() => selectDay(dateYMD)} activeOpacity={0.7}>
+              <TouchableOpacity key={j} style={[s.cellSlot, { height: rowH }]} onPress={() => selectDay(dateYMD)} activeOpacity={0.7}>
                 <View style={[s.cell, isToday && s.cellToday, isSelected && s.cellSelected]}>
-                  <View style={[s.dayNumWrap, isToday && s.dayNumToday]}>
-                    <Text style={[s.dayNum, isToday && s.dayNumTextToday]}>{d.getDate()}</Text>
+                  {/* "+N" obok numeru dnia — nie zabiera miejsca chipowi */}
+                  <View style={s.dayHead}>
+                    <View style={[s.dayNumWrap, isToday && s.dayNumToday]}>
+                      <Text style={[s.dayNum, isToday && s.dayNumTextToday]}>{d.getDate()}</Text>
+                    </View>
+                    {overflow > 0 && <Text style={s.moreLabel}>+{overflow}</Text>}
                   </View>
                   <View style={s.chips}>
-                    {dayEvents.slice(0, MAX_CHIPS_PER_CELL).map((ev) => (
-                      <View key={ev.id} style={[s.chip, { backgroundColor: bgForWhiteText(ev.color ?? colors.accent.blue) }]}>
-                        <Text style={s.chipLabel} numberOfLines={1}>{ev.title}</Text>
-                      </View>
-                    ))}
-                    {overflow > 0 && <Text style={s.moreLabel}>+{overflow}</Text>}
+                    {dayEvents.slice(0, shown).map((ev) => {
+                      const { tag, title } = splitTag(ev.title);
+                      return (
+                        <View key={ev.id} style={[s.chip, { backgroundColor: bgForWhiteText(ev.color ?? colors.accent.blue) }]}>
+                          {tag ? <Text style={s.chipTag} numberOfLines={1}>{tag}</Text> : null}
+                          <Text style={s.chipLabel} numberOfLines={tag ? 1 : 2}>{shortChipTitle(title) || ev.title}</Text>
+                        </View>
+                      );
+                    })}
                   </View>
                 </View>
               </TouchableOpacity>
@@ -185,19 +215,21 @@ const makeS = themedStyles((c) => StyleSheet.create({
   weekLabel: { flex: 1, textAlign: 'center', fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.secondary, textTransform: 'uppercase' },
 
   weekRow: { flexDirection: 'row' },
-  cellSlot: { flex: 1, minHeight: 86, padding: 2 },
-  cell: { flex: 1, borderRadius: radius.md, padding: 4, gap: 3 },
+  cellSlot: { flex: 1, padding: 1.5 },
+  cell: { flex: 1, borderRadius: radius.md, padding: 3, gap: 2, overflow: 'hidden' },
   // Subtelna, jaśniejsza obwódka dla "dziś" (zamiast tylko białego kółka na numerze
   // dnia, łatwo zgubionego przy przewijaniu) — user: "popraw kolory... zbyt
   // szarawiaste".
   cellToday: { borderWidth: 1, borderColor: c.text.bright + '55' },
   cellSelected: { backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default },
-  dayNumWrap: { width: 20, height: 20, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  dayHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dayNumWrap: { width: 22, height: 22, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
   dayNumToday: { backgroundColor: c.text.bright },
-  dayNum: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.primary },
+  dayNum: { fontSize: 12.5, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
   dayNumTextToday: { color: c.bg.primary },
   chips: { gap: 2 },
-  chip: { borderRadius: 4, paddingHorizontal: 3, paddingVertical: 2, minHeight: 15, justifyContent: 'center' },
-  chipLabel: { fontSize: 7.5, fontFamily: 'Inter_700Bold', color: '#FFFFFF', lineHeight: 9 },
-  moreLabel: { fontSize: 8, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  chip: { borderRadius: 4, paddingHorizontal: 3, paddingVertical: 2, minHeight: CHIP_H, justifyContent: 'center' },
+  chipTag: { fontSize: 8.5, fontFamily: 'Inter_900Black', color: '#FFFFFF', lineHeight: 10, opacity: 0.85 },
+  chipLabel: { fontSize: 9, fontFamily: 'Inter_700Bold', color: '#FFFFFF', lineHeight: 10.5 },
+  moreLabel: { fontSize: 9.5, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary, paddingLeft: 2 },
 }));
