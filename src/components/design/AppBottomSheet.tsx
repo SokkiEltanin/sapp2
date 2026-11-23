@@ -251,8 +251,10 @@ export default function AppBottomSheet({
                 nie otwierał żeby to zobaczyć). Jawne włączenie eksperymentalnej
                 natywnej implementacji blura na Androidzie (iOS ma realny blur
                 domyślnie, nie dotyczy). */}
+            {/* Intensywność 24 → 14 (2026-11-23, user: "zmniejszyć trochę blur po otwarciu popupu,
+                delikatnie, na test"). Przyciemnienie (backdrop 0.6) bez zmian. */}
             <BlurView
-              intensity={24}
+              intensity={14}
               tint="dark"
               style={StyleSheet.absoluteFill}
               experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
