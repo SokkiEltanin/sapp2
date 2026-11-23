@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Zap, Wallet, Smartphone, Moon } from 'lucide-react-native';
+import { Zap, Wallet, Smartphone, Moon, Smile, Footprints, Candy, Pizza, ShoppingBag, Briefcase, Lock, Sparkles } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { spacing, radius, themedStyles } from '@/theme';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useInsights } from '@/hooks/useInsights';
-import { fmtVal, type Insight, type Group } from '@/utils/insights';
+import { fmtVal, type Insight, type Group, type FeatKey } from '@/utils/insights';
 import { haptic } from '@/utils/haptics';
 
 // Twoje wzorce (2026-11-22, user: "sensowne porównanie danych i schematy zachowań — mniej energii,
@@ -15,7 +15,14 @@ const GROUPS: { id: Group | 'all'; label: string }[] = [
   { id: 'all', label: 'Wszystkie' }, { id: 'energia', label: 'Energia i humor' }, { id: 'wydatki', label: 'Wydatki' },
   { id: 'telefon', label: 'Telefon' }, { id: 'sen', label: 'Sen' },
 ];
-const ICON = { energia: Zap, wydatki: Wallet, telefon: Smartphone, sen: Moon };
+// Ikona wg tego, CO jest mierzone (y), nie wg grupy (2026-11-22, user: "dwa razy energia —
+// humor niech ma buźkę"): humor ≠ energia ≠ kroki, choć są w jednej grupie filtra.
+const Y_ICON: Partial<Record<FeatKey, typeof Zap>> = {
+  mood: Smile, energy: Zap, sleep: Moon, steps: Footprints,
+  sweets: Candy, fastfood: Pizza, shop: ShoppingBag, spend: Wallet,
+  fun: Smartphone, screen: Smartphone, unlocks: Lock, night: Moon, work: Briefcase, good: Sparkles,
+};
+const GROUP_ICON = { energia: Zap, wydatki: Wallet, telefon: Smartphone, sen: Moon };
 const TONE = { good: colors.accent.green, bad: colors.accent.orange, neutral: colors.text.secondary };
 
 export default function InsightsSheet({ visible, onClose, onOpenScreen }: { visible: boolean; onClose: () => void; onOpenScreen?: () => void }) {
@@ -68,7 +75,7 @@ export default function InsightsSheet({ visible, onClose, onOpenScreen }: { visi
 
 function InsightCard({ x }: { x: Insight }) {
   const s = makeS();
-  const Icon = ICON[x.group];
+  const Icon = Y_ICON[x.y] ?? GROUP_ICON[x.group];
   const tone = TONE[x.tone];
   const max = Math.max(x.hi.mean, x.lo.mean, 0.0001);
   const dots = x.strength === 'silny' ? 3 : x.strength === 'wyraźny' ? 2 : 1;
