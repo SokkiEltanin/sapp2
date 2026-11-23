@@ -50,14 +50,16 @@ rozwijanych pojedynczo, tagi: tylko wybrane + „+ tag”.
 kolejna runda (np. kafel pogody na Dashboardzie w tym samym stylu).
 - [ ] Wykres 24 h przewija się płynnie palcem; krzywa i opady czytelne; „jutro” przy północy.
 - [ ] 7 dni: stuknięcie dnia pokazuje opis pod wykresem; powietrze — ocena na górze, szczegóły na dole.
-- [ ] Budżety: przekroczony wygląda na przekroczony (pasek, plakietka, słupki miesięcy, pigułki w Finansach).
+- [ ] Budżety (🎯 w kaflu „Wydatki”): przekroczony wygląda na przekroczony (pasek, plakietka, słupki miesięcy).
+- [ ] Finanse: jeden kafel „Wydatki” (Stałe/Jedzenie/Zmienne) + okno z zakładkami o stałej wysokości; ostatnie transakcje do dołu.
+- [ ] Baterie: zakres 24 h/7/30 dni, odczyt palcem; Odliczanie na Dashboardzie na całą wysokość.
 
 **2026-11-22 — Czas z telefonem: naprawa „17 h 19 min” + czytelniejszy panel** (ARCHITECTURE „CZAS Z TELEFONEM”).
 Liczenie = nowe APK (moduł v2), panel i popup kategorii = OTA.
 - [ ] Po instalacji APK: środa i reszta tygodnia przeliczone (bez 17 h), „zwykle do tej pory” realne.
   User: 17 h to najpewniej Instalator pakietów (pauza bez wznowienia → v1 liczyło od północy); Cyfrowej
   równowagi nie ma, więc porównanie odpada. Jeśli Instalator dalej ma duże czasy → wykluczyć go jak HOME.
-- [ ] Stuknięcie appki → popup kategorii; pasek 3 liczb + „Szczegóły dnia” czytelne.
+- [ ] Stuknięcie appki → popup kategorii; wykres dnia (szczyt, zwykle, pierwsze odbl.) czytelny na telefonie.
 
 **2026-11-22 — Notatki: kolor i wzór strony + ołówek i zakreślacz** (ARCHITECTURE „Strona notatki”, „Narzędzia”). OTA.
 - [ ] Wiadro w nagłówku notatki → Papier + Linie: czy linie wypadają pod wierszami na telefonie (natywnie 22 px)
@@ -100,9 +102,8 @@ Wymaga nowego APK telefonu (odbiór `/sapp2/mood/`) i nowego `sapp2-wear-N.apk` 
 - [ ] W czasie zmiany z kalendarza: karta „W PRACY” z liczącą się kwotą, paskiem i „zostało”; przed zmianą
   „Praca dziś hh:mm, zarobisz ≈”.
 - [ ] Humor na zegarku → po otwarciu appki na telefonie wpis w Daily (bez dubli); wiersz HUMOR pokazuje go od razu.
-- [ ] Tętno: stuknięcie → zgoda → bpm na żywo, serce bije w rytmie; „załóż zegarek” bez kontaktu.
-- [ ] Znane ograniczenie: wpis humoru z zegarka nie kasuje przypomnienia 21:00, dopóki appka telefonu nie
-  zostanie otwarta.
+- [x] Tętno — USUNIĘTE z zegarka (user, 2026-11-22).
+- [x] Humor z zegarka kasuje przypomnienie 21:00 (naprawione 2026-11-22, notifeeBackground + praca w tle).
 
 **2026-11-18 — Reguła „zawsze przelew własny”** (`CategoryRule.kind 'own'`, `ruleOwnFor`): w oknie przelewu
 własnego chip „Zawsze przelew własny dla „trade republic””, też w Ustawieniach → Reguły. Działa dla wydatków i
