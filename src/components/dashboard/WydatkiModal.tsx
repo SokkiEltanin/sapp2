@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { grayRamp } from '@/utils/txGroup';
 import { router } from 'expo-router';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { X, ChevronLeft, ChevronRight, Table2 } from 'lucide-react-native';
@@ -52,12 +53,14 @@ import type { Expense } from '@/types/finances';
 // trend 12 miesięcy (TrendCard, dawny osobny arkusz Trend) → tabela wszystkich wydatków.
 // Arkusz ma STAŁĄ wysokość (`fixedHeight`), więc przełączanie zakładek nie skacze.
 export type WydatkiTab = 'fixed' | 'variable' | 'food' | 'income';
-const TABS: { key: WydatkiTab; label: string }[] = [
+// Kolejność i odcienie jak na kaflu Finansów (2026-11-23, user: "po wejściu duża zakładka
+// podzielona na 3 z możliwością wejścia i zobaczenia szczegółów").
+const TABS: { key: Exclude<WydatkiTab, 'income'>; label: string }[] = [
   { key: 'fixed', label: 'Stałe' },
-  { key: 'variable', label: 'Zmienne' },
   { key: 'food', label: 'Jedzenie' },
-  { key: 'income', label: 'Wpływy' },
+  { key: 'variable', label: 'Zmienne' },
 ];
+const TAB_GRAY = grayRamp(3);
 
 export default function WydatkiModal({
   visible,
@@ -146,18 +149,25 @@ export default function WydatkiModal({
           <ChevronRight size={18} color={monthOffset >= 0 ? colors.text.muted : colors.text.secondary} />
         </TouchableOpacity>
       </View>
+      {/* 3 duże pola = podział miesiąca i wybór szczegółów; Wpływy osobno pod spodem. */}
       <View style={s.tabsRow}>
-        {TABS.map((t) => (
-          <TouchableOpacity
-            key={t.key}
-            style={[s.tabBtn, tab === t.key && s.tabBtnActive]}
-            onPress={() => { haptic.tap(); setTab(t.key); }}
-            activeOpacity={0.7}
-          >
-            <Text style={[s.tabBtnLabel, tab === t.key && s.tabBtnLabelActive]}>{t.label}</Text>
-          </TouchableOpacity>
-        ))}
+        {TABS.map((t, i) => {
+          const on = tab === t.key;
+          return (
+            <TouchableOpacity key={t.key} style={[s.bigTab, on && s.bigTabOn]} onPress={() => { haptic.tap(); setTab(t.key); }} activeOpacity={0.7}>
+              <View style={s.bigTabTop}>
+                <View style={[s.bigTabPin, { backgroundColor: TAB_GRAY[i] }]} />
+                <Text style={[s.bigTabLabel, on && s.bigTabLabelOn]}>{t.label}</Text>
+              </View>
+              <Text style={[s.bigTabVal, on && s.bigTabValOn]} numberOfLines={1} adjustsFontSizeToFit>{data[t.key].total}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
+      <TouchableOpacity style={[s.incomeTab, tab === 'income' && s.bigTabOn]} onPress={() => { haptic.tap(); setTab('income'); }} activeOpacity={0.7}>
+        <Text style={[s.bigTabLabel, tab === 'income' && s.bigTabLabelOn]}>Wpływy</Text>
+        <Text style={[s.incomeVal, tab === 'income' && s.bigTabValOn]}>+{zl(incomeTotal)}</Text>
+      </TouchableOpacity>
     </>
   );
 
@@ -247,7 +257,17 @@ const makeS = themedStyles((c) => StyleSheet.create({
   monthNavBtn: { width: 30, height: 30, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.elevated },
   monthNavBtnDisabled: { opacity: 0.4 },
   monthLabel: { fontSize: 13.5, fontFamily: 'Inter_900Black', color: c.text.primary, minWidth: 130, textAlign: 'center' },
-  tabsRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[1] },
+  tabsRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[2] },
+  bigTab: { flex: 1, paddingVertical: spacing[3], paddingHorizontal: spacing[2], borderRadius: radius.lg, backgroundColor: c.ui.in, borderWidth: 1, borderColor: 'transparent', gap: 6 },
+  bigTabOn: { borderColor: c.text.bright, backgroundColor: c.ui.in2 },
+  bigTabTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  bigTabPin: { width: 8, height: 8, borderRadius: 4 },
+  bigTabLabel: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.muted },
+  bigTabLabelOn: { color: c.text.bright },
+  bigTabVal: { fontSize: 16, fontFamily: 'Inter_900Black', color: c.text.secondary, fontVariant: ['tabular-nums'] },
+  bigTabValOn: { color: c.text.bright },
+  incomeTab: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing[2], paddingHorizontal: spacing[3], borderRadius: radius.lg, backgroundColor: c.ui.in, borderWidth: 1, borderColor: 'transparent', marginBottom: spacing[1] },
+  incomeVal: { fontSize: 13, fontFamily: 'Inter_900Black', color: c.accent.green, fontVariant: ['tabular-nums'] },
   incTotal: { fontSize: 15, fontFamily: 'Inter_900Black', color: c.text.bright },
   incEmpty: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
   incRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7 },
@@ -258,10 +278,6 @@ const makeS = themedStyles((c) => StyleSheet.create({
   incVal: { fontSize: 12.5, fontFamily: 'Inter_900Black', color: c.text.primary, fontVariant: ['tabular-nums'] },
   tableBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[3], marginBottom: spacing[1], paddingHorizontal: spacing[3], paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default },
   tableBtnLabel: { flex: 1, fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: c.text.primary },
-  tabBtn: { flex: 1, alignItems: 'center', paddingVertical: spacing[2], borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default },
-  tabBtnActive: { backgroundColor: c.text.bright, borderColor: c.text.bright },
-  tabBtnLabel: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: c.text.muted },
-  tabBtnLabelActive: { color: c.bg.primary },
   closeBtn: {
     width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
     backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default,

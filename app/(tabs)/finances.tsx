@@ -16,8 +16,6 @@ import WydatkiModal, { type WydatkiTab } from '@/components/dashboard/WydatkiMod
 import BudgetSheet from '@/components/budgets/BudgetSheet';
 import { useBudgetsStore } from '@/store/budgetsStore';
 import { budgetStatuses } from '@/utils/budgets';
-import { variableByCategory } from '@/utils/expenseCategory';
-import { fixedByCategory } from '@/utils/fixedCategory';
 import { useCategoriesVersion } from '@/store/categoriesStore';
 import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useExpensesStore } from '@/store/expensesStore';
@@ -75,14 +73,6 @@ function parseZl(s: string): number {
 }
 // Pasek kategorii: 6 największych + reszta szarą "inne" (było kilkanaście kolorów naraz).
 const SPLIT_GRAY = grayRamp(3);
-function topParts(bars: { label: string; amount: number; color: string }[]) {
-  const sorted = [...bars].sort((a, b) => b.amount - a.amount);
-  // Szarości zamiast kolorów kategorii (2026-11-23) — kolory dopiero w oknie Wydatki.
-  const g = grayRamp(Math.min(6, sorted.length));
-  const top = sorted.slice(0, 6).map((c, i) => ({ label: c.label, value: c.amount, color: g[i] }));
-  const rest = sorted.slice(6).reduce((a, c) => a + c.amount, 0);
-  return rest > 0 ? [...top, { label: 'Inne', value: rest, color: '#2E2E2E' }] : top;
-}
 // "dziś 12:23" / "wczoraj 14:58" / "16.11" — data na liście ostatnich transakcji.
 function txWhen(iso: string): string {
   const d = iso.slice(0, 10);
@@ -255,12 +245,7 @@ export default function FinancesScreen() {
   // Zakładka popupu Wydatki: "Podział" → Stałe, kafel Zmienne · kategorie → Zmienne.
   const [wydatkiTab, setWydatkiTab] = useState<WydatkiTab>('fixed');
 
-  const catVersion = useCategoriesVersion();
-  const varCats = useMemo(() => variableByCategory(expenses, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`), [expenses, now, catVersion]);
-  const fixedCats = useMemo(() => fixedByCategory(expenses, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`), [expenses, now, catVersion]);
-  const [grp, setGrp] = useState<'food' | 'fixed' | 'variable'>('food');
-  const foodCats = wydatkiData.food.categories;
-  const catBars = grp === 'food' ? foodCats : grp === 'fixed' ? fixedCats : varCats;
+  useCategoriesVersion(); // nazwy kategorii w podpisach transakcji
   const budOver = budgetStats.some((b) => b.level === 'over');
 
   return (
@@ -303,13 +288,12 @@ export default function FinancesScreen() {
         </View>
       </Row>
 
-      {/* Wydatki — JEDEN kafel (2026-11-22, user: "kilka miejsc z jedzeniem/zmiennymi/stałymi —
-          ujednolicić, merge w jeden fajny kafel; przeskakuje wysokością"): na górze podział
-          miesiąca (pasek + 3 kolumny Stałe/Jedzenie/Zmienne = wybór), pod spodem rozbicie
-          wybranej grupy. Stała wysokość niezależnie od wyboru. Stuknięcie rozbicia = okno
-          Wydatki na tej zakładce (tam trend 12 mies., Wpływy i tabela); 🎯 = limity. */}
+      {/* Wydatki — JEDEN kafel (2026-11-22 merge; 2026-11-23, user: "zostawić tylko Zmienne vs
+          Jedzenie vs Stałe, 3 odcienie i tyle — szczegóły dopiero po wejściu"): pasek w 3 szarościach
+          + 3 kolumny (kwota i udział). Stuknięcie kolumny = okno Wydatki na tej grupie, reszta
+          kafla = okno na Jedzeniu; 🎯 = limity. */}
       <Row>
-        <Tile span={4}>
+        <Tile span={4} onPress={() => { setWydatkiTab('food'); setWydatkiOpen(true); }} accessibilityLabel="Wydatki — szczegóły">
           <View style={s.wxHead}>
             <Text style={T.cap}>Wydatki · {wydatkiData.month}</Text>
             <View style={{ flex: 1 }} />
@@ -319,32 +303,23 @@ export default function FinancesScreen() {
               {budOver && <View style={s.budDot} />}
             </TouchableOpacity>
           </View>
-          <StackBar parts={split} height={10} legend={false} />
+          <StackBar parts={split} height={12} legend={false} />
           <View style={s.grpRow}>
             {split.map((p, i) => {
               const k = (['fixed', 'food', 'variable'] as const)[i];
-              const on = grp === k;
+              const v = p.value < 0.01 ? 0 : p.value;
               return (
-                <TouchableOpacity key={k} style={[s.grp, on && s.grpOn]} onPress={() => { haptic.tap(); setGrp(k); }} activeOpacity={0.7} accessibilityLabel={`${p.label}: ${money(p.value)} zł`}>
+                <TouchableOpacity key={k} style={s.grp} onPress={() => { haptic.tap(); setWydatkiTab(k); setWydatkiOpen(true); }} activeOpacity={0.7} accessibilityLabel={`${p.label}: ${money(v)} zł`}>
                   <View style={s.grpTop}>
                     <View style={[s.grpDot, { backgroundColor: p.color }]} />
-                    <Text style={[s.grpName, on && { color: C.hi }]}>{p.label}</Text>
+                    <Text style={s.grpName}>{p.label}</Text>
                   </View>
-                  <Text style={[s.grpVal, on && { color: C.hi }]} numberOfLines={1}>{money(p.value < 0.01 ? 0 : p.value)}</Text>
+                  <Text style={s.grpVal} numberOfLines={1}>{money(v)}</Text>
+                  <Text style={s.grpPct} numberOfLines={1}>{splitTotal > 0 ? `${Math.round((v / splitTotal) * 100)}%` : '–'}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
-          <TouchableOpacity onPress={() => { haptic.tap(); setWydatkiTab(grp); setWydatkiOpen(true); }} activeOpacity={0.7} style={s.grpDetail} accessibilityLabel="Szczegóły wydatków">
-            {catBars.length === 0 ? (
-              <View>
-                <View style={s.grpEmptyBar} />
-                <Text style={[T.small, s.grpEmpty]} numberOfLines={1}>Brak w tym miesiącu</Text>
-              </View>
-            ) : (
-              <StackBar parts={topParts(catBars)} height={8} legendMax={3} />
-            )}
-          </TouchableOpacity>
         </Tile>
       </Row>
 
@@ -588,14 +563,11 @@ const makeS = themedStyles((c) => StyleSheet.create({
   wxTotal: { fontSize: 13, fontFamily: 'Inter_900Black', color: C.hi, fontVariant: ['tabular-nums'] },
   wxIcon: { padding: 2 },
   grpRow: { flexDirection: 'row', gap: 6, marginTop: 8 },
-  grp: { flex: 1, paddingVertical: 6, paddingHorizontal: 8, borderRadius: 10, borderWidth: 1, borderColor: 'transparent' },
-  grpOn: { backgroundColor: C.in, borderColor: C.line },
+  grp: { flex: 1, paddingVertical: 6, paddingHorizontal: 8, borderRadius: 10, backgroundColor: C.in },
   grpTop: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   grpDot: { width: 7, height: 7, borderRadius: 4 },
   grpName: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: C.mut },
   grpVal: { fontSize: 14, fontFamily: 'Inter_900Black', color: C.txt, marginTop: 2, fontVariant: ['tabular-nums'] },
-  grpDetail: { marginTop: 10, minHeight: 34 },
-  grpEmptyBar: { height: 8, borderRadius: 4, backgroundColor: C.in },
-  grpEmpty: { color: C.mut, marginTop: 6 },
+  grpPct: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: C.mut, marginTop: 1, fontVariant: ['tabular-nums'] },
   budDot: { position: 'absolute', top: 0, right: 0, width: 6, height: 6, borderRadius: 3, backgroundColor: C.warn },
 }));
