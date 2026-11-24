@@ -177,14 +177,19 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
   const slow = useLoop(5200, run, true);
   const snowT = useLoop(3400, run);
   const blink = useLoop(2600, run);
-  const windT = useLoop(1800, run && wind >= 25);
+  // Tempo jak wiatr (2026-11-24, user: "im szybciej wieje, tym szybciej to postępuje"): 25 km/h = 1×,
+  // 50 km/h = 2×, max 2,6× — podmuchy lecą i fala przełamania biegnie szybciej, deszcz i śnieg mocniej
+  // znosi w bok. Zaokrąglone do 50 ms, żeby drobna zmiana wiatru nie restartowała pętli.
+  const windK = Math.min(2.6, Math.max(1, wind / 25));
+  const wq = (ms: number) => Math.round(ms / windK / 50) * 50;
+  const windT = useLoop(wq(1800), run && wind >= 25);
   // drugie tempo dla części cząstek — nie lecą wszystkie w jednym rytmie
   const fast2 = useLoop(scene === 'heavy' || scene === 'storm' ? 900 : 1250, run && (scene === 'drizzle' || scene === 'rain' || scene === 'heavy' || scene === 'storm' || scene === 'freezing'));
   const snowT2 = useLoop(4600, run && (scene === 'snow' || scene === 'freezing'));
-  const windT2 = useLoop(2600, run && wind >= 25);
+  const windT2 = useLoop(wq(2600), run && wind >= 25);
   // "żywy" wiatr: fala przełamania biegnąca wzdłuż podmuchu
-  const waveT = useLoop(1100, run && wind >= 25);
-  const waveT2 = useLoop(1600, run && wind >= 25);
+  const waveT = useLoop(wq(1100), run && wind >= 25);
+  const waveT2 = useLoop(wq(1600), run && wind >= 25);
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -217,7 +222,8 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
   // Cząstki drobniejsze niż chmura (2026-11-24, user: "płatki ogromne względem chmur"):
   // własny piksel ≈ połowa piksela sceny.
   const pp = Math.max(1, Math.floor(px / 2));
-  const rainSlant = wind >= 25 ? px * 3 : px * 0.6;
+  const rainSlant = wind >= 25 ? px * 2 * windK : px * 0.6;
+  const snowDrift = wind >= 25 ? px * 2 * windK : 0;
   const rain = Array.from({ length: drops }, () => ({
     x: Math.round(between(cloudX + px, cloudX + cloudW - px * 2)),
     y0: Math.round(between(0, px * 3)),
@@ -227,7 +233,8 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
     const amp = px * between(0.8, 2.4) * (r() < 0.5 ? -1 : 1);
     const turns = r() < 0.5 ? 1 : 2;
     const swayIn = turns === 1 ? [0, 0.25, 0.5, 0.75, 1] : [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1];
-    const swayOut = swayIn.map((_, k) => [0, amp, 0, -amp][k % 4]);
+    // kołysanie + znoszenie w bok proporcjonalne do wiatru
+    const swayOut = swayIn.map((t, k) => [0, amp, 0, -amp][k % 4] + snowDrift * t);
     return {
       x: Math.round(between(cloudX - px, cloudX + cloudW - px)),
       y0: Math.round(between(0, px * 4)),
