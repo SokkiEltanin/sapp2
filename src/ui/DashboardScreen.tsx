@@ -61,7 +61,7 @@ export type DashData = {
   countdown: { text: string; eventTitle: string; parts?: CountdownParts; when?: string; tag?: string | null; color?: string | null } | null;
   // Lewy górny kafel (2026-11-22, user: "zamiast WYMIAN na Dashboardzie dać zależności"): najsilniejszy
   // wzorzec zachowań (utils/insights.ts). Wymiany: przycisk w Finansach + wyszukiwarka.
-  insight: { text: string | null; tone: 'good' | 'bad' | 'neutral'; strength: string | null; count: number; days?: number };
+  insight: { text: string | null; tone: 'good' | 'bad' | 'neutral'; strength: string | null; count: number; days?: number; isNew?: boolean };
   upcoming: { id: string; when: string; title: string; kind: 'event' | 'deadline' | 'bill'; color: string; minutes?: number; amount?: number; fx?: { amount: number; currency: string }; steps?: string }[];
   onOpen: (what: string, id?: string) => void; // otwiera bottom sheet
 };
@@ -108,6 +108,7 @@ export function DashboardScreen(d: DashData) {
               <View style={st.insHead}>
                 <Waypoints size={12} color={d.insight.text ? INS_TONE[d.insight.tone] : C.dim} />
                 <Text style={[T.cap, { flex: 1 }]} numberOfLines={1}>Wzorce</Text>
+                {d.insight.isNew ? <View style={st.insNew}><Text style={st.insNewTxt}>nowy</Text></View> : null}
                 {d.insight.count > 0 ? <Text style={T.capR}>{d.insight.count} ›</Text> : null}
               </View>
               {d.insight.text ? (
@@ -457,6 +458,8 @@ const st = StyleSheet.create({
   nextTile: { justifyContent: 'space-between', minHeight: 96 },
   insTile: { justifyContent: 'space-between', minHeight: 96 },
   insHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  insNew: { backgroundColor: C.hi, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
+  insNewTxt: { fontFamily: F.xb, fontSize: 9, letterSpacing: 0.5, textTransform: 'uppercase', color: C.bg },
   insText: { fontFamily: F.b, fontSize: 12, lineHeight: 15, color: C.hi, marginTop: 4 },
   insFoot: { fontFamily: F.xb, fontSize: 9.5, letterSpacing: 0.6, textTransform: 'uppercase', color: C.mut, marginTop: 2 },
   nextTagCorner: { position: 'absolute', top: 9, right: 9 },

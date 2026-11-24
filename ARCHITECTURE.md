@@ -2498,6 +2498,12 @@ na Dashboardzie; tętno pisało »załóż zegarek« mimo założonego”.
 - Kafelek: najbliższe wydarzenie („za 2 h 15 min”, odświeżanie ~5 min) + liczba zadań.
 - Tętno: „brak kontaktu” tylko gdy nie było żadnego odczytu (Samsung zgłasza NO_CONTACT na starcie pomiaru).
 
+## WZORZEC DNIA NA DASHBOARDZIE (2026-11-24)
+
+Kafel „Wzorce” nie pokazuje w kółko najsilniejszego: `utils/insightRotation.ts` `pickDailyInsight` — nowy wzorzec
+(pierwszy raz widziany dziś, `store/insightSeenStore.ts`, lokalnie) ma pierwszeństwo i plakietkę „nowy”, inaczej rotacja
+po dniach z wagami 3, 2, 1, 1… (silniejsze częściej). Pierwsze uruchomienie seeduje wszystkie jako stare (`markSeen`).
+
 ## WZORCE NA DASHBOARDZIE + STATYSTYKA (2026-11-22, druga runda)
 
 - Lewy górny kafel Dashboardu = najsilniejszy wzorzec (`DashData.insight`), stuknięcie → InsightsSheet. Wymiany:

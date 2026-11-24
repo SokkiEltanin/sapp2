@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { pickDailyInsight, markSeen, dayNumber } from '@/utils/insightRotation';
+import { useInsightSeenStore } from '@/store/insightSeenStore';
 import LazyMount from '@/components/design/LazyMount';
 import { Text, View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -297,11 +299,22 @@ export default function Dashboard() {
   // zależności"). Wymiany zostają w Finansach (przycisk) i w wyszukiwarce.
   const { insights, coverage: insCoverage } = useInsights();
   const [insOpen, setInsOpen] = useState(false);
+  // Wzorzec dnia (2026-11-24): codziennie inny (silniejsze częściej), nowy — pierwszy i z
+  // plakietką „nowy” (utils/insightRotation.ts, store/insightSeenStore.ts).
+  const seen = useInsightSeenStore((st) => st.firstSeen);
+  const seenSeeded = useInsightSeenStore((st) => st.seeded);
+  useEffect(() => {
+    const next = markSeen(insights.map((x) => x.id), seen, today, seenSeeded);
+    if (next) useInsightSeenStore.getState().set(next);
+  }, [insights, seen, seenSeeded, today]);
   const insightTile = useMemo<DashData['insight']>(() => {
-    const top = insights[0];
     const days = Math.max(...Object.values(insCoverage));
-    return top ? { text: top.short, tone: top.tone, strength: top.strength, count: insights.length } : { text: null, tone: 'neutral', strength: null, count: 0, days };
-  }, [insights, insCoverage]);
+    const pick = pickDailyInsight(insights.map((x) => x.id), dayNumber(new Date(`${today}T12:00:00`)), seen, today);
+    const top = pick.index >= 0 ? insights[pick.index] : undefined;
+    return top
+      ? { text: top.short, tone: top.tone, strength: top.strength, count: insights.length, isNew: pick.isNew }
+      : { text: null, tone: 'neutral', strength: null, count: 0, days };
+  }, [insights, insCoverage, seen, today]);
 
   // Czas z telefonem (2026-11-22): store odświeża services/screenTime.ts (co 5 min / po powrocie).
   const screenDays = useScreenTimeStore((st) => st.days);

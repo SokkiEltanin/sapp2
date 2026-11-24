@@ -11,10 +11,6 @@ aktualizuj po skończeniu/odkryciu czegoś nowego (patrz `CLAUDE.md`).
   bez animacji; rysunek np. bitmapą z sprite'ów w Kotlinie albo gotowe PNG per scena w res/drawable-nodpi). Wymaga
   nowego APK. Pamiętać: bez backticków i `${` w szablonach Kotlina w pluginach JS.
 
-- **Wzorce na Dashboardzie zmieniają się codziennie** (user zaakceptował 2026-11-24): lewy górny kafel nie pokazuje
-  w kółko najsilniejszego wzorca (`DashData.insight` w `app/(tabs)/index.tsx`), tylko rotuje po wzorcach (np. indeks =
-  dzień roku mod liczba wzorców, najsilniejsze częściej). Wzorzec, który pojawił się pierwszy raz (nie było go
-  wczoraj — zapamiętać zestaw id wzorców z poprzedniego dnia lokalnie), dostaje plakietkę „nowy”. Tylko JS (OTA).
 
 - **Domyślna ręka: prawa**, z możliwością przełączenia na lewą w ustawieniach
   (wtedy belka pewnie lustrzanie do lewej krawędzi — do dopracowania przy budowie).
@@ -60,7 +56,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 - [ ] Finanse: kafel Wydatki = 3 kolumny; okno Wydatki z 3 dużymi polami; kalendarz-miesiąc czytelny na telefonie
   (ile chipów mieści się w dniu, czy „15–21” wystarcza przy zmianach JD).
 - [ ] Okno pogody: scena w karcie „teraz”, ikony pixel-art w 24 h i 7 dni czytelne.
-- [ ] Saldo: banknoty/monety z nieba nie przeszkadzają w czytaniu kwoty; wiatr przyspiesza z prędkością wiatru.
+- [ ] Saldo: stosiki monet nie przeszkadzają w czytaniu kwoty; wiatr przyspiesza z prędkością wiatru.
+- [ ] Wzorce na Dashboardzie: codziennie inny; nowy wzorzec z plakietką „nowy” (zrobione 2026-11-24).
+- [ ] Okna otwierają się sprężyście, kafle wciskają się płynnie, okna z zakładkami nie skaczą.
+- [ ] Rysunek: panel pędzla znika po wyborze; „Udostępnij” na telefonie (od nowego APK — expo-sharing), na komputerze
+  pobiera PNG.
 
 **2026-11-23 — Formularz wydatku uporządkowany + wzorce dni pracy** (ARCHITECTURE „FORMULARZ WYDATKU: PIGUŁKI…”,
 „WZORCE: ROZBICIE DNI PRACY”). OTA.
