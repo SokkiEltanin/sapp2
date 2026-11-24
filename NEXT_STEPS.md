@@ -49,6 +49,7 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 - [ ] Finanse: kafel Wydatki = 3 kolumny; okno Wydatki z 3 dużymi polami; kalendarz-miesiąc czytelny na telefonie
   (ile chipów mieści się w dniu, czy „15–21” wystarcza przy zmianach JD).
 - [ ] Okno pogody: scena w karcie „teraz”, ikony pixel-art w 24 h i 7 dni czytelne.
+- [ ] Saldo: banknoty/monety z nieba nie przeszkadzają w czytaniu kwoty; wiatr przyspiesza z prędkością wiatru.
 
 **2026-11-23 — Formularz wydatku uporządkowany + wzorce dni pracy** (ARCHITECTURE „FORMULARZ WYDATKU: PIGUŁKI…”,
 „WZORCE: ROZBICIE DNI PRACY”). OTA.

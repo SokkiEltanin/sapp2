@@ -2527,6 +2527,9 @@ User: „dużo kolorów i słupków, ciężko zrozumieć, dla ADHD-owców to mas
 - Kalendarz → miesiąc (`components/tasks/MonthViewModal.tsx`): okno `fixedHeight` 94% ekranu, tylko tygodnie z dniami
   miesiąca, wysokość wiersza z ekranu (`rowH`) → 2–4 chipy; chip = TAG pogrubiony + `shortChipTitle` („15:00 - 21:00”
   → „15–21”), „+N” obok numeru dnia.
+- Wspólny silnik scen: `components/design/pixelAnim.tsx` (`Pix`, `useLoop`, `wrap`, `useActive`, `rng`; na webie
+  pętle bez native drivera). Saldo w Finansach: `components/finances/MoneyScene.tsx` — 4 banknoty (trzepoczą: scaleY)
+  i 3 monety (kręcą się: scaleX) spadają powoli po prawej części kafla, za kwotą, przygaszone.
 - Okno pogody: karta „teraz” z tą samą sceną (`WeatherScene` `px`/`inset`), wykresy 24 h i 7 dni z nieruchomymi ikonami
   `components/weather/PixelWeatherIcon.tsx` (te same rysunki). Fokus sceny przez `NavigationContext` (działa też poza
   nawigacją).

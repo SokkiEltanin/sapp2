@@ -1,4 +1,5 @@
 import FitText from '@/ui/FitText';
+import MoneyScene from '@/components/finances/MoneyScene';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LazyMount from '@/components/design/LazyMount';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
@@ -266,6 +267,8 @@ export default function FinancesScreen() {
           ją wyznaczają, `alignItems:'stretch'` Row'a daje jej wysokość Salda. */}
       <Row>
         <Tile span={3} onPress={openEditBalance}>
+          {/* Banknoty i monety z nieba (2026-11-24) — za kwotą, po prawej stronie kafla. */}
+          <MoneyScene />
           <Cap l="Saldo" r="stuknij, by ustawić" />
           <FitText style={T.numXl} numberOfLines={1} minimumFontScale={0.6}>{fmtBalance(balance)} <Text style={s.balanceCur}>PLN</Text></FitText>
           <View style={s.balanceSumRow}>
