@@ -5,6 +5,11 @@ aktualizuj po skończeniu/odkryciu czegoś nowego (patrz `CLAUDE.md`).
 
 ## Zdecydowane, jeszcze niezbudowane
 
+- **Wzorce na Dashboardzie zmieniają się codziennie** (user zaakceptował 2026-11-24): lewy górny kafel nie pokazuje
+  w kółko najsilniejszego wzorca (`DashData.insight` w `app/(tabs)/index.tsx`), tylko rotuje po wzorcach (np. indeks =
+  dzień roku mod liczba wzorców, najsilniejsze częściej). Wzorzec, który pojawił się pierwszy raz (nie było go
+  wczoraj — zapamiętać zestaw id wzorców z poprzedniego dnia lokalnie), dostaje plakietkę „nowy”. Tylko JS (OTA).
+
 - **Domyślna ręka: prawa**, z możliwością przełączenia na lewą w ustawieniach
   (wtedy belka pewnie lustrzanie do lewej krawędzi — do dopracowania przy budowie).
   Navbar sam (prawa belka + Ustawienia w lewym dolnym rogu) już zbudowany, patrz niżej.
