@@ -37,6 +37,7 @@ import {
 import { Smartphone as SmartphoneIcon, RefreshCw } from 'lucide-react-native';
 import { useScreenTimeStore } from '@/store/screenTimeStore';
 import { useBackgroundStore, BG_LABEL, BG_ORDER, type BgInterval } from '@/store/backgroundStore';
+import { useAnimStore, ANIM_LABEL, ANIM_ORDER, type AnimMode } from '@/store/animStore';
 import { screenTimeAvailable, openScreenAccess } from '@/services/screenTime';
 import * as Clipboard from 'expo-clipboard';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -135,6 +136,7 @@ function buildSections(
   moodRem: { enabled: boolean; hour: number; minute: number },
   screenAccess: boolean | null,
   bg: { interval: BgInterval; lastRun: number },
+  anim: AnimMode,
 ): SettingsSection[] {
   return [
   // Zakładki (2026-11-17, user: "popraw ustawienia, zrób lepsze zakładki — czemu w
@@ -304,6 +306,9 @@ function buildSections(
         kind: 'action' as const, key: 'bg-refresh', label: 'Odświeżanie w tle', icon: RefreshCw,
         description: `${BG_LABEL[bg.interval]} · stuknij, żeby zmienić${bg.lastRun ? ` · ostatnio ${new Date(bg.lastRun).toLocaleString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''} — czas z telefonem, zegarek, komputer bez otwierania appki`,
       }] : []),
+      // Animacje kafli (2026-11-24) — pogoda i pieniądze; "według systemu" słucha "ogranicz ruch".
+      { kind: 'action' as const, key: 'anim-mode', label: 'Animacje kafli', icon: Rocket,
+        description: `${ANIM_LABEL[anim]} · stuknij, żeby zmienić — pogoda i pieniądze w Saldzie` },
       // Tylko na komputerze (services/pwaInstall.ts).
       ...(pwa ? [{ kind: 'action' as const, key: 'pwa-install', label: 'Zainstaluj na komputerze', description: pwa, icon: Download }] : []),
     ],
@@ -466,6 +471,7 @@ export default function SettingsScreen() {
   const screenAccess = useScreenTimeStore((st) => st.access);
   const bgInterval = useBackgroundStore((st) => st.interval);
   const bgLastRun = useBackgroundStore((st) => st.lastRun);
+  const animMode = useAnimStore((st) => st.mode);
   const sections = useMemo(
     () => buildSections(
       user?.email ?? null,
@@ -487,8 +493,9 @@ export default function SettingsScreen() {
       moodRem,
       screenAccess,
       { interval: bgInterval, lastRun: bgLastRun },
+      animMode,
     ),
-    [bgInterval, bgLastRun, screenAccess, moodRem, pen, profileLabel, pwaLabel, healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, hapticStrength, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, widgetNote, syncLabel],
+    [animMode, bgInterval, bgLastRun, screenAccess, moodRem, pen, profileLabel, pwaLabel, healthText, thresholdsText, rulesCount, updateLabel, errorsLabel, user?.email, bankEnabled, bankAutoAll, bankPending, hapticsEnabled, hapticStrength, healthConnected, healthLastSyncedAt, backupAuto, backupLastAt, backupBusy, backupError, fileInfo, widgetTasks, widgetWeather, widgetNote, syncLabel],
   );
 
   const backupNow = async () => {
@@ -792,6 +799,7 @@ export default function SettingsScreen() {
     'notify-test': leave(() => router.push('/notify-test' as any)),
     'bank-enabled': toggleBankEnabled,
     'bank-notif-access': openNotificationAccess,
+    'anim-mode': () => { haptic.tap(); const st = useAnimStore.getState(); st.setMode(ANIM_ORDER[(ANIM_ORDER.indexOf(st.mode) + 1) % ANIM_ORDER.length]); },
     'bg-refresh': () => { haptic.tap(); const st = useBackgroundStore.getState(); st.setInterval(BG_ORDER[(BG_ORDER.indexOf(st.interval) + 1) % BG_ORDER.length]); },
     'usage-access': () => { if (screenTimeAvailable()) openScreenAccess(); },
     'bank-auto-all': toggleBankAutoAll,

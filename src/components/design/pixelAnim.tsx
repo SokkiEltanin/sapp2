@@ -3,11 +3,12 @@ import { Animated, Easing, AppState, AccessibilityInfo, Platform } from 'react-n
 import Svg, { Rect } from 'react-native-svg';
 import { NavigationContext } from '@react-navigation/native';
 import { spriteRects } from '@/utils/pixelSprite';
+import { useAnimStore } from '@/store/animStore';
 
 // Wspólny "silnik" scen pixel-art (2026-11-24): pogoda (components/weather/WeatherScene.tsx)
 // i pieniądze w Saldzie (components/finances/MoneyScene.tsx). Sprite = tablica wierszy
 // ('.' = pusty, litera = kolor z palety), animacje tylko transform/opacity (CLAUDE.md zasada 6),
-// pętle stają bez fokusu ekranu, w tle i przy "ogranicz ruch".
+// pętle stają bez fokusu ekranu, w tle i wg ustawienia "Animacje kafli" (store/animStore.ts).
 export type Sprite = string[];
 export type Palette = Record<string, string>;
 
@@ -84,12 +85,15 @@ function useFocusedSafe(): boolean {
 
 export function useActive(): boolean {
   const focused = useFocusedSafe();
+  const mode = useAnimStore((st) => st.mode);
   const [fg, setFg] = useState(AppState.currentState !== 'background');
-  const [still, setStill] = useState(false);
+  const [reduce, setReduce] = useState(false);
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => setFg(s === 'active'));
-    AccessibilityInfo.isReduceMotionEnabled?.().then(setStill).catch(() => {});
+    AccessibilityInfo.isReduceMotionEnabled?.().then(setReduce).catch(() => {});
     return () => sub.remove();
   }, []);
+  // "ogranicz ruch" systemu tylko w trybie "według systemu" (Ustawienia → Aplikacja → Animacje kafli)
+  const still = mode === 'off' || (mode === 'system' && reduce);
   return focused && fg && !still;
 }

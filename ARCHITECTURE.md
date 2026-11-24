@@ -2533,6 +2533,8 @@ User: „dużo kolorów i słupków, ciężko zrozumieć, dla ADHD-owców to mas
 - Kalendarz → miesiąc (`components/tasks/MonthViewModal.tsx`): okno `fixedHeight` 94% ekranu, tylko tygodnie z dniami
   miesiąca, wysokość wiersza z ekranu (`rowH`) → 2–4 chipy; chip = TAG pogrubiony + `shortChipTitle` („15:00 - 21:00”
   → „15–21”), „+N” obok numeru dnia.
+- Ustawienia → Aplikacja → **Animacje kafli** (`store/animStore.ts`, lokalnie): Włączone (domyślnie) / Według systemu /
+  Wyłączone. Powód: Windows z wyłączonymi efektami animacji zgłasza „ogranicz ruch” → sceny stały na komputerze.
 - Wspólny silnik scen: `components/design/pixelAnim.tsx` (`Pix`, `useLoop`, `wrap`, `useActive`, `rng`; na webie
   pętle bez native drivera). Saldo w Finansach: `components/finances/MoneyScene.tsx` — 4 banknoty (trzepoczą: scaleY)
   i 3 monety (kręcą się: scaleX) spadają powoli po prawej części kafla, za kwotą, przygaszone.
