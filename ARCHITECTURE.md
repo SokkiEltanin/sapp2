@@ -2536,8 +2536,10 @@ User: „dużo kolorów i słupków, ciężko zrozumieć, dla ADHD-owców to mas
 - Ustawienia → Aplikacja → **Animacje kafli** (`store/animStore.ts`, lokalnie): Włączone (domyślnie) / Według systemu /
   Wyłączone. Powód: Windows z wyłączonymi efektami animacji zgłasza „ogranicz ruch” → sceny stały na komputerze.
 - Wspólny silnik scen: `components/design/pixelAnim.tsx` (`Pix`, `useLoop`, `wrap`, `useActive`, `rng`; na webie
-  pętle bez native drivera). Saldo w Finansach: `components/finances/MoneyScene.tsx` — 4 banknoty (trzepoczą: scaleY)
-  i 3 monety (kręcą się: scaleX) spadają powoli po prawej części kafla, za kwotą, przygaszone.
+  pętle bez native drivera). Saldo w Finansach: `components/finances/MoneyScene.tsx` (2026-11-24, druga wersja — user:
+  „spadające banknoty wyglądają okropnie”): 3 stosiki monet pixel-art w prawym dolnym rogu (wysokość z salda, skala
+  log `coinsFor`; ujemne = 1 moneta), co ~5 s moneta spada na najwyższy (grawitacja, spłaszczenie, odbicie, znika),
+  błysk światła po stosikach, 3 iskierki, złota poświata.
 - Okno pogody: karta „teraz” z tą samą sceną (`WeatherScene` `px`/`inset`), wykresy 24 h i 7 dni z nieruchomymi ikonami
   `components/weather/PixelWeatherIcon.tsx` (te same rysunki). Fokus sceny przez `NavigationContext` (działa też poza
   nawigacją).

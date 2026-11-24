@@ -267,8 +267,8 @@ export default function FinancesScreen() {
           ją wyznaczają, `alignItems:'stretch'` Row'a daje jej wysokość Salda. */}
       <Row>
         <Tile span={3} onPress={openEditBalance}>
-          {/* Banknoty i monety z nieba (2026-11-24) — za kwotą, po prawej stronie kafla. */}
-          <MoneyScene />
+          {/* Stosiki monet (2026-11-24) — za kwotą, w prawym dolnym rogu kafla. */}
+          <MoneyScene balance={balance} />
           <Cap l="Saldo" r="stuknij, by ustawić" />
           <FitText style={T.numXl} numberOfLines={1} minimumFontScale={0.6}>{fmtBalance(balance)} <Text style={s.balanceCur}>PLN</Text></FitText>
           <View style={s.balanceSumRow}>
