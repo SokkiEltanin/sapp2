@@ -4,6 +4,7 @@ import Svg, { Rect } from 'react-native-svg';
 import { NavigationContext } from '@react-navigation/native';
 import { spriteRects } from '@/utils/pixelSprite';
 import { useAnimStore } from '@/store/animStore';
+import { AppWidthContext } from '@/ui/layout';
 
 // Wspólny "silnik" scen pixel-art (2026-11-24): pogoda (components/weather/WeatherScene.tsx)
 // i pieniądze w Saldzie (components/finances/MoneyScene.tsx). Sprite = tablica wierszy
@@ -84,7 +85,11 @@ function useFocusedSafe(): boolean {
 }
 
 export function useActive(): boolean {
-  const focused = useFocusedSafe();
+  // Komputer (DesktopTabs): zakładki stoją obok siebie jako kolumny, a "fokus" nawigacji ma tylko
+  // jedna — wyrenderowana kolumna JEST widoczna (ukryte DesktopTabs w ogóle nie renderuje),
+  // więc tam fokus się nie liczy (2026-11-24, user: "pogoda się animuje, a Finanse nie").
+  const inDeskColumn = useContext(AppWidthContext) != null;
+  const focused = useFocusedSafe() || inDeskColumn;
   const mode = useAnimStore((st) => st.mode);
   const [fg, setFg] = useState(AppState.currentState !== 'background');
   const [reduce, setReduce] = useState(false);
