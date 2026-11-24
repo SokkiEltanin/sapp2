@@ -5,11 +5,6 @@ aktualizuj po skończeniu/odkryciu czegoś nowego (patrz `CLAUDE.md`).
 
 ## Zdecydowane, jeszcze niezbudowane
 
-- **Widget pogody na pulpicie w stylu pixel art** (user: „spoko, jestem za”, 2026-11-24): ta sama scena co kafel
-  Dashboardu (`components/weather/WeatherScene.tsx`: chmura/deszcz/śnieg/słońce/księżyc, sprite'y z
-  `PixelWeatherIcon`/`WeatherScene`) jako statyczny obrazek w widgecie (`plugins/withWeatherWidget.js`, RemoteViews —
-  bez animacji; rysunek np. bitmapą z sprite'ów w Kotlinie albo gotowe PNG per scena w res/drawable-nodpi). Wymaga
-  nowego APK. Pamiętać: bez backticków i `${` w szablonach Kotlina w pluginach JS.
 
 
 - **Domyślna ręka: prawa**, z możliwością przełączenia na lewą w ustawieniach
@@ -59,6 +54,8 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 - [ ] Saldo: stosiki monet nie przeszkadzają w czytaniu kwoty; wiatr przyspiesza z prędkością wiatru.
 - [ ] Wzorce na Dashboardzie: codziennie inny; nowy wzorzec z plakietką „nowy” (zrobione 2026-11-24).
 - [ ] Okna otwierają się sprężyście, kafle wciskają się płynnie, okna z zakładkami nie skaczą.
+- [ ] NOWE APK (2026-11-24): widget pogody na pulpicie z ikonami pixel art (te same co w appce, kolorowe) — godziny
+  i ikona główna; „Udostępnij rysunek” na telefonie (expo-sharing).
 - [ ] Rysunek: panel pędzla znika po wyborze; „Udostępnij” na telefonie (od nowego APK — expo-sharing), na komputerze
   pobiera PNG.
 

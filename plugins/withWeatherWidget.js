@@ -10,7 +10,9 @@
 // (updatePeriodMillis, goAsync + wątek, Open-Meteo bez klucza) i zapisuje ten sam
 // format — Kotlin ma port weatherCodeInfo/rainSummary. Tap → sapp2://weather →
 // app/weather.tsx → Dashboard z otwartym WeatherSheet.
-// Ikony: wektory przepisane 1:1 z lucide (te same co w appce), obrys #D6D6D6.
+// Ikony: od 2026-11-24 pixel art (user: "widget pogody w stylu pixel art") — te same rysunki co
+// w appce (src/data/pixelWeather.json, components/weather/PixelWeatherIcon.tsx), generowane tu
+// jako wielokolorowe vector drawable (bez barwienia setColorFilter). Nazwy drawable bez zmian.
 const { withAndroidManifest, withDangerousMod, withMainApplication, AndroidConfig } = require('@expo/config-plugins');
 const { mergeContents } = require('@expo/config-plugins/build/utils/generateCode');
 const path = require('path');
@@ -81,6 +83,40 @@ const ICONS = {
     "m13 12-3 5h4l-3 5"
   ]
 };
+
+const PIXEL = require('../src/data/pixelWeather.json');
+// nazwa drawable (z kotlinowego iconFor) → scena pixel art
+const PIXEL_FOR = {
+  wx_sun: 'sun', wx_moon: 'night', wx_cloud_sun: 'partly', wx_cloud_moon: 'partlyNight', wx_cloud: 'cloud',
+  wx_cloud_fog: 'fog', wx_cloud_drizzle: 'drizzle', wx_cloud_rain: 'rain', wx_cloud_snow: 'snow', wx_cloud_lightning: 'storm',
+};
+
+/** Ikona pixel art → vector drawable: jeden <path> na kolor, piksele jako prostokąty. */
+function pixelVectorXml(key) {
+  const def = PIXEL.icons[key] || PIXEL.icons.cloud;
+  const pal = Object.assign({}, PIXEL.pal, PIXEL.cloudPal[def.cloud], def.snowWhite ? { W: '#F8FAFC' } : {});
+  const byColor = {};
+  for (const [name, dx, dy] of def.layers) {
+    PIXEL.sprites[name].forEach((row, y) => {
+      let x = 0;
+      while (x < row.length) {
+        const ch = row[x];
+        if (ch === '.') { x++; continue; }
+        let w = 1;
+        while (row[x + w] === ch) w++;
+        const fill = pal[ch] || '#FFFFFF';
+        (byColor[fill] = byColor[fill] || []).push('M' + (x + dx) + ' ' + (y + dy) + 'h' + w + 'v1h-' + w + 'z');
+        x += w;
+      }
+    });
+  }
+  // kolejność warstw zachowana przez kolejność kolorów w Object.entries (wstawianie) — chmura po słońcu
+  const paths = Object.entries(byColor).map(([fill, d]) => '    <path android:pathData="' + d.join('') + '" android:fillColor="#FF' + fill.slice(1).toUpperCase() + '" />').join('\n');
+  const [gw, gh] = PIXEL.grid;
+  return '<?xml version="1.0" encoding="utf-8"?>\n<vector xmlns:android="http://schemas.android.com/apk/res/android"\n'
+    + '    android:width="' + gw * 2 + 'dp"\n    android:height="' + gh * 2 + 'dp"\n'
+    + '    android:viewportWidth="' + gw + '"\n    android:viewportHeight="' + gh + '">\n' + paths + '\n</vector>\n';
+}
 
 const PROVIDER_CLASS = 'WeatherWidgetProvider';
 const MODULE_CLASS = 'WeatherWidgetModule';
@@ -393,7 +429,6 @@ ${iconCases}
       v.setTextViewText(R.id.wx_line, snap.optString("line"))
       v.setTextColor(R.id.wx_line, Color.parseColor(if (snap.optBoolean("rain", false)) "#6C9EFF" else "#A7ADBD"))
       v.setImageViewResource(R.id.wx_icon, iconRes(snap.optString("icon")))
-      tint(v, R.id.wx_icon, snap.optString("color", "#D6D6D6"))
 
       val hours = snap.optJSONArray("hours") ?: JSONArray()
       v.setViewVisibility(R.id.wx_hours, if (showHours && hours.length() > 0) View.VISIBLE else View.GONE)
@@ -405,7 +440,6 @@ ${iconCases}
         v.setTextViewText(TEMP_IDS[i], h.optString("temp"))
         v.setTextViewText(POP_IDS[i], h.optString("pop"))
         v.setImageViewResource(ICON_IDS[i], iconRes(h.optString("icon")))
-        tint(v, ICON_IDS[i], h.optString("color", "#A7ADBD"))
       }
       return v
     }
@@ -665,7 +699,7 @@ function withSources(config) {
     const resDir = path.join(cfg.modRequest.platformProjectRoot, 'app', 'src', 'main', 'res');
     for (const d of ['layout', 'drawable', 'xml', 'values']) fs.mkdirSync(path.join(resDir, d), { recursive: true });
     fs.writeFileSync(path.join(resDir, 'layout', 'weather_widget.xml'), layoutXml(), 'utf8');
-    for (const [name, paths] of Object.entries(ICONS)) fs.writeFileSync(path.join(resDir, 'drawable', `${name}.xml`), vectorXml(paths), 'utf8');
+    for (const name of Object.keys(ICONS)) fs.writeFileSync(path.join(resDir, 'drawable', `${name}.xml`), pixelVectorXml(PIXEL_FOR[name]), 'utf8');
     fs.writeFileSync(path.join(resDir, 'xml', 'weather_widget_info.xml'), widgetInfoXml(), 'utf8');
     fs.writeFileSync(path.join(resDir, 'values', 'weather_widget_strings.xml'),
       '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <string name="weather_widget_description">Pogoda teraz, deszcz i najbliższe godziny</string>\n</resources>\n', 'utf8');

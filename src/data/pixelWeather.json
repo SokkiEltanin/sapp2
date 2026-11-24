@@ -1,0 +1,275 @@
+{
+ "_comment": "Ikony pogody pixel art (siatka 13x11) — JEDNO źródło dla appki (components/weather/PixelWeatherIcon.tsx) i widgetu pulpitu (plugins/withWeatherWidget.js). 2026-11-24.",
+ "grid": [
+  13,
+  11
+ ],
+ "sprites": {
+  "SUN": [
+   ".....Y.....",
+   "..Y.....Y..",
+   "....YYY....",
+   "...YWYYY...",
+   "Y.YYYYYYO.Y",
+   "...YYYYO...",
+   "....YOO....",
+   "..Y.....Y..",
+   ".....Y....."
+  ],
+  "SUN_SMALL": [
+   "..Y..",
+   ".YYY.",
+   "YYYYO",
+   ".YYO.",
+   "..O.."
+  ],
+  "MOON": [
+   "..MMMM...",
+   ".MMMM....",
+   "MMMM.....",
+   "MMMS.....",
+   "MMMS.....",
+   "MMMMS....",
+   ".MMMMMMM.",
+   "..MMMMM.."
+  ],
+  "MOON_SMALL": [
+   ".MM..",
+   "MM...",
+   "MM...",
+   "MMM..",
+   ".MMMM"
+  ],
+  "CLOUD": [
+   "....LLL....",
+   "..LLLLLL...",
+   ".LLLLLLLLL.",
+   "LLLLLLLLLLL",
+   "GLLLLLLLLLG",
+   ".GGGGGGGGG."
+  ],
+  "RAIN": [
+   ".B...B...B.",
+   "B...B...B.."
+  ],
+  "DRIZZLE": [
+   "..B.....B.."
+  ],
+  "SNOW": [
+   ".W...W...W.",
+   "...W...W..."
+  ],
+  "SLEET": [
+   ".B...W...B.",
+   "...W...B..."
+  ],
+  "BOLT": [
+   "...YY",
+   "..YY.",
+   ".YYYY",
+   "...Y."
+  ],
+  "FOG": [
+   "LLLLLLLLL..",
+   "..LLLLLLLLL",
+   "LLLLL.LLLLL",
+   "...LLLLLLL."
+  ]
+ },
+ "pal": {
+  "Y": "#FBBF24",
+  "O": "#F59E0B",
+  "W": "#FDE68A",
+  "M": "#E0E7FF",
+  "S": "#A5B4FC",
+  "B": "#60A5FA"
+ },
+ "cloudPal": {
+  "light": {
+   "L": "#E5E7EB",
+   "G": "#9CA3AF"
+  },
+  "gray": {
+   "L": "#9CA3AF",
+   "G": "#6B7280"
+  },
+  "dark": {
+   "L": "#6B7280",
+   "G": "#4B5563"
+  }
+ },
+ "icons": {
+  "sun": {
+   "cloud": "light",
+   "layers": [
+    [
+     "SUN",
+     1,
+     1
+    ]
+   ]
+  },
+  "night": {
+   "cloud": "light",
+   "layers": [
+    [
+     "MOON",
+     2,
+     1
+    ]
+   ]
+  },
+  "partly": {
+   "cloud": "light",
+   "layers": [
+    [
+     "SUN_SMALL",
+     7,
+     0
+    ],
+    [
+     "CLOUD",
+     1,
+     4
+    ]
+   ]
+  },
+  "partlyNight": {
+   "cloud": "light",
+   "layers": [
+    [
+     "MOON_SMALL",
+     7,
+     0
+    ],
+    [
+     "CLOUD",
+     1,
+     4
+    ]
+   ]
+  },
+  "fog": {
+   "cloud": "gray",
+   "layers": [
+    [
+     "FOG",
+     1,
+     3
+    ]
+   ]
+  },
+  "drizzle": {
+   "cloud": "gray",
+   "layers": [
+    [
+     "CLOUD",
+     1,
+     1
+    ],
+    [
+     "DRIZZLE",
+     1,
+     8
+    ]
+   ]
+  },
+  "rain": {
+   "cloud": "gray",
+   "layers": [
+    [
+     "CLOUD",
+     1,
+     1
+    ],
+    [
+     "RAIN",
+     1,
+     8
+    ]
+   ]
+  },
+  "heavy": {
+   "cloud": "dark",
+   "layers": [
+    [
+     "CLOUD",
+     1,
+     0
+    ],
+    [
+     "RAIN",
+     1,
+     7
+    ],
+    [
+     "RAIN",
+     2,
+     9
+    ]
+   ]
+  },
+  "freezing": {
+   "cloud": "gray",
+   "snowWhite": true,
+   "layers": [
+    [
+     "CLOUD",
+     1,
+     1
+    ],
+    [
+     "SLEET",
+     1,
+     8
+    ]
+   ]
+  },
+  "snow": {
+   "cloud": "gray",
+   "snowWhite": true,
+   "layers": [
+    [
+     "CLOUD",
+     1,
+     1
+    ],
+    [
+     "SNOW",
+     1,
+     8
+    ]
+   ]
+  },
+  "storm": {
+   "cloud": "dark",
+   "layers": [
+    [
+     "CLOUD",
+     1,
+     0
+    ],
+    [
+     "BOLT",
+     5,
+     6
+    ],
+    [
+     "DRIZZLE",
+     0,
+     9
+    ]
+   ]
+  },
+  "cloud": {
+   "cloud": "gray",
+   "layers": [
+    [
+     "CLOUD",
+     1,
+     3
+    ]
+   ]
+  }
+ }
+}

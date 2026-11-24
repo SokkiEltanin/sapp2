@@ -2498,6 +2498,13 @@ na Dashboardzie; tętno pisało »załóż zegarek« mimo założonego”.
 - Kafelek: najbliższe wydarzenie („za 2 h 15 min”, odświeżanie ~5 min) + liczba zadań.
 - Tętno: „brak kontaktu” tylko gdy nie było żadnego odczytu (Samsung zgłasza NO_CONTACT na starcie pomiaru).
 
+## IKONY POGODY PIXEL ART — JEDNO ŹRÓDŁO (2026-11-24)
+
+`src/data/pixelWeather.json` (sprite'y, palety, warstwy 12 scen, siatka 13×11) czyta appka (`utils/pixelWeatherIcon.ts`
+→ `components/weather/PixelWeatherIcon.tsx`, wykresy 24 h / 7 dni) i plugin widgetu (`plugins/withWeatherWidget.js`
+`pixelVectorXml`: vector drawable, jeden `<path>` na kolor, nazwy `wx_*` bez zmian, BEZ `setColorFilter`). Zmiana
+rysunku w JSON = appka od razu (OTA), widget dopiero z nowym APK.
+
 ## WZORZEC DNIA NA DASHBOARDZIE (2026-11-24)
 
 Kafel „Wzorce” nie pokazuje w kółko najsilniejszego: `utils/insightRotation.ts` `pickDailyInsight` — nowy wzorzec
