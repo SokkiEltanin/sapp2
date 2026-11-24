@@ -66,8 +66,9 @@ const CLOUD_SMALL: Sprite = [
   'GLLLLLLLLLG',
   '.GGGGGGGGG.',
 ];
-const DROP: Sprite = ['B', 'B', 'b'];
+const DROP: Sprite = ['B', 'B', 'B', 'b'];
 const FLAKE: Sprite = ['.W.', 'WWW', '.W.'];
+const FLAKE_DOT: Sprite = ['WW', 'WW'];
 const BOLT: Sprite = ['..YY', '.YY.', 'YYYY', '..YY', '.YY.', '.Y..'];
 const FOG: Sprite = ['LLLLLL..LLLLLLLLL...LLLL'];
 const WIND: Sprite = ['WWWWWWW..WW'];
@@ -202,14 +203,17 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
   const rainy = scene === 'drizzle' || scene === 'rain' || scene === 'heavy' || scene === 'storm' || scene === 'freezing';
   const snowy = scene === 'snow' || scene === 'freezing';
   const cloudP = scene === 'storm' || scene === 'heavy' ? CLOUD_DARK : scene === 'partly' || scene === 'partlyNight' ? CLOUD_LIGHT : CLOUD_GRAY;
-  const drops = scene === 'drizzle' ? 4 : scene === 'heavy' || scene === 'storm' ? 10 : scene === 'freezing' ? 4 : rainy ? 7 : 0;
-  const flakes = scene === 'snow' ? 8 : scene === 'freezing' ? 3 : 0;
+  const drops = scene === 'drizzle' ? 5 : scene === 'heavy' || scene === 'storm' ? 13 : scene === 'freezing' ? 4 : rainy ? 9 : 0;
+  const flakes = scene === 'snow' ? 11 : scene === 'freezing' ? 4 : 0;
   // Z opadem chmura przy samej górze, żeby krople miały drogę nad tekstem.
   const cloudY = rainy || snowy ? top - px : top + px * 3;
   const fallTo = Math.max(px * 8, h * 0.72 - (cloudY + cloudH));
 
   const r = rng(scene.length * 7919 + drops * 31 + flakes);
   const between = (a: number, b: number) => a + (b - a) * r();
+  // Cząstki drobniejsze niż chmura (2026-11-24, user: "płatki ogromne względem chmur"):
+  // własny piksel ≈ połowa piksela sceny.
+  const pp = Math.max(1, Math.floor(px / 2));
   const rainSlant = wind >= 25 ? px * 3 : px * 0.6;
   const rain = Array.from({ length: drops }, () => ({
     x: Math.round(between(cloudX + px, cloudX + cloudW - px * 2)),
@@ -281,7 +285,7 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
             ],
             opacity: prog.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 0.8, 0.1] }),
           }}>
-            <Pix sprite={DROP} palette={DROP_P} px={px} />
+            <Pix sprite={DROP} palette={DROP_P} px={pp} />
           </Animated.View>
         );
       })}
@@ -297,7 +301,7 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
             ],
             opacity: prog.interpolate({ inputRange: [0, 0.75, 1], outputRange: [1, 0.85, 0.1] }),
           }}>
-            <Pix sprite={FLAKE} palette={FLAKE_P} px={f.big ? px : Math.max(1, px - 1)} />
+            <Pix sprite={f.big ? FLAKE : FLAKE_DOT} palette={FLAKE_P} px={pp} />
           </Animated.View>
         );
       })}
