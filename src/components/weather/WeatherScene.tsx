@@ -1,5 +1,5 @@
 import { memo, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Animated, Easing, StyleSheet, AppState, AccessibilityInfo, type LayoutChangeEvent } from 'react-native';
+import { View, Animated, Easing, StyleSheet, AppState, AccessibilityInfo, Platform, type LayoutChangeEvent } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import { NavigationContext } from '@react-navigation/native';
 import type { WeatherToneKey } from '@/utils/weather';
@@ -71,8 +71,20 @@ const FLAKE: Sprite = ['.W.', 'WWW', '.W.'];
 const FLAKE_DOT: Sprite = ['WW', 'WW'];
 const BOLT: Sprite = ['..YY', '.YY.', 'YYYY', '..YY', '.YY.', '.Y..'];
 const FOG: Sprite = ['LLLLLL..LLLLLLLLL...LLLL'];
-const WIND: Sprite = ['WWWWWWW..WW'];
-const WIND_SHORT: Sprite = ['WWWW.W'];
+// Wiatr jak "podmuch" (2026-11-24, user: "wiatr na całym kafelku był super, tylko bardziej jak
+// wiatr i cieńsze linie"): linia 1 px z zawijasem na końcu, rysowana drobnym pikselem cząstek.
+const WIND: Sprite = [
+  '..................WWW.',
+  '.................W...W',
+  'WWWWWWWWWWWW..WWW....W',
+  '..................WWW.',
+];
+const WIND_SHORT: Sprite = [
+  '...........WW.',
+  'WWWWWWW.WWW..W',
+  '...........WW.',
+];
+const WIND_FLAT: Sprite = ['WWWWWWWWW..WWWW...WW'];
 
 // Losowość "na oko" (2026-11-24, user: "śnieg/deszcz/wiatr bardziej randomowe — teraz leci jedną
 // prostą linią"): wcześniej x i faza rosły razem z numerem cząstki → ukośna linia. Teraz każda
@@ -98,7 +110,7 @@ const DROP_P: Palette = { B: '#60A5FA', b: '#93C5FD' };
 const FLAKE_P: Palette = { W: '#F8FAFC' };
 const BOLT_P: Palette = { Y: '#FDE047' };
 const FOG_P: Palette = { L: '#94A3B8' };
-const WIND_P: Palette = { W: 'rgba(255,255,255,0.55)' };
+const WIND_P: Palette = { W: 'rgba(255,255,255,0.5)' };
 
 
 const Pix = memo(function Pix({ sprite, palette, px }: { sprite: Sprite; palette: Palette; px: number }) {
@@ -112,6 +124,8 @@ const Pix = memo(function Pix({ sprite, palette, px }: { sprite: Sprite; palette
 });
 
 // Pętla 0→1 (albo 0→1→0 dla `pingPong`) na natywnym sterowniku; startuje tylko, gdy `run`.
+// Na webie (PWA) pętla z useNativeDriver kończy się po pierwszym obrocie (2026-11-24) — tam JS.
+const NATIVE = Platform.OS !== 'web';
 function useLoop(ms: number, run: boolean, pingPong = false) {
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -119,10 +133,10 @@ function useLoop(ms: number, run: boolean, pingPong = false) {
     const ease = pingPong ? Easing.inOut(Easing.sin) : Easing.linear;
     const anim = pingPong
       ? Animated.loop(Animated.sequence([
-        Animated.timing(v, { toValue: 1, duration: ms, easing: ease, useNativeDriver: true }),
-        Animated.timing(v, { toValue: 0, duration: ms, easing: ease, useNativeDriver: true }),
+        Animated.timing(v, { toValue: 1, duration: ms, easing: ease, useNativeDriver: NATIVE }),
+        Animated.timing(v, { toValue: 0, duration: ms, easing: ease, useNativeDriver: NATIVE }),
       ]))
-      : Animated.loop(Animated.timing(v, { toValue: 1, duration: ms, easing: ease, useNativeDriver: true }));
+      : Animated.loop(Animated.timing(v, { toValue: 1, duration: ms, easing: ease, useNativeDriver: NATIVE }));
     v.setValue(0);
     anim.start();
     return () => anim.stop();
@@ -231,9 +245,10 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
       ph: r(), slow: r() < 0.5, len: between(0.65, 1), big: r() < 0.35, swayIn, swayOut,
     };
   });
-  // wiatr tylko w górnej części kafla (nad temperaturą)
-  const gusts = wind >= 25 ? Array.from({ length: 3 }, () => ({
-    y: Math.round(between(h * 0.05, h * 0.34)), ph: r(), slow: r() < 0.5, short: r() < 0.5, op: between(0.5, 1),
+  // wiatr na całym kafelku (2026-11-24, user: "na całym kafelku mi się podobał")
+  const gusts = wind >= 25 ? Array.from({ length: wind >= 45 ? 5 : 4 }, () => ({
+    y: Math.round(between(h * 0.06, h * 0.82)), ph: r(), slow: r() < 0.5, kind: Math.floor(r() * 3), op: between(0.45, 0.9),
+    wave: px * between(0.5, 1.6),
   })) : [];
 
   const drift = (amp: number) => ({ transform: [{ translateX: slow.interpolate({ inputRange: [0, 1], outputRange: [-amp, amp] }) }] });
@@ -331,14 +346,22 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
       )}
 
       {/* wiatr (≥ 25 km/h): smugi przelatują przez scenę */}
-      {gusts.map((g, i) => (
-        <Animated.View key={`w${i}`} style={{
-          position: 'absolute', left: 0, top: g.y, opacity: g.op,
-          transform: [{ translateX: wrap(g.slow ? windT2 : windT, g.ph, -px * 14, w) }],
-        }}>
-          <Pix sprite={g.short ? WIND_SHORT : WIND} palette={WIND_P} px={Math.max(1, px - 1)} />
-        </Animated.View>
-      ))}
+      {gusts.map((g, i) => {
+        const prog = wrap(g.slow ? windT2 : windT, g.ph, 0, 1);
+        return (
+          <Animated.View key={`w${i}`} style={{
+            position: 'absolute', left: 0, top: g.y,
+            // pojawia się, płynie falą i gaśnie — jak podmuch, nie jak taśma
+            opacity: prog.interpolate({ inputRange: [0, 0.15, 0.7, 1], outputRange: [0, g.op, g.op, 0] }),
+            transform: [
+              { translateX: prog.interpolate({ inputRange: [0, 1], outputRange: [-pp * 22, w] }) },
+              { translateY: prog.interpolate({ inputRange: [0, 0.33, 0.66, 1], outputRange: [0, -g.wave, g.wave * 0.6, 0] }) },
+            ],
+          }}>
+            <Pix sprite={g.kind === 0 ? WIND : g.kind === 1 ? WIND_SHORT : WIND_FLAT} palette={WIND_P} px={pp} />
+          </Animated.View>
+        );
+      })}
     </View>
   );
 });

@@ -2535,7 +2535,8 @@ User: „dużo kolorów i słupków, ciężko zrozumieć, dla ADHD-owców to mas
   migające gwiazdy), chmury (dryf), mgła (pasy), mżawka/deszcz/ulewa (spadające krople), śnieg (płatki z kołysaniem),
   burza (błysk), wiatr ≥ 25 km/h (smugi; `wind` = max(wiatr, 0,6 × porywy)). Cząstki losowe (2026-11-24, user: „śnieg leci
   jedną prostą linią”): ziarnisty RNG → każda kropla/płatek/smuga ma własne x, fazę, tempo (2 pętle), długość lotu,
-  płatki własne kołysanie; deszcz lekko ukośnie (mocniej przy wietrze); smugi wiatru tylko w górnej 1/3 kafla. Animacje tylko transform/opacity wrapperów
+  płatki własne kołysanie; deszcz lekko ukośnie (mocniej przy wietrze); wiatr (2026-11-24) = cienkie podmuchy z zawijasem na całym kaflu, pojawiają się, falują i gasną; cząstki
+  (płatki, krople, wiatr) rysowane pół-pikselem sceny `pp`. Animacje tylko transform/opacity wrapperów
   (Animated, native driver), 5 wspólnych pętli; stop bez fokusu ekranu, w tle i przy „ogranicz ruch”. „Szkło” = odcień
   nieba (`SKY`) + przyciemniony dół pod tekst + jasna krawędź — bez prawdziwego blur (laguje na Androidzie).
 
