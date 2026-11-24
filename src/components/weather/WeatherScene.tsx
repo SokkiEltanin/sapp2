@@ -71,20 +71,6 @@ const FLAKE: Sprite = ['.W.', 'WWW', '.W.'];
 const FLAKE_DOT: Sprite = ['WW', 'WW'];
 const BOLT: Sprite = ['..YY', '.YY.', 'YYYY', '..YY', '.YY.', '.Y..'];
 const FOG: Sprite = ['LLLLLL..LLLLLLLLL...LLLL'];
-// Wiatr jak "podmuch" (2026-11-24, user: "wiatr na całym kafelku był super, tylko bardziej jak
-// wiatr i cieńsze linie"): linia 1 px z zawijasem na końcu, rysowana drobnym pikselem cząstek.
-const WIND: Sprite = [
-  '..................WWW.',
-  '.................W...W',
-  'WWWWWWWWWWWW..WWW....W',
-  '..................WWW.',
-];
-const WIND_SHORT: Sprite = [
-  '...........WW.',
-  'WWWWWWW.WWW..W',
-  '...........WW.',
-];
-const WIND_FLAT: Sprite = ['WWWWWWWWW..WWWW...WW'];
 
 // Losowość "na oko" (2026-11-24, user: "śnieg/deszcz/wiatr bardziej randomowe — teraz leci jedną
 // prostą linią"): wcześniej x i faza rosły razem z numerem cząstki → ukośna linia. Teraz każda
@@ -196,6 +182,9 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
   const fast2 = useLoop(scene === 'heavy' || scene === 'storm' ? 900 : 1250, run && (scene === 'drizzle' || scene === 'rain' || scene === 'heavy' || scene === 'storm' || scene === 'freezing'));
   const snowT2 = useLoop(4600, run && (scene === 'snow' || scene === 'freezing'));
   const windT2 = useLoop(2600, run && wind >= 25);
+  // "żywy" wiatr: fala przełamania biegnąca wzdłuż podmuchu
+  const waveT = useLoop(1100, run && wind >= 25);
+  const waveT2 = useLoop(1600, run && wind >= 25);
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -246,10 +235,14 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
     };
   });
   // wiatr na całym kafelku (2026-11-24, user: "na całym kafelku mi się podobał")
+  // Podmuch = linia z odcinków (2026-11-24, user: "wiatr z segmentów, które zmieniają się w punkcie
+  // przełamania, jakby były żywe: _____ → ____- → ___--- → ------_"): każdy odcinek przeskakuje
+  // między dwoma poziomami, prawe wcześniej niż lewe → próg wędruje wzdłuż linii.
   const gusts = wind >= 25 ? Array.from({ length: wind >= 45 ? 5 : 4 }, () => ({
-    y: Math.round(between(h * 0.06, h * 0.82)), ph: r(), slow: r() < 0.5, kind: Math.floor(r() * 3), op: between(0.45, 0.9),
-    wave: px * between(0.5, 1.6),
+    y: Math.round(between(h * 0.06, h * 0.82)), ph: r(), slow: r() < 0.5, op: between(0.45, 0.9),
+    n: 7 + Math.floor(r() * 7), wph: r(), wslow: r() < 0.5, span: between(0.45, 0.9),
   })) : [];
+  const segW = pp * 2;
 
   const drift = (amp: number) => ({ transform: [{ translateX: slow.interpolate({ inputRange: [0, 1], outputRange: [-amp, amp] }) }] });
 
@@ -348,17 +341,23 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
       {/* wiatr (≥ 25 km/h): smugi przelatują przez scenę */}
       {gusts.map((g, i) => {
         const prog = wrap(g.slow ? windT2 : windT, g.ph, 0, 1);
+        const wv = g.wslow ? waveT2 : waveT;
         return (
           <Animated.View key={`w${i}`} style={{
-            position: 'absolute', left: 0, top: g.y,
-            // pojawia się, płynie falą i gaśnie — jak podmuch, nie jak taśma
+            position: 'absolute', left: 0, top: g.y, width: g.n * segW, height: pp * 3,
+            // pojawia się, płynie i gaśnie — jak podmuch, nie jak taśma
             opacity: prog.interpolate({ inputRange: [0, 0.15, 0.7, 1], outputRange: [0, g.op, g.op, 0] }),
-            transform: [
-              { translateX: prog.interpolate({ inputRange: [0, 1], outputRange: [-pp * 22, w] }) },
-              { translateY: prog.interpolate({ inputRange: [0, 0.33, 0.66, 1], outputRange: [0, -g.wave, g.wave * 0.6, 0] }) },
-            ],
+            transform: [{ translateX: prog.interpolate({ inputRange: [0, 1], outputRange: [-g.n * segW, w] }) }],
           }}>
-            <Pix sprite={g.kind === 0 ? WIND : g.kind === 1 ? WIND_SHORT : WIND_FLAT} palette={WIND_P} px={pp} />
+            {Array.from({ length: g.n }, (_, k) => (
+              <Animated.View key={k} style={{
+                position: 'absolute', left: k * segW, top: pp * 2, width: segW, height: pp, backgroundColor: WIND_P.W,
+                // skok (nie płynnie) między poziomami — pixel art; prawe odcinki przeskakują pierwsze
+                transform: [{ translateY: wrap(wv, (g.wph + (k / Math.max(1, g.n - 1)) * g.span) % 1, 0, 1).interpolate({
+                  inputRange: [0, 0.5, 0.5001, 1], outputRange: [0, 0, -pp * 2, -pp * 2],
+                }) }],
+              }} />
+            ))}
           </Animated.View>
         );
       })}
