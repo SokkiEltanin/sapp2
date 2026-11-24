@@ -13,6 +13,7 @@ export const SHORTCUT_HELP: [string, string][] = [
   ['W', 'Nowy wydatek'],
   ['Z', 'Nowe zadanie'],
   ['N', 'Notatki'],
+  ['Ctrl+Z / Ctrl+Y', 'Rysunek w notatce: cofnij / ponów kreskę'],
   [',', 'Ustawienia'],
   ['Esc', 'Zamknij panel / wstecz'],
 ];

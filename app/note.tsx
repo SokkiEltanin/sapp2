@@ -93,6 +93,42 @@ export default function NoteScreen() {
   const pageY = useRef(0);
   const pageY0 = useRef(0);
   const [mode, setMode] = useState<'text' | 'draw'>(note?.kind === 'drawing' || (!!note && !note.text && note.strokes.length > 0) ? 'draw' : 'text');
+
+  // Cofnij / ponów kreskę (2026-11-24, user: "na komputerze Ctrl+Z, żeby cofało ostatnią linię").
+  // Przycisk Cofnij i skróty robią to samo; cofnięte kreski czekają na "ponów" (Ctrl+Y /
+  // Ctrl+Shift+Z), dopóki nie narysujesz nowej (wtedy ponawianie przepada, jak w edytorach).
+  const redo = useRef<{ strokes: Note['strokes']; len: number }>({ strokes: [], len: -1 });
+  const undoStroke = useCallback(() => {
+    const n = useNotesStore.getState().notes.find((x) => x.id === id);
+    if (!n || !n.strokes.length) return;
+    const last = n.strokes[n.strokes.length - 1];
+    const keep = redo.current.len === n.strokes.length ? redo.current.strokes : [];
+    redo.current = { strokes: [...keep, last], len: n.strokes.length - 1 };
+    useNotesStore.getState().update(n.id, { strokes: n.strokes.slice(0, -1) });
+  }, [id]);
+  const redoStroke = useCallback(() => {
+    const n = useNotesStore.getState().notes.find((x) => x.id === id);
+    if (!n || redo.current.len !== n.strokes.length || !redo.current.strokes.length) return;
+    const back = redo.current.strokes[redo.current.strokes.length - 1];
+    redo.current = { strokes: redo.current.strokes.slice(0, -1), len: n.strokes.length + 1 };
+    useNotesStore.getState().update(n.id, { strokes: [...n.strokes, back] });
+  }, [id]);
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k !== 'z' && k !== 'y') return;
+      // Pisanie w polu tekstowym (w trybie tekstu) = zwykłe cofanie tekstu przeglądarki.
+      const el = e.target as HTMLElement | null;
+      const typing = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+      if (typing && mode === 'text') return;
+      e.preventDefault();
+      if (k === 'y' || e.shiftKey) redoStroke(); else undoStroke();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mode, undoStroke, redoStroke]);
   const [viewH, setViewH] = useState(0);
   const [pageW, setPageW] = useState(0);
   const [pageH, setPageH] = useState(0);
@@ -372,7 +408,7 @@ export default function NoteScreen() {
                 <TouchableOpacity onPress={() => { haptic.tap(); setTool((t) => ({ ...t, eraser: !t.eraser })); }} style={[s.iconBtn, tool.eraser && s.toolOn]} accessibilityLabel="Gumka">
                   <Eraser size={15} color={tool.eraser ? colors.bg.primary : colors.text.primary} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => { haptic.tap(); if (note.strokes.length) update(note.id, { strokes: note.strokes.slice(0, -1) }); }} style={s.iconBtn} accessibilityLabel="Cofnij">
+                <TouchableOpacity onPress={() => { haptic.tap(); undoStroke(); }} style={s.iconBtn} accessibilityLabel={Platform.OS === 'web' ? 'Cofnij (Ctrl+Z)' : 'Cofnij'}>
                   <Undo2 size={15} color={note.strokes.length ? colors.text.primary : colors.text.muted} />
                 </TouchableOpacity>
               </>

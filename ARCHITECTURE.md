@@ -2509,6 +2509,12 @@ na Dashboardzie; tętno pisało »załóż zegarek« mimo założonego”.
   w pamiętniku), w gorszy dzień „Pamiętasz?” pod polem; edycja starszych z kart w statystykach humoru i z wyszukiwarki
   (GoodThingSheet przez `/daily?good=`).
 
+## NOTATKI: CTRL+Z / CTRL+Y NA KOMPUTERZE (2026-11-24)
+
+`app/note.tsx`: `undoStroke` / `redoStroke` (stos cofniętych kresek w refie, ważny dopóki nie narysujesz nowej) —
+przycisk Cofnij i skróty Ctrl/Cmd+Z, Ctrl+Y, Ctrl+Shift+Z (listener `keydown` tylko na webie). W trybie tekstu, gdy
+kursor jest w polu, Ctrl+Z zostaje przeglądarce (cofanie tekstu). Na liście skrótów (`desktopShortcuts.ts`).
+
 ## MNIEJ KOLORÓW + SCENA POGODY (2026-11-23)
 
 User: „dużo kolorów i słupków, ciężko zrozumieć, dla ADHD-owców to masakra” — punkty po kolei:
