@@ -408,8 +408,13 @@ export default function FinancesScreen() {
               </View>
             )}
           </TouchableOpacity>
+          {/* Wyższe wiersze (2026-11-24, user: "kafelki troszkę większe, tekst ledwo się mieści") —
+              mniej wierszy, ale nazwa i podpis mają oddech. */}
           <FitList
             data={recent}
+            minRowH={50}
+            maxRowH={56}
+            gap={6}
             emptyText="Brak transakcji — dodaj pierwszą przyciskiem +"
             renderItem={(e) => (
               // Wiersz jak w liście Transakcji (2026-11-17, user: "coś mi nie gra z Finansami"):
