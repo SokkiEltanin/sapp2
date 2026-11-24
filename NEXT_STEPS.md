@@ -5,6 +5,12 @@ aktualizuj po skończeniu/odkryciu czegoś nowego (patrz `CLAUDE.md`).
 
 ## Zdecydowane, jeszcze niezbudowane
 
+- **Widget pogody na pulpicie w stylu pixel art** (user: „spoko, jestem za”, 2026-11-24): ta sama scena co kafel
+  Dashboardu (`components/weather/WeatherScene.tsx`: chmura/deszcz/śnieg/słońce/księżyc, sprite'y z
+  `PixelWeatherIcon`/`WeatherScene`) jako statyczny obrazek w widgecie (`plugins/withWeatherWidget.js`, RemoteViews —
+  bez animacji; rysunek np. bitmapą z sprite'ów w Kotlinie albo gotowe PNG per scena w res/drawable-nodpi). Wymaga
+  nowego APK. Pamiętać: bez backticków i `${` w szablonach Kotlina w pluginach JS.
+
 - **Wzorce na Dashboardzie zmieniają się codziennie** (user zaakceptował 2026-11-24): lewy górny kafel nie pokazuje
   w kółko najsilniejszego wzorca (`DashData.insight` w `app/(tabs)/index.tsx`), tylko rotuje po wzorcach (np. indeks =
   dzień roku mod liczba wzorców, najsilniejsze częściej). Wzorzec, który pojawił się pierwszy raz (nie było go
