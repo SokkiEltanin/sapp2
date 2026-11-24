@@ -38,7 +38,7 @@ export default function BatterySheet({ visible, onClose, phone, watch, laptop }:
   const phoneLog = useDeviceBatteryStore((st) => st.phoneLog);
   const watchLog = useDeviceBatteryStore((st) => st.watchLog);
   return (
-    <AppBottomSheet visible={visible} onClose={onClose} maxHeightRatio={0.92} header={<Text style={s.title}>Baterie</Text>}>
+    <AppBottomSheet fixedHeight visible={visible} onClose={onClose} maxHeightRatio={0.92} header={<Text style={s.title}>Baterie</Text>}>
       {Platform.OS === 'web' && laptop && <Device name="Komputer" icon="laptop" now={laptop} log={[]} />}
       <Device name="Telefon" icon="phone" now={phone} log={phoneLog} />
       <Device name="Zegarek" icon="watch" now={watch} log={watchLog} />

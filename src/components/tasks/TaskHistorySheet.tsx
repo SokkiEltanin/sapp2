@@ -46,7 +46,7 @@ export default function TaskHistorySheet({ visible, onClose }: { visible: boolea
   };
 
   return (
-    <AppBottomSheet visible={visible} onClose={() => { setConfirm(null); onClose(); }} maxHeightRatio={0.9}
+    <AppBottomSheet fixedHeight visible={visible} onClose={() => { setConfirm(null); onClose(); }} maxHeightRatio={0.9}
       header={<Text style={s.title}>Historia zadań</Text>}>
       <View style={s.tabs}>
         {([['done', `Zrobione · ${done.length}`], ['deleted', `Kosz · ${trash.length}`]] as const).map(([k, l]) => (

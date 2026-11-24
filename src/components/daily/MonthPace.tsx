@@ -86,7 +86,7 @@ export default function MonthPaceSheet({ visible, onClose, expenses, onOpenCards
   const lastYearSame = power24.length === 24 ? power24[11].value : 0;
 
   return (
-    <AppBottomSheet visible={visible} onClose={onClose} maxHeightRatio={0.9} header={<Text style={s.title}>Podsumowanie</Text>}>
+    <AppBottomSheet fixedHeight visible={visible} onClose={onClose} maxHeightRatio={0.9} header={<Text style={s.title}>Podsumowanie</Text>}>
       <Segmented options={[{ key: 'month', label: 'Miesiąc' }, { key: 'year', label: 'Rok' }]} activeKey={tab} onChange={(k) => setTab(k as 'month' | 'year')} />
 
       {tab === 'month' ? (

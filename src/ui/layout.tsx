@@ -78,22 +78,34 @@ type TileProps = {
 export function Tile({ span = 1, onPress, hot, center, style, children, accessibilityLabel }: TileProps) {
   const col = useContext(ColCtx);
   const width = span * col + (span - 1) * S.gap;
-  const look = (pressed: boolean): StyleProp<ViewStyle> => [
+  // Wciśnięcie kafla płynnie (2026-11-24, user: "płynniejsze"): sprężyna skali zamiast skoku,
+  // puszczenie z lekkim odbiciem. Tylko transform (natywnie).
+  const scale = useRef(new Animated.Value(1)).current;
+  const [pressed, setPressed] = useState(false);
+  const look: StyleProp<ViewStyle> = [
     st.tile,
     { width },
     hot && { backgroundColor: C.txt },
     center && st.center,
-    pressed && { transform: [{ scale: 0.975 }], backgroundColor: hot ? '#C4C4C4' : C.tilePressed },
+    pressed && { backgroundColor: hot ? '#C4C4C4' : C.tilePressed },
     style,
   ];
   const inner = <HotCtx.Provider value={!!hot}>{children}</HotCtx.Provider>;
-  if (!onPress) return <View style={look(false)}>{inner}</View>;
+  if (!onPress) return <View style={look}>{inner}</View>;
+  const to = (v: number, bounce: number) => Animated.spring(scale, { toValue: v, speed: 40, bounciness: bounce, useNativeDriver: Platform.OS !== 'web' }).start();
   return (
-    <Pressable onPress={() => { haptic.tap(); onPress(); }} style={({ pressed }) => look(pressed)} accessibilityRole="button" accessibilityLabel={accessibilityLabel}>
+    <AnimatedPressable
+      onPress={() => { haptic.tap(); onPress(); }}
+      onPressIn={() => { setPressed(true); to(0.97, 0); }}
+      onPressOut={() => { setPressed(false); to(1, 6); }}
+      style={[look, { transform: [{ scale }] }]}
+      accessibilityRole="button" accessibilityLabel={accessibilityLabel}
+    >
       {inner}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 /** Kropka hot-kafli — pierścień rozchodzący się w pętli + stała kropka na środku
  * (RN nie ma animowanego `box-shadow` jak spec, ten sam efekt inną techniką). */

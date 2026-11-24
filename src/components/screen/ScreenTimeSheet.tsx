@@ -46,7 +46,7 @@ export default function ScreenTimeSheet({ visible, onClose }: { visible: boolean
   const noAccess = android && !noModule && access === false;
 
   return (
-    <AppBottomSheet visible={visible} onClose={onClose} maxHeightRatio={0.92} header={
+    <AppBottomSheet fixedHeight visible={visible} onClose={onClose} maxHeightRatio={0.92} header={
       <View style={s.headRow}>
         <Text style={s.title}>Czas z telefonem</Text>
         {d && (

@@ -45,7 +45,7 @@ export default function CollectionSheet({ visible, onClose, highlight }: { visib
   const { cards, records } = useCollectionData();
 
   return (
-    <AppBottomSheet visible={visible} onClose={onClose} maxHeightRatio={0.92}
+    <AppBottomSheet fixedHeight visible={visible} onClose={onClose} maxHeightRatio={0.92}
       header={
         <View style={{ paddingBottom: spacing[2] }}>
           <Text style={s.title}>{highlight ? 'Nowa karta do kolekcji' : 'Kolekcja'}</Text>

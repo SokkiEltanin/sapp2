@@ -145,7 +145,9 @@ export default function AppBottomSheet({
       sheetY.setValue(SHEET_OFFSET);
       Animated.parallel([
         Animated.timing(backdropOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-        Animated.timing(sheetY, { toValue: 0, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        // Sprężyna zamiast stałej krzywej (2026-11-24, user: "płynniejsze otwieranie okien") —
+        // szybki start, miękkie dohamowanie; `overshootClamping`, żeby spod okna nie mignęła szpara.
+        Animated.spring(sheetY, { toValue: 0, stiffness: 260, damping: 26, mass: 0.9, overshootClamping: true, useNativeDriver: true }),
       ]).start();
     } else {
       Animated.parallel([

@@ -33,7 +33,7 @@ export default function InsightsSheet({ visible, onClose, onOpenScreen }: { visi
   const count = (id: Group | 'all') => (id === 'all' ? insights.length : insights.filter((x) => x.group === id).length);
 
   return (
-    <AppBottomSheet visible={visible} onClose={onClose} maxHeightRatio={0.92} header={
+    <AppBottomSheet fixedHeight visible={visible} onClose={onClose} maxHeightRatio={0.92} header={
       <View style={{ paddingBottom: spacing[2] }}>
         <Text style={s.title}>Twoje wzorce</Text>
         <Text style={s.sub}>ostatnie 90 dni · to zależności w Twoich danych, nie pewne przyczyny</Text>

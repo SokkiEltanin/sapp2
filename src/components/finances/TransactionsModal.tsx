@@ -225,7 +225,7 @@ export default function TransactionsModal({
   );
 
   return (
-    <AppBottomSheet visible={visible} onClose={onClose} header={header} scrollable={false} maxHeightRatio={0.9}>
+    <AppBottomSheet fixedHeight visible={visible} onClose={onClose} header={header} scrollable={false} maxHeightRatio={0.9}>
       <View style={s.listWrap}>
       <FlatList
         style={s.list}
