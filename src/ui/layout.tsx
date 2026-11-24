@@ -225,14 +225,23 @@ export function FitList<I>({ data, minRowH = 30, maxRowH = 44, gap = S.rowGap, r
 }
 
 /** Wiersz wewnątrz listy – zawsze flex:1 (wysokość daje FitList) */
-export function Item({ children, onPress, done }: { children: React.ReactNode; onPress?: () => void; done?: boolean }) {
-  return (
+export function Item({ children, onPress, done, accent }: { children: React.ReactNode; onPress?: () => void; done?: boolean; accent?: string }) {
+  const row = (
     <Pressable
       onPress={onPress && (() => { haptic.tap(); onPress(); })}
-      style={({ pressed }) => [st.item, pressed && { backgroundColor: C.in2 }, done && { opacity: 0.45 }]}
+      style={({ pressed }) => [st.item, accent ? st.itemShift : null, pressed && { backgroundColor: C.in2 }, !accent && done && { opacity: 0.45 }]}
     >
       {children}
     </Pressable>
+  );
+  if (!accent) return row;
+  // Kolor jak w Zadaniach (2026-11-24, user: "w transakcjach te kolorki po lewej jak na zadaniach"):
+  // kolor to tło pod lewym brzegiem, wiersz przesunięty o 4 px → sierp idzie po łuku rogu.
+  return (
+    <View style={[st.itemOuter, done && { opacity: 0.45 }]}>
+      <View style={[st.itemEdge, { backgroundColor: accent }]} pointerEvents="none" />
+      {row}
+    </View>
   );
 }
 
@@ -384,6 +393,10 @@ const st = StyleSheet.create({
   ghost: { backgroundColor: C.ghost, borderRadius: R.inner, justifyContent: 'center', paddingHorizontal: 10 },
   fitHint: { height: 16, lineHeight: 16, textAlign: 'center', color: C.mut, fontSize: 10 },
   item: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.in, borderRadius: R.inner, paddingHorizontal: 10 },
+  itemOuter: { flex: 1, borderRadius: R.inner, overflow: 'hidden' },
+  // kolor tylko pod lewym brzegiem (inaczej prześwituje cienką linią przy prawych rogach)
+  itemEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 30 },
+  itemShift: { marginLeft: 4 },
   tag: { borderRadius: R.tag, paddingHorizontal: 6, paddingVertical: 3, minWidth: 26, alignItems: 'center' },
   tagT: { fontFamily: F.xb, fontSize: 9, letterSpacing: 0.3, includeFontPadding: false },
   price: { backgroundColor: C.txt, borderRadius: R.tag, paddingHorizontal: 7, paddingVertical: 3, minWidth: 58, alignItems: 'flex-end' },

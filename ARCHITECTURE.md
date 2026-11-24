@@ -2548,6 +2548,8 @@ User: „dużo kolorów i słupków, ciężko zrozumieć, dla ADHD-owców to mas
 - Zadania: przytrzymanie tagu (formularz i szukajka) = `services/taskTags.ts` `removeTaskTag` — zdejmuje tag ze wszystkich
   zadań (tagi nie mają osobnej listy), z Cofnij.
 - Daily → Miesiąc: paski i prąd w szarościach, kolor zostaje tylko na procentach (`deltaView`). Seria humoru bez emotki.
+- `ui/layout.tsx` `Item` ma prop `accent` (2026-11-24): kolor pod lewym brzegiem + wiersz przesunięty o 4 px = sierp po
+  łuku rogu, jak karty Zadań. Ostatnie transakcje w Finansach go używają (zamiast paska `txBar`).
 - Finanse: `utils/txGroup.ts` — `txColor` = KIERUNEK (wydatek `FLOW_COLOR.out` czerwony, przychód zielony, przelew własny
   szary), `bucketLabel` = biała kropka + „Jedzenie/Stałe/Zmienne” w podpisie wiersza (kafel i lista Transakcji), `grayRamp`
   = szarości podziału i kategorii na kaflu Wydatki. Kolory kubłów (`BUCKET_COLOR`) tylko w środku (okno Wydatki, karty).

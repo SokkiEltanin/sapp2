@@ -419,8 +419,7 @@ export default function FinancesScreen() {
             renderItem={(e) => (
               // Wiersz jak w liście Transakcji (2026-11-17, user: "coś mi nie gra z Finansami"):
               // bez białej pigułki i surowej daty ISO — pasek kubła, nazwa, co w środku, kwota.
-              <Item onPress={() => setEditingExpense(e)}>
-                <View style={[s.txBar, { backgroundColor: txColor(e) }]} />
+              <Item onPress={() => setEditingExpense(e)} accent={txColor(e)}>
                 <View style={s.txTextCol}>
                   <Text style={T.row} numberOfLines={1}>{e.storeName || e.note || (isOwnTransfer(e) ? 'Przelew własny' : e.type === 'income' ? 'Przychód' : 'Wydatek')}</Text>
                   <View style={s.txSubRow}>
@@ -539,7 +538,6 @@ const makeS = themedStyles((c) => StyleSheet.create({
   workHoursText: { fontSize: 10, fontFamily: 'Inter_700Bold', color: C.txt, fontVariant: ['tabular-nums'] },
 
   txTextCol: { flex: 1, minWidth: 0 },
-  txBar: { width: 3, alignSelf: 'stretch', borderRadius: 2, marginVertical: 2 },
   txSubRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   txPin: { width: 5, height: 5, borderRadius: 3, backgroundColor: C.hi },
   txAmt: { fontSize: 13, fontFamily: 'Inter_900Black', color: C.hi, fontVariant: ['tabular-nums'] },
