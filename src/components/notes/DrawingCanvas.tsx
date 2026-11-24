@@ -1,8 +1,8 @@
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { Fragment, forwardRef, memo, useCallback, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, NativeModules, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector, PointerType } from 'react-native-gesture-handler';
 import { usePenStore } from '@/store/penStore';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Rect } from 'react-native-svg';
 import type { NoteStroke } from '@/types/notes';
 import { addPoint, strokePath, strokesHit, brushFactor, smoothFactor, brushOutline } from '@/utils/notes';
 import { inkOn } from '@/utils/notePage';
@@ -49,6 +49,19 @@ export const StrokesLayer = memo(function StrokesLayer({ strokes, width, height,
     </Svg>
   );
 });
+
+/** Rysunek do eksportu (2026-11-24): przycięty kadr z tłem strony, rysowany niewidocznie na
+ *  telefonie i zrzucany do PNG przez `toDataURL` (app/note.tsx). Kadr: utils/drawingExport.ts. */
+export const StrokesExport = forwardRef<any, { strokes: NoteStroke[]; width: number; y0: number; height: number; bg: string; light: boolean }>(
+  function StrokesExport({ strokes, width, y0, height, bg, light }, ref) {
+    return (
+      <Svg ref={ref} width={width} height={height} viewBox={`0 ${y0} ${width} ${height}`}>
+        <Rect x={0} y={y0} width={width} height={height} fill={bg} />
+        {strokes.map((s, i) => <Fragment key={i}>{strokeEl(s, width, light)}</Fragment>)}
+      </Svg>
+    );
+  },
+);
 
 export type PenKind = 'pen' | 'brush' | 'pencil' | 'marker';
 export interface DrawTool { color: string; width: number; eraser: boolean; kind: PenKind }

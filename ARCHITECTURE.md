@@ -2509,6 +2509,18 @@ na Dashboardzie; tętno pisało »załóż zegarek« mimo założonego”.
   w pamiętniku), w gorszy dzień „Pamiętasz?” pod polem; edycja starszych z kart w statystykach humoru i z wyszukiwarki
   (GoodThingSheet przez `/daily?good=`).
 
+## NOTATKI: EKSPORT RYSUNKU + PANELE NARZĘDZI (2026-11-24)
+
+- Przycisk „Udostępnij / Zapisz rysunek jako obraz” (Share2) w pasku rysowania. Kadr i SVG: `utils/drawingExport.ts`
+  (`exportFrame`, `strokesSvg` — te same style kresek co ekran, tło strony, biały tusz na jasnej stronie → ciemny).
+  Komputer: SVG → `<canvas>` → PNG (Web Share z plikiem albo pobranie). Telefon: niewidoczny `StrokesExport`
+  (DrawingCanvas) → `toDataURL` → plik w cache (`expo-file-system/legacy`) → `expo-sharing` (NOWA zależność → APK;
+  `require` w środku, stary APK = komunikat zamiast crasha).
+- Panel pędzla zamyka się po wyborze rodzaju albo grubości; każda nowa kreska zamyka panel pędzla i kolorów.
+- Płynność (te same zmiany): `AppBottomSheet` otwiera się sprężyną (`overshootClamping`), `Tile` wciska się sprężyną
+  skali; `fixedHeight` w oknach z zakładkami (historia zadań, podsumowanie miesiąca, kolekcja, transakcje, baterie,
+  wzorce, czas z telefonem).
+
 ## NOTATKI: CTRL+Z / CTRL+Y NA KOMPUTERZE (2026-11-24)
 
 `app/note.tsx`: `undoStroke` / `redoStroke` (stos cofniętych kresek w refie, ważny dopóki nie narysujesz nowej) —

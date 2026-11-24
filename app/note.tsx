@@ -6,13 +6,14 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Platfo
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Pin, PinOff, Trash2, Check, X, Plus, Undo2, Eraser, Pencil, Folder, Brush, PenLine, Type, NotebookText, Eye, EyeOff, Hand, Highlighter, PaintBucket } from 'lucide-react-native';
+import { ChevronLeft, Pin, PinOff, Trash2, Check, X, Plus, Undo2, Share2, Eraser, Pencil, Folder, Brush, PenLine, Type, NotebookText, Eye, EyeOff, Hand, Highlighter, PaintBucket } from 'lucide-react-native';
 import ColorPicker from '@/components/notes/ColorPicker';
 import ColorCreator from '@/components/notes/ColorCreator';
 import PagePattern from '@/components/notes/PagePattern';
 import { PAGE_PRESETS, PATTERNS, pageInk } from '@/utils/notePage';
 import type { NotePageStyle } from '@/types/notes';
-import { StrokesLayer } from '@/components/notes/DrawingCanvas';
+import { StrokesLayer, StrokesExport } from '@/components/notes/DrawingCanvas';
+import { strokesSvg, exportFrame, EXPORT_W } from '@/utils/drawingExport';
 import { useNoteViewStore, tileCutY } from '@/store/noteViewStore';
 import FolderSheet, { type FolderSheetMode } from '@/components/notes/FolderSheet';
 import { colors } from '@/theme/colors';
@@ -143,6 +144,38 @@ export default function NoteScreen() {
   const [showColors, setShowColors] = useState(false);
   const [showPen, setShowPen] = useState(false); // panel: pióro/pędzel + grubość
   const [confirmDel, setConfirmDel] = useState(false);
+  // Eksport rysunku jako obraz (2026-11-24): komputer = PNG z <canvas>, telefon = niewidoczny
+  // StrokesExport → toDataURL → plik w cache → systemowe "Udostępnij" (expo-sharing, nowe APK).
+  const [exportReq, setExportReq] = useState(false);
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const exportRef = useRef<any>(null);
+  useEffect(() => {
+    if (!exportMsg) return;
+    const t = setTimeout(() => setExportMsg(null), 3500);
+    return () => clearTimeout(t);
+  }, [exportMsg]);
+  useEffect(() => {
+    if (!exportReq || Platform.OS === 'web') return;
+    const t = setTimeout(() => {
+      const svg = exportRef.current;
+      if (!svg?.toDataURL) { setExportReq(false); setExportMsg('Nie udało się zrobić obrazu'); return; }
+      svg.toDataURL(async (b64: string) => {
+        setExportReq(false);
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const Sharing = require('expo-sharing');
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const FileSystem = require('expo-file-system/legacy');
+          const uri = `${FileSystem.cacheDirectory}rysunek-${Date.now()}.png`;
+          await FileSystem.writeAsStringAsync(uri, b64, { encoding: FileSystem.EncodingType.Base64 });
+          await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Udostępnij rysunek' });
+        } catch {
+          setExportMsg('Udostępnianie obrazu działa od nowej wersji appki (APK)');
+        }
+      });
+    }, 80);
+    return () => clearTimeout(t);
+  }, [exportReq]);
   const [focusId, setFocusId] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<Partial<Note>>({});
@@ -184,7 +217,33 @@ export default function NoteScreen() {
     setItemsSave(next);
     setFocusId(it.id);
   };
-  const strokesChange = (strokes: NoteStroke[]) => update(note.id, { strokes });
+  // Nowa kreska zamyka wysunięte panele narzędzi (2026-11-24, user: "zakładka pędzli zostaje").
+  const strokesChange = (strokes: NoteStroke[]) => { update(note.id, { strokes }); if (showPen) setShowPen(false); if (showColors) setShowColors(false); };
+  const exportDrawing = () => {
+    haptic.tap();
+    const bg = note.page?.bg ?? colors.bg.primary;
+    if (Platform.OS !== 'web') { if (note.strokes.length) setExportReq(true); return; }
+    const r = strokesSvg(note.strokes, { bg, light: ink.light });
+    if (!r) return;
+    const img = new (window as any).Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = r.w; c.height = r.h;
+      c.getContext('2d')!.drawImage(img, 0, 0);
+      c.toBlob((blob) => {
+        if (!blob) return;
+        const name = `${(note.title || 'rysunek').replace(/[^\p{L}\p{N} _-]/gu, '').trim() || 'rysunek'}.png`;
+        const file = new File([blob], name, { type: 'image/png' });
+        const nav = navigator as any;
+        if (nav.canShare?.({ files: [file] })) { nav.share({ files: [file], title: note.title || 'Rysunek' }).catch(() => {}); return; }
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = name; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        setExportMsg(`Zapisano ${name}`);
+      }, 'image/png');
+    };
+    img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(r.svg)}`;
+  };
   // Strona (2026-11-22): zapis od razu (jak kreski) — brak tła i wzoru = pole usunięte.
   const pg = note.page;
   const ink = pageInk(pg);
@@ -342,7 +401,7 @@ export default function NoteScreen() {
                 {PEN_KINDS.map(([k, label, desc, Icon]) => {
                   const on = tool.kind === k;
                   return (
-                    <TouchableOpacity key={k} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, kind: k, eraser: false })); }} style={[s.penKind, on && s.penKindOn]} accessibilityLabel={label}>
+                    <TouchableOpacity key={k} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, kind: k, eraser: false })); setShowPen(false); }} style={[s.penKind, on && s.penKindOn]} accessibilityLabel={label}>
                       <Icon size={16} color={on ? colors.bg.primary : colors.text.primary} />
                       <View style={{ flex: 1 }}>
                         <Text style={[s.penKindTxt, on && { color: colors.bg.primary }]}>{label}</Text>
@@ -357,7 +416,7 @@ export default function NoteScreen() {
                   const on = tool.width === w;
                   const d = Math.max(4, w * 1.6);
                   return (
-                    <TouchableOpacity key={w} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, width: w, eraser: false })); }} style={[s.penWidth, on && s.penWidthOn]} accessibilityLabel={`Grubość ${w}`}>
+                    <TouchableOpacity key={w} onPress={() => { haptic.tap(); setTool((t) => ({ ...t, width: w, eraser: false })); setShowPen(false); }} style={[s.penWidth, on && s.penWidthOn]} accessibilityLabel={`Grubość ${w}`}>
                       <View style={{ width: d, height: d, borderRadius: d / 2, backgroundColor: tool.color }} />
                     </TouchableOpacity>
                   );
@@ -411,6 +470,10 @@ export default function NoteScreen() {
                 <TouchableOpacity onPress={() => { haptic.tap(); undoStroke(); }} style={s.iconBtn} accessibilityLabel={Platform.OS === 'web' ? 'Cofnij (Ctrl+Z)' : 'Cofnij'}>
                   <Undo2 size={15} color={note.strokes.length ? colors.text.primary : colors.text.muted} />
                 </TouchableOpacity>
+                <TouchableOpacity onPress={exportDrawing} disabled={!note.strokes.length} style={s.iconBtn}
+                  accessibilityLabel={Platform.OS === 'web' ? 'Zapisz rysunek jako obraz' : 'Udostępnij rysunek jako obraz'}>
+                  <Share2 size={15} color={note.strokes.length ? colors.text.primary : colors.text.muted} />
+                </TouchableOpacity>
               </>
             )}
             <View style={{ flex: 1 }} />
@@ -462,11 +525,24 @@ export default function NoteScreen() {
       )}
 
       <FolderSheet mode={folderSheet} onClose={() => setFolderSheet(null)} />
+      {/* eksport na telefonie: niewidoczny rysunek poza ekranem → toDataURL */}
+      {exportReq && Platform.OS !== 'web' && (() => {
+        const W = EXPORT_W / 2;
+        const f = exportFrame(note.strokes, W);
+        return f ? (
+          <View style={{ position: 'absolute', left: -10000, top: 0 }} pointerEvents="none">
+            <StrokesExport ref={exportRef} strokes={note.strokes} width={W} y0={f.y0} height={f.h} bg={note.page?.bg ?? colors.bg.primary} light={ink.light} />
+          </View>
+        ) : null;
+      })()}
+      {exportMsg && <View style={s.exportMsg} pointerEvents="none"><Text style={s.exportMsgTxt}>{exportMsg}</Text></View>}
     </SafeAreaView>
   );
 }
 
 const makeS = themedStyles((c) => StyleSheet.create({
+  exportMsg: { position: 'absolute', left: 16, right: 16, bottom: 90, alignItems: 'center' },
+  exportMsgTxt: { backgroundColor: c.ui.in2, color: c.text.bright, fontSize: 12.5, fontFamily: 'Inter_700Bold', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, overflow: 'hidden' },
   safe: { flex: 1, backgroundColor: c.bg.primary },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing[1], paddingHorizontal: spacing[2], paddingVertical: spacing[2] },
   headBtn: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md },
