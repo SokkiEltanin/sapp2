@@ -71,6 +71,21 @@ const FLAKE: Sprite = ['.W.', 'WWW', '.W.'];
 const BOLT: Sprite = ['..YY', '.YY.', 'YYYY', '..YY', '.YY.', '.Y..'];
 const FOG: Sprite = ['LLLLLL..LLLLLLLLL...LLLL'];
 const WIND: Sprite = ['WWWWWWW..WW'];
+const WIND_SHORT: Sprite = ['WWWW.W'];
+
+// Losowość "na oko" (2026-11-24, user: "śnieg/deszcz/wiatr bardziej randomowe — teraz leci jedną
+// prostą linią"): wcześniej x i faza rosły razem z numerem cząstki → ukośna linia. Teraz każda
+// cząstka ma własne x, fazę, tempo (1 z 2 pętli), długość lotu i kołysanie z ziarnistego RNG
+// (te same wartości przy każdym renderze — bez skakania).
+function rng(seed: number) {
+  let a = seed | 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 const SUN_P: Palette = { Y: '#FBBF24', O: '#F59E0B', W: '#FDE68A' };
 const MOON_P: Palette = { M: '#E0E7FF', S: '#A5B4FC' };
@@ -162,6 +177,10 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
   const snowT = useLoop(3400, run);
   const blink = useLoop(2600, run);
   const windT = useLoop(1800, run && wind >= 25);
+  // drugie tempo dla części cząstek — nie lecą wszystkie w jednym rytmie
+  const fast2 = useLoop(scene === 'heavy' || scene === 'storm' ? 900 : 1250, run && (scene === 'drizzle' || scene === 'rain' || scene === 'heavy' || scene === 'storm' || scene === 'freezing'));
+  const snowT2 = useLoop(4600, run && (scene === 'snow' || scene === 'freezing'));
+  const windT2 = useLoop(2600, run && wind >= 25);
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -184,10 +203,34 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
   const snowy = scene === 'snow' || scene === 'freezing';
   const cloudP = scene === 'storm' || scene === 'heavy' ? CLOUD_DARK : scene === 'partly' || scene === 'partlyNight' ? CLOUD_LIGHT : CLOUD_GRAY;
   const drops = scene === 'drizzle' ? 4 : scene === 'heavy' || scene === 'storm' ? 10 : scene === 'freezing' ? 4 : rainy ? 7 : 0;
-  const flakes = scene === 'snow' ? 7 : scene === 'freezing' ? 3 : 0;
+  const flakes = scene === 'snow' ? 8 : scene === 'freezing' ? 3 : 0;
   // Z opadem chmura przy samej górze, żeby krople miały drogę nad tekstem.
   const cloudY = rainy || snowy ? top - px : top + px * 3;
   const fallTo = Math.max(px * 8, h * 0.72 - (cloudY + cloudH));
+
+  const r = rng(scene.length * 7919 + drops * 31 + flakes);
+  const between = (a: number, b: number) => a + (b - a) * r();
+  const rainSlant = wind >= 25 ? px * 3 : px * 0.6;
+  const rain = Array.from({ length: drops }, () => ({
+    x: Math.round(between(cloudX + px, cloudX + cloudW - px * 2)),
+    y0: Math.round(between(0, px * 3)),
+    ph: r(), slow: r() < 0.45, len: between(0.7, 1), slant: rainSlant * between(0.6, 1.2),
+  }));
+  const snow = Array.from({ length: flakes }, () => {
+    const amp = px * between(0.8, 2.4) * (r() < 0.5 ? -1 : 1);
+    const turns = r() < 0.5 ? 1 : 2;
+    const swayIn = turns === 1 ? [0, 0.25, 0.5, 0.75, 1] : [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1];
+    const swayOut = swayIn.map((_, k) => [0, amp, 0, -amp][k % 4]);
+    return {
+      x: Math.round(between(cloudX - px, cloudX + cloudW - px)),
+      y0: Math.round(between(0, px * 4)),
+      ph: r(), slow: r() < 0.5, len: between(0.65, 1), big: r() < 0.35, swayIn, swayOut,
+    };
+  });
+  // wiatr tylko w górnej części kafla (nad temperaturą)
+  const gusts = wind >= 25 ? Array.from({ length: 3 }, () => ({
+    y: Math.round(between(h * 0.05, h * 0.34)), ph: r(), slow: r() < 0.5, short: r() < 0.5, op: between(0.5, 1),
+  })) : [];
 
   const drift = (amp: number) => ({ transform: [{ translateX: slow.interpolate({ inputRange: [0, 1], outputRange: [-amp, amp] }) }] });
 
@@ -227,32 +270,34 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
       ))}
 
       {/* deszcz pod chmurą (rysowany przed chmurą, żeby krople wychodziły spod niej) */}
-      {Array.from({ length: drops }, (_, i) => {
-        const x = cloudX + px * 2 + ((i * 5) % 13) * px;
-        const ph = (i * 0.37) % 1;
+      {rain.map((d, i) => {
+        const prog = wrap(d.slow ? fast2 : fast, d.ph, 0, 1);
         return (
           <Animated.View key={`d${i}`} style={{
-            position: 'absolute', left: x, top: cloudY + cloudH - px * 2,
-            transform: [{ translateY: wrap(fast, ph, 0, fallTo) }],
-            opacity: wrap(fast, ph, 1, 0.15),
+            position: 'absolute', left: d.x, top: cloudY + cloudH - px * 2 + d.y0,
+            transform: [
+              { translateY: prog.interpolate({ inputRange: [0, 1], outputRange: [0, fallTo * d.len] }) },
+              { translateX: prog.interpolate({ inputRange: [0, 1], outputRange: [0, d.slant] }) },
+            ],
+            opacity: prog.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 0.8, 0.1] }),
           }}>
             <Pix sprite={DROP} palette={DROP_P} px={px} />
           </Animated.View>
         );
       })}
-      {Array.from({ length: flakes }, (_, i) => {
-        const x = cloudX + px * 1 + ((i * 4) % 14) * px;
-        const ph = (i * 0.29) % 1;
+      {snow.map((f, i) => {
+        const prog = wrap(f.slow ? snowT2 : snowT, f.ph, 0, 1);
         return (
           <Animated.View key={`f${i}`} style={{
-            position: 'absolute', left: x, top: cloudY + cloudH - px * 2,
+            position: 'absolute', left: f.x, top: cloudY + cloudH - px * 2 + f.y0,
             transform: [
-              { translateY: wrap(snowT, ph, 0, fallTo) },
-              { translateX: slow.interpolate({ inputRange: [0, 1], outputRange: [i % 2 ? -px : px, i % 2 ? px : -px] }) },
+              { translateY: prog.interpolate({ inputRange: [0, 1], outputRange: [0, fallTo * f.len] }) },
+              // własne kołysanie każdego płatka (amplituda, kierunek, ile zakosów)
+              { translateX: prog.interpolate({ inputRange: f.swayIn, outputRange: f.swayOut }) },
             ],
-            opacity: wrap(snowT, ph, 1, 0.2),
+            opacity: prog.interpolate({ inputRange: [0, 0.75, 1], outputRange: [1, 0.85, 0.1] }),
           }}>
-            <Pix sprite={FLAKE} palette={FLAKE_P} px={Math.max(1, px - 1)} />
+            <Pix sprite={FLAKE} palette={FLAKE_P} px={f.big ? px : Math.max(1, px - 1)} />
           </Animated.View>
         );
       })}
@@ -282,12 +327,12 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
       )}
 
       {/* wiatr (≥ 25 km/h): smugi przelatują przez scenę */}
-      {wind >= 25 && [0.2, 0.38, 0.52].map((fy, i) => (
+      {gusts.map((g, i) => (
         <Animated.View key={`w${i}`} style={{
-          position: 'absolute', left: 0, top: h * fy,
-          transform: [{ translateX: wrap(windT, i * 0.33, -px * 12, w) }],
+          position: 'absolute', left: 0, top: g.y, opacity: g.op,
+          transform: [{ translateX: wrap(g.slow ? windT2 : windT, g.ph, -px * 14, w) }],
         }}>
-          <Pix sprite={WIND} palette={WIND_P} px={Math.max(1, px - 1)} />
+          <Pix sprite={g.short ? WIND_SHORT : WIND} palette={WIND_P} px={Math.max(1, px - 1)} />
         </Animated.View>
       ))}
     </View>

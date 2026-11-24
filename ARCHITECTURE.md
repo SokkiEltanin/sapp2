@@ -2533,7 +2533,9 @@ User: „dużo kolorów i słupków, ciężko zrozumieć, dla ADHD-owców to mas
 - Kafel pogody na Dashboardzie: `components/weather/WeatherScene.tsx` — własne sprite'y pixel-art (`utils/pixelSprite.ts`
   scala piksele w prostokąty, 1 Svg na sprite), sceny wg `weatherToneKey`: słońce (pulsujące promienie), noc (księżyc +
   migające gwiazdy), chmury (dryf), mgła (pasy), mżawka/deszcz/ulewa (spadające krople), śnieg (płatki z kołysaniem),
-  burza (błysk), wiatr ≥ 25 km/h (smugi; `wind` = max(wiatr, 0,6 × porywy)). Animacje tylko transform/opacity wrapperów
+  burza (błysk), wiatr ≥ 25 km/h (smugi; `wind` = max(wiatr, 0,6 × porywy)). Cząstki losowe (2026-11-24, user: „śnieg leci
+  jedną prostą linią”): ziarnisty RNG → każda kropla/płatek/smuga ma własne x, fazę, tempo (2 pętle), długość lotu,
+  płatki własne kołysanie; deszcz lekko ukośnie (mocniej przy wietrze); smugi wiatru tylko w górnej 1/3 kafla. Animacje tylko transform/opacity wrapperów
   (Animated, native driver), 5 wspólnych pętli; stop bez fokusu ekranu, w tle i przy „ogranicz ruch”. „Szkło” = odcień
   nieba (`SKY`) + przyciemniony dół pod tekst + jasna krawędź — bez prawdziwego blur (laguje na Androidzie).
 
