@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeStorage } from '@/services/safeStorage';
 import {
   applyCategoryPrefs, resolveCategories, newTag, okey, EMPTY_CATEGORY_PREFS,
   type CategoryPrefs, type CatKind,
@@ -46,7 +46,7 @@ export const useCategoriesStore = create<CategoriesState>()(
     }),
     {
       name: 'categories-v1',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => safeStorage),
       partialize: (st) => ({ prefs: st.prefs }),
       onRehydrateStorage: () => (st) => { if (st) { applyCategoryPrefs(st.prefs); useCategoriesStore.setState({ version: st.version + 1 }); } },
     },

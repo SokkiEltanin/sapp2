@@ -52,6 +52,8 @@ export function useNotifeeAlertLaunch() {
           else if (data.route === 'subscriptions' && pressed) router.push('/subscriptions');
           else if (data.route === 'replacements' && pressed) router.push('/replacements' as any);
           else if (data.route === 'finances' && pressed) router.push('/finances' as any);
+          // strażnik (2026-11-25) → Ustawienia z otwartym Stanem appki
+          else if (data.route === 'health' && pressed) router.push({ pathname: '/settings', params: { health: '1' } } as any);
           // przypomnienie o humorze (2026-11-18) → Daily z otwartym wpisem humoru
           else if (data.route === 'daily' && pressed) router.navigate({ pathname: '/daily', params: { mood: String(Date.now()) } } as any);
           else if (data.route === 'tasks' && pressed) router.navigate(typeof data.taskId === 'string' ? { pathname: '/tasks', params: { task: data.taskId } } as any : '/tasks');

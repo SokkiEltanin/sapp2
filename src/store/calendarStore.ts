@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CalendarEvent, Task } from '@/types/calendar';
 import { todayISO } from '@/utils/date';
+import { safeStorage } from '@/services/safeStorage';
 
 // Port z sapp (src/store/calendarStore.ts), logika 1:1 — JEDNA świadoma różnica:
-// standardowy `createJSONStorage(() => AsyncStorage)` zamiast sapp'owego
+// standardowy `createJSONStorage(() => safeStorage)` zamiast sapp'owego
 // `throttledPersistStorage()`. Ten throttling istnieje tam bo profiling na
 // REALNYCH danych (wydatki/paragony, rosnące z wiekiem konta) złapał konkretny,
 // zmierzony koszt JSON.stringify+write na każdym `set()`. sapp2 dopiero zaczyna
@@ -100,7 +100,7 @@ export const useCalendarStore = create<CalendarState>()(
     }),
     {
       name: 'calendar-store-v1',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => safeStorage),
       partialize: (state) => ({ events: state.events, tasks: state.tasks }),
     },
   ),

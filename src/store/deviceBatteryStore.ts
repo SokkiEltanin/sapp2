@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { mergeBatLogs, type WatchBattery, type BatSample } from '@/utils/deviceBattery';
+import { safeStorage } from '@/services/safeStorage';
 
 // Baterie telefonu i zegarka dla KOMPUTERA (2026-11-16, user: "na telefonie jest, ale na
 // komputerze nie ma — mam tylko baterię komputera"). Telefon zapisuje tu swoje odczyty
@@ -62,6 +62,6 @@ export const useDeviceBatteryStore = create<DeviceBatteryState>()(
         });
       },
     }),
-    { name: 'device-battery-v1', storage: createJSONStorage(() => AsyncStorage), partialize: (st) => ({ phone: st.phone, watch: st.watch, phoneLog: st.phoneLog, watchLog: st.watchLog }) },
+    { name: 'device-battery-v1', storage: createJSONStorage(() => safeStorage), partialize: (st) => ({ phone: st.phone, watch: st.watch, phoneLog: st.phoneLog, watchLog: st.watchLog }) },
   ),
 );

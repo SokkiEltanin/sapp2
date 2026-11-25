@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { goodId, type GoodThing } from '@/utils/goodThings';
+import { safeStorage } from '@/services/safeStorage';
 
 // Jedna dobra rzecz z dnia (2026-11-22) — synchronizowana (services/cloudSync.ts sync_good),
 // w kopii zapasowej. Pusty tekst = usunięcie wpisu dnia.
@@ -24,6 +24,6 @@ export const useGoodThingsStore = create<GoodState>()(
         return { items: [...st.items, { id, date, text: t, createdAt: now, updatedAt: now }] };
       }),
     }),
-    { name: 'good-things-v1', storage: createJSONStorage(() => AsyncStorage), partialize: (st) => ({ items: st.items }) },
+    { name: 'good-things-v1', storage: createJSONStorage(() => safeStorage), partialize: (st) => ({ items: st.items }) },
   ),
 );

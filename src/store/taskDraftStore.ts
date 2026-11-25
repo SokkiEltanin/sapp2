@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Subtask } from '@/types/calendar';
+import { safeStorage } from '@/services/safeStorage';
 
 // Kopia robocza formularza zadania (2026-11-16, user: "jak piszę zadanie i nie kliknę
 // dodaj, to mi usuwa wszystko... może dodać kopię roboczą"). Każda zmiana w
@@ -44,6 +44,6 @@ export const useTaskDraftStore = create<DraftState>()(
         return { drafts: next };
       }),
     }),
-    { name: 'task-draft-v1', storage: createJSONStorage(() => AsyncStorage) },
+    { name: 'task-draft-v1', storage: createJSONStorage(() => safeStorage) },
   ),
 );

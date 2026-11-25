@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeStorage } from '@/services/safeStorage';
 
 // Profil (2026-11-17, user: "nie dodaliśmy danych w profilu — imię, data urodzenia itp.").
 // Używane: BMI i wiek w panelu ciała (BodySheet), urodziny w "Najbliższych eventach" na
@@ -21,6 +21,6 @@ export const useProfileStore = create<ProfileState>()(
       name: '', birthDate: null, heightCm: null, t: 0,
       setProfile: (p) => set({ ...p, t: Date.now() }),
     }),
-    { name: 'profile-v1', storage: createJSONStorage(() => AsyncStorage), partialize: (s) => ({ name: s.name, birthDate: s.birthDate, heightCm: s.heightCm, t: s.t }) },
+    { name: 'profile-v1', storage: createJSONStorage(() => safeStorage), partialize: (s) => ({ name: s.name, birthDate: s.birthDate, heightCm: s.heightCm, t: s.t }) },
   ),
 );

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeStorage } from '@/services/safeStorage';
 
 // S-Pen w notatkach (2026-11-18, user: "przycisk na S-Penie może włączać gumkę? w ustawieniach
 // notatek; na samo wykrycie S-Pena palcami tylko przesuwam ekran, a notatka nieskończona w dół").
@@ -22,6 +22,6 @@ export const usePenStore = create<PenState>()(
       stylusSeen: false,
       set: (p) => set(p),
     }),
-    { name: 'pen-v1', storage: createJSONStorage(() => AsyncStorage), partialize: (s) => ({ fingerScroll: s.fingerScroll, buttonEraser: s.buttonEraser, stylusSeen: s.stylusSeen }) },
+    { name: 'pen-v1', storage: createJSONStorage(() => safeStorage), partialize: (s) => ({ fingerScroll: s.fingerScroll, buttonEraser: s.buttonEraser, stylusSeen: s.stylusSeen }) },
   ),
 );

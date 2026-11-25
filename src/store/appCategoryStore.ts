@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ScreenCat } from '@/utils/screenTime';
+import { safeStorage } from '@/services/safeStorage';
 
 // Kategorie appek ustawione przez usera (2026-11-22, user: "oznaczyć aplikacje, które to
 // rozrywka, a które nie, bo niektóre może źle łapać"). `cats` = własna kategoria, `fun` =
@@ -23,6 +23,6 @@ export const useAppCategoryStore = create<AppCatState>()(
       setCat: (pkg, cat) => set((st) => ({ cats: cat ? { ...st.cats, [pkg]: cat } : without(st.cats, pkg) })),
       setFun: (pkg, fun) => set((st) => ({ fun: fun == null ? without(st.fun, pkg) : { ...st.fun, [pkg]: fun } })),
     }),
-    { name: 'app-categories-v1', storage: createJSONStorage(() => AsyncStorage), partialize: (st) => ({ cats: st.cats, fun: st.fun }) },
+    { name: 'app-categories-v1', storage: createJSONStorage(() => safeStorage), partialize: (st) => ({ cats: st.cats, fun: st.fun }) },
   ),
 );

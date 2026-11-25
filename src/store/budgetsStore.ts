@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Budget, BudgetScope } from '@/types/budgets';
+import { safeStorage } from '@/services/safeStorage';
 
 // Budżety miesięczne (2026-11-13). Logika: utils/budgets.ts; UI: kafel w
 // Finansach + components/budgets/BudgetSheet.tsx; ostrzeżenia:
@@ -31,6 +31,6 @@ export const useBudgetsStore = create<BudgetsState>()(
       remove: (id) => set((st) => ({ budgets: st.budgets.filter((b) => b.id !== id) })),
       markNotified: (id, month, level) => set((st) => ({ notified: { ...st.notified, [id]: { month, level } } })),
     }),
-    { name: 'budgets-v1', storage: createJSONStorage(() => AsyncStorage) },
+    { name: 'budgets-v1', storage: createJSONStorage(() => safeStorage) },
   ),
 );

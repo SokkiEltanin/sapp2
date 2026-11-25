@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Subscription } from '@/types/subscriptions';
+import { safeStorage } from '@/services/safeStorage';
 
 function genId(): string {
   return `sub_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -48,6 +49,6 @@ export const useSubscriptionsStore = create<SubscriptionsState>()(
       dismissBill: (tag) => set((s) => ({ dismissedBills: s.dismissedBills.includes(tag) ? s.dismissedBills : [...s.dismissedBills, tag] })),
       restoreBill: (tag) => set((s) => ({ dismissedBills: s.dismissedBills.filter((t) => t !== tag) })),
     }),
-    { name: 'subscriptions-storage', storage: createJSONStorage(() => AsyncStorage) },
+    { name: 'subscriptions-storage', storage: createJSONStorage(() => safeStorage) },
   ),
 );

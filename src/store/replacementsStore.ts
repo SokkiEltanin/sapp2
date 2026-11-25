@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ReplaceItem } from '@/types/replacements';
 import { markReplaced, undoLastReplace } from '@/utils/replacements';
+import { safeStorage } from '@/services/safeStorage';
 
 // Wymiany domowe (2026-11-13) — filtry, końcówki szczoteczek itd. Logika w
 // utils/replacements.ts; ekran app/replacements.tsx; przypomnienia
@@ -39,6 +39,6 @@ export const useReplacementsStore = create<ReplacementsState>()(
         items: st.items.map((x) => (x.id === id ? { ...x, dismissedBuys: [...(x.dismissedBuys ?? []), expenseId].slice(-100), updatedAt: new Date().toISOString() } : x)),
       })),
     }),
-    { name: 'replacements-v1', storage: createJSONStorage(() => AsyncStorage), partialize: (st) => ({ items: st.items }) },
+    { name: 'replacements-v1', storage: createJSONStorage(() => safeStorage), partialize: (st) => ({ items: st.items }) },
   ),
 );

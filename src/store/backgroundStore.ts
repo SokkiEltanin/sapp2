@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeStorage } from '@/services/safeStorage';
 
 // Odświeżanie w tle (2026-11-22, user: "praca w tle spoko, tylko pewnie zżerałoby baterię —
 // w ustawieniach: co 15 min, co 1 h, co 3 h, nigdy"). 0 = nigdy (tylko po otwarciu appki).
@@ -25,6 +25,6 @@ export const useBackgroundStore = create<BgState>()(
       setInterval: (interval) => set({ interval }),
       markRun: (ok) => set({ lastRun: Date.now(), lastOk: ok }),
     }),
-    { name: 'background-refresh-v1', storage: createJSONStorage(() => AsyncStorage), partialize: (st) => ({ interval: st.interval, lastRun: st.lastRun, lastOk: st.lastOk }) },
+    { name: 'background-refresh-v1', storage: createJSONStorage(() => safeStorage), partialize: (st) => ({ interval: st.interval, lastRun: st.lastRun, lastOk: st.lastOk }) },
   ),
 );

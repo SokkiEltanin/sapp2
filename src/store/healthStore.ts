@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { HealthDaySnapshot } from '@/types/health';
+import { safeStorage } from '@/services/safeStorage';
 
 // Cache Health Connect — ten sam wzorzec co `habitsStore.ts`/`moodStore.ts`
 // (zustand+persist+AsyncStorage). `connected` = user raz pomyślnie przeszedł
@@ -47,7 +48,7 @@ export const useHealthStore = create<HealthState>()(
     }),
     {
       name: 'health-store-v1',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => safeStorage),
       partialize: (state) => ({
         connected: state.connected, today: state.today, history: state.history,
         manualWeights: state.manualWeights, lastSyncedAt: state.lastSyncedAt,

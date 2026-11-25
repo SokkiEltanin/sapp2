@@ -1,4 +1,5 @@
 import { goBack } from '@/services/nav';
+import { storageUsage } from '@/services/safeStorage';
 import { usePwaInstall, pwaInstallLabel, promptPwaInstall } from '@/services/pwaInstall';
 import { useCalendarStore } from '@/store/calendarStore';
 import DashboardLayoutSheet from '@/components/settings/DashboardLayoutSheet';
@@ -24,7 +25,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, BackHandler, Platform, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import Constants from 'expo-constants';
 import {
   ChevronLeft, ChevronRight, Search, X,
@@ -426,6 +427,14 @@ export default function SettingsScreen() {
   const upd = useAppUpdateStore();
   const errEntries = useErrorLog((x) => x.entries);
   const [healthOpen, setHealthOpen] = useState(false);
+  // Powiadomienie strażnika → /settings?health=1 = od razu Stan appki (2026-11-25).
+  const { health: healthParam } = useLocalSearchParams<{ health?: string }>();
+  useEffect(() => { if (healthParam === '1') { setHealthOpen(true); router.setParams({ health: undefined } as any); } }, [healthParam]);
+  const [storage, setStorage] = useState<{ total: number; biggest: { key: string; size: number }[] } | undefined>(undefined);
+  useEffect(() => { if (healthOpen) storageUsage().then(setStorage).catch(() => {}); }, [healthOpen]);
+  const bankHistory = useBankQueue((st) => st.history);
+  const bgIntervalH = useBackgroundStore((st) => st.interval);
+  const bgLastRunH = useBackgroundStore((st) => st.lastRun);
   const [thresholdsOpen, setThresholdsOpen] = useState(false);
   const [layoutOpen, setLayoutOpen] = useState(false);
   const th = useThresholdsStore((st) => st.t);
@@ -440,7 +449,10 @@ export default function SettingsScreen() {
     update: { otaReady: upd.otaReady, apkBuild: upd.apk?.build ?? null, lastError: upd.lastError },
     bankPending,
     web: Platform.OS === 'web',
-  }), [syncState, syncLastAt, syncError, backupAuto, backupLastAt, fileInfo, errEntries, upd.otaReady, upd.apk, upd.lastError, bankPending]);
+    bank: { enabled: bankEnabled, times: bankHistory.map((h) => h.at) },
+    background: { interval: bgIntervalH, lastRun: bgLastRunH },
+    storage,
+  }), [syncState, syncLastAt, syncError, backupAuto, backupLastAt, fileInfo, errEntries, upd.otaReady, upd.apk, upd.lastError, bankPending, bankEnabled, bankHistory, bgIntervalH, bgLastRunH, storage]);
   const healthText = healthSummary(healthRows);
   const [errorsOpen, setErrorsOpen] = useState(false);
   const errorsLabel = errEntries.length === 0 ? 'pusto — nic się nie wywaliło'

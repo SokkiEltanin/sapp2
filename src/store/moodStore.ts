@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { MoodEntry } from '@/types/mood';
+import { safeStorage } from '@/services/safeStorage';
 
 // Ten sam wzorzec co `calendarStore.ts`/`expensesStore.ts`: offline-first AsyncStorage,
 // Firestore sync jako osobna, ręczna warstwa (serwis), NIE auto-sync przy każdym CRUD.
@@ -41,7 +42,7 @@ export const useMoodStore = create<MoodState>()(
     }),
     {
       name: 'mood-store-v1',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => safeStorage),
       partialize: (state) => ({ entries: state.entries }),
     },
   ),

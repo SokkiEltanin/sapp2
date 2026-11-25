@@ -54,6 +54,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 - [ ] Saldo: stosiki monet nie przeszkadzają w czytaniu kwoty; wiatr przyspiesza z prędkością wiatru.
 - [ ] Wzorce na Dashboardzie: codziennie inny; nowy wzorzec z plakietką „nowy” (zrobione 2026-11-24).
 - [ ] Okna otwierają się sprężyście, kafle wciskają się płynnie, okna z zakładkami nie skaczą.
+- [ ] NOWE APK (2026-11-25): większa pamięć danych (512 MB). Ustawienia → Stan appki: nowe wiersze „Bank łapie
+  płatności”, „Odświeżanie w tle”, „Miejsce na dane” (ile zajmują dane, co najwięcej). Strażnik: powiadomienie tylko,
+  gdy coś stoi ≥ 2 dni.
+- [ ] USER: zachować u siebie kopię klucza podpisywania APK (sekret GitHub KEYSTORE_BASE64 + hasło
+  ANDROID_KEYSTORE_PASSWORD) — sekretu nie da się odczytać z GitHuba, a bez klucza aktualizacja = odinstalowanie appki.
 - [ ] NOWE APK (2026-11-24): widget pogody na pulpicie z ikonami pixel art (te same co w appce, kolorowe) — godziny
   i ikona główna; „Udostępnij rysunek” na telefonie (expo-sharing).
 - [ ] Rysunek: panel pędzla znika po wyborze; „Udostępnij” na telefonie (od nowego APK — expo-sharing), na komputerze

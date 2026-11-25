@@ -1,4 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logError } from '@/services/errorLog';
+import { readLogical, writeLogical } from '@/services/safeStorage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { withTimeout } from '@/firebase';
@@ -50,12 +52,10 @@ export interface BackupMeta {
   summary: BackupSummary;
 }
 
+// Pełne wartości (duże store'y w kawałkach — services/safeStorage.ts, 2026-11-25): kopia
+// zawiera sklejone dane, a nie znaczniki kawałków; przywracanie dzieli je z powrotem.
 export async function collectEntries(): Promise<Record<string, string>> {
-  const keys = (await AsyncStorage.getAllKeys()).filter(shouldBackupKey);
-  const pairs = await AsyncStorage.multiGet(keys);
-  const out: Record<string, string> = {};
-  for (const [k, v] of pairs) if (v != null) out[k] = v;
-  return out;
+  return readLogical(shouldBackupKey);
 }
 
 export async function getLastBackupAt(): Promise<string | null> {
@@ -72,14 +72,17 @@ export async function setAutoBackupEnabled(on: boolean): Promise<void> {
 
 let inFlight: Promise<BackupMeta> | null = null;
 
-export function uploadBackup(): Promise<BackupMeta> {
+export function uploadBackup(auto = false): Promise<BackupMeta> {
   // Ręczny przycisk + automat w tym samym momencie → jedna kopia, nie dwie.
   if (inFlight) return inFlight;
-  inFlight = doUpload().finally(() => { inFlight = null; });
+  inFlight = doUpload(auto).finally(() => { inFlight = null; });
   return inFlight;
 }
 
-async function doUpload(): Promise<BackupMeta> {
+// Dwie wersje w chmurze (2026-11-25, "samowystarczalna na długo"): `meta` = najnowsza, `meta_prev` =
+// poprzednia; usuwana jest dopiero ta sprzed dwóch. Automat NIE nadpisuje, gdy dane nagle skurczyły
+// się o ponad połowę (np. coś się nie wczytało) — wtedy błąd w dzienniku, dobra kopia zostaje.
+async function doUpload(auto: boolean): Promise<BackupMeta> {
   const entries = await collectEntries();
   const json = JSON.stringify({ version: 1, entries });
   const chunks = chunkString(json);
@@ -87,6 +90,11 @@ async function doUpload(): Promise<BackupMeta> {
 
   const prevSnap = await withTimeout(getDoc(userDoc(COL, 'meta')));
   const prev = prevSnap.exists() ? (prevSnap.data() as BackupMeta) : null;
+  if (auto && prev && prev.chars > 50_000 && json.length < prev.chars * 0.5) {
+    throw new Error(`Kopia wstrzymana: dane mają ${Math.round(json.length / 1000)} kB, poprzednia kopia ${Math.round(prev.chars / 1000)} kB — sprawdź, czy wszystko się wczytało`);
+  }
+  const olderSnap = await withTimeout(getDoc(userDoc(COL, 'meta_prev')));
+  const older = olderSnap.exists() ? (olderSnap.data() as BackupMeta) : null;
 
   for (let i = 0; i < chunks.length; i++) {
     await withTimeout(setDoc(userDoc(COL, `${backupId}_${i}`), { data: chunks[i] }), 30000);
@@ -99,8 +107,11 @@ async function doUpload(): Promise<BackupMeta> {
   await AsyncStorage.setItem(LAST_AT_KEY, meta.createdAt);
 
   if (prev && prev.backupId !== backupId) {
-    for (let i = 0; i < prev.chunkCount; i++) {
-      await deleteDoc(userDoc(COL, `${prev.backupId}_${i}`)).catch(() => {});
+    await withTimeout(setDoc(userDoc(COL, 'meta_prev'), prev)).catch(() => {});
+    if (older && older.backupId !== prev.backupId) {
+      for (let i = 0; i < older.chunkCount; i++) {
+        await deleteDoc(userDoc(COL, `${older.backupId}_${i}`)).catch(() => {});
+      }
     }
   }
   return meta;
@@ -117,7 +128,8 @@ export async function fetchBackupMeta(): Promise<BackupMeta | null> {
 export async function autoBackupIfDue(): Promise<void> {
   if (!(await isAutoBackupEnabled())) return;
   if (!isBackupDue(await getLastBackupAt(), new Date(), AUTO_EVERY_HOURS)) return;
-  await uploadBackup().catch(() => {});
+  await uploadBackup(true).catch((e) => { if (String(e?.message ?? '').startsWith('Kopia wstrzymana')) logError('kopia w chmurze', e); });
+  await verifyBackupIfDue().catch((e) => logError('sprawdzenie kopii', e));
 }
 
 // Nadpisuje lokalne dane kopią z chmury. Przed tym zapisuje BIEŻĄCE dane do
@@ -125,9 +137,7 @@ export async function autoBackupIfDue(): Promise<void> {
 // nowszych danych bez śladu. Klucze, których kopia nie ma, zostają nietknięte.
 // Po zapisie store'y przeładowują się z AsyncStorage (`persist.rehydrate`) —
 // bez restartu appki.
-export async function restoreBackup(): Promise<BackupMeta> {
-  const meta = await fetchBackupMeta();
-  if (!meta) throw new Error('Brak kopii w chmurze.');
+async function downloadEntries(meta: BackupMeta): Promise<Record<string, string>> {
   const parts: string[] = [];
   for (let i = 0; i < meta.chunkCount; i++) {
     const snap = await withTimeout(getDoc(userDoc(COL, `${meta.backupId}_${i}`)), 30000);
@@ -136,6 +146,36 @@ export async function restoreBackup(): Promise<BackupMeta> {
   }
   const parsed = JSON.parse(parts.join('')) as { version: number; entries: Record<string, string> };
   if (!parsed?.entries || typeof parsed.entries !== 'object') throw new Error('Nieprawidłowa kopia — nic nie zmieniono.');
+  return parsed.entries;
+}
+
+// Raz w miesiącu próbne pobranie najnowszej kopii (czy da się ją odczytać w całości) — błąd
+// trafia do Dziennika błędów i Stanu appki.
+const VERIFY_KEY = `${BACKUP_KEY_PREFIX}verified_at`;
+async function verifyBackupIfDue(): Promise<void> {
+  if (!isBackupDue(await AsyncStorage.getItem(VERIFY_KEY), new Date(), 30 * 24)) return;
+  const meta = await fetchBackupMeta();
+  if (!meta) return;
+  const entries = await downloadEntries(meta);
+  if (!Object.keys(entries).length) throw new Error('Najnowsza kopia jest pusta');
+  await AsyncStorage.setItem(VERIFY_KEY, new Date().toISOString());
+}
+
+export async function restoreBackup(): Promise<BackupMeta> {
+  const latest = await fetchBackupMeta();
+  if (!latest) throw new Error('Brak kopii w chmurze.');
+  // Najnowsza uszkodzona → poprzednia wersja.
+  let meta = latest;
+  let entries: Record<string, string>;
+  try {
+    entries = await downloadEntries(latest);
+  } catch (e) {
+    const prevSnap = await withTimeout(getDoc(userDoc(COL, 'meta_prev')));
+    if (!prevSnap.exists()) throw e;
+    meta = prevSnap.data() as BackupMeta;
+    entries = await downloadEntries(meta);
+  }
+  const parsed = { entries };
 
   await applyEntries(parsed.entries);
   return meta;
@@ -149,7 +189,7 @@ export async function applyEntries(entries: Record<string, string>): Promise<voi
     await FileSystem.writeAsStringAsync(PRE_RESTORE_FILE, JSON.stringify({ version: 1, entries: current })).catch(() => {});
   }
   const pairs = Object.entries(entries).filter(([k]) => shouldBackupKey(k));
-  await AsyncStorage.multiSet(pairs);
+  await writeLogical(pairs);
   await Promise.all([
     useExpensesStore, useMoodStore, useCalendarStore, useHabitsStore, useHealthStore,
     useBankQueue, useCountdownStore, useSubscriptionsStore, useVehiclesStore, useWorkStore,

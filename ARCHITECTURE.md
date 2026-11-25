@@ -2498,6 +2498,28 @@ na Dashboardzie; tętno pisało »załóż zegarek« mimo założonego”.
 - Kafelek: najbliższe wydarzenie („za 2 h 15 min”, odświeżanie ~5 min) + liczba zadań.
 - Tętno: „brak kontaktu” tylko gdy nie było żadnego odczytu (Samsung zgłasza NO_CONTACT na starcie pomiaru).
 
+## SAMOWYSTARCZALNOŚĆ: PAMIĘĆ, STRAŻNIK, KOPIE, TESTY DAT (2026-11-25)
+
+User: „co sugerujesz, żeby apka była samowystarczalna na długo” → „dawaj, ulepszaj”.
+- **Pamięć**: `plugins/withAsyncStorageSize.js` (gradle `AsyncStorage_db_size_in_MB=512`, było ~6 MB → APK);
+  `services/safeStorage.ts` — wszystkie store'y (`createJSONStorage(() => safeStorage)`); wartość > 400 tys. znaków
+  (`utils/storageChunks.ts`) w kawałkach `klucz__cN` + znacznik `__chunks__:N` (najpierw kawałki, potem znacznik; brak
+  kawałka = błąd, nie pusty stan). `readLogical`/`writeLogical` dla kopii (cloudBackup `collectEntries`/`applyEntries`),
+  `storageUsage` dla Stanu appki. Reguła 11 w CLAUDE.md.
+- **Stan appki** (`utils/appHealth.ts`) + nowe wiersze: `bankCapture` (bank milczy dłużej niż max(4 dni, 4× mediana
+  odstępów, `usualGapDays`)), `background` (tło stoi > max(1 dzień, 8× interwał)), `storage` (komputer warn 3,5 MB /
+  bad 4,5 MB; telefon 300/450 MB). Ustawienia → Stan appki pokazuje je; `/settings?health=1` otwiera od razu.
+- **Strażnik** (`utils/guardian.ts` czyste reguły, `services/guardian.ts`, `store/guardianStore.ts`): przy starcie (45 s)
+  i powrocie do appki, max co 6 h; zgłasza sync/kopie/bank/tło/pamięć, gdy problem trwa ≥ 2 dni, przypomina ≥ co 3 dni;
+  jedno powiadomienie (kanał „Stan appki — ostrzeżenia”, `route: 'health'`). Pomija świadome wyłączenia (sync wył.,
+  brak folderu kopii). Wywołanie w `hooks/useAutoBackup.ts`.
+- **Kopie**: chmura trzyma 2 wersje (`meta` + `meta_prev`, usuwana ta sprzed dwóch); automat NIE wysyła kopii, gdy dane
+  skurczyły się o > 50% (błąd „Kopia wstrzymana” w dzienniku); raz w miesiącu próbne pobranie (`verifyBackupIfDue`);
+  przywracanie: najnowsza uszkodzona → poprzednia. Pliki: tydzień, kilka wersji (`filesToPrune`) — bez zmian.
+- **Przycinanie** (już było): czas z telefonem 90 dni, baterie 30 dni, log banku 150, dziennik błędów 100, kosz zadań 30 dni.
+- **Testy dat**: `__tests__/timeTravel.test.ts` (przełom roku, 29.02, zmiana czasu); `jest.globalSetup.js` = strefa
+  Europe/Warsaw dla wszystkich testów (CI w UTC nie zgubi błędów zmiany czasu).
+
 ## IKONY POGODY PIXEL ART — JEDNO ŹRÓDŁO (2026-11-24)
 
 `src/data/pixelWeather.json` (sprite'y, palety, warstwy 12 scen, siatka 13×11) czyta appka (`utils/pixelWeatherIcon.ts`

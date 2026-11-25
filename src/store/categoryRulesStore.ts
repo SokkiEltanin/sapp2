@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CategoryRule, RuleField } from '@/types/categoryRules';
+import { safeStorage } from '@/services/safeStorage';
 
 // Reguły kategoryzacji (2026-11-14) — patrz types/categoryRules.ts. Synchronizowane
 // (cloudSync `sync_rules`), w kopii i przywracaniu (cloudBackup applyEntries).
@@ -25,6 +25,6 @@ export const useCategoryRulesStore = create<RulesState>()(
       },
       remove: (id) => set((st) => ({ rules: st.rules.filter((r) => r.id !== id) })),
     }),
-    { name: 'category-rules-v1', storage: createJSONStorage(() => AsyncStorage) },
+    { name: 'category-rules-v1', storage: createJSONStorage(() => safeStorage) },
   ),
 );

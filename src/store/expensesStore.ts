@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Expense } from '@/types/finances';
 import { useCategoryRulesStore } from './categoryRulesStore';
 import { applyCategoryRules } from '@/utils/categoryRules';
+import { safeStorage } from '@/services/safeStorage';
 
 // Finanse — Faza 2.1 (2026-10-31), ten sam wzorzec co `calendarStore.ts`:
 // offline-first, AsyncStorage-persystowany, Firestore sync jako OSOBNA, ręczna
@@ -57,7 +58,7 @@ export const useExpensesStore = create<ExpensesState>()(
     }),
     {
       name: 'expenses-store-v1',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => safeStorage),
       partialize: (state) => ({ expenses: state.expenses }),
     },
   ),

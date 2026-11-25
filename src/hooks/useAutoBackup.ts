@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 import { autoBackupIfDue } from '@/services/cloudBackup';
 import { autoLocalBackupIfDue } from '@/services/localBackup';
 import { logError } from '@/services/errorLog';
+import { runGuardian } from '@/services/guardian';
 
 // Automatyczna kopia w chmurze (2026-11-11) — przy starcie (z opóźnieniem, żeby
 // nie dociążać pierwszych sekund appki i dać store'om się zhydrować) i przy
@@ -24,6 +25,14 @@ export function useAutoBackup(loggedIn: boolean) {
     const run = () => { autoLocalBackupIfDue().catch((e) => logError('kopia do pliku (auto)', e)); };
     const t = setTimeout(run, 30000);
     const sub = AppState.addEventListener('change', (state) => { if (state === 'background') run(); });
+    return () => { clearTimeout(t); sub.remove(); };
+  }, []);
+
+  // Strażnik (2026-11-25): Stan appki przy starcie (po 45 s — sync zdąży się połączyć) i przy
+  // powrocie do appki; sam pilnuje odstępu 6 h i progu 2 dni (services/guardian.ts).
+  useEffect(() => {
+    const t = setTimeout(() => { runGuardian(); }, 45000);
+    const sub = AppState.addEventListener('change', (state) => { if (state === 'active') setTimeout(() => runGuardian(), 15000); });
     return () => { clearTimeout(t); sub.remove(); };
   }, []);
 }

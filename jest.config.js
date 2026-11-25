@@ -12,5 +12,6 @@ module.exports = {
   },
   transformIgnorePatterns: ['node_modules/(?!(date-fns|@react-native-async-storage)/)'],
   setupFiles: ['<rootDir>/jest.setup.js'],
+  globalSetup: '<rootDir>/jest.globalSetup.js',
   testMatch: ['**/__tests__/**/*.test.ts'],
 };

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Vehicle, VehicleMaintenance, FuelLog, OdometerReading } from '@/types/vehicles';
+import { safeStorage } from '@/services/safeStorage';
 
 function genId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -86,6 +87,6 @@ export const useVehiclesStore = create<VehiclesState>()(
           : v)),
       })),
     }),
-    { name: 'vehicles-storage', storage: createJSONStorage(() => AsyncStorage) },
+    { name: 'vehicles-storage', storage: createJSONStorage(() => safeStorage) },
   ),
 );

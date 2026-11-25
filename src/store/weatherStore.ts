@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { WeatherData } from '@/utils/weather';
+import { safeStorage } from '@/services/safeStorage';
 
 // Pogoda (2026-11-13): lokalizacja ('gps' = bieżąca pozycja telefonu, 'city' =
 // miasto wybrane ręcznie) + ostatnio pobrane dane (persist → kafel od razu po
@@ -38,7 +38,7 @@ export const useWeatherStore = create<WeatherState>()(
     }),
     {
       name: 'weather-store-v1',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => safeStorage),
       partialize: (st) => ({ location: st.location, data: st.data, gpsDenied: st.gpsDenied }),
     },
   ),

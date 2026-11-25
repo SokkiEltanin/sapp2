@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Note, NoteKind, NoteItem, NoteFolder } from '@/types/notes';
+import { safeStorage } from '@/services/safeStorage';
 
 // Notatki (2026-11-14). Ekran: app/notes.tsx (lista) + app/note.tsx (edytor).
 // Dashboard: przypięta notatka (`pinned`, najwyżej jedna). Synchronizacja:
@@ -84,6 +84,6 @@ export const useNotesStore = create<NotesState>()(
       })),
       setItems: (noteId, items) => set((st) => ({ notes: st.notes.map((n) => (n.id === noteId ? { ...n, items, updatedAt: now() } : n)) })),
     }),
-    { name: 'notes-v1', storage: createJSONStorage(() => AsyncStorage) },
+    { name: 'notes-v1', storage: createJSONStorage(() => safeStorage) },
   ),
 );

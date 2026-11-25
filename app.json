@@ -78,6 +78,7 @@
       "./plugins/withWearSync.js",
       "./plugins/withStylus.js",
       "./plugins/withUsageStats.js",
+      "./plugins/withAsyncStorageSize.js",
       [
         "expo-build-properties",
         {

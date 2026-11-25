@@ -56,6 +56,10 @@ skończeniu/odkryciu czegoś nowego.
     - Pusty stan = krótko co zrobić, jednym przyciskiem.
     Dodając nową sekcję, zadaj sobie pytanie: "co user z tego ODCZYTA?" — jeśli
     nic poza konfiguracją, to nie należy do widoku głównego.
+11. **Pamięć tylko przez `safeStorage`** (2026-11-25, "samowystarczalna na długo"): nowy store =
+    `createJSONStorage(() => safeStorage)` (src/services/safeStorage.ts — duże wartości w kawałkach,
+    bo Android nie wczyta wartości > ~2 MB). Kopie/import czytają przez `readLogical`/`writeLogical`,
+    nigdy surowe `AsyncStorage.multiGet` kluczy store'ów. Rośnie bez końca? → dodaj limit/przycinanie.
 
 ## Stack (skrót)
 

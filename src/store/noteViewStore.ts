@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeStorage } from '@/services/safeStorage';
 
 // Linia "widoczne na Dashboardzie" w edytorze notatki (2026-11-15, user: "żeby było
 // widać na notatce jaki fragment jest widoczny (wielkość kafelka na dashboardzie)
@@ -32,7 +32,7 @@ export const useNoteViewStore = create<NoteViewState>()(
       setPageW: (w) => { if (w > 0 && !(get().pageW != null && near(get().pageW!, w))) set({ pageW: w }); },
       toggleGuide: () => set((st) => ({ guide: !st.guide })),
     }),
-    { name: 'note-view-v1', storage: createJSONStorage(() => AsyncStorage) },
+    { name: 'note-view-v1', storage: createJSONStorage(() => safeStorage) },
   ),
 );
 

@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { FactCat } from '@/utils/factsData';
 import { rollFact, mergeFacts, sanitizeFacts, type FactsData } from '@/utils/facts';
+import { safeStorage } from '@/services/safeStorage';
 
 // Stan Ciekawostek (2026-11-16) — logika w utils/facts.ts. Synchronizowany dokumentem
 // `facts` (cloudSync), piszą OBA urządzenia; `merge` sumuje przeczytane/"znam", więc
@@ -42,6 +42,6 @@ export const useFactsStore = create<FactsState>()(
       },
       merge: (remote, day) => set(mergeFacts(data(get()), sanitizeFacts(remote), day, Date.now())),
     }),
-    { name: 'facts-v1', storage: createJSONStorage(() => AsyncStorage), partialize: (s) => data(s) },
+    { name: 'facts-v1', storage: createJSONStorage(() => safeStorage), partialize: (s) => data(s) },
   ),
 );

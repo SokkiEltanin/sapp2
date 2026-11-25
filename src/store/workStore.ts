@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Employer } from '@/types/work';
+import { safeStorage } from '@/services/safeStorage';
 
 function genEmployerId(): string {
   return `emp_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -52,6 +53,6 @@ export const useWorkStore = create<WorkState>()(
         return { employers, activeEmployerId: s.activeEmployerId === id ? employers[0]?.id ?? null : s.activeEmployerId };
       }),
     }),
-    { name: 'work-storage', storage: createJSONStorage(() => AsyncStorage) },
+    { name: 'work-storage', storage: createJSONStorage(() => safeStorage) },
   ),
 );

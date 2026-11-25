@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { mergeScreenDays, type ScreenDay } from '@/utils/screenTime';
+import { safeStorage } from '@/services/safeStorage';
 
 // Czas z telefonem (2026-11-22) — dni (90) z modułu UsageStats (services/screenTime.ts).
 // Telefon pisze, komputer czyta z chmury (services/cloudSync.ts doc 'screen'). `access` =
@@ -26,7 +26,7 @@ export const useScreenTimeStore = create<ScreenTimeState>()(
       // z chmury: scalenie (nowszy odczyt dnia wygrywa), nic nie znika
       mergeRemote: (d, t) => set((st) => ({ days: mergeScreenDays(st.days, d.filter((x) => x && typeof x.date === 'string' && typeof x.t === 'number')), t: Math.max(st.t, t) })),
     }),
-    { name: 'screen-time-v1', storage: createJSONStorage(() => AsyncStorage), partialize: (st) => ({ days: st.days, access: st.access, t: st.t }) },
+    { name: 'screen-time-v1', storage: createJSONStorage(() => safeStorage), partialize: (st) => ({ days: st.days, access: st.access, t: st.t }) },
   ),
 );
 
@@ -43,6 +43,6 @@ export const useAppIconsStore = create<IconState>()(
         return { icons: keys.length > 150 ? Object.fromEntries(keys.slice(-150).map((k) => [k, all[k]])) : all };
       }),
     }),
-    { name: 'cache-app-icons-v1', storage: createJSONStorage(() => AsyncStorage), partialize: (st) => ({ icons: st.icons }) },
+    { name: 'cache-app-icons-v1', storage: createJSONStorage(() => safeStorage), partialize: (st) => ({ icons: st.icons }) },
   ),
 );

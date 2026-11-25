@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { HealthLog } from '@/utils/monthCards';
 import type { RecordKey, Rec } from '@/utils/records';
 import type { HealthDaySnapshot } from '@/types/health';
+import { safeStorage } from '@/services/safeStorage';
 
 // Kolekcja (2026-11-17): karty miesięcy + rekordy. Tu tylko to, czego nie da się
 // odtworzyć z innych danych:
@@ -76,6 +76,6 @@ export const useCollectionStore = create<CollectionState>()(
         });
       },
     }),
-    { name: 'collection-v1', storage: createJSONStorage(() => AsyncStorage), partialize: (s) => data(s) },
+    { name: 'collection-v1', storage: createJSONStorage(() => safeStorage), partialize: (s) => data(s) },
   ),
 );

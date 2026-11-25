@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { HabitDay, HabitKey } from '@/types/habits';
+import { safeStorage } from '@/services/safeStorage';
 
 // Ten sam wzorzec co `moodStore.ts`/`calendarStore.ts`/`expensesStore.ts`:
 // offline-first AsyncStorage, zero Firestore-sync w akcjach store'a.
@@ -29,7 +30,7 @@ export const useHabitsStore = create<HabitsState>()(
     }),
     {
       name: 'habits-store-v1',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => safeStorage),
       partialize: (state) => ({ days: state.days }),
     },
   ),

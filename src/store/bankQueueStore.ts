@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ParsedBankTx } from '@/utils/bankNotification';
+import { safeStorage } from '@/services/safeStorage';
 
 // Port z sapp (src/store/bankQueueStore.ts), JEDNA adaptacja: sapp pamiętał
 // `category: ExpenseCategory` per transakcja — sapp2 ma `tags: string[]` (jak Expense,
@@ -135,6 +135,6 @@ export const useBankQueue = create<BankQueueState>()(
         history: s.history.map((h) => (h.id === id ? { ...h, ...patch } : h)),
       })),
     }),
-    { name: 'bank-queue-v1', storage: createJSONStorage(() => AsyncStorage) },
+    { name: 'bank-queue-v1', storage: createJSONStorage(() => safeStorage) },
   ),
 );

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeStorage } from '@/services/safeStorage';
 
 // Wygląd widgetów na pulpit (2026-11-13; 2026-11-14 user: "rozdzielić ustawienia
 // widgetów" — osobno Zadania i Pogoda). Źródło prawdy dla RENDEROWANIA = natywne
@@ -37,7 +37,7 @@ export const useWidgetSettingsStore = create<WidgetSettingsState>()(
     {
       name: 'widget-settings-v1',
       version: 1,
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => safeStorage),
       partialize: (st) => ({ tasks: st.tasks, weather: st.weather, note: st.note }),
       // v0 = jeden wspólny wygląd → ten sam dla obu widgetów.
       migrate: (old: any, version) => {

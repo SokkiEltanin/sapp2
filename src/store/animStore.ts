@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeStorage } from '@/services/safeStorage';
 
 // Animacje kafli (pogoda, pieniądze — components/design/pixelAnim.tsx). 2026-11-24, user: "na
 // komputerze animacje zamrożone" — Windows z wyłączonymi "Efektami animacji" zgłasza przeglądarce
@@ -15,6 +15,6 @@ interface AnimState { mode: AnimMode; setMode: (m: AnimMode) => void }
 export const useAnimStore = create<AnimState>()(
   persist(
     (set) => ({ mode: 'on', setMode: (mode) => set({ mode }) }),
-    { name: 'anim-v1', storage: createJSONStorage(() => AsyncStorage), partialize: (s) => ({ mode: s.mode }) },
+    { name: 'anim-v1', storage: createJSONStorage(() => safeStorage), partialize: (s) => ({ mode: s.mode }) },
   ),
 );
