@@ -21,7 +21,7 @@ export function snoozeFields(now: Date, minutes = 60): { reminderDate: string; r
 const HORIZON_DAYS = 60;
 const MAX = 40; // Android ma limit alarmów na appkę — najbliższe wystarczą, reszta przy kolejnym otwarciu.
 
-export interface PlannedTaskReminder { id: string; taskId: string; fireAt: number; title: string; body: string }
+export interface PlannedTaskReminder { id: string; taskId: string; fireAt: number; title: string; body: string; alarm: boolean }
 
 function fireTime(t: Task): Date | null {
   if (t.reminderDate && t.reminderTime && /^\d{2}:\d{2}$/.test(t.reminderTime)) return new Date(`${t.reminderDate}T${t.reminderTime}:00`);
@@ -34,13 +34,14 @@ export function planTaskReminders(tasks: Task[], now: Date = new Date()): Planne
   const out: PlannedTaskReminder[] = [];
   for (const t of tasks) {
     if (t.status === 'done' || t.status === 'deleted') continue;
+    if (t.alarm === 'off') continue;
     const at = fireTime(t);
     if (!at || isNaN(at.getTime())) continue;
     const ms = at.getTime();
     if (ms <= now.getTime() || ms > limit) continue;
     const hhmm = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
     const tags = t.tags.length ? ` · #${t.tags.join(' #')}` : '';
-    out.push({ id: `${TASK_REMINDER_PREFIX}${t.id}`, taskId: t.id, fireAt: ms, title: t.title, body: t.reminderMessage || `Zadanie na ${hhmm}${tags}` });
+    out.push({ id: `${TASK_REMINDER_PREFIX}${t.id}`, taskId: t.id, fireAt: ms, title: t.title, body: t.reminderMessage || `Zadanie na ${hhmm}${tags}`, alarm: t.alarm === 'alarm' });
   }
   return out.sort((a, b) => a.fireAt - b.fireAt).slice(0, MAX);
 }

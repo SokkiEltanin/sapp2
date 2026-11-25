@@ -43,6 +43,17 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-25 — Godzina przy Dziś/Jutro/Za tydzień + alarm zadania, spokojniejsze Ciekawostki.** OTA (natywny ekran
+alarmu jest już w APK #360).
+- [ ] Zadania: Dziś → „O godzinie…” → wybór godziny; „Przypomnienie”: Powiadomienie / Alarm / Bez. Alarm za 2–3 min
+  przy zablokowanym telefonie: pokazuje się ekran alarmu z tytułem zadania i dźwiękiem budzika, „Wyłącz” go gasi.
+- [ ] Znane ograniczenie: ekran alarmu ma JEDEN zapisany opis (najbliższy alarm). Dwa alarmy zadań pod rząd bez
+  otwierania appki między nimi → drugi może pokazać tytuł pierwszego. Gdyby przeszkadzało: natywnie opis per id
+  powiadomienia (wymaga APK).
+- [ ] Edycja zadania z godziną dziś/jutro wraca na chip Dziś/Jutro z godziną; zmiana terminu kasuje stare „Za godzinę”.
+- [ ] Ciekawostki: Przeczytane i Dziedziny zwinięte, ikona pixel-art dziedziny w oknie i na kaflu Daily, przyciski
+  w stopce zawsze widoczne.
+
 **2026-11-23 — Mniej kolorów + animowana pogoda** (ARCHITECTURE „MNIEJ KOLORÓW + SCENA POGODY”). OTA.
 - [ ] Kalendarz: zmiany JD (żółte) czytelne z białym tekstem; przytrzymanie tagu w zadaniach usuwa go (Cofnij działa).
 - [ ] Kafel pogody na telefonie: scena nie nachodzi na temperaturę, animacja płynna (bez zacięć przy przewijaniu

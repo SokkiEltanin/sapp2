@@ -69,7 +69,7 @@ export default function TaskDetailSheet({ taskId, onClose, onClosed, onEdit, onD
           {due && (
             <View style={[s.pill, due.overdue ? s.pillOver : today ? s.pillToday : null]}>
               {due.overdue ? <AlertCircle size={12} color={colors.accent.red} /> : <Clock size={12} color={today ? colors.accent.orange : colors.text.secondary} />}
-              <Text style={[s.pillTxt, due.overdue ? { color: colors.accent.red } : today ? { color: colors.accent.orange } : null]}>{due.text}</Text>
+              <Text style={[s.pillTxt, due.overdue ? { color: colors.accent.red } : today ? { color: colors.accent.orange } : null]}>{due.text}{task.deadline?.includes('T') ? (task.alarm === 'alarm' ? ' · alarm' : task.alarm === 'off' ? ' · bez przypomnienia' : '') : ''}</Text>
             </View>
           )}
           {task.tags.map((tag) => {

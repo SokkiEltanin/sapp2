@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { Subtask } from '@/types/calendar';
+import type { Subtask, TaskAlarm } from '@/types/calendar';
 import { safeStorage } from '@/services/safeStorage';
 
 // Kopia robocza formularza zadania (2026-11-16, user: "jak piszę zadanie i nie kliknę
@@ -14,6 +14,8 @@ export interface TaskDraft {
   deadlineChoice: string;
   custom: string | null;      // ISO dokładnego terminu
   customHasTime: boolean;
+  quickTime?: { h: number; m: number } | null;   // godzina przy Dziś/Jutro/Za tydzień
+  alarm?: TaskAlarm;
   steps: Subtask[];
   savedAt: string;
 }

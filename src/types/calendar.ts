@@ -51,6 +51,8 @@ export interface Subtask {
   done: boolean;
 }
 
+export type TaskAlarm = 'notify' | 'alarm' | 'off';
+
 export interface Task {
   id: string;
   title: string;
@@ -71,6 +73,9 @@ export interface Task {
   reminderTime?: string;    // HH:mm — custom reminder time
   reminderDate?: string;    // YYYY-MM-DD — day the reminder fires; independent of deadline
   reminderMessage?: string; // custom notification text
+  // Jak przypomnieć o zadaniu z godziną (2026-11-25): 'notify' (domyślnie) = zwykłe powiadomienie,
+  // 'alarm' = ekran alarmu na pełny ekran z dźwiękiem budzika, 'off' = bez przypomnienia.
+  alarm?: TaskAlarm;
   createdAt: string;
   updatedAt: string;
 }

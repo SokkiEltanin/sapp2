@@ -9,7 +9,7 @@ import { spacing, radius, themedStyles } from '@/theme';
 import { ymd, todayISO } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
 import { deadlineHasTime, parseDeadline } from '@/utils/taskDeadline';
-import type { Task, Subtask } from '@/types/calendar';
+import type { Task, Subtask, TaskAlarm } from '@/types/calendar';
 
 // Dodawanie zadania (2026-10-30, user: "może od razu z... działające zadania"). Jedno
 // pole terminu napędza kategoryzację na TERAZ/TERMINOWE/BEZTERMINOWE w tasks.tsx
@@ -55,6 +55,18 @@ const DEADLINE_OPTIONS = [
 ] as const;
 type DeadlineChoice = (typeof DEADLINE_OPTIONS)[number]['key'] | 'custom';
 
+// Godzina także przy Dziś/Jutro/Za tydzień (2026-11-25, user: "jak klikam dzisiaj, żeby godzina była
+// do wybrania — teraz tylko dokładny termin ma datę i godzinę, bez sensu, jak chcę zaplanować coś
+// na dziś na 15"). Bez godziny = cały dzień (jak dotąd). Z godziną → wybór przypomnienia.
+type HM = { h: number; m: number };
+const hm2 = (n: number) => String(n).padStart(2, '0');
+const fmtHM = (t: HM) => `${hm2(t.h)}:${hm2(t.m)}`;
+const ALARM_OPTIONS: { key: TaskAlarm; label: string; hint: string }[] = [
+  { key: 'notify', label: 'Powiadomienie', hint: 'zwykłe powiadomienie z przyciskami „Zrobione” i „Za godzinę”' },
+  { key: 'alarm', label: 'Alarm', hint: 'ekran alarmu na pełny ekran z dźwiękiem budzika, też przy zablokowanym telefonie' },
+  { key: 'off', label: 'Bez', hint: 'bez przypomnienia — tylko godzina na liście' },
+];
+
 function formatCustomLabel(d: Date, hasTime: boolean): string {
   const day = d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
   if (!hasTime) return day;
@@ -70,7 +82,7 @@ export default function AddTaskCard({
   knownTags = [],
 }: {
   editingTask?: Task | null;
-  onSave: (input: { title: string; tags: string[]; deadline?: string; subtasks?: Subtask[] }) => void;
+  onSave: (input: { title: string; tags: string[]; deadline?: string; subtasks?: Subtask[]; alarm?: TaskAlarm }) => void;
   onClose: () => void;
   // Fokus (i klawiatura) z rodzica przez `AppBottomSheet`'s `initialFocusRef`
   // (2026-11-11) — goły `autoFocus` w RN `Modal`u na Androidzie nie otwierał
@@ -88,6 +100,8 @@ export default function AddTaskCard({
   // Edytowany deadline date-only (z szybkich chipów) NIE ma godziny — bez tej
   // flagi edycja pokazywała i zapisywała sztuczne "00:00" (2026-11-11).
   const [customHasTime, setCustomHasTime] = useState(false);
+  const [quickTime, setQuickTime] = useState<HM | null>(null);   // godzina dla Dziś/Jutro/Za tydzień
+  const [alarm, setAlarm] = useState<TaskAlarm>('notify');
   // Kroki / kamienie milowe (2026-11-16) — też edytowalne w szczegółach zadania.
   const [steps, setSteps] = useState<Subtask[]>([]);
 
@@ -107,11 +121,17 @@ export default function AddTaskCard({
     const dl = editingTask?.deadline;
     setCustomDeadline(null);
     setCustomHasTime(false);
+    setQuickTime(null);
+    setAlarm(editingTask?.alarm ?? 'notify');
     if (!dl) { setDeadlineChoice('none'); return; }
-    // Date-only dziś/jutro wraca na swój szybki chip, reszta = "Dokładny termin".
+    // Dziś/jutro (z godziną albo bez) wraca na swój szybki chip, reszta = "Dokładny termin".
     const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-    if (!deadlineHasTime(dl) && dl.slice(0, 10) === todayISO()) { setDeadlineChoice('today'); return; }
-    if (!deadlineHasTime(dl) && dl.slice(0, 10) === ymd(tomorrow)) { setDeadlineChoice('tomorrow'); return; }
+    const quick = dl.slice(0, 10) === todayISO() ? 'today' : dl.slice(0, 10) === ymd(tomorrow) ? 'tomorrow' : null;
+    if (quick) {
+      setDeadlineChoice(quick);
+      if (deadlineHasTime(dl)) { const d = parseDeadline(dl); setQuickTime({ h: d.getHours(), m: d.getMinutes() }); }
+      return;
+    }
     setDeadlineChoice('custom');
     setCustomDeadline(parseDeadline(dl));
     setCustomHasTime(deadlineHasTime(dl));
@@ -128,6 +148,8 @@ export default function AddTaskCard({
       setDeadlineChoice(d.deadlineChoice as DeadlineChoice);
       setCustomDeadline(d.custom ? new Date(d.custom) : null);
       setCustomHasTime(d.customHasTime);
+      setQuickTime(d.quickTime ?? null);
+      setAlarm(d.alarm ?? 'notify');
       setRestoredAt(d.savedAt);
     } else setRestoredAt(null);
     setReady(true);
@@ -143,8 +165,11 @@ export default function AddTaskCard({
     const d = new Date();
     if (deadlineChoice === 'tomorrow') d.setDate(d.getDate() + 1);
     else if (deadlineChoice === 'week') d.setDate(d.getDate() + 7);
-    return deadlineChoice === 'today' ? todayISO() : ymd(d);
+    const day = deadlineChoice === 'today' ? todayISO() : ymd(d);
+    return quickTime ? `${day}T${fmtHM(quickTime)}:00` : day;
   };
+  const isQuick = deadlineChoice === 'today' || deadlineChoice === 'tomorrow' || deadlineChoice === 'week';
+  const timedDeadline = (() => { const dl = computeDeadline(); return dl && deadlineHasTime(dl) ? parseDeadline(dl) : null; })();
 
   // Każda zmiana → szkic. Edycja bez zmian względem zadania = brak szkicu.
   useEffect(() => {
@@ -153,11 +178,12 @@ export default function AddTaskCard({
     if (editingTask) {
       const unchanged = title === editingTask.title && tag === (editingTask.tags[0] ?? '')
         && JSON.stringify(steps) === JSON.stringify(editingTask.subtasks ?? [])
-        && (computeDeadline() ?? '') === (editingTask.deadline ?? '');
+        && (computeDeadline() ?? '') === (editingTask.deadline ?? '')
+        && alarm === (editingTask.alarm ?? 'notify');
       if (unchanged) { st.clear(draftKey); return; }
     }
-    st.save(draftKey, { title, tag, deadlineChoice, custom: customDeadline ? customDeadline.toISOString() : null, customHasTime, steps });
-  }, [ready, title, tag, deadlineChoice, customDeadline, customHasTime, steps]); // eslint-disable-line react-hooks/exhaustive-deps
+    st.save(draftKey, { title, tag, deadlineChoice, custom: customDeadline ? customDeadline.toISOString() : null, customHasTime, quickTime, alarm, steps });
+  }, [ready, title, tag, deadlineChoice, customDeadline, customHasTime, quickTime, alarm, steps]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const discardDraft = () => {
     haptic.tap();
@@ -174,6 +200,8 @@ export default function AddTaskCard({
     setDeadlineChoice('none');
     setCustomDeadline(null);
     setCustomHasTime(false);
+    setQuickTime(null);
+    setAlarm('notify');
     setSteps([]);
     onClose();
   };
@@ -205,13 +233,29 @@ export default function AddTaskCard({
     });
   };
 
+  const pickQuickTime = () => {
+    haptic.tap();
+    const base = new Date();
+    if (quickTime) base.setHours(quickTime.h, quickTime.m, 0, 0);
+    else base.setHours(base.getHours() + 1, 0, 0, 0);
+    openPicker({
+      value: base,
+      mode: 'time',
+      is24Hour: true,
+      onChange: (ev, picked) => {
+        if (ev.type !== 'set' || !picked) return;
+        setQuickTime({ h: picked.getHours(), m: picked.getMinutes() });
+      },
+    });
+  };
+
   const handleSave = () => {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) return;
     haptic.success();
     const deadline = computeDeadline();
     const trimmedTag = tag.trim();
-    onSave({ title: trimmedTitle, tags: trimmedTag ? [trimmedTag] : [], deadline, subtasks: steps.length ? steps : undefined });
+    onSave({ title: trimmedTitle, tags: trimmedTag ? [trimmedTag] : [], deadline, subtasks: steps.length ? steps : undefined, alarm: deadline && deadlineHasTime(deadline) ? alarm : undefined });
     reset();
   };
 
@@ -284,8 +328,32 @@ export default function AddTaskCard({
           </Text>
         </TouchableOpacity>
       </View>
-      {deadlineChoice === 'custom' && customDeadline && customHasTime && customDeadline.getTime() > Date.now() && (
-        <Text style={s.hint}>Powiadomienie o {formatCustomLabel(customDeadline, true).split(' · ')[1]} z przyciskiem „Zrobione”.</Text>
+      {isQuick && (
+        <View style={s.chips}>
+          <TouchableOpacity style={[s.chip, !quickTime && s.chipActive]} onPress={() => { haptic.tap(); setQuickTime(null); }} activeOpacity={0.7}>
+            <Text style={[s.chipLabel, !quickTime && s.chipLabelActive]}>Cały dzień</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[s.chip, !!quickTime && s.chipActive]} onPress={pickQuickTime} activeOpacity={0.7} accessibilityLabel="Wybierz godzinę">
+            <Text style={[s.chipLabel, !!quickTime && s.chipLabelActive]}>{quickTime ? `o ${fmtHM(quickTime)}` : 'O godzinie…'}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {timedDeadline && (
+        <>
+          <Text style={s.sectionLabel}>Przypomnienie</Text>
+          <View style={s.chips}>
+            {ALARM_OPTIONS.map((o) => (
+              <TouchableOpacity key={o.key} style={[s.chip, alarm === o.key && s.chipActive]} onPress={() => { haptic.tap(); setAlarm(o.key); }} activeOpacity={0.7}>
+                <Text style={[s.chipLabel, alarm === o.key && s.chipLabelActive]}>{o.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={s.hint}>
+            {timedDeadline.getTime() <= Date.now()
+              ? 'Ta godzina już minęła — przypomnienie się nie pokaże.'
+              : `${ALARM_OPTIONS.find((o) => o.key === alarm)?.hint ?? ''}`}
+          </Text>
+        </>
       )}
       <Text style={s.sectionLabel}>Kroki do celu (opcjonalnie)</Text>
       <StepsEditor steps={steps} onChange={setSteps} placeholder="Np. „Zebrać źródła” — Enter dodaje" />

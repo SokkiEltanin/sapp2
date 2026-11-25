@@ -22,7 +22,7 @@ import { tagColorMap } from '@/utils/taskTags';
 import TaskDetailSheet from '@/components/tasks/TaskDetailSheet';
 import { useTaskDraftStore } from '@/store/taskDraftStore';
 import { doneStats, cheer } from '@/utils/taskProgress';
-import type { Subtask } from '@/types/calendar';
+import type { Subtask, TaskAlarm } from '@/types/calendar';
 import AddTaskCard from '@/components/tasks/AddTaskCard';
 import { useQuickAdd, takeQuickAdd } from '@/services/quickAdd';
 import DayDetailModal from '@/components/tasks/DayDetailModal';
@@ -152,10 +152,16 @@ export default function TasksScreen() {
 
   const activeList = buckets[segment];
 
-  const handleSaveTask = (input: { title: string; tags: string[]; deadline?: string; subtasks?: Subtask[] }) => {
+  const handleSaveTask = (input: { title: string; tags: string[]; deadline?: string; subtasks?: Subtask[]; alarm?: TaskAlarm }) => {
     const now = new Date().toISOString();
     if (editingTask) {
-      updateTask(editingTask.id, { title: input.title, tags: input.tags, deadline: input.deadline, subtasks: input.subtasks, updatedAt: now });
+      // Zmieniony termin kasuje stare "Za godzinę" (reminderDate/Time miały pierwszeństwo nad nową godziną).
+      const moved = (input.deadline ?? '') !== (editingTask.deadline ?? '');
+      updateTask(editingTask.id, {
+        title: input.title, tags: input.tags, deadline: input.deadline, subtasks: input.subtasks, alarm: input.alarm,
+        ...(moved ? { reminderDate: undefined, reminderTime: undefined } : {}),
+        updatedAt: now,
+      });
     } else {
       addTask({
         id: genId(),
@@ -163,6 +169,7 @@ export default function TasksScreen() {
         tags: input.tags,
         deadline: input.deadline,
         subtasks: input.subtasks,
+        alarm: input.alarm,
         status: 'pending',
         priority: 'normal',
         createdAt: now,

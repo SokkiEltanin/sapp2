@@ -22,6 +22,16 @@ describe('planTaskReminders', () => {
     expect(plan[0].fireAt).toBe(new Date('2026-11-14T18:30:00').getTime());
   });
 
+  it('rodzaj przypomnienia: alarm na pełny ekran, zwykłe (domyślnie), bez', () => {
+    const plan = planTaskReminders([
+      task({ id: 'alarm', deadline: '2026-11-14T15:00:00', alarm: 'alarm' }),
+      task({ id: 'notify', deadline: '2026-11-14T16:00:00', alarm: 'notify' }),
+      task({ id: 'old', deadline: '2026-11-14T17:00:00' }),
+      task({ id: 'off', deadline: '2026-11-14T18:00:00', alarm: 'off' }),
+    ], now);
+    expect(plan.map((p) => [p.taskId, p.alarm])).toEqual([['alarm', true], ['notify', false], ['old', false]]);
+  });
+
   it('własna godzina przypomnienia ma pierwszeństwo i własny tekst', () => {
     const [p] = planTaskReminders([task({ deadline: '2026-11-20', reminderDate: '2026-11-19', reminderTime: '07:15', reminderMessage: 'Weź dokumenty' })], now);
     expect(p.fireAt).toBe(new Date('2026-11-19T07:15:00').getTime());

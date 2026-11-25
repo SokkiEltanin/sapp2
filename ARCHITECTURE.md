@@ -2191,6 +2191,9 @@ szczoteczek końcówek". Rzeczy zużywające się co N dni/tyg./mies.
   `hooks/useTaskReminderSync.ts`. Przycisk „Zrobione” (`TASK_DONE_ACTION`) → status
   done + „Cofnij”; tap → `/tasks?task=`. Hint w `AddTaskCard` przy dokładnym terminie.
   „Za godzinę” (`TASK_SNOOZE_ACTION`, bez otwierania appki) → `reminderDate/Time` +60 min.
+  Godzina także przy Dziś/Jutro/Za tydzień (2026-11-25, `AddTaskCard` „O godzinie…”), `Task.alarm`:
+  'notify' (domyślnie) / 'alarm' (kanał `task-alarm-v1`, kategoria ALARM, pełny ekran →
+  natywny `AlarmActivity`; opis = najbliższy alarm przez `setAlarmPayload`) / 'off' (bez przypomnienia).
 - **Akcje powiadomień w tle**: `index.js` (własny `main`, potem `expo-router/entry`)
   rejestruje `services/notifeeBackground.ts` przy ładowaniu paczki — notifee przy
   zamkniętej appce uruchamia sam JS bez ekranów. Nowa akcja „bez otwierania appki” =
