@@ -1,24 +1,26 @@
-import { INCOME_CATS, INCOME_META, incomeCategoryOf } from '@/utils/incomeCategory';
 import { receiptSavings, applyReceiptDiscount, parseDiscountInput } from '@/utils/receiptDiscount';
-import { plural } from '@/utils/plural';
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { X, Receipt, Banknote, ArrowLeftRight, ClipboardPaste, Plus, Trash2, CalendarDays, Fuel } from 'lucide-react-native';
 import { openPicker } from '@/services/picker';
 import { colors } from '@/theme/colors';
-import { spacing, radius, themedStyles } from '@/theme';
 import { todayISO, ymd } from '@/utils/date';
 import { parseReceiptText } from '@/utils/receiptParser';
 import { useExpensesStore } from '@/store/expensesStore';
 import { useDeferredMemo } from '@/hooks/useDeferredMemo';
 import {
-  loadNameAliases, canonicalProductName, loadFoodSubcatMemory, applyFoodSubcatMemory,
-  loadPriceMemory, savePriceMemory, saveFoodSubcatMemory, type PriceMemory,
+  loadNameAliases,
+  canonicalProductName,
+  loadFoodSubcatMemory,
+  applyFoodSubcatMemory,
+  loadPriceMemory,
+  savePriceMemory,
+  saveFoodSubcatMemory,
+  type PriceMemory,
 } from '@/utils/productMemory';
 import { saveMerchant } from '@/utils/merchantMemory';
-import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_META } from '@/utils/expenseCategory';
-import { FOOD_SUBCATS, FOOD_SUBCAT_META, guessMealSubcat } from '@/utils/food';
+import { guessMealSubcat } from '@/utils/food';
 import { bucketOf as bucketOfExpense } from '@/utils/fixedVariable';
 import { storeMatchOf, applyRulesToAll } from '@/utils/categoryRules';
 import { useCategoryRulesStore } from '@/store/categoryRulesStore';
@@ -36,6 +38,10 @@ import { looksLikeFuel, expenseMatchesVehicle, mainCarId } from '@/utils/vehicle
 import { vehicleHasFuel, type Vehicle } from '@/types/vehicles';
 import { zl } from '@/utils/money';
 
+import { makeS } from './addExpenseStyles';
+import { genId, round2, looksLikeReceiptText, fmtDatePill, fmtDateBadge, type Panel } from './addExpenseParts';
+import ExpenseDetails from './ExpenseDetails';
+
 // "Jeden ujednolicony dodaj" (ARCHITECTURE.md §FINANSE, decyzja 2026-10-26) — PASTE
 // paragonu i RĘCZNE dodawanie pozycji nie są dwoma osobnymi ekranami (jak w sapp:
 // scan.tsx vs manual.tsx), tylko JEDNĄ listą pozycji: paste ją wypełnia automatycznie,
@@ -49,44 +55,6 @@ import { zl } from '@/utils/money';
 // się rozsuwa"): sklep + pigułka daty → kwota (gdy brak pozycji) → paragon (Wklej / + Pozycja,
 // pozycje w jednej linii, stuknięcie = edycja) → rząd pigułek szczegółów (Rozlicz, Kategoria/
 // Jedzenie, Ja · Karta, notatka, tagi) z JEDNYM otwartym panelem pod spodem.
-function genId(): string {
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-}
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
-// Luźny, celowo permisywny heurystyk (2026-11-09, user wybrał "auto-wykrywanie
-// przy otwarciu" zamiast samego FAB-a) — fałszywy pozytyw kosztuje tylko
-// niegroźny baner do zignorowania, fałszywy negatyw i tak ma FAB jako pewną
-// ścieżkę zapasową, więc nie trzeba próbować być precyzyjnym jak sam parser.
-// Sygnał: przyzwoita długość + co najmniej jedna kwota w stylu "12,34"/"12.34".
-function looksLikeReceiptText(text: string): boolean {
-  const t = text.trim();
-  return t.length >= 15 && /\d+[.,]\d{2}/.test(t);
-}
-
-const FV_CHOICES: { key: FvOverride | 'auto'; label: string }[] = [
-  { key: 'auto', label: 'Auto' },
-  { key: 'fixed', label: 'Stałe' },
-  { key: 'variable', label: 'Zmienne' },
-  { key: 'food', label: 'Jedzenie' },
-  // "Przelew własny" (fvOverride 'transfer') od 2026-11-16 NIE tutaj, tylko trzeci
-  // przycisk obok Wydatek/Przychód (user nie znalazł go w zwiniętym "Rozlicz jako"
-  // i potrzebował też przelewu PRZYCHODZĄCEGO) — patrz `own` niżej.
-];
-
-const PAYMENT_CHOICES: { key: PaymentMethod; label: string }[] = [
-  { key: 'card', label: 'Karta' },
-  { key: 'blik', label: 'BLIK' },
-  { key: 'cash', label: 'Gotówka' },
-  { key: 'transfer', label: 'Przelew' },
-];
-const PAYMENT_LABEL: Record<PaymentMethod, string> = Object.fromEntries(PAYMENT_CHOICES.map((p) => [p.key, p.label])) as Record<PaymentMethod, string>;
-const PAYER_CHOICES: { key: 'me' | 'partner'; label: string }[] = [
-  { key: 'me', label: 'Ja' },
-  { key: 'partner', label: 'Olesia' },
-];
-
 export default function AddExpenseModal({
   visible, onClose, editingExpense, initialPasteText, onInitialPasteTextConsumed,
 }: {
@@ -147,7 +115,6 @@ export default function AddExpenseModal({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   const [payer, setPayer] = useState<'me' | 'partner'>('me');
   // Jeden otwarty panel naraz (2026-11-23): wklejka albo jedna z pigułek szczegółów.
-  type Panel = 'paste' | 'fv' | 'cat' | 'food' | 'paid' | 'income' | 'note' | 'tags';
   const [panel, setPanel] = useState<Panel | null>(null);
   const togglePanel = (p: Panel) => { haptic.tap(); setPanel((cur) => (cur === p ? null : p)); };
   // Rozwinięta pozycja paragonu (reszta w jednej linii).
@@ -746,167 +713,40 @@ export default function AddExpenseModal({
         </View>
       )}
 
-      {/* Szczegóły jako rząd pigułek (2026-11-23, zamiast 5 rozwijanych sekcji jedna pod drugą):
-          każda pigułka pokazuje aktualną wartość, stuknięcie otwiera JEDEN panel pod rzędem.
-          Wybrane tagi stoją w tym samym rzędzie (× usuwa), "+ tag" otwiera wpisywanie. */}
-      <View style={s.pills}>
-        {type === 'expense' && !own && (
-          <Pill label="Rozlicz" value={FV_CHOICES.find((o) => o.key === fvChoice)?.label ?? 'Auto'} set={fvChoice !== 'auto'} on={panel === 'fv'} onPress={() => togglePanel('fv')} />
-        )}
-        {foodWhole && (
-          <Pill label="Jedzenie" value={foodSubcat ? FOOD_SUBCAT_META[foodSubcat]?.label ?? foodSubcat : mealGuess ? `auto · ${FOOD_SUBCAT_META[mealGuess]?.label}` : 'inne'} set={!!foodSubcat} on={panel === 'food'} onPress={() => togglePanel('food')} />
-        )}
-        {type === 'expense' && !own && !foodWhole && (
-          <Pill label="Kategoria" value={(expenseCategory && EXPENSE_CATEGORY_META[expenseCategory]?.label) || 'brak'} set={!!expenseCategory} on={panel === 'cat'} onPress={() => togglePanel('cat')} />
-        )}
-        {type === 'income' && !own && (
-          <Pill label="Kategoria" value={INCOME_META[incomeCategory ?? '']?.label ?? `auto · ${INCOME_META[incomeCategoryOf({ type: 'income', tags, note, storeName })].label}`} set={!!incomeCategory} on={panel === 'income'} onPress={() => togglePanel('income')} />
-        )}
-        {type === 'expense' && !own && (
-          <Pill value={`${PAYER_CHOICES.find((p) => p.key === payer)?.label} · ${PAYMENT_LABEL[paymentMethod]}`} set={payer !== 'me' || paymentMethod !== 'card'} on={panel === 'paid'} onPress={() => togglePanel('paid')} />
-        )}
-        <Pill value={note.trim() ? `„${note.trim()}”` : '+ notatka'} set={!!note.trim()} on={panel === 'note'} onPress={() => togglePanel('note')} />
-        {tags.map((t) => (
-          <TouchableOpacity key={t} style={s.tagRemoveChip} onPress={() => removeTag(t)} activeOpacity={0.7} accessibilityLabel={`Usuń tag ${t}`}>
-            <Text style={s.tagRemoveLabel}>{t}</Text>
-            <X size={10} color={colors.bg.primary} />
-          </TouchableOpacity>
-        ))}
-        <Pill value="+ tag" on={panel === 'tags'} onPress={() => togglePanel('tags')} />
-      </View>
-
-      {panel === 'fv' && (
-        <View style={[s.panel, s.chips]}>
-          {FV_CHOICES.map((opt) => (
-            <TouchableOpacity key={opt.key} style={[s.chip, fvChoice === opt.key && s.chipActive]} onPress={() => { haptic.tap(); setFvChoice(opt.key); setPanel(null); }} activeOpacity={0.7}>
-              <Text style={[s.chipLabel, fvChoice === opt.key && s.chipLabelActive]}>{opt.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {panel === 'food' && foodWhole && (
-        <View style={[s.panel, s.chips]}>
-          <TouchableOpacity style={[s.chip, !foodSubcat && s.chipActive]} onPress={() => { setFoodSubcat(undefined); setPanel(null); }} activeOpacity={0.7}>
-            <Text style={[s.chipLabel, !foodSubcat && s.chipLabelActive]}>{mealGuess ? 'Auto' : 'Inne'}</Text>
-          </TouchableOpacity>
-          {[...FOOD_SUBCATS.filter((f) => f.tag === 'fast food' || f.tag === 'dania gotowe'), ...FOOD_SUBCATS.filter((f) => f.tag !== 'fast food' && f.tag !== 'dania gotowe')].map((opt) => (
-            <TouchableOpacity key={opt.tag} style={[s.chip, foodSubcat === opt.tag && { backgroundColor: opt.color }]} onPress={() => { setFoodSubcat(opt.tag); setPanel(null); }} activeOpacity={0.7}>
-              <Text style={[s.chipLabel, foodSubcat === opt.tag && s.chipLabelActive]}>{opt.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {panel === 'cat' && type === 'expense' && !own && !foodWhole && (
-        <View style={s.panel}>
-          <View style={s.chips}>
-            <TouchableOpacity style={[s.chip, !expenseCategory && s.chipActive]} onPress={() => setExpenseCategory(undefined)} activeOpacity={0.7}>
-              <Text style={[s.chipLabel, !expenseCategory && s.chipLabelActive]}>Brak</Text>
-            </TouchableOpacity>
-            {EXPENSE_CATEGORIES.map((opt) => (
-              <TouchableOpacity key={opt.tag} style={[s.chip, expenseCategory === opt.tag && { backgroundColor: opt.color }]} onPress={() => setExpenseCategory(opt.tag)} activeOpacity={0.7}>
-                <Text style={[s.chipLabel, expenseCategory === opt.tag && s.chipLabelActive]}>{opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          {/* Reguła jednym tapem (2026-11-14): następne wydatki z tego sklepu dostaną
-              tę kategorię same (utils/categoryRules.ts, Ustawienia → Reguły kategorii). */}
-          {expenseCategory && ruleMatch.length >= 2 && (
-            <TouchableOpacity
-              style={[s.chip, s.ruleChip, ruleSaved === `${ruleMatch}|${expenseCategory}` && s.chipActive]}
-              onPress={() => {
-                useCategoryRulesStore.getState().add({ field: 'store', match: ruleMatch, kind: 'var', tag: expenseCategory });
-                setRuleSaved(`${ruleMatch}|${expenseCategory}`);
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={[s.chipLabel, ruleSaved === `${ruleMatch}|${expenseCategory}` && s.chipLabelActive]}>
-                {ruleSaved === `${ruleMatch}|${expenseCategory}` ? `Zapamiętane: „${ruleMatch}” → ${EXPENSE_CATEGORY_META[expenseCategory]?.label ?? expenseCategory}` : `Zawsze tak dla „${ruleMatch}”`}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
-
-      {/* Kategoria przychodu (2026-11-14) — brak wyboru = zgadywana z opisu/tagów. */}
-      {panel === 'income' && type === 'income' && !own && (
-        <View style={[s.panel, s.chips]}>
-          <TouchableOpacity style={[s.chip, !incomeCategory && s.chipActive]} onPress={() => { setIncomeCategory(undefined); setPanel(null); }} activeOpacity={0.7}>
-            <Text style={[s.chipLabel, !incomeCategory && s.chipLabelActive]}>Auto</Text>
-          </TouchableOpacity>
-          {INCOME_CATS.map((c) => (
-            <TouchableOpacity key={c.tag} style={[s.chip, incomeCategory === c.tag && { backgroundColor: c.color, borderColor: c.color }]} onPress={() => { setIncomeCategory(c.tag); setPanel(null); }} activeOpacity={0.7}>
-              <Text style={[s.chipLabel, incomeCategory === c.tag && s.chipLabelActive]}>{c.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {panel === 'paid' && type === 'expense' && !own && (
-        <View style={s.panel}>
-          <Text style={s.subLabel}>Kto płacił</Text>
-          <View style={s.chips}>
-            {PAYER_CHOICES.map((opt) => (
-              <TouchableOpacity key={opt.key} style={[s.chip, payer === opt.key && s.chipActive]} onPress={() => setPayer(opt.key)} activeOpacity={0.7}>
-                <Text style={[s.chipLabel, payer === opt.key && s.chipLabelActive]}>{opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <Text style={[s.subLabel, s.subLabelGap]}>Czym</Text>
-          <View style={s.chips}>
-            {PAYMENT_CHOICES.map((opt) => (
-              <TouchableOpacity key={opt.key} style={[s.chip, paymentMethod === opt.key && s.chipActive]} onPress={() => setPaymentMethod(opt.key)} activeOpacity={0.7}>
-                <Text style={[s.chipLabel, paymentMethod === opt.key && s.chipLabelActive]}>{opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {panel === 'note' && (
-        <View style={s.panel}>
-          <TextInput
-            value={note}
-            onChangeText={setNote}
-            placeholder="opcjonalny opis…"
-            placeholderTextColor={colors.text.muted}
-            style={s.textInput}
-            autoFocus
-            returnKeyType="done"
-            onSubmitEditing={() => setPanel(null)}
-          />
-        </View>
-      )}
-
-      {panel === 'tags' && (
-        <View style={s.panel}>
-          <View style={s.tagInputRow}>
-            <TextInput
-              value={tagInput}
-              onChangeText={setTagInput}
-              placeholder="np. Wakacje, Prezent…"
-              placeholderTextColor={colors.text.muted}
-              style={s.tagInputField}
-              onSubmitEditing={addTag}
-              returnKeyType="done"
-              autoFocus
-            />
-            <TouchableOpacity style={s.tagAddBtn} onPress={addTag} activeOpacity={0.7} accessibilityLabel="Dodaj tag">
-              <Plus size={14} color={colors.bg.primary} />
-            </TouchableOpacity>
-          </View>
-          {tagSuggestions.length > 0 && (
-            <View style={s.chips}>
-              {tagSuggestions.map((t) => (
-                <TouchableOpacity key={t} style={s.chip} onPress={() => addSuggestedTag(t)} activeOpacity={0.7}>
-                  <Text style={s.chipLabel}>+ {t}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
-      )}
+      <ExpenseDetails
+        type={type}
+        own={own}
+        panel={panel}
+        setPanel={setPanel}
+        togglePanel={togglePanel}
+        fvChoice={fvChoice}
+        setFvChoice={setFvChoice}
+        foodWhole={foodWhole}
+        foodSubcat={foodSubcat}
+        setFoodSubcat={setFoodSubcat}
+        mealGuess={mealGuess}
+        expenseCategory={expenseCategory}
+        setExpenseCategory={setExpenseCategory}
+        incomeCategory={incomeCategory}
+        setIncomeCategory={setIncomeCategory}
+        tags={tags}
+        removeTag={removeTag}
+        note={note}
+        setNote={setNote}
+        storeName={storeName}
+        payer={payer}
+        setPayer={setPayer}
+        paymentMethod={paymentMethod}
+        setPaymentMethod={setPaymentMethod}
+        ruleMatch={ruleMatch}
+        ruleSaved={ruleSaved}
+        setRuleSaved={setRuleSaved}
+        tagInput={tagInput}
+        setTagInput={setTagInput}
+        addTag={addTag}
+        tagSuggestions={tagSuggestions}
+        addSuggestedTag={addSuggestedTag}
+      />
     </AppBottomSheet>
     <FuelSheet
       vehicle={fuelSheetFor}
@@ -917,196 +757,3 @@ export default function AddExpenseModal({
     </>
   );
 }
-
-/** Pigułka szczegółu: `label` przygaszony + wartość; `set` = wartość inna niż domyślna (jaśniej),
- *  `on` = otwarty panel (wypełniona). */
-function Pill({ label, value, set, on, onPress }: { label?: string; value: string; set?: boolean; on?: boolean; onPress: () => void }) {
-  const s = makeS();
-  return (
-    <TouchableOpacity style={[s.pill, set && s.pillSet, on && s.pillOn]} onPress={onPress} activeOpacity={0.7}>
-      <Text style={[s.pillTxt, set && s.pillTxtSet, on && s.pillTxtOn]} numberOfLines={1}>
-        {label ? <Text style={[s.pillLab, on && s.pillTxtOn]}>{label}: </Text> : null}{value}
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
-/** Pigułka daty: "Dziś" / "Wczoraj" / "20.11" (rok, gdy inny niż bieżący) + " · 22:15" z banku. */
-function fmtDatePill(d: string): string {
-  const day = d.slice(0, 10);
-  const hm = d.length >= 16 ? ` · ${d.slice(11, 16)}` : '';
-  if (day === todayISO()) return `Dziś${hm}`;
-  if (day === ymd(new Date(Date.now() - 86400000))) return `Wczoraj${hm}`;
-  const [y, m, dd] = day.split('-');
-  if (!y || !m || !dd) return d;
-  return `${dd}.${m}${y === String(new Date().getFullYear()) ? '' : `.${y}`}${hm}`;
-}
-
-/** "20.11.2026 · 22:15" (z godziną z banku) albo "20.11.2026". */
-function fmtDateBadge(d: string): string {
-  const [y, m, dd] = d.slice(0, 10).split('-');
-  if (!y || !m || !dd) return d;
-  const hm = d.length >= 16 ? d.slice(11, 16) : '';
-  return `${dd}.${m}.${y}${hm ? ` · ${hm}` : ''}`;
-}
-
-const makeS = themedStyles((c) => StyleSheet.create({
-  fuelLink: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[3],
-    paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.md,
-    borderWidth: 1, borderColor: c.accent.orange + '66', backgroundColor: c.accent.orange + '14',
-  },
-  fuelLinkText: { flex: 1, fontSize: 12, fontFamily: 'Inter_700Bold', color: c.accent.orange },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingBottom: spacing[3],
-  },
-  title: { fontSize: 20, fontFamily: 'Inter_900Black', color: c.text.primary },
-  headerActions: { flexDirection: 'row', gap: spacing[2] },
-  closeBtn: {
-    width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default,
-  },
-
-  typeRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[3] },
-  typeChip: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: spacing[2], borderRadius: radius.md, backgroundColor: c.bg.card,
-    borderWidth: 1, borderColor: c.border.default,
-  },
-  typeChipActive: { backgroundColor: c.text.bright, borderColor: c.text.bright },
-  typeChipLabel: { fontSize: 13, fontFamily: 'Inter_900Black', color: c.text.muted },
-  typeChipLabelActive: { color: c.bg.primary },
-  ownHint: { fontSize: 11.5, lineHeight: 16, fontFamily: 'Inter_600SemiBold', color: c.text.muted, marginTop: spacing[2] },
-
-  section: { marginBottom: spacing[4] },
-  label: {
-    fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary,
-    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing[2],
-  },
-  pasteInput: {
-    fontSize: 13, fontFamily: 'Inter_500Medium', color: c.text.primary,
-    backgroundColor: c.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default,
-    padding: spacing[3], minHeight: 64, marginBottom: spacing[2],
-  },
-  parseBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: c.text.bright, borderRadius: radius.md, paddingVertical: spacing[2],
-  },
-  parseBtnLabel: { fontSize: 12.5, fontFamily: 'Inter_900Black', color: c.bg.primary },
-  btnDisabled: { opacity: 0.35 },
-
-  textInput: {
-    fontSize: 13.5, fontFamily: 'Inter_500Medium', color: c.text.primary,
-    backgroundColor: c.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default,
-    paddingHorizontal: spacing[3], paddingVertical: spacing[2],
-  },
-
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], alignItems: 'center' },
-  chip: {
-    paddingHorizontal: spacing[3], paddingVertical: spacing[1] + 2, borderRadius: radius.sm,
-    backgroundColor: c.bg.card, borderWidth: 1, borderColor: c.border.default,
-  },
-  chipActive: { backgroundColor: c.text.bright, borderColor: c.text.bright },
-  chipLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
-  chipLabelActive: { color: c.bg.primary },
-  ruleChip: { marginTop: spacing[2], alignSelf: 'flex-start', borderStyle: 'dashed' },
-  storeRow: { flexDirection: 'row', alignItems: 'stretch', gap: spacing[2] },
-  storeInput: { flex: 1, fontSize: 15, fontFamily: 'Inter_800ExtraBold' },
-  addItemBtnOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
-  itemList: { borderTopWidth: 1, borderTopColor: c.border.subtle, marginTop: spacing[1] },
-  panel: { backgroundColor: c.ui.in, borderRadius: radius.md, padding: spacing[3], gap: spacing[2], marginBottom: spacing[4] },
-  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing[3] },
-  pill: { maxWidth: '100%', paddingHorizontal: 11, paddingVertical: 7, borderRadius: radius.full, borderWidth: 1, borderColor: c.border.default },
-  pillSet: { borderColor: c.text.secondary },
-  pillOn: { backgroundColor: c.text.bright, borderColor: c.text.bright },
-  pillTxt: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.muted },
-  pillTxtSet: { color: c.text.bright },
-  pillTxtOn: { color: c.bg.primary },
-  pillLab: { fontFamily: 'Inter_600SemiBold', color: c.text.muted },
-  datePill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, minHeight: 38, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default, backgroundColor: c.bg.card },
-  datePillLabel: { fontSize: 12.5, fontFamily: 'Inter_800ExtraBold', color: c.text.primary, fontVariant: ['tabular-nums'] },
-
-  itemsHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[2] },
-  addItemBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: c.bg.card, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 5,
-    borderWidth: 1, borderColor: c.border.default,
-  },
-  addItemLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.bright },
-  savingsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2], marginTop: spacing[1], flexWrap: 'wrap' },
-  savingsText: { flexShrink: 1, fontSize: 12, fontFamily: 'Inter_800ExtraBold', color: c.accent.green },
-  savingsNone: { flexShrink: 1, fontSize: 11, fontFamily: 'Inter_600SemiBold', color: c.text.muted },
-  savingsBtn: { fontSize: 11.5, fontFamily: 'Inter_800ExtraBold', color: c.text.secondary, textDecorationLine: 'underline' },
-  savingsInput: { minWidth: 90, fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.primary, backgroundColor: c.bg.card, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 4 },
-  mismatchText: { fontSize: 11, fontFamily: 'Inter_500Medium', color: c.accent.red, marginTop: spacing[1] },
-
-  amountRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing[2],
-    backgroundColor: c.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default,
-    paddingHorizontal: spacing[3],
-  },
-  amountInput: { flex: 1, fontSize: 22, fontFamily: 'Inter_900Black', color: c.text.bright, paddingVertical: spacing[2] },
-  currencyLg: { fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.muted },
-
-  tagInputRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[2] },
-  tagInputField: {
-    flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: c.text.primary,
-    backgroundColor: c.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: c.border.default,
-    paddingHorizontal: spacing[3], paddingVertical: spacing[2],
-  },
-  tagAddBtn: {
-    width: 40, borderRadius: radius.md, backgroundColor: c.text.bright, alignItems: 'center', justifyContent: 'center',
-  },
-  // Wybrane tagi: w rzędzie pigułek (2026-11-23), × usuwa.
-  tagRemoveChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: c.text.bright, borderRadius: radius.sm, borderWidth: 1, borderColor: c.text.bright,
-    paddingHorizontal: spacing[3], paddingVertical: spacing[1] + 2,
-  },
-  tagRemoveLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.bg.primary },
-
-  // `footerRoot` = wrapper stopki (ostrzeżenie o duplikacie + kwota/Zapisz).
-  footerRoot: {},
-  // Ostrzeżenie o możliwym duplikacie (2026-11-11) — ten sam wizualny wzorzec
-  // co ProductsModal.tsx's "Możliwe duplikaty" (dupeBtnSecondary/Primary).
-  dupWarning: {
-    backgroundColor: c.bg.elevated, borderRadius: radius.lg, borderWidth: 1, borderColor: c.accent.red,
-    padding: spacing[3], marginBottom: spacing[3], gap: spacing[2],
-  },
-  dupWarningText: { fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.primary },
-  dupWarningActions: { flexDirection: 'row', gap: spacing[2] },
-  dupWarningBtnSecondary: { flex: 1, paddingVertical: spacing[2], borderRadius: radius.sm, backgroundColor: c.bg.card, alignItems: 'center' },
-  dupWarningBtnSecondaryLabel: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: c.text.secondary },
-  dupWarningBtnPrimary: { flex: 1, paddingVertical: spacing[2], borderRadius: radius.sm, backgroundColor: c.text.bright, alignItems: 'center' },
-  dupWarningBtnPrimaryLabel: { fontSize: 11.5, fontFamily: 'Inter_900Black', color: c.bg.primary },
-  footer: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-  },
-  footerLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  footerAmount: { fontSize: 20, fontFamily: 'Inter_900Black', color: c.text.bright },
-  saveBtn: { paddingHorizontal: spacing[6], paddingVertical: spacing[3], borderRadius: radius.md, backgroundColor: c.text.bright },
-  saveLabel: { fontSize: 14, fontFamily: 'Inter_900Black', color: c.bg.primary },
-
-  subLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  subLabelGap: { marginTop: spacing[1] },
-
-  // Baner auto-wykrytego paragonu w schowku (2026-11-09) — `c.accent.blue` zamiast
-  // zwykłego `c.bg.card` żeby wyraźnie odróżniał się od reszty formularza (jedyny
-  // element na ekranie który wymaga decyzji OD RAZU, zanim user przewinie dalej).
-  clipboardBanner: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2],
-    backgroundColor: `${c.accent.blue}1A`, borderRadius: radius.md, borderWidth: 1, borderColor: `${c.accent.blue}55`,
-    paddingHorizontal: spacing[3], paddingVertical: spacing[2],
-  },
-  clipboardBannerText: { flex: 1, fontSize: 12, fontFamily: 'Inter_700Bold', color: c.text.primary },
-  clipboardBannerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  clipboardDismissBtn: { padding: 2 },
-  clipboardAcceptBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: c.text.bright, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 6,
-  },
-  clipboardAcceptLabel: { fontSize: 11.5, fontFamily: 'Inter_900Black', color: c.bg.primary },
-  notFuelBtn: { marginLeft: 'auto', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm, borderWidth: 1, borderColor: c.accent.orange + '55' },
-  notFuelLabel: { fontSize: 10.5, fontFamily: 'Inter_700Bold', color: c.accent.orange },
-}));
