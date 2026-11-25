@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { db } from '@/firebase';
 import { useCalendarStore } from '@/store/calendarStore';
 import { useMoodStore } from '@/store/moodStore';
+import { cleanMoodEntries } from '@/utils/moodClean';
 import { useExpensesStore } from '@/store/expensesStore';
 import { useSubscriptionsStore } from '@/store/subscriptionsStore';
 import { useReplacementsStore } from '@/store/replacementsStore';
@@ -74,11 +75,11 @@ interface Binding<T extends SyncItem> {
   subscribe: (cb: () => void) => () => void;
 }
 
-function listBinding<T extends SyncItem>(name: string, store: AnyStore, key: string): Binding<T> {
+function listBinding<T extends SyncItem>(name: string, store: AnyStore, key: string, clean?: (items: T[]) => T[]): Binding<T> {
   return {
     name, store,
     get: () => store.getState()[key] ?? [],
-    set: (items) => store.setState({ [key]: items }),
+    set: (items) => store.setState({ [key]: clean ? clean(items) : items }),
     subscribe: (cb) => store.subscribe((s, p) => { if (s[key] !== p[key]) cb(); }),
   };
 }
@@ -87,7 +88,8 @@ const S = (s: unknown) => s as AnyStore;
 const bindings: Binding<any>[] = [
   listBinding('sync_tasks', S(useCalendarStore), 'tasks'),
   listBinding('sync_events', S(useCalendarStore), 'events'),
-  listBinding('sync_mood', S(useMoodStore), 'entries'),
+  // Humor z komputera też przez porządek wpisów (utils/moodClean.ts, 2026-11-25).
+  listBinding('sync_mood', S(useMoodStore), 'entries', (xs) => cleanMoodEntries(xs as never) as never),
   listBinding('sync_expenses', S(useExpensesStore), 'expenses'),
   listBinding('sync_subscriptions', S(useSubscriptionsStore), 'subscriptions'),
   listBinding('sync_replacements', S(useReplacementsStore), 'items'),

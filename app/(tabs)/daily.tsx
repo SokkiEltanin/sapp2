@@ -114,7 +114,10 @@ export default function DailyScreen() {
   const maxSteps = Math.max(1, ...stepsWeek.map((x) => x.steps ?? 0));
   const stepsToday = health?.date === today ? health.steps : null;
 
-  const todayEntries = useMemo(() => entries.filter((e) => e.date === today), [entries, today]);
+  // Tylko wpisy z liczbami (2026-11-25, user: "dodałem humor i kafel zrobił się pusty, szary"): jeden
+  // wpis bez energii/nastroju (NaN) psuł na Androidzie układ CAŁEGO kafla (szerokość kropki = NaN).
+  const okEntries = useMemo(() => entries.filter((e) => Number.isFinite(Number(e.mood))), [entries]);
+  const todayEntries = useMemo(() => okEntries.filter((e) => e.date === today), [okEntries, today]);
   const lastToday = todayEntries[todayEntries.length - 1];
   const moodSeries = useMemo(() => moodStreak(entries), [entries, today]); // eslint-disable-line react-hooks/exhaustive-deps
   // wieczorem bez wpisu kafel lekko się wyróżnia (2026-11-18)
@@ -125,11 +128,14 @@ export default function DailyScreen() {
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (6 - i));
       const k = keyOf(d);
-      const day = entries.filter((e) => e.date === k);
-      const avg = (f: (e: typeof day[number]) => number) => (day.length ? day.reduce((a, e) => a + f(e), 0) / day.length : null);
-      return { key: k, label: WD[d.getDay()], mood: avg((e) => e.mood), energy: avg((e) => e.energy) };
+      const day = okEntries.filter((e) => e.date === k);
+      const avg = (f: (e: typeof day[number]) => number) => {
+        const vs = day.map(f).map(Number).filter(Number.isFinite);
+        return vs.length ? vs.reduce((a, v) => a + v, 0) / vs.length : null;
+      };
+      return { key: k, label: WD[d.getDay()], mood: avg((e) => e.mood), energy: avg((e) => e.energy) ?? 3 };
     });
-  }, [entries]);
+  }, [okEntries]);
 
   return (
     <Screen title="Daily" right={<Text style={T.small} numberOfLines={1}>{dayLabel}</Text>}>
@@ -231,8 +237,8 @@ export default function DailyScreen() {
           </View>
           {lastToday ? (
             <>
-              <Text style={[T.rowHi, { color: moodColor(lastToday.mood) }]} numberOfLines={1}>{MOOD_LABELS[roundLevel(lastToday.mood)]}</Text>
-              <Text style={T.small} numberOfLines={1}>{energyText(lastToday.energy)}{moodSeries.days >= 2 ? ` · seria ${moodSeries.days} dni` : ''}</Text>
+              <Text style={[T.rowHi, { color: moodColor(Number(lastToday.mood)) }]} numberOfLines={1}>{MOOD_LABELS[roundLevel(Number(lastToday.mood))]}</Text>
+              <Text style={T.small} numberOfLines={1}>{energyText(Number.isFinite(Number(lastToday.energy)) ? Number(lastToday.energy) : 3)}{moodSeries.days >= 2 ? ` · seria ${moodSeries.days} dni` : ''}</Text>
               <View style={st.moodDots}>
                 {moodWeek.map((d, i) => (
                   <View key={d.key} style={st.moodDotCol}>
@@ -251,7 +257,7 @@ export default function DailyScreen() {
               <Text style={T.small} numberOfLines={1}>{moodSeries.days >= 1 ? `seria ${moodSeries.days} dni — nie przerwij` : 'stuknij kolor'}</Text>
               <View style={st.moodQuick}>
                 {([1, 2, 3, 4, 5] as const).map((l) => (
-                  <Pressable key={l} hitSlop={6} onPress={() => { haptic.success(); addQuickMood(l); }} accessibilityLabel={`Humor: ${MOOD_LABELS[l]}`}
+                  <Pressable key={l} hitSlop={6} onPress={() => { haptic.success(); setTimeout(() => addQuickMood(l), 120); }} accessibilityLabel={`Humor: ${MOOD_LABELS[l]}`}
                     style={({ pressed }) => [st.moodQuickDot, { backgroundColor: MOOD_COLORS[l] }, pressed && { transform: [{ scale: 0.85 }] }]} />
                 ))}
               </View>

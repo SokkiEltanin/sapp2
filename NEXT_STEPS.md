@@ -43,6 +43,13 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-25 — Pusty, szary kafel Humor po dodaniu humoru** (zgłoszenie z telefonu, w przeglądarce się nie powtarza).
+Poprawki (OTA): wpisy humoru porządkowane przy każdym zapisie, wczytaniu i syncu (`utils/moodClean.ts`: brak
+energii = 3, tekst → liczba, wpis bez nastroju odpada), kafel liczy tylko poprawne wpisy, szybka kropka zapisuje
+chwilę po puszczeniu palca.
+- [ ] Po aktualizacji: kafel Humor pokazuje nastrój i kropki tygodnia. Jeśli dalej pusty — czy wraca po wyjściu
+  z Daily i powrocie / po zamknięciu appki? (wtedy to błąd rysowania kafla z animacją wciśnięcia, nie dane).
+
 **2026-11-25 — Nazwa z powrotem: Sapp** (ARCHITECTURE „NAZWA”). NOWE APK (nazwa pod ikoną).
 - [ ] Pod ikoną „Sapp”, w Ustawieniach Androida „Sapp” (dostęp do danych o użyciu, bateria, powiadomienia banku
   „Sapp — powiadomienia”). Dostępy nadane wcześniej zostają (ten sam pakiet).
