@@ -85,9 +85,9 @@ export function buildBackupFile(entries: Record<string, string>, now: Date): str
 /** Odczyt pliku kopii (z eksportu albo z chmury). Rzuca czytelny błąd zamiast zgadywać. */
 export function parseBackupFile(text: string): { createdAt: string | null; entries: Record<string, string> } {
   let j: any;
-  try { j = JSON.parse(text); } catch { throw new Error('To nie jest plik kopii SOEN (zły JSON).'); }
+  try { j = JSON.parse(text); } catch { throw new Error('To nie jest plik kopii Sapp (zły JSON).'); }
   const e = j?.entries;
-  if (!e || typeof e !== 'object' || Array.isArray(e)) throw new Error('To nie jest plik kopii SOEN (brak danych).');
+  if (!e || typeof e !== 'object' || Array.isArray(e)) throw new Error('To nie jest plik kopii Sapp (brak danych).');
   const entries: Record<string, string> = {};
   for (const [k, v] of Object.entries(e)) if (typeof v === 'string' && shouldBackupKey(k)) entries[k] = v;
   if (Object.keys(entries).length === 0) throw new Error('Plik kopii jest pusty.');

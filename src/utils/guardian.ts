@@ -29,5 +29,5 @@ export function guardianDecide(rows: HealthRow[], st: GuardianState, now: number
 /** Treść powiadomienia: jedno zdanie na problem, max 3. */
 export function guardianText(rows: HealthRow[]): { title: string; body: string } {
   const lines = rows.slice(0, 3).map((r) => `${r.label}: ${r.detail}${r.fix ? ` — ${r.fix}` : ''}`);
-  return { title: rows.length === 1 ? 'SOEN: coś wymaga uwagi' : `SOEN: ${rows.length} rzeczy wymaga uwagi`, body: lines.join('\n') };
+  return { title: rows.length === 1 ? 'Sapp: coś wymaga uwagi' : `Sapp: ${rows.length} rzeczy wymaga uwagi`, body: lines.join('\n') };
 }

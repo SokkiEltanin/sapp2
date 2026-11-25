@@ -178,7 +178,7 @@ function withServiceManifest(config) {
     app.service.push({
       $: {
         'android:name': name,
-        'android:label': 'SOEN — powiadomienia',
+        'android:label': 'Sapp — powiadomienia',
         'android:exported': 'true',
         'android:permission': 'android.permission.BIND_NOTIFICATION_LISTENER_SERVICE',
       },

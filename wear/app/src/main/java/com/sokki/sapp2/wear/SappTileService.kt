@@ -14,7 +14,7 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import org.json.JSONObject
 
-// Kafelek SOEN (2026-11-14; od 2026-11-22: najbliższe wydarzenie z odliczaniem + liczba zadań). Stuknięcie otwiera appkę. Dane: ostatni snapshot z telefonu (Snapshot.KEY).
+// Kafelek Sapp (2026-11-14; od 2026-11-22: najbliższe wydarzenie z odliczaniem + liczba zadań). Stuknięcie otwiera appkę. Dane: ostatni snapshot z telefonu (Snapshot.KEY).
 class SappTileService : TileService() {
     private val res = "1"
 
@@ -25,10 +25,10 @@ class SappTileService : TileService() {
 
         val col = LayoutElementBuilders.Column.Builder()
             .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-        col.addContent(text("SOEN", 11f, 0xFFA3A3A3.toInt(), bold = true))
+        col.addContent(text("Sapp", 11f, 0xFFA3A3A3.toInt(), bold = true))
         if (snap == null) {
             col.addContent(spacer(6f))
-            col.addContent(text("Otwórz SOEN", 14f, 0xFFF2F2F2.toInt()))
+            col.addContent(text("Otwórz Sapp", 14f, 0xFFF2F2F2.toInt()))
             col.addContent(text("na telefonie", 14f, 0xFFF2F2F2.toInt()))
         } else {
             // 2026-11-22 (user: "zamiast liczby zadań najbliższy event jak na Dashboardzie z odliczaniem"):

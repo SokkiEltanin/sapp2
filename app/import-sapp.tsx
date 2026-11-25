@@ -125,7 +125,7 @@ export default function ImportSappScreen() {
             schowku (mail/Drive) → skopiuj całość i "Wklej ze schowka".{'\n'}
             3. Zatwierdź przyciskiem "Importuj".
           </Text>
-          <Text style={s.hint}>Zaimportują się wydatki/paragony, humor i stałe opłaty (subskrypcje) — reszta (kalendarz, zadania…) jest pomijana, SOEN ma to własne. Ponowny import tego samego pliku niczego nie zdubluje.</Text>
+          <Text style={s.hint}>Zaimportują się wydatki/paragony, humor i stałe opłaty (subskrypcje) — reszta (kalendarz, zadania…) jest pomijana, ta appka ma to własne. Ponowny import tego samego pliku niczego nie zdubluje.</Text>
         </View>
 
         <View style={s.card}>

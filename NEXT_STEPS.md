@@ -43,6 +43,12 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-25 — Nazwa z powrotem: Sapp** (ARCHITECTURE „NAZWA”). NOWE APK (nazwa pod ikoną).
+- [ ] Pod ikoną „Sapp”, w Ustawieniach Androida „Sapp” (dostęp do danych o użyciu, bateria, powiadomienia banku
+  „Sapp — powiadomienia”). Dostępy nadane wcześniej zostają (ten sam pakiet).
+- [ ] Zegarek: nazwa „Sapp” pojawi się dopiero po nowym buildzie aplikacji na zegarek.
+- [ ] Jeśli na telefonie jest jeszcze stara appka `sapp` — po imporcie odinstalować (dwie ikony „Sapp”).
+
 **2026-11-25 — Godzina przy Dziś/Jutro/Za tydzień + alarm zadania, spokojniejsze Ciekawostki.** OTA (natywny ekran
 alarmu jest już w APK #360).
 - [ ] Zadania: Dziś → „O godzinie…” → wybór godziny; „Przypomnienie”: Powiadomienie / Alarm / Bez. Alarm za 2–3 min

@@ -95,7 +95,7 @@ export function appHealth(i: HealthInput, now: number = Date.now()): HealthRow[]
     rows.push(late == null
       ? { key: 'background', label: 'Odświeżanie w tle', level: 'ok', detail: 'jeszcze nie było' }
       : late > limit
-        ? { key: 'background', label: 'Odświeżanie w tle', level: 'warn', detail: `stoi od ${ago(late).replace(' temu', '')}`, fix: 'Ustawienia Androida → Bateria → SOEN: bez ograniczeń' }
+        ? { key: 'background', label: 'Odświeżanie w tle', level: 'warn', detail: `stoi od ${ago(late).replace(' temu', '')}`, fix: 'Ustawienia Androida → Bateria → Sapp: bez ograniczeń' }
         : { key: 'background', label: 'Odświeżanie w tle', level: 'ok', detail: ago(late) });
   }
 

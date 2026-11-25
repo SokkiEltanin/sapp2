@@ -46,5 +46,5 @@ export function transactionsCsv(expenses: Expense[]): string {
 
 export function csvFileName(now: Date, label = 'transakcje'): string {
   const p = (n: number) => String(n).padStart(2, '0');
-  return `soen-${label}-${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}.csv`;
+  return `sapp-${label}-${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}.csv`;
 }

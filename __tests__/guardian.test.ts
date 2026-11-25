@@ -24,7 +24,7 @@ describe('strażnik', () => {
     expect(r.notify).toEqual([]);
   });
   it('treść: jedno zdanie na problem', () => {
-    expect(guardianText([{ key: 'b', label: 'Bank łapie płatności', level: 'warn', detail: 'nic od 5 dni', fix: 'sprawdź' }])).toEqual({ title: 'SOEN: coś wymaga uwagi', body: 'Bank łapie płatności: nic od 5 dni — sprawdź' });
+    expect(guardianText([{ key: 'b', label: 'Bank łapie płatności', level: 'warn', detail: 'nic od 5 dni', fix: 'sprawdź' }])).toEqual({ title: 'Sapp: coś wymaga uwagi', body: 'Bank łapie płatności: nic od 5 dni — sprawdź' });
   });
 });
 

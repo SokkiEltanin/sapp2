@@ -68,19 +68,19 @@ export default function ScreenTimeSheet({ visible, onClose }: { visible: boolean
         <View style={s.accessCard}>
           <Smartphone size={22} color={colors.text.primary} />
           <Text style={s.accessTitle}>Zezwól na dostęp do danych o użyciu</Text>
-          <Text style={s.accessTxt}>Android pokazuje te dane tylko appkom z osobnym dostępem. Na liście znajdź SOEN i włącz przełącznik — potem wróć tutaj. Nic nie wychodzi poza Twój telefon i Twoje konto.</Text>
+          <Text style={s.accessTxt}>Android pokazuje te dane tylko appkom z osobnym dostępem. Na liście znajdź Sapp i włącz przełącznik — potem wróć tutaj. Nic nie wychodzi poza Twój telefon i Twoje konto.</Text>
           <TouchableOpacity style={s.accessBtn} onPress={() => { haptic.tap(); openScreenAccess(); }}>
             <Text style={s.accessBtnTxt}>Otwórz ustawienia dostępu</Text>
           </TouchableOpacity>
           {/* Android 13+ blokuje ten dostęp appkom z pliku APK (2026-11-22, zrzut usera
               "App was denied access / Controlled by restricted setting"). */}
-          <Text style={s.accessHow}>Przełącznik szary i „App was denied access”? Android blokuje to appkom z pliku APK. Zrób raz: Ustawienia → Aplikacje → SOEN → ⋮ (prawy górny róg) → „Zezwól na ustawienia z ograniczeniami” (Allow restricted settings) → potwierdź PIN-em. Potem wróć tutaj i włącz przełącznik.</Text>
+          <Text style={s.accessHow}>Przełącznik szary i „App was denied access”? Android blokuje to appkom z pliku APK. Zrób raz: Ustawienia → Aplikacje → Sapp → ⋮ (prawy górny róg) → „Zezwól na ustawienia z ograniczeniami” (Allow restricted settings) → potwierdź PIN-em. Potem wróć tutaj i włącz przełącznik.</Text>
           <TouchableOpacity onPress={() => { haptic.tap(); Linking.openSettings().catch(() => {}); }} hitSlop={8}>
-            <Text style={s.accessLink}>Otwórz informacje o aplikacji SOEN</Text>
+            <Text style={s.accessLink}>Otwórz informacje o aplikacji Sapp</Text>
           </TouchableOpacity>
         </View>
       ) : !d ? (
-        <Info icon text={android ? 'Zbieram dane… za chwilę pojawi się dzisiejszy dzień.' : 'Dane przychodzą z telefonu — otwórz SOEN na telefonie (z dostępem do danych o użyciu).'} />
+        <Info icon text={android ? 'Zbieram dane… za chwilę pojawi się dzisiejszy dzień.' : 'Dane przychodzą z telefonu — otwórz Sapp na telefonie (z dostępem do danych o użyciu).'} />
       ) : (
         <DayView d={d} days={days} now={now} isToday={isToday} />
       )}

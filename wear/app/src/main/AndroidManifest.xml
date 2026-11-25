@@ -4,7 +4,7 @@
     <uses-feature android:name="android.hardware.type.watch" />
 
     <application
-        android:label="SOEN"
+        android:label="Sapp"
         android:icon="@drawable/ic_launcher"
         android:allowBackup="false"
         android:theme="@android:style/Theme.DeviceDefault">
@@ -15,7 +15,7 @@
         <!-- Kafelek: wydatki dziś / w miesiącu + zadania (dane z ostatniego snapshotu). -->
         <service
             android:name=".SappTileService"
-            android:label="SOEN"
+            android:label="Sapp"
             android:exported="true"
             android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
             <intent-filter>

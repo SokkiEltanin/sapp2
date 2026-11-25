@@ -237,8 +237,8 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener {
         shifts = snap?.optJSONArray("work")
         activeKey = shiftKey(System.currentTimeMillis())
         if (snap == null) {
-            list.addView(text("SOEN", 11f, "#A3A3A3", bold = true, center = true))
-            list.addView(text("Otwórz SOEN na telefonie — dane pojawią się tutaj.", 14f, "#F2F2F2", center = true, maxLines = 3).apply { setPadding(0, dp(10), 0, 0) })
+            list.addView(text("Sapp", 11f, "#A3A3A3", bold = true, center = true))
+            list.addView(text("Otwórz Sapp na telefonie — dane pojawią się tutaj.", 14f, "#F2F2F2", center = true, maxLines = 3).apply { setPadding(0, dp(10), 0, 0) })
             return
         }
         // Zadania (bez wydatków — 2026-11-16)

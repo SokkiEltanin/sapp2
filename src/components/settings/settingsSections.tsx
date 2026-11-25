@@ -150,7 +150,7 @@ export function buildSections(
       ...(Platform.OS === 'android' ? [{
         kind: 'action' as const, key: 'usage-access', label: 'Dostęp do danych o użyciu', permission: true,
         description: !screenTimeAvailable() ? 'wymaga nowego APK — czas w appkach i odblokowania na Dashboardzie'
-          : screenAccess ? 'włączony — czas z telefonem liczy się na Dashboardzie' : 'ekran systemowy — włącz SOEN, żeby liczyć czas w appkach i odblokowania',
+          : screenAccess ? 'włączony — czas z telefonem liczy się na Dashboardzie' : 'ekran systemowy — włącz Sapp, żeby liczyć czas w appkach i odblokowania',
         icon: SmartphoneIcon,
       }] : []),
     ],
@@ -180,7 +180,7 @@ export function buildSections(
       // podkategorii") — te 4 wiersze istnieją/mają sens TYLKO gdy wyłącznik wyżej
       // jest włączony, więc wizualnie są wcięte/zmniejszone pod nim, nie na równi.
       ...(bank.enabled ? [
-        { kind: 'action' as const, tier: 'sub' as const, permission: true, key: 'bank-notif-access', label: 'Dostęp do powiadomień', description: 'ekran systemowy — przyznaj SOEN RAZ, inaczej nasłuch nic nie złapie', icon: Bell },
+        { kind: 'action' as const, tier: 'sub' as const, permission: true, key: 'bank-notif-access', label: 'Dostęp do powiadomień', description: 'ekran systemowy — przyznaj Sapp RAZ, inaczej nasłuch nic nie złapie', icon: Bell },
         { kind: 'switch' as const, tier: 'sub' as const, key: 'bank-auto-all', label: 'Dodawaj automatycznie', description: 'każda płatność kartą księguje się bez przeglądu', icon: Zap, value: bank.autoAll },
         { kind: 'action' as const, tier: 'sub' as const, key: 'bank-test', label: 'Sprawdź teraz (diagnostyka)', description: 'czy nasłuch w ogóle coś odbiera — log na dole ekranu', icon: Stethoscope },
         { kind: 'action' as const, tier: 'sub' as const, key: 'bank-review', label: 'Płatności do zatwierdzenia', description: bank.pending > 0 ? `${bank.pending} czeka — stuknij, żeby przejrzeć` : 'pusto — nic nie czeka na zatwierdzenie', icon: Rocket },

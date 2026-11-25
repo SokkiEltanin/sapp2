@@ -1,6 +1,6 @@
 {
-  "name": "SOEN",
-  "short_name": "SOEN",
+  "name": "Sapp",
+  "short_name": "Sapp",
   "description": "Zadania, kalendarz, finanse i statystyki — zsynchronizowane z telefonem",
   "start_url": "/sapp2/",
   "scope": "/sapp2/",

@@ -308,7 +308,7 @@ function ScreenTileBody({ sc }: { sc: DashData['screen'] }) {
   if (sc.state !== 'ok') {
     const msg = sc.state === 'noAccess' ? 'Stuknij i zezwól na dostęp do danych o użyciu'
       : sc.state === 'noModule' ? 'Wymaga nowego APK — wtedy policzy czas w appkach i odblokowania'
-      : Platform.OS === 'web' ? 'Dane przyjdą z telefonu (SOEN z dostępem do danych o użyciu)' : 'Zbieram dane…';
+      : Platform.OS === 'web' ? 'Dane przyjdą z telefonu (Sapp z dostępem do danych o użyciu)' : 'Zbieram dane…';
     return (
       <>
         <Cap l="Czas z telefonem" />

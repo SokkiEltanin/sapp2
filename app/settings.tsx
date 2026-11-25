@@ -370,7 +370,7 @@ export default function SettingsScreen() {
       const n = useCalendarStore.getState().gcalEvents.length;
       append(n > 0
         ? `Kalendarz z telefonu: ${n} wydarzeń (od 45 dni wstecz do 180 dni w przód). Zmiany robisz na telefonie.`
-        : 'Brak wydarzeń z telefonu — zainstaluj na telefonie APK #225 lub nowszy, otwórz SOEN na telefonie (pobierze kalendarz), potem odśwież tę stronę.');
+        : 'Brak wydarzeń z telefonu — zainstaluj na telefonie APK #225 lub nowszy, otwórz Sapp na telefonie (pobierze kalendarz), potem odśwież tę stronę.');
       return;
     }
     try {
@@ -467,7 +467,7 @@ export default function SettingsScreen() {
       const queued = await drainBankNotifications();
       if (!peek.fileExists || peek.count === 0) {
         if (peek.seen.length === 0) {
-          append('Nasłuch NIC nie odbiera (nawet z innych apek) — sprawdź "Dostęp do powiadomień" i baterię SOEN.');
+          append('Nasłuch NIC nie odbiera (nawet z innych apek) — sprawdź "Dostęp do powiadomień" i baterię Sapp.');
         } else {
           append(`Nasłuch działa, ale nic nie wyglądało na płatność bankową. Widziane apki: ${peek.seen.join(', ')}`);
         }
@@ -800,7 +800,7 @@ export default function SettingsScreen() {
       <ThresholdsSheet visible={thresholdsOpen} onClose={() => setThresholdsOpen(false)} />
       <ProfileSheet visible={profileOpen} onClose={() => setProfileOpen(false)} />
       <DashboardLayoutSheet visible={layoutOpen} onClose={() => setLayoutOpen(false)} />
-      <ErrorLogSheet visible={errorsOpen} onClose={() => setErrorsOpen(false)} header={`SOEN ${BUILD_INFO.version} · build ${BUILD_INFO.buildNumber} · ${BUILD_INFO.commit} · ${runningUpdateLabel()}`} />
+      <ErrorLogSheet visible={errorsOpen} onClose={() => setErrorsOpen(false)} header={`Sapp ${BUILD_INFO.version} · build ${BUILD_INFO.buildNumber} · ${BUILD_INFO.commit} · ${runningUpdateLabel()}`} />
     </SafeAreaView>
   );
 }
