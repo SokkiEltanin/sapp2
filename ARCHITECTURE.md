@@ -794,6 +794,15 @@ wyżej.
 
 ## FINANSE [GE]
 
+**Pliki formularza wydatku (podział 2026-11-25, bez zmian działania):** `AddExpenseModal.tsx`
+= cały stan i zapis (paste, pozycje, duplikaty, reguły, paliwo); `ExpenseDetails.tsx` = rząd
+pigułek szczegółów + jeden otwarty panel (dostaje stan i settery w propsach, sam nic nie trzyma);
+`addExpenseParts.tsx` = `Pill`, `Panel`, `FV_/PAYMENT_/PAYER_CHOICES`, `fmtDatePill/Badge`,
+`genId`, `round2`, `looksLikeReceiptText`; `addExpenseStyles.ts` = wspólne `makeS` (themedStyles).
+Nowy szczegół wydatku: stan w modalu → prop w `ExpenseDetailsProps` → pigułka + panel w `ExpenseDetails`.
+Analogicznie Ustawienia: `app/settings.tsx` = ekran, sheety i handlery; lista sekcji/wierszy
+(`buildSections`), `BUILD_INFO` i opisy w `src/components/settings/settingsSections.tsx`.
+
 **Przebudowany na nowy system komponentów (Faza 3.4, 2026-11-01)** — główny ekran
 (nie popupy, patrz niżej) na układzie z `design/app-design.html`'s `#fin` (4
 kolumny, `grid-template-rows: auto auto auto auto 1fr`): Saldo (+realne miesięczne
