@@ -12,12 +12,15 @@ import { todayISO } from '@/utils/date';
 import { haptic } from '@/utils/haptics';
 import { useConfirmTap } from '@/hooks/useConfirmTap';
 import FactIcon from './FactIcon';
+import { Pix } from '@/components/design/pixelAnim';
+import { artFor } from '@/utils/factArt';
 
 // Pełna ciekawostka (2026-11-16): temat → zajawka → liczby (duże kafelki) → wyjaśnienie
 // → źródło. "Znam to" chowa ją na zawsze i od razu pokazuje następną.
 // Uspokojona 2026-11-25 (user: "przeczytane zwinięte domyślnie, tagi wprowadzają chaos
 // i przyciągają uwagę, ulepsz jak pogodę"):
-//   • nagłówek = ikona pixel-art dziedziny (components/daily/FactIcon.tsx) + temat,
+//   • nagłówek = ikona pixel-art tej ciekawostki (components/daily/FactIcon.tsx, rysunki z
+//     scripts/gen-fact-art.py) + temat; na liście przeczytanych mała, nieruchoma,
 //   • przyciski w stopce (zawsze pod kciukiem, nie trzeba przewijać),
 //   • "Przeczytane" i "Dziedziny" jako dwa ciche, ZWINIĘTE wiersze na dole,
 //   • dziedziny bez białych wypełnionych pigułek: włączona = jasny tekst + ptaszek,
@@ -79,7 +82,7 @@ export default function FactSheet({ visible, onClose }: { visible: boolean; onCl
       {f ? (
         <>
           <View style={s.hero}>
-            <View style={s.iconBox}><FactIcon cat={f.cat} px={4} /></View>
+            <View style={s.iconBox}><FactIcon fact={f} px={3} /></View>
             <Text style={s.topic}>{f.topic}</Text>
           </View>
           <Text style={s.teaser}>{f.teaser}</Text>
@@ -118,6 +121,7 @@ export default function FactSheet({ visible, onClose }: { visible: boolean; onCl
               const pf = FACT_BY_ID[pid];
               return (
                 <TouchableOpacity key={pid} style={[s.row, pid === view && s.rowOn]} onPress={() => openPast(pid)}>
+                  <Pix sprite={artFor(pf).rows} palette={artFor(pf).pal} px={1.5} />
                   <Text style={s.rowT} numberOfLines={1}>{pf.topic}</Text>
                   <Text style={s.rowM}>{known.includes(pid) ? 'znam · ' : ''}{CAT_LABEL[pf.cat]}</Text>
                 </TouchableOpacity>

@@ -792,6 +792,12 @@ googleCalendarService.ts` + `src/utils/googleCalendarMap.ts` (Google Calendar RE
 `src/store/calendarStore.ts` (Zustand, AsyncStorage-persisted) — to na niej stoi UI
 wyżej.
 
+**Ikony ciekawostek (2026-11-25):** `scripts/gen-fact-art.py` (kształty + automatyczne cieniowanie, 16×16) →
+`src/data/factArt.json`; `src/utils/factArt.ts` = ciekawostka → motyw (po id, potem słowa kluczowe, potem dziedzina);
+`components/daily/FactIcon.tsx` (animowana, okno + kafel Daily), na liście przeczytanych nieruchomy `Pix`.
+Nowa ciekawostka: dopisz id → motyw w `ART_BY_FACT` (test `__tests__/factArt.test.ts` pilnuje), nowy motyw = funkcja
+`@motif` w generatorze + `python3 scripts/gen-fact-art.py`.
+
 ## FINANSE [GE]
 
 **Pliki formularza wydatku (podział 2026-11-25, bez zmian działania):** `AddExpenseModal.tsx`

@@ -51,8 +51,9 @@ alarmu jest już w APK #360).
   otwierania appki między nimi → drugi może pokazać tytuł pierwszego. Gdyby przeszkadzało: natywnie opis per id
   powiadomienia (wymaga APK).
 - [ ] Edycja zadania z godziną dziś/jutro wraca na chip Dziś/Jutro z godziną; zmiana terminu kasuje stare „Za godzinę”.
-- [ ] Ciekawostki: Przeczytane i Dziedziny zwinięte, ikona pixel-art dziedziny w oknie i na kaflu Daily, przyciski
-  w stopce zawsze widoczne.
+- [ ] Ciekawostki: Przeczytane i Dziedziny zwinięte, przyciski w stopce zawsze widoczne. Każda ciekawostka ma własną
+  ikonę pixel-art (79 motywów z generatora `scripts/gen-fact-art.py`: sen = księżyc z Z, pamięć = mózg, kofeina =
+  kubek…) w oknie, na kaflu Daily i małą na liście przeczytanych. Sprawdzić, czy któraś jest nieczytelna na telefonie.
 
 **2026-11-23 — Mniej kolorów + animowana pogoda** (ARCHITECTURE „MNIEJ KOLORÓW + SCENA POGODY”). OTA.
 - [ ] Kalendarz: zmiany JD (żółte) czytelne z białym tekstem; przytrzymanie tagu w zadaniach usuwa go (Cofnij działa).

@@ -179,7 +179,7 @@ export default function DailyScreen() {
           <Cap l={fact ? `Ciekawostka · ${CAT_LABEL[fact.cat]}` : 'Ciekawostka'} r={`${factSeen}/${FACT_LIST.length}`} />
           <View style={st.factBody}>
             <View style={st.factHead}>
-              {fact && <FactIcon cat={fact.cat} px={3} />}
+              {fact && <FactIcon fact={fact} px={3} />}
               <FitText style={[st.factTopic, { flex: 1 }]} numberOfLines={2} minimumFontScale={0.7}>{fact ? fact.topic : 'Wszystko przeczytane'}</FitText>
             </View>
             <Text style={st.factTeaser} numberOfLines={5}>{fact ? fact.teaser : 'Dotknij, żeby wybrać inne dziedziny albo zacząć od nowa.'}</Text>
