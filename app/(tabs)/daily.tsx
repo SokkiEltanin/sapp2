@@ -10,6 +10,7 @@ import { FACT_BY_ID, CAT_LABEL } from '@/utils/facts';
 import { FACT_LIST } from '@/utils/factsData';
 import { useFactsStore } from '@/store/factsStore';
 import FactSheet from '@/components/daily/FactSheet';
+import FactIcon from '@/components/daily/FactIcon';
 import CollectionSheet, { useCollectionData } from '@/components/daily/CollectionSheet';
 import { useCollectionStore } from '@/store/collectionStore';
 import { haptic } from '@/utils/haptics';
@@ -177,7 +178,10 @@ export default function DailyScreen() {
         <Tile span={4} onPress={() => { haptic.tap(); setFactOpen(true); }} style={st.factTile}>
           <Cap l={fact ? `Ciekawostka · ${CAT_LABEL[fact.cat]}` : 'Ciekawostka'} r={`${factSeen}/${FACT_LIST.length}`} />
           <View style={st.factBody}>
-            <FitText style={st.factTopic} numberOfLines={2} minimumFontScale={0.7}>{fact ? fact.topic : 'Wszystko przeczytane'}</FitText>
+            <View style={st.factHead}>
+              {fact && <FactIcon cat={fact.cat} px={3} />}
+              <FitText style={[st.factTopic, { flex: 1 }]} numberOfLines={2} minimumFontScale={0.7}>{fact ? fact.topic : 'Wszystko przeczytane'}</FitText>
+            </View>
             <Text style={st.factTeaser} numberOfLines={5}>{fact ? fact.teaser : 'Dotknij, żeby wybrać inne dziedziny albo zacząć od nowa.'}</Text>
           </View>
           <View style={st.factFoot}>
@@ -290,6 +294,7 @@ export default function DailyScreen() {
 const st = StyleSheet.create({
   factTile: { gap: 8 },
   factBody: { flex: 1, justifyContent: 'center', gap: 10, paddingHorizontal: 4 },
+  factHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   factTopic: { fontSize: 30, lineHeight: 35, fontFamily: 'Inter_900Black', letterSpacing: -0.5, color: C.hi },
   factTeaser: { fontSize: 15, lineHeight: 22, fontFamily: 'Inter_600SemiBold', color: C.txt },
   factFoot: { flexDirection: 'row', alignItems: 'center', gap: 8 },
