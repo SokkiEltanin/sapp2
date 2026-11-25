@@ -281,8 +281,10 @@ const TxRow = memo(function TxRow({ hit, mode, onSelect }: { hit: TxHit; mode: G
   const when = mode === 'day' ? time : `${toDisplayDate(e.date.slice(0, 10)).slice(0, 5)}${time ? ` ${time}` : ''}`;
   const sub = [bucketLabel(e), when, detail, e.fvOverride === 'transfer' ? 'przelew własny' : '', match ? `„${match}”` : ''].filter(Boolean).join(' · ');
   return (
+    // Łuk koloru po lewym rogu jak w Zadaniach i Ostatnich transakcjach (2026-11-25).
+    <View style={s.rowOuter}>
+    <View style={[s.rowEdge, { backgroundColor: txColor(e) }]} pointerEvents="none" />
     <TouchableOpacity style={s.row} onPress={() => { haptic.tap(); onSelect(e); }} activeOpacity={0.7}>
-      <View style={[s.rowDot, { backgroundColor: txColor(e) }]} />
       <View style={s.rowInfo}>
         <View style={s.rowTop}>
           <Text style={s.rowNote} numberOfLines={1}>
@@ -304,6 +306,7 @@ const TxRow = memo(function TxRow({ hit, mode, onSelect }: { hit: TxHit; mode: G
         ) : null}
       </View>
     </TouchableOpacity>
+    </View>
   );
 });
 
@@ -368,12 +371,13 @@ const makeS = themedStyles((c) => StyleSheet.create({
   overlay: { position: 'absolute', top: 0, left: 0, right: 0 },
   empty: { fontSize: 12.5, fontFamily: 'Inter_500Medium', color: c.text.muted, textAlign: 'center', paddingVertical: spacing[6] },
 
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: 9, paddingHorizontal: 4 },
+  rowOuter: { borderRadius: radius.md, overflow: 'hidden', marginVertical: 3 },
+  rowEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 30 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: 9, paddingHorizontal: 12, marginLeft: 4, borderRadius: radius.md, backgroundColor: c.ui.in2 },
   rowInfo: { flex: 1, minWidth: 0 },
   rowTop: { flexDirection: 'row', alignItems: 'baseline', gap: spacing[3] },
   rowNote: { flex: 1, fontSize: 14, fontFamily: 'Inter_700Bold', color: c.text.primary },
   rowSub: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: c.text.muted, marginTop: 2 },
-  rowDot: { width: 8, height: 8, borderRadius: 4 },
   gHead: { paddingTop: spacing[3], paddingBottom: 4, backgroundColor: c.bg.card },
   gBox: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], backgroundColor: c.ui.in2, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 9 },
   gLabel: { flex: 1, fontSize: 13, fontFamily: 'Inter_800ExtraBold', color: c.text.bright },

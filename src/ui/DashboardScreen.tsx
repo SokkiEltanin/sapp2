@@ -276,9 +276,9 @@ export function DashboardScreen(d: DashData) {
                   // event). Osobna, stała (niezależna od pilności) ikonka per `kind`.
                   const KindIcon = x.kind === 'deadline' ? ListTodo : CalendarClock;
                   return (
-                    <Item onPress={() => d.onOpen(x.kind, x.id)}>
+                    // kolor wydarzenia = łuk lewego rogu, jak w Zadaniach i transakcjach (2026-11-25)
+                    <Item onPress={() => d.onOpen(x.kind, x.id)} accent={x.color}>
                       <Text style={st.when} numberOfLines={1}>{x.when}</Text>
-                      <View style={[st.bar, { backgroundColor: x.color }]} />
                       <KindIcon size={11} color={x.kind === 'deadline' ? C.warn : C.dim} style={st.kindIcon} />
                       {tag ? <Tag label={tag} kind={tag === 'PUR' || tag === 'UR' ? 'ur' : 'default'} /> : null}
                       <Text style={[T.row, { flex: 1 }, important && { color: C.hi, fontFamily: F.xb }]} numberOfLines={1}>{title}</Text>
@@ -450,7 +450,6 @@ const st = StyleSheet.create({
   icoL: { position: 'absolute', top: 10, left: 10 },
   icoR: { position: 'absolute', top: 10, right: 10 },
   when: { width: 64, fontFamily: F.xb, fontSize: 10, color: C.mut, fontVariant: ['tabular-nums'] },
-  bar: { width: 3, height: 16, borderRadius: 2 },
   kindIcon: { marginRight: 1 },
   // Układ jak kafel snu (2026-11-11): odliczanie+kiedy na górze, tytuł na
   // dole (`space-between`, jak sen ma pasek), tag w prawym górnym rogu.
