@@ -118,8 +118,10 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
                 <WeatherScene scene={nowKey} wind={Math.max(cur.wind, cur.gusts * 0.6)} px={4} inset={4} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.nowTemp}>{fmtTemp(cur.temp)}</Text>
-                <Text style={s.nowLabel}>{info.label} · odczuwalna {fmtTemp(cur.feels)}</Text>
+                {/* Duża = odczuwalna, jak na kaflu Dashboardu (2026-11-26). */}
+                <Text style={s.nowTemp}>{fmtTemp(cur.feels)}</Text>
+                <Text style={s.nowLabel}>odczuwalna · termometr {fmtTemp(cur.temp)}</Text>
+                <Text style={s.nowLabel}>{info.label}</Text>
               </View>
               {today && (
                 <View style={{ alignItems: 'flex-end' }}>

@@ -4,7 +4,7 @@ import { useDashboardLayoutStore } from '@/store/dashboardLayoutStore';
 import { visibleSections, type DashSection } from '@/utils/dashboardLayout';
 import React from 'react';
 import { View, Text, StyleSheet, Platform, Image } from 'react-native';
-import { ListTodo, CalendarClock, Waypoints, MapPin, StickyNote, Smartphone, Watch, Zap, Laptop, LockOpen } from 'lucide-react-native';
+import { ListTodo, CalendarClock, Waypoints, MapPin, StickyNote, Smartphone, Watch, Zap, Laptop, LockOpen, Thermometer } from 'lucide-react-native';
 import { fmtShort, fmtDur } from '@/utils/screenTime';
 import { batteryTone, ageLabel } from '@/utils/deviceBattery';
 import NotePreview from '@/components/notes/NotePreview';
@@ -165,7 +165,7 @@ export function DashboardScreen(d: DashData) {
                 at={Platform.OS === 'web' ? d.batteries.remotePhone?.t : undefined} />
               <BatteryRow icon="watch" b={d.batteries.watch} lowPct={d.batteries.lowPct} at={d.batteries.watch?.t} />
             </Tile>
-            <Tile span={2} onPress={() => d.onOpen('weather')} style={[{ justifyContent: 'flex-end', overflow: 'hidden' }, d.weather && st.wxGlassEdge]}>
+            <Tile span={2} onPress={() => d.onOpen('weather')} accessibilityLabel={d.weather ? `Pogoda: ${d.weather.label}, odczuwalna ${d.weather.feels}, termometr ${d.weather.temp}` : 'Pogoda'} style={[{ justifyContent: 'flex-end', overflow: 'hidden' }, d.weather && st.wxGlassEdge]}>
               {d.weather ? (
                 <>
                   {/* Scena pixel-art + "szkło" (2026-11-23, user: "bardziej wizualny, ale minimalistyczny —
@@ -187,9 +187,17 @@ export function DashboardScreen(d: DashData) {
                     style={StyleSheet.absoluteFill}
                     pointerEvents="none"
                   />
+                  {/* Duża = odczuwalna (2026-11-26, user: "bardziej interesuje mnie odczuwalna — wiatr,
+                      wilgotność, temperatura; mniejsza ta z termometru"): obok mała z ikoną termometru. */}
                   <View>
-                    <Text style={T.num} numberOfLines={1}>{d.weather.temp}</Text>
-                    <Text style={T.unit} numberOfLines={1}>{d.weather.label} · odcz. {d.weather.feels}</Text>
+                    <View style={st.wxTempRow}>
+                      <Text style={T.num} numberOfLines={1}>{d.weather.feels}</Text>
+                      <View style={st.wxThermo}>
+                        <Thermometer size={11} color={C.mut} />
+                        <Text style={T.small} numberOfLines={1}>{d.weather.temp}</Text>
+                      </View>
+                    </View>
+                    <Text style={T.unit} numberOfLines={1}>odczuwalna</Text>
                   </View>
                   <View style={st.wxFoot}>
                     <Text style={[T.small, { flex: 1 }]} numberOfLines={1}>{d.weather.rain}</Text>
@@ -444,6 +452,8 @@ const st = StyleSheet.create({
   batTrack: { flex: 1, height: 7, borderRadius: 4, backgroundColor: C.in2, overflow: 'hidden' },
   batFill: { height: '100%', borderRadius: 4 },
   wxFoot: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  wxTempRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  wxThermo: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 4 },
   wxGlassEdge: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
   wxAqi: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   wxDot: { width: 7, height: 7, borderRadius: 4 },
