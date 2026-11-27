@@ -43,6 +43,11 @@ aktywne pomodoro do zadania → roślinka rośnie szybciej.
 
 ## Do zrobienia / sprawdzenia
 
+**2026-11-27 — Deszcz w scenie pogody zależny od realnego natężenia** (OTA). `utils/weather.ts` `precipIntensity`
+(mm/h z bieżącej i prognozy na tę godzinę, skala log) → `WeatherScene intensity`: liczba kropli 5–26, długość smugi,
+tempo, bliższe/dalsze krople, rozpryski od ~1 mm/h. Kafel Dashboardu i karta „teraz” w oknie pogody.
+- [ ] Na telefonie: mżawka = kilka kropek, deszcz = smugi, ulewa = gęsta ściana; płynnie, bez zacięć przy przewijaniu.
+
 **2026-11-25 — Pusty, szary kafel Humor po dodaniu humoru** (zgłoszenie z telefonu, w przeglądarce się nie powtarza).
 Poprawki (OTA): wpisy humoru porządkowane przy każdym zapisie, wczytaniu i syncu (`utils/moodClean.ts`: brak
 energii = 3, tekst → liczba, wpis bez nastroju odpada), kafel liczy tylko poprawne wpisy, szybka kropka zapisuje

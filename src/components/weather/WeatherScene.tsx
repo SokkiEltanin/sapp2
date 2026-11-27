@@ -62,7 +62,6 @@ const CLOUD_SMALL: Sprite = [
   'GLLLLLLLLLG',
   '.GGGGGGGGG.',
 ];
-const DROP: Sprite = ['B', 'B', 'B', 'b'];
 const FLAKE: Sprite = ['.W.', 'WWW', '.W.'];
 const FLAKE_DOT: Sprite = ['WW', 'WW'];
 const BOLT: Sprite = ['..YY', '.YY.', 'YYYY', '..YY', '.YY.', '.Y..'];
@@ -75,7 +74,12 @@ const STAR_P: Palette = { W: '#E0E7FF' };
 const CLOUD_LIGHT: Palette = { L: '#E5E7EB', G: '#9CA3AF' };
 const CLOUD_GRAY: Palette = { L: '#9CA3AF', G: '#6B7280' };
 const CLOUD_DARK: Palette = { L: '#6B7280', G: '#4B5563' };
-const DROP_P: Palette = { B: '#60A5FA', b: '#93C5FD' };
+// Deszcz (2026-11-27, user: "bardziej realistyczny, intensywność zależnie od realnej"): smuga = kolumna
+// pikseli, jaśniejszy czubek; bliższe krople dłuższe, jaśniejsze i szybsze, dalsze krótkie i blade.
+const RAIN_NEAR = { head: '#DBEAFE', body: '#93C5FD' };
+const RAIN_FAR = { head: '#93C5FD', body: '#60A5FA' };
+const SPLASH: Sprite = ['b...b', '.b.b.'];
+const SPLASH_P: Palette = { b: '#BFDBFE' };
 const FLAKE_P: Palette = { W: '#F8FAFC' };
 const BOLT_P: Palette = { Y: '#FDE047' };
 const FOG_P: Palette = { L: '#94A3B8' };
@@ -89,10 +93,16 @@ const WIND_P: Palette = { W: 'rgba(255,255,255,0.5)' };
 
 /** `px` = rozmiar piksela (domyślnie z wymiarów), `inset` = odstęp od prawej/górnej krawędzi.
  *  Używane w kaflu Dashboardu i w karcie "teraz" okna pogody (ten sam styl, 2026-11-23). */
-export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10 }: { scene: WeatherToneKey; wind: number; px?: number; inset?: number }) {
+/** `intensity` 0..1 = natężenie opadu z prognozy (utils/weather.ts `precipIntensity`); brak = typowe dla sceny. */
+export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10, intensity }: { scene: WeatherToneKey; wind: number; px?: number; inset?: number; intensity?: number }) {
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const run = useActive() && !!size;
-  const fast = useLoop(scene === 'heavy' || scene === 'storm' ? 700 : 950, run);
+  const rainyScene = scene === 'drizzle' || scene === 'rain' || scene === 'heavy' || scene === 'storm' || scene === 'freezing';
+  const k = Math.min(1, Math.max(0, intensity ?? (scene === 'drizzle' ? 0.2 : scene === 'heavy' || scene === 'storm' ? 0.85 : scene === 'freezing' ? 0.35 : 0.45)));
+  // Tempo spadania rośnie z natężeniem (mżawka ~1,5 s, ulewa ~0,5 s); zaokrąglone do 50 ms (bez restartów pętli).
+  const q50 = (ms: number) => Math.round(ms / 50) * 50;
+  const nearMs = q50(scene === 'drizzle' ? 1500 : 1050 - 500 * k);
+  const fast = useLoop(nearMs, run && rainyScene);
   const slow = useLoop(5200, run, true);
   const snowT = useLoop(3400, run);
   const blink = useLoop(2600, run);
@@ -103,7 +113,8 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
   const wq = (ms: number) => Math.round(ms / windK / 50) * 50;
   const windT = useLoop(wq(1800), run && wind >= 25);
   // drugie tempo dla części cząstek — nie lecą wszystkie w jednym rytmie
-  const fast2 = useLoop(scene === 'heavy' || scene === 'storm' ? 900 : 1250, run && (scene === 'drizzle' || scene === 'rain' || scene === 'heavy' || scene === 'storm' || scene === 'freezing'));
+  const fast2 = useLoop(q50(nearMs * 1.18), run && rainyScene);
+  const farT = useLoop(q50(nearMs * 1.45), run && rainyScene);
   const snowT2 = useLoop(4600, run && (scene === 'snow' || scene === 'freezing'));
   const windT2 = useLoop(wq(2600), run && wind >= 25);
   // "żywy" wiatr: fala przełamania biegnąca wzdłuż podmuchu
@@ -130,11 +141,14 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
   const rainy = scene === 'drizzle' || scene === 'rain' || scene === 'heavy' || scene === 'storm' || scene === 'freezing';
   const snowy = scene === 'snow' || scene === 'freezing';
   const cloudP = scene === 'storm' || scene === 'heavy' ? CLOUD_DARK : scene === 'partly' || scene === 'partlyNight' ? CLOUD_LIGHT : CLOUD_GRAY;
-  const drops = scene === 'drizzle' ? 5 : scene === 'heavy' || scene === 'storm' ? 13 : scene === 'freezing' ? 4 : rainy ? 9 : 0;
-  const flakes = scene === 'snow' ? 11 : scene === 'freezing' ? 4 : 0;
+  // Ile kropli: od kilku (mżawka 0,1 mm/h) do gęstej ściany (ulewa 10+ mm/h).
+  const drops = rainy ? Math.round((scene === 'freezing' ? 3 : 5) + (scene === 'freezing' ? 6 : 21) * k) : 0;
+  const flakes = scene === 'snow' ? Math.round(6 + 12 * k) : scene === 'freezing' ? 4 : 0;
   // Z opadem chmura przy samej górze, żeby krople miały drogę nad tekstem.
   const cloudY = rainy || snowy ? top - px : top + px * 3;
   const fallTo = Math.max(px * 8, h * 0.72 - (cloudY + cloudH));
+  // deszcz leci niżej niż śnieg (gaśnie nad dolnym wierszem tekstu)
+  const rainFall = Math.max(px * 8, h * 0.8 - (cloudY + cloudH));
 
   const r = rng(scene.length * 7919 + drops * 31 + flakes);
   const between = (a: number, b: number) => a + (b - a) * r();
@@ -143,11 +157,22 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
   const pp = Math.max(1, Math.floor(px / 2));
   const rainSlant = wind >= 25 ? px * 2 * windK : px * 0.6;
   const snowDrift = wind >= 25 ? px * 2 * windK : 0;
-  const rain = Array.from({ length: drops }, () => ({
-    x: Math.round(between(cloudX + px, cloudX + cloudW - px * 2)),
-    y0: Math.round(between(0, px * 3)),
-    ph: r(), slow: r() < 0.45, len: between(0.7, 1), slant: rainSlant * between(0.6, 1.2),
-  }));
+  const drizzle = scene === 'drizzle';
+  const smallCloudX = cloudX - px * 7;
+  const rain = Array.from({ length: drops }, (_, i) => {
+    const far = i % 3 === 2;                       // co trzecia kropla "dalej": krótsza, bledsza, wolniejsza
+    const fromSmall = scene !== 'partly' && r() < 0.25; // część spod małej chmury
+    const x0 = fromSmall ? smallCloudX + px : cloudX + px;
+    const x1 = fromSmall ? smallCloudX + px * 10 : cloudX + cloudW - px * 2;
+    // długość smugi w pikselach: mżawka 1–2, deszcz 3–5, ulewa do 7
+    const lenPx = drizzle ? (far ? 1 : 2) : Math.round((far ? 2 : 3) + (far ? 2 : 4) * k * between(0.7, 1.15));
+    return {
+      x: Math.round(between(x0, x1)), y0: Math.round(between(0, px * 3)) - (fromSmall ? px * 3 : 0),
+      ph: r(), slow: r() < 0.45, far, lenPx: Math.max(1, lenPx),
+      len: between(0.75, 1), slant: rainSlant * between(0.6, 1.2) * (far ? 0.8 : 1),
+      splash: !drizzle && !far && k >= 0.3 && r() < 0.6,
+    };
+  });
   const snow = Array.from({ length: flakes }, () => {
     const amp = px * between(0.8, 2.4) * (r() < 0.5 ? -1 : 1);
     const turns = r() < 0.5 ? 1 : 2;
@@ -209,18 +234,34 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
 
       {/* deszcz pod chmurą (rysowany przed chmurą, żeby krople wychodziły spod niej) */}
       {rain.map((d, i) => {
-        const prog = wrap(d.slow ? fast2 : fast, d.ph, 0, 1);
+        const prog = wrap(d.far ? farT : d.slow ? fast2 : fast, d.ph, 0, 1);
+        const col = d.far ? RAIN_FAR : RAIN_NEAR;
+        const dropW = drizzle ? pp : Math.max(1, Math.round(pp * (d.far ? 0.75 : 1)));
+        const fall = rainFall * d.len;
+        const top0 = cloudY + cloudH - px * 2 + d.y0;
         return (
-          <Animated.View key={`d${i}`} style={{
-            position: 'absolute', left: d.x, top: cloudY + cloudH - px * 2 + d.y0,
-            transform: [
-              { translateY: prog.interpolate({ inputRange: [0, 1], outputRange: [0, fallTo * d.len] }) },
-              { translateX: prog.interpolate({ inputRange: [0, 1], outputRange: [0, d.slant] }) },
-            ],
-            opacity: prog.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 0.8, 0.1] }),
-          }}>
-            <Pix sprite={DROP} palette={DROP_P} px={pp} />
-          </Animated.View>
+          <View key={`d${i}`} style={{ position: 'absolute', left: d.x, top: top0 }}>
+            <Animated.View style={{
+              transform: [
+                { translateY: prog.interpolate({ inputRange: [0, 1], outputRange: [0, fall] }) },
+                { translateX: prog.interpolate({ inputRange: [0, 1], outputRange: [0, d.slant] }) },
+              ],
+              opacity: prog.interpolate({ inputRange: [0, 0.08, 0.8, 1], outputRange: [0, d.far ? 0.5 : 0.95, d.far ? 0.4 : 0.8, 0] }),
+            }}>
+              <View style={{ width: dropW, height: pp, backgroundColor: col.head }} />
+              <View style={{ width: dropW, height: pp * Math.max(0, d.lenPx - 1), backgroundColor: col.body }} />
+            </Animated.View>
+            {d.splash && (
+              // rozprysk tam, gdzie kropla kończy lot: krótki błysk dwóch kropelek
+              <Animated.View style={{
+                position: 'absolute', left: d.slant - pp * 2, top: fall + pp * d.lenPx,
+                opacity: prog.interpolate({ inputRange: [0, 0.9, 0.94, 1], outputRange: [0, 0, 0.85, 0] }),
+                transform: [{ translateY: prog.interpolate({ inputRange: [0, 0.9, 1], outputRange: [0, 0, -pp] }) }],
+              }}>
+                <Pix sprite={SPLASH} palette={SPLASH_P} px={pp} />
+              </Animated.View>
+            )}
+          </View>
         );
       })}
       {snow.map((f, i) => {

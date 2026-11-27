@@ -34,7 +34,7 @@ export type DashData = {
   };
   // Pogoda ZAMIAST snu (2026-11-13, user: "sen na dashboardzie jest spoko, ale
   // on jest zaraz w zakładce obok") — `null` + `weatherHint` = stan pusty.
-  weather: { temp: string; feels: string; label: string; icon: string; tone: string; scene: WeatherToneKey; wind: number; place: string; rain: string; aqi?: { value: number; color: string } } | null;
+  weather: { temp: string; feels: string; label: string; icon: string; tone: string; scene: WeatherToneKey; wind: number; intensity?: number; place: string; rain: string; aqi?: { value: number; color: string } } | null;
   weatherHint: string;
   foodMonths: { label: string; value: number }[];
   // Czas z telefonem (2026-11-22) — rząd "screen" zamiast #JedzeniePerMiesiąc (ten domyślnie ukryty).
@@ -179,7 +179,7 @@ export function DashboardScreen(d: DashData) {
                     style={StyleSheet.absoluteFill}
                     pointerEvents="none"
                   />
-                  <WeatherScene scene={d.weather.scene} wind={d.weather.wind} />
+                  <WeatherScene scene={d.weather.scene} wind={d.weather.wind} intensity={d.weather.intensity} />
                   <LinearGradient
                     colors={['transparent', 'rgba(8,8,8,0.68)']}
                     start={{ x: 0, y: 0.5 }}

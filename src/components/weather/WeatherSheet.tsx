@@ -12,7 +12,7 @@ import AppBottomSheet from '@/components/design/AppBottomSheet';
 import { useWeatherStore } from '@/store/weatherStore';
 import { refreshWeather } from '@/hooks/useWeather';
 import { searchCity, type CityHit } from '@/services/weather';
-import { weatherCodeInfo, aqiInfo, rainSummary, cloudSummary, weatherTip, fmtTemp, weatherToneKey, uvLabel, dayLength, humidityLabel, aqiAdvice, worstPollutant, AIR_NORMS } from '@/utils/weather';
+import { weatherCodeInfo, aqiInfo, rainSummary, cloudSummary, weatherTip, fmtTemp, weatherToneKey, uvLabel, dayLength, humidityLabel, aqiAdvice, worstPollutant, AIR_NORMS, precipIntensity, precipRate } from '@/utils/weather';
 import { haptic } from '@/utils/haptics';
 
 // Układ 2026-11-22 (user: "pogodę zrobiłbym lepiej, brakuje inspiracji"): teraz → jedna karta
@@ -115,7 +115,7 @@ export default function WeatherSheet({ visible, onClose }: { visible: boolean; o
             />
             <View style={s.nowRow}>
               <View style={s.scene} pointerEvents="none">
-                <WeatherScene scene={nowKey} wind={Math.max(cur.wind, cur.gusts * 0.6)} px={4} inset={4} />
+                <WeatherScene scene={nowKey} wind={Math.max(cur.wind, cur.gusts * 0.6)} px={4} inset={4} intensity={data ? precipIntensity(nowKey, precipRate(data)) : undefined} />
               </View>
               <View style={{ flex: 1 }}>
                 {/* Duża = odczuwalna, jak na kaflu Dashboardu (2026-11-26). */}

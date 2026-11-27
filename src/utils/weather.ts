@@ -308,3 +308,18 @@ export function worstPollutant(air: AirQuality): { label: string; pct: number } 
   }
   return best;
 }
+
+// Natężenie opadu dla animacji (2026-11-27, user: "deszcz bardziej realistyczny i jego intensywność zależnie
+// od intensywności realnej"). mm/h: większe z bieżącej wartości i prognozy na tę godzinę (bieżąca bywa 0
+// tuż po starcie opadu). Skala log: 0,1 mm/h ≈ 0,1 · 1 mm/h ≈ 0,45 · 4 mm/h ≈ 0,7 · 10 mm/h+ ≈ 0,85–1.
+// Bez danych (0 mm, a kod pogody mówi "pada") — typowe natężenie dla rodzaju opadu.
+export function precipRate(w: Pick<WeatherData, 'current' | 'hourly'>): number {
+  return Math.max(n(w.current.precip), n(w.hourly[0]?.precip));
+}
+export function precipIntensity(scene: WeatherToneKey, mmPerHour: number): number {
+  const base: Partial<Record<WeatherToneKey, number>> = { drizzle: 0.2, rain: 0.45, heavy: 0.85, storm: 0.8, freezing: 0.35, snow: 0.45 };
+  if (!(mmPerHour > 0)) return base[scene] ?? 0;
+  const k = 0.45 + 0.4 * Math.log10(mmPerHour);
+  const floor = scene === 'heavy' || scene === 'storm' ? 0.6 : 0.08;
+  return Math.round(Math.min(1, Math.max(floor, k)) * 100) / 100;
+}

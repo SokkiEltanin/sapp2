@@ -15,7 +15,7 @@ import { useCalendarStore } from '@/store/calendarStore';
 import { useExpensesStore } from '@/store/expensesStore';
 import { useWeather } from '@/hooks/useWeather';
 import { useWeatherStore } from '@/store/weatherStore';
-import { weatherCodeInfo, rainSummary, aqiInfo, fmtTemp, weatherColor, weatherToneKey } from '@/utils/weather';
+import { weatherCodeInfo, rainSummary, aqiInfo, fmtTemp, weatherColor, weatherToneKey, precipIntensity, precipRate } from '@/utils/weather';
 import WeatherSheet from '@/components/weather/WeatherSheet';
 import BatterySheet from '@/components/battery/BatterySheet';
 import ScreenTimeSheet from '@/components/screen/ScreenTimeSheet';
@@ -284,6 +284,7 @@ export default function Dashboard() {
     return {
       temp: fmtTemp(wx.current.temp), feels: fmtTemp(wx.current.feels), label: info.label, icon: info.icon, tone: weatherColor(wx.current.code, wx.current.isDay),
       scene: weatherToneKey(wx.current.code, wx.current.isDay), wind: Math.max(wx.current.wind, wx.current.gusts * 0.6),
+      intensity: precipIntensity(weatherToneKey(wx.current.code, wx.current.isDay), precipRate(wx)),
       place: wx.place, rain: rainSummary(wx.hourly),
       aqi: wx.air ? { value: wx.air.aqi, color: aqiInfo(wx.air.aqi).color } : undefined,
     };
