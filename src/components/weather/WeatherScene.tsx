@@ -236,7 +236,9 @@ export default memo(function WeatherScene({ scene, wind, px: pxFixed, inset = 10
       {rain.map((d, i) => {
         const prog = wrap(d.far ? farT : d.slow ? fast2 : fast, d.ph, 0, 1);
         const col = d.far ? RAIN_FAR : RAIN_NEAR;
-        const dropW = drizzle ? pp : Math.max(1, Math.round(pp * (d.far ? 0.75 : 1)));
+        // Grubość (2026-11-27, user: "im szybszy deszcz, dłuższe kropelki — tym cieńszy; za grube"): smuga 2 px
+        // ≈ 0,9 piksela kropli, 4 px ≈ 0,6, 7 px ≈ 0,4; dalsze jeszcze cieńsze. Ułamki dp = cienka linia, nie klocek.
+        const dropW = drizzle ? pp : Math.max(0.6, Math.min(pp, (pp * 0.9) / (1 + 0.25 * (d.lenPx - 2))) * (d.far ? 0.75 : 1));
         const fall = rainFall * d.len;
         const top0 = cloudY + cloudH - px * 2 + d.y0;
         return (
